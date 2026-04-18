@@ -1,0 +1,7 @@
+name: BigCasares
+version: '0.0.1'
+main: dev.linqfy.bigCasares.BigCasares
+api-version: '1.21'
+load: STARTUP
+authors: [ linqfy ]
+description: Main manager for funi server
