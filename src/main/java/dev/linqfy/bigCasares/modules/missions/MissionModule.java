@@ -137,15 +137,15 @@ public final class MissionModule implements PluginModule {
     }
 
     public void completeFinalHitMission(Player player, Material weapon) {
-        updateMatchingMissions(player, MissionType.FINAL_HIT_PLAYER_WITH_ITEM, ProgressUpdateMode.CONDITIONAL_SET, 1, weapon, null, null);
+        updateMatchingMissions(player, MissionType.FINAL_HIT_PLAYER_WITH_ITEM, ProgressUpdateMode.INCREMENT, 1, weapon, null, null);
     }
 
     public void completeMobKillMission(Player player, String entityType, Material weapon) {
-        updateMatchingMissions(player, MissionType.KILL_ENTITY_WITH_ITEM_ONLY, ProgressUpdateMode.CONDITIONAL_SET, 1, weapon, null, entityType);
+        updateMatchingMissions(player, MissionType.KILL_ENTITY_WITH_ITEM_ONLY, ProgressUpdateMode.INCREMENT, 1, weapon, null, entityType);
     }
 
     public void completePigNameMission(Player player, String customName) {
-        updateMatchingMissions(player, MissionType.NAME_ENTITY_AFTER_PLAYER, ProgressUpdateMode.CONDITIONAL_SET, 1, null, customName, "PIG");
+        updateMatchingMissions(player, MissionType.NAME_ENTITY_AFTER_PLAYER, ProgressUpdateMode.INCREMENT, 1, null, customName, "PIG");
     }
 
     public void revalidatePassiveMissions(Player player) {

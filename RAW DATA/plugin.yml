@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────────
+#  plugin.yml — CopperApple Plugin
+#  Compatible con: Paper 1.20.x / 1.21.x (y Spigot equivalente)
+# ─────────────────────────────────────────────────────────────────
+
+name: CopperApple
+version: 1.0.0
+main: com.copperapple.CopperApplePlugin
+api-version: "1.20"
+description: "Agrega la Manzana de Cobre, un ítem personalizado con efectos únicos."
+author: "TuNombre"
+website: ""
+
+# Dependencias opcionales (ninguna requerida)
+# depend: []
+# softdepend: []
+
+# ─── Comandos ─────────────────────────────────────────────────────
+commands:
+  copperapple:
+    description: "Entrega una Manzana de Cobre al jugador especificado."
+    usage: "/<command> [jugador] [cantidad]"
+    aliases:
+      - ca
+      - capple
+    permission: copperapple.give
+    permission-message: "§cNo tenés permiso para usar este comando."
+
+# ─── Permisos ─────────────────────────────────────────────────────
+permissions:
+
+  # Permiso raíz: incluye todos los permisos del plugin
+  copperapple.*:
+    description: "Acceso completo al plugin CopperApple."
+    default: op
+    children:
+      copperapple.give: true
+      copperapple.give.others: true
+
+  # Obtener el ítem para uno mismo
+  copperapple.give:
+    description: "Permite usar /copperapple para obtener el ítem."
+    default: op
+
+  # Dar el ítem a otros jugadores
+  copperapple.give.others:
+    description: "Permite usar /copperapple <jugador> para dar el ítem a otros."
+    default: op
+    children:
+      copperapple.give: true

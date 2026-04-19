@@ -262,7 +262,7 @@ mission-system:
     daily-rename-stick:
       scope: daily
       title: "Palo premium"
-      description: "Renombra un palo a Baston del Patron."
+      description: "Renombra un palo a Consolador."
       type: RENAME_ITEM_TO_EXACT_NAME
       goal: 1
       reward: 140.0
@@ -270,11 +270,11 @@ mission-system:
       enabled: true
       params:
         material: STICK
-        name: "Baston del Patron"
+        name: "Consolador"
     daily-rename-fish:
       scope: daily
-      title: "Pescado legal"
-      description: "Renombra un bacalao a Documento Nacional."
+      title: "Mi Bagre"
+      description: "Renombra un bacalao a Mi Bagre."
       type: RENAME_ITEM_TO_EXACT_NAME
       goal: 1
       reward: 165.0
@@ -282,7 +282,7 @@ mission-system:
       enabled: true
       params:
         material: COD
-        name: "Documento Nacional"
+        name: "Mi Bagre"
     daily-pig-player-name:
       scope: daily
       title: "Cerdo doxeado"
@@ -511,6 +511,229 @@ mission-system:
       enabled: true
       params:
         material: SEAGRASS
+    daily-bed-12:
+      scope: daily
+      title: "Inspeccion matrimonial"
+      description: "Subite arriba de una cama ocupada y agachate 12 veces."
+      type: CROUCH_ON_SLEEPING_BED
+      goal: 12
+      reward: 480.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-stick-final-2:
+      scope: daily
+      title: "Violencia de jardin"
+      description: "Mata a 2 jugadores con el golpe final usando un palo."
+      type: FINAL_HIT_PLAYER_WITH_ITEM
+      goal: 2
+      reward: 1150.0
+      weight: 1
+      enabled: true
+      params:
+        material: STICK
+    daily-wooden-sword-final-2:
+      scope: daily
+      title: "Carpinteria tactica"
+      description: "Mata a 2 jugadores con el golpe final usando espada de madera."
+      type: FINAL_HIT_PLAYER_WITH_ITEM
+      goal: 2
+      reward: 1225.0
+      weight: 1
+      enabled: true
+      params:
+        material: WOODEN_SWORD
+    daily-rename-shears:
+      scope: daily
+      title: "Barberia estatal"
+      description: "Renombra unas tijeras a Ministerio del Flequillo."
+      type: RENAME_ITEM_TO_EXACT_NAME
+      goal: 1
+      reward: 180.0
+      weight: 1
+      enabled: true
+      params:
+        material: SHEARS
+        name: "Ministerio del Flequillo"
+    daily-rename-bucket:
+      scope: daily
+      title: "Recipiente diplomatico"
+      description: "Renombra un balde a Consejo del Agua."
+      type: RENAME_ITEM_TO_EXACT_NAME
+      goal: 1
+      reward: 175.0
+      weight: 1
+      enabled: true
+      params:
+        material: BUCKET
+        name: "Consejo del Agua"
+    daily-rename-flint:
+      scope: daily
+      title: "Tecnologia chiquita"
+      description: "Renombra un pedernal y acero a Startup del Fuego."
+      type: RENAME_ITEM_TO_EXACT_NAME
+      goal: 1
+      reward: 210.0
+      weight: 1
+      enabled: true
+      params:
+        material: FLINT_AND_STEEL
+        name: "Startup del Fuego"
+    daily-pig-player-name-2:
+      scope: daily
+      title: "Registro civil porcino"
+      description: "Ponle a un cerdo el nombre de otro jugador."
+      type: NAME_ENTITY_AFTER_PLAYER
+      goal: 1
+      reward: 280.0
+      weight: 1
+      enabled: true
+      params:
+        entity: PIG
+    daily-golem-kelp-2:
+      scope: daily
+      title: "Catering homicida"
+      description: "Mata a 2 iron golems usando kelp."
+      type: KILL_ENTITY_WITH_ITEM_ONLY
+      goal: 2
+      reward: 1650.0
+      weight: 1
+      enabled: true
+      params:
+        entity: IRON_GOLEM
+        material: KELP
+    daily-wax-45:
+      scope: daily
+      title: "Museo encerado"
+      description: "Encera 45 bloques de cobre."
+      type: WAX_BLOCK_COUNT
+      goal: 45
+      reward: 390.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-wax-54:
+      scope: daily
+      title: "Mantenimiento obsesivo"
+      description: "Encera 54 bloques de cobre."
+      type: WAX_BLOCK_COUNT
+      goal: 54
+      reward: 455.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-amethyst-21:
+      scope: daily
+      title: "Geologia snob"
+      description: "Consegui exactamente 21 shards de amatista."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 21
+      reward: 160.0
+      weight: 1
+      enabled: true
+      params:
+        material: AMETHYST_SHARD
+    daily-cactus-17:
+      scope: daily
+      title: "Botanica hostil"
+      description: "Consegui exactamente 17 cactus."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 17
+      reward: 120.0
+      weight: 1
+      enabled: true
+      params:
+        material: CACTUS
+    daily-lily-pad-11:
+      scope: daily
+      title: "Urbanismo anfibio"
+      description: "Consegui exactamente 11 lily pads."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 11
+      reward: 115.0
+      weight: 1
+      enabled: true
+      params:
+        material: LILY_PAD
+    daily-blackstone-44:
+      scope: daily
+      title: "Basamento oscuro"
+      description: "Consegui exactamente 44 blackstone."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 44
+      reward: 150.0
+      weight: 1
+      enabled: true
+      params:
+        material: BLACKSTONE
+    daily-netherrack-66:
+      scope: daily
+      title: "Infierno redondeado"
+      description: "Consegui exactamente 66 netherrack."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 66
+      reward: 165.0
+      weight: 1
+      enabled: true
+      params:
+        material: NETHERRACK
+    daily-carrot-37:
+      scope: daily
+      title: "Huerta delirante"
+      description: "Consegui exactamente 37 zanahorias."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 37
+      reward: 120.0
+      weight: 1
+      enabled: true
+      params:
+        material: CARROT
+    daily-potato-37:
+      scope: daily
+      title: "Papa reglamentaria"
+      description: "Consegui exactamente 37 papas."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 37
+      reward: 120.0
+      weight: 1
+      enabled: true
+      params:
+        material: POTATO
+    daily-pumpkin-y88:
+      scope: daily
+      title: "Mirador de halloween"
+      description: "Parate sobre una calabaza tallada en Y 88."
+      type: STAND_ON_BLOCK_AT_Y
+      goal: 1
+      reward: 240.0
+      weight: 1
+      enabled: true
+      params:
+        material: CARVED_PUMPKIN
+        y: 88
+    daily-sandstone-y70:
+      scope: daily
+      title: "Balcon del desierto"
+      description: "Parate sobre sandstone en Y 70."
+      type: STAND_ON_BLOCK_AT_Y
+      goal: 1
+      reward: 190.0
+      weight: 1
+      enabled: true
+      params:
+        material: SANDSTONE
+        y: 70
+    daily-gold-helmet:
+      scope: daily
+      title: "Elegancia fiscal"
+      description: "Ponete un casco de oro."
+      type: EQUIP_SPECIFIC_ITEM
+      goal: 1
+      reward: 135.0
+      weight: 1
+      enabled: true
+      params:
+        material: GOLDEN_HELMET
     weekly-bed-25:
       scope: weekly
       title: "Supervisor del descanso"
@@ -612,3 +835,69 @@ mission-system:
       weight: 1
       enabled: true
       params: {}
+    weekly-bed-40:
+      scope: weekly
+      title: "Auditor del colchon"
+      description: "Subite arriba de una cama ocupada y agachate 40 veces."
+      type: CROUCH_ON_SLEEPING_BED
+      goal: 40
+      reward: 2100.0
+      weight: 1
+      enabled: true
+      params: {}
+    weekly-wooden-sword-4:
+      scope: weekly
+      title: "Feudalismo ofensivo"
+      description: "Mata a 4 jugadores con el golpe final usando espada de madera."
+      type: FINAL_HIT_PLAYER_WITH_ITEM
+      goal: 4
+      reward: 2600.0
+      weight: 1
+      enabled: true
+      params:
+        material: WOODEN_SWORD
+    weekly-wax-96:
+      scope: weekly
+      title: "Monumento barnizado"
+      description: "Encera 96 bloques de cobre."
+      type: WAX_BLOCK_COUNT
+      goal: 96
+      reward: 2450.0
+      weight: 1
+      enabled: true
+      params: {}
+    weekly-golem-kelp-3:
+      scope: weekly
+      title: "Buffet antagolem"
+      description: "Mata a 3 iron golems usando kelp."
+      type: KILL_ENTITY_WITH_ITEM_ONLY
+      goal: 3
+      reward: 4200.0
+      weight: 1
+      enabled: true
+      params:
+        entity: IRON_GOLEM
+        material: KELP
+    weekly-pig-double:
+      scope: weekly
+      title: "Censo chanchistico"
+      description: "Ponle nombre de jugador a 2 cerdos."
+      type: NAME_ENTITY_AFTER_PLAYER
+      goal: 2
+      reward: 1600.0
+      weight: 1
+      enabled: true
+      params:
+        entity: PIG
+    weekly-binding-pumpkin-y155:
+      scope: weekly
+      title: "Moda de altura"
+      description: "Ponete una calabaza con maldicion de ligadura y bancala toda la semana."
+      type: EQUIP_SPECIFIC_ITEM
+      goal: 1
+      reward: 1750.0
+      weight: 1
+      enabled: true
+      params:
+        material: CARVED_PUMPKIN
+        binding-curse: true

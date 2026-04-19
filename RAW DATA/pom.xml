@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ─── Identificación del proyecto ─────────────────────────────── -->
+    <groupId>com.copperapple</groupId>
+    <artifactId>CopperApple</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>CopperApple</name>
+    <description>Plugin de Manzana de Cobre para Paper/Spigot</description>
+
+    <!-- ─── Propiedades ──────────────────────────────────────────────── -->
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Cambiar esta versión según tu servidor (1.20.4, 1.21, etc.) -->
+        <paper.version>1.20.4-R0.1-SNAPSHOT</paper.version>
+    </properties>
+
+    <!-- ─── Repositorios ─────────────────────────────────────────────── -->
+    <repositories>
+        <!-- Repositorio oficial de Paper -->
+        <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+    </repositories>
+
+    <!-- ─── Dependencias ─────────────────────────────────────────────── -->
+    <dependencies>
+        <!-- Paper API: solo para compilar, no se incluye en el jar final -->
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>${paper.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- ─── Build ────────────────────────────────────────────────────── -->
+    <build>
+        <!-- Nombre del jar de salida: CopperApple-1.0.0.jar -->
+        <finalName>${project.name}-${project.version}</finalName>
+
+        <plugins>
+            <!-- Compilador Java con versión 17 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- Shade: empaqueta todo en un único jar listo para usar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Excluir el jar original sin shading -->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+
+        <!-- Incluir los recursos (plugin.yml) en el jar -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
+
+</project>
