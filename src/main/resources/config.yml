@@ -1,0 +1,614 @@
+modules:
+  copper-apple: true
+  mission-system: true
+
+copper-apple:
+  consume-cooldown-ms: 5000
+
+mission-system:
+  daily:
+    count: 3
+  weekly:
+    count: 2
+  reset:
+    daily-hour: 8
+    weekly-day: MONDAY
+    weekly-hour: 8
+  missions:
+    daily-bed-5:
+      scope: daily
+      title: "Salto de cama"
+      description: "Subite arriba de la cama de alguien durmiendo y agachate 5 veces."
+      type: CROUCH_ON_SLEEPING_BED
+      goal: 5
+      reward: 250.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-bed-7:
+      scope: daily
+      title: "Insistencia nocturna"
+      description: "Subite arriba de una cama ocupada y agachate 7 veces."
+      type: CROUCH_ON_SLEEPING_BED
+      goal: 7
+      reward: 320.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-bed-10:
+      scope: daily
+      title: "Rebote indecente"
+      description: "Subite arriba de una cama ocupada y agachate 10 veces."
+      type: CROUCH_ON_SLEEPING_BED
+      goal: 10
+      reward: 420.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-stick-final:
+      scope: daily
+      title: "Palazo final"
+      description: "Mata a un jugador con el golpe final usando un palo."
+      type: FINAL_HIT_PLAYER_WITH_ITEM
+      goal: 1
+      reward: 650.0
+      weight: 1
+      enabled: true
+      params:
+        material: STICK
+    daily-wooden-sword-final:
+      scope: daily
+      title: "Espadita cruel"
+      description: "Mata a un jugador con espada de madera en el golpe final."
+      type: FINAL_HIT_PLAYER_WITH_ITEM
+      goal: 1
+      reward: 700.0
+      weight: 1
+      enabled: true
+      params:
+        material: WOODEN_SWORD
+    daily-tuff-67:
+      scope: daily
+      title: "Toba exacta"
+      description: "Consegui exactamente 67 bloques de toba."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 67
+      reward: 175.0
+      weight: 1
+      enabled: true
+      params:
+        material: TUFF
+    daily-cobblestone-32:
+      scope: daily
+      title: "Piedra precisa"
+      description: "Consegui exactamente 32 bloques de cobblestone."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 32
+      reward: 120.0
+      weight: 1
+      enabled: true
+      params:
+        material: COBBLESTONE
+    daily-sand-49:
+      scope: daily
+      title: "Arena calibrada"
+      description: "Consegui exactamente 49 bloques de arena."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 49
+      reward: 150.0
+      weight: 1
+      enabled: true
+      params:
+        material: SAND
+    daily-diorite-24:
+      scope: daily
+      title: "Diorita medida"
+      description: "Consegui exactamente 24 bloques de diorita."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 24
+      reward: 110.0
+      weight: 1
+      enabled: true
+      params:
+        material: DIORITE
+    daily-granite-48:
+      scope: daily
+      title: "Granito justo"
+      description: "Consegui exactamente 48 bloques de granito."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 48
+      reward: 140.0
+      weight: 1
+      enabled: true
+      params:
+        material: GRANITE
+    daily-andesite-48:
+      scope: daily
+      title: "Andesita justa"
+      description: "Consegui exactamente 48 bloques de andesita."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 48
+      reward: 140.0
+      weight: 1
+      enabled: true
+      params:
+        material: ANDESITE
+    daily-kelp-64:
+      scope: daily
+      title: "Merienda marina"
+      description: "Consegui exactamente 64 kelp."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 64
+      reward: 135.0
+      weight: 1
+      enabled: true
+      params:
+        material: KELP
+    daily-honeycomb-16:
+      scope: daily
+      title: "Apicultura minima"
+      description: "Consegui exactamente 16 honeycomb."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 16
+      reward: 160.0
+      weight: 1
+      enabled: true
+      params:
+        material: HONEYCOMB
+    daily-copper-21:
+      scope: daily
+      title: "Cobre parejo"
+      description: "Consegui exactamente 21 bloques de cobre."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 21
+      reward: 155.0
+      weight: 1
+      enabled: true
+      params:
+        material: COPPER_BLOCK
+    daily-moss-40:
+      scope: daily
+      title: "Musgo decimal"
+      description: "Consegui exactamente 40 bloques de musgo."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 40
+      reward: 145.0
+      weight: 1
+      enabled: true
+      params:
+        material: MOSS_BLOCK
+    daily-dripstone-30:
+      scope: daily
+      title: "Piedra pinchuda"
+      description: "Consegui exactamente 30 pointed dripstone."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 30
+      reward: 145.0
+      weight: 1
+      enabled: true
+      params:
+        material: POINTED_DRIPSTONE
+    daily-carved-pumpkin:
+      scope: daily
+      title: "Cabeza de feria"
+      description: "Ponete una calabaza tallada en la cabeza."
+      type: EQUIP_SPECIFIC_ITEM
+      goal: 1
+      reward: 125.0
+      weight: 1
+      enabled: true
+      params:
+        material: CARVED_PUMPKIN
+    daily-binding-pumpkin:
+      scope: daily
+      title: "Mal gusto permanente"
+      description: "Ponete una calabaza con maldicion de ligadura."
+      type: EQUIP_SPECIFIC_ITEM
+      goal: 1
+      reward: 300.0
+      weight: 1
+      enabled: true
+      params:
+        material: CARVED_PUMPKIN
+        binding-curse: true
+    daily-diorite-y155:
+      scope: daily
+      title: "Punto de diorita"
+      description: "Parate sobre diorita en Y 155."
+      type: STAND_ON_BLOCK_AT_Y
+      goal: 1
+      reward: 280.0
+      weight: 1
+      enabled: true
+      params:
+        material: DIORITE
+        y: 155
+    daily-stone-y100:
+      scope: daily
+      title: "Roca del cielo"
+      description: "Parate sobre piedra en Y 100."
+      type: STAND_ON_BLOCK_AT_Y
+      goal: 1
+      reward: 180.0
+      weight: 1
+      enabled: true
+      params:
+        material: STONE
+        y: 100
+    daily-obsidian-y12:
+      scope: daily
+      title: "Subsuelo ritual"
+      description: "Parate sobre obsidiana en Y 12."
+      type: STAND_ON_BLOCK_AT_Y
+      goal: 1
+      reward: 240.0
+      weight: 1
+      enabled: true
+      params:
+        material: OBSIDIAN
+        y: 12
+    daily-rename-hoe:
+      scope: daily
+      title: "Diplomacia rural"
+      description: "Renombra una azada de netherita a Tel Aviv 2027."
+      type: RENAME_ITEM_TO_EXACT_NAME
+      goal: 1
+      reward: 500.0
+      weight: 1
+      enabled: true
+      params:
+        material: NETHERITE_HOE
+        name: "Tel Aviv 2027"
+    daily-rename-stick:
+      scope: daily
+      title: "Palo premium"
+      description: "Renombra un palo a Baston del Patron."
+      type: RENAME_ITEM_TO_EXACT_NAME
+      goal: 1
+      reward: 140.0
+      weight: 1
+      enabled: true
+      params:
+        material: STICK
+        name: "Baston del Patron"
+    daily-rename-fish:
+      scope: daily
+      title: "Pescado legal"
+      description: "Renombra un bacalao a Documento Nacional."
+      type: RENAME_ITEM_TO_EXACT_NAME
+      goal: 1
+      reward: 165.0
+      weight: 1
+      enabled: true
+      params:
+        material: COD
+        name: "Documento Nacional"
+    daily-pig-player-name:
+      scope: daily
+      title: "Cerdo doxeado"
+      description: "Ponle a un cerdo el nombre de un jugador."
+      type: NAME_ENTITY_AFTER_PLAYER
+      goal: 1
+      reward: 260.0
+      weight: 1
+      enabled: true
+      params:
+        entity: PIG
+    daily-golem-kelp:
+      scope: daily
+      title: "Ensalada asesina"
+      description: "Mata a un iron golem usando kelp."
+      type: KILL_ENTITY_WITH_ITEM_ONLY
+      goal: 1
+      reward: 800.0
+      weight: 1
+      enabled: true
+      params:
+        entity: IRON_GOLEM
+        material: KELP
+    daily-wax-16:
+      scope: daily
+      title: "Brillo inicial"
+      description: "Encera 16 bloques de cobre."
+      type: WAX_BLOCK_COUNT
+      goal: 16
+      reward: 180.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-wax-24:
+      scope: daily
+      title: "Mantenimiento fino"
+      description: "Encera 24 bloques de cobre."
+      type: WAX_BLOCK_COUNT
+      goal: 24
+      reward: 230.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-wax-32:
+      scope: daily
+      title: "Barniz industrial"
+      description: "Encera 32 bloques de cobre."
+      type: WAX_BLOCK_COUNT
+      goal: 32
+      reward: 290.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-wax-67:
+      scope: daily
+      title: "Apicultura metalica"
+      description: "Encera 67 bloques de cobre."
+      type: WAX_BLOCK_COUNT
+      goal: 67
+      reward: 520.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-clay-27:
+      scope: daily
+      title: "Barro exacto"
+      description: "Consegui exactamente 27 bloques de arcilla."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 27
+      reward: 135.0
+      weight: 1
+      enabled: true
+      params:
+        material: CLAY
+    daily-bricks-18:
+      scope: daily
+      title: "Ladrillo formal"
+      description: "Consegui exactamente 18 ladrillos."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 18
+      reward: 130.0
+      weight: 1
+      enabled: true
+      params:
+        material: BRICK
+    daily-pumpkin-9:
+      scope: daily
+      title: "Huerta mini"
+      description: "Consegui exactamente 9 calabazas."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 9
+      reward: 100.0
+      weight: 1
+      enabled: true
+      params:
+        material: PUMPKIN
+    daily-melon-13:
+      scope: daily
+      title: "Fruta impar"
+      description: "Consegui exactamente 13 melones."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 13
+      reward: 105.0
+      weight: 1
+      enabled: true
+      params:
+        material: MELON
+    daily-feather-21:
+      scope: daily
+      title: "Pluma rigurosa"
+      description: "Consegui exactamente 21 plumas."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 21
+      reward: 120.0
+      weight: 1
+      enabled: true
+      params:
+        material: FEATHER
+    daily-rotten-flesh-40:
+      scope: daily
+      title: "Dieta cuestionable"
+      description: "Consegui exactamente 40 rotten flesh."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 40
+      reward: 125.0
+      weight: 1
+      enabled: true
+      params:
+        material: ROTTEN_FLESH
+    daily-bone-33:
+      scope: daily
+      title: "Osamenta afinada"
+      description: "Consegui exactamente 33 huesos."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 33
+      reward: 125.0
+      weight: 1
+      enabled: true
+      params:
+        material: BONE
+    daily-string-28:
+      scope: daily
+      title: "Costura hostil"
+      description: "Consegui exactamente 28 hilos."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 28
+      reward: 125.0
+      weight: 1
+      enabled: true
+      params:
+        material: STRING
+    daily-slime-14:
+      scope: daily
+      title: "Gelatina reglamentaria"
+      description: "Consegui exactamente 14 slimeballs."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 14
+      reward: 145.0
+      weight: 1
+      enabled: true
+      params:
+        material: SLIME_BALL
+    daily-gunpowder-17:
+      scope: daily
+      title: "Polvora medida"
+      description: "Consegui exactamente 17 gunpowder."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 17
+      reward: 150.0
+      weight: 1
+      enabled: true
+      params:
+        material: GUNPOWDER
+    daily-quartz-23:
+      scope: daily
+      title: "Blanco nether"
+      description: "Consegui exactamente 23 cuarzos del nether."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 23
+      reward: 145.0
+      weight: 1
+      enabled: true
+      params:
+        material: QUARTZ
+    daily-basalt-36:
+      scope: daily
+      title: "Basalto sobrio"
+      description: "Consegui exactamente 36 bloques de basalto."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 36
+      reward: 145.0
+      weight: 1
+      enabled: true
+      params:
+        material: BASALT
+    daily-soul-sand-12:
+      scope: daily
+      title: "Arena existencial"
+      description: "Consegui exactamente 12 soul sand."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 12
+      reward: 135.0
+      weight: 1
+      enabled: true
+      params:
+        material: SOUL_SAND
+    daily-blue-ice-8:
+      scope: daily
+      title: "Frio administrativo"
+      description: "Consegui exactamente 8 blue ice."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 8
+      reward: 145.0
+      weight: 1
+      enabled: true
+      params:
+        material: BLUE_ICE
+    daily-seagrass-25:
+      scope: daily
+      title: "Pasto acuatico"
+      description: "Consegui exactamente 25 seagrass."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 25
+      reward: 120.0
+      weight: 1
+      enabled: true
+      params:
+        material: SEAGRASS
+    weekly-bed-25:
+      scope: weekly
+      title: "Supervisor del descanso"
+      description: "Subite arriba de una cama ocupada y agachate 25 veces."
+      type: CROUCH_ON_SLEEPING_BED
+      goal: 25
+      reward: 1400.0
+      weight: 1
+      enabled: true
+      params: {}
+    weekly-stick-3:
+      scope: weekly
+      title: "Serial del palo"
+      description: "Mata a 3 jugadores con el golpe final usando un palo."
+      type: FINAL_HIT_PLAYER_WITH_ITEM
+      goal: 3
+      reward: 2100.0
+      weight: 1
+      enabled: true
+      params:
+        material: STICK
+    weekly-tuff-67:
+      scope: weekly
+      title: "Toba institucional"
+      description: "Consegui exactamente 67 bloques de toba."
+      type: HOLD_EXACT_ITEM_COUNT
+      goal: 67
+      reward: 900.0
+      weight: 1
+      enabled: true
+      params:
+        material: TUFF
+    weekly-rename-hoe:
+      scope: weekly
+      title: "Tratado agrario"
+      description: "Renombra una azada de netherita a Tel Aviv 2027."
+      type: RENAME_ITEM_TO_EXACT_NAME
+      goal: 1
+      reward: 1600.0
+      weight: 1
+      enabled: true
+      params:
+        material: NETHERITE_HOE
+        name: "Tel Aviv 2027"
+    weekly-pig-player-name:
+      scope: weekly
+      title: "Registro porcino"
+      description: "Ponle a un cerdo el nombre de un jugador."
+      type: NAME_ENTITY_AFTER_PLAYER
+      goal: 1
+      reward: 950.0
+      weight: 1
+      enabled: true
+      params:
+        entity: PIG
+    weekly-binding-pumpkin:
+      scope: weekly
+      title: "Moda irreversible"
+      description: "Ponete una calabaza con maldicion de ligadura."
+      type: EQUIP_SPECIFIC_ITEM
+      goal: 1
+      reward: 1000.0
+      weight: 1
+      enabled: true
+      params:
+        material: CARVED_PUMPKIN
+        binding-curse: true
+    weekly-diorite-y155:
+      scope: weekly
+      title: "Pico de diorita"
+      description: "Parate sobre diorita en Y 155."
+      type: STAND_ON_BLOCK_AT_Y
+      goal: 1
+      reward: 1100.0
+      weight: 1
+      enabled: true
+      params:
+        material: DIORITE
+        y: 155
+    weekly-golem-kelp:
+      scope: weekly
+      title: "Chef de golems"
+      description: "Mata a un iron golem usando kelp."
+      type: KILL_ENTITY_WITH_ITEM_ONLY
+      goal: 1
+      reward: 2500.0
+      weight: 1
+      enabled: true
+      params:
+        entity: IRON_GOLEM
+        material: KELP
+    weekly-wax-67:
+      scope: weekly
+      title: "Patrimonio encerado"
+      description: "Encera 67 bloques de cobre."
+      type: WAX_BLOCK_COUNT
+      goal: 67
+      reward: 1800.0
+      weight: 1
+      enabled: true
+      params: {}

@@ -1,0 +1,52 @@
+package dev.linqfy.bigCasares.modules.missions;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
+
+public final class MissionRotationPolicy {
+
+    private final Random random;
+
+    public MissionRotationPolicy(Random random) {
+        this.random = random;
+    }
+
+    public MissionPlayerState createFreshState(
+        UUID playerId,
+        MissionCatalog catalog,
+        int dailyCount,
+        int weeklyCount,
+        Instant now,
+        Instant dailyReset,
+        Instant weeklyReset
+    ) {
+        return new MissionPlayerState(
+            playerId,
+            now,
+            dailyReset,
+            weeklyReset,
+            select(playerId, catalog.byScope(MissionScope.DAILY), dailyCount),
+            select(playerId, catalog.byScope(MissionScope.WEEKLY), weeklyCount)
+        );
+    }
+
+    private Map<String, MissionAssignment> select(UUID playerId, List<MissionDefinition> pool, int count) {
+        List<MissionDefinition> shuffled = new ArrayList<>(pool);
+        long seed = random.nextLong() ^ playerId.getMostSignificantBits() ^ playerId.getLeastSignificantBits();
+        Collections.shuffle(shuffled, new Random(seed));
+
+        Map<String, MissionAssignment> assignments = new LinkedHashMap<>();
+        int limit = Math.min(count, shuffled.size());
+        for (int i = 0; i < limit; i++) {
+            MissionDefinition definition = shuffled.get(i);
+            assignments.put(definition.id(), new MissionAssignment(definition, MissionProgressSnapshot.fresh()));
+        }
+        return assignments;
+    }
+}

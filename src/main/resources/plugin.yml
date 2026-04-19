@@ -1,7 +1,47 @@
 name: BigCasares
-version: '0.0.1'
+version: '${version}'
 main: dev.linqfy.bigCasares.BigCasares
 api-version: '1.21'
 load: STARTUP
+softdepend: [Vault]
 authors: [ linqfy ]
-description: Main manager for funi server
+description: BigCasares core plugin for server modules
+
+commands:
+  bigcasares:
+    description: BigCasares management command
+    usage: /<command> give <item_id> [player] [amount]
+    aliases: [ bc ]
+
+permissions:
+  bigcasares.*:
+    description: Full access to BigCasares commands
+    default: op
+    children:
+      bigcasares.command.give: true
+      bigcasares.command.give.others: true
+      bigcasares.missions.open: true
+      bigcasares.missions.claim: true
+      bigcasares.missions.admin: true
+
+  bigcasares.command.give:
+    description: Give BigCasares custom items to yourself
+    default: op
+
+  bigcasares.command.give.others:
+    description: Give BigCasares custom items to other players
+    default: op
+    children:
+      bigcasares.command.give: true
+
+  bigcasares.missions.open:
+    description: Open the mission HUD
+    default: true
+
+  bigcasares.missions.claim:
+    description: Claim mission rewards
+    default: true
+
+  bigcasares.missions.admin:
+    description: Manage player missions
+    default: op

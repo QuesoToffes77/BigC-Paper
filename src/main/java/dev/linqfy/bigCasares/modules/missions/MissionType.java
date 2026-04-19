@@ -1,0 +1,13 @@
+package dev.linqfy.bigCasares.modules.missions;
+
+public enum MissionType {
+    CROUCH_ON_SLEEPING_BED,
+    FINAL_HIT_PLAYER_WITH_ITEM,
+    HOLD_EXACT_ITEM_COUNT,
+    RENAME_ITEM_TO_EXACT_NAME,
+    NAME_ENTITY_AFTER_PLAYER,
+    EQUIP_SPECIFIC_ITEM,
+    STAND_ON_BLOCK_AT_Y,
+    KILL_ENTITY_WITH_ITEM_ONLY,
+    WAX_BLOCK_COUNT
+}
