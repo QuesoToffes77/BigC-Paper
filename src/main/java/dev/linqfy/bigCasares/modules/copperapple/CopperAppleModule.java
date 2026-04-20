@@ -5,7 +5,6 @@ import dev.linqfy.bigCasares.module.PluginModule;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.inventory.ShapedRecipe;
 
 public final class CopperAppleModule implements PluginModule {
@@ -34,7 +33,6 @@ public final class CopperAppleModule implements PluginModule {
 
         registerRecipe();
         registerListeners();
-        registerCommands();
     }
 
     @Override
@@ -61,15 +59,4 @@ public final class CopperAppleModule implements PluginModule {
         );
     }
 
-    private void registerCommands() {
-        PluginCommand command = plugin.getCommand("bigcasares");
-        if (command == null) {
-            plugin.getLogger().warning("Command 'bigcasares' is not declared in plugin.yml");
-            return;
-        }
-
-        CopperAppleCommand handler = new CopperAppleCommand(plugin);
-        command.setExecutor(handler);
-        command.setTabCompleter(handler);
-    }
 }

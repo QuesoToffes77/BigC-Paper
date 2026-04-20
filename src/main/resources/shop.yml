@@ -1,0 +1,61 @@
+categories:
+  blocks:
+    name: "&6Bloques"
+    icon: STONE
+    slot: 10
+    items:
+      stone_stack:
+        slot: 10
+        material: STONE
+        amount: 64
+        display-name: "&fPiedra"
+        lore:
+          - "&7Stack basico para construir."
+        buy-price: 64.0
+        sell-price: 4.0
+      cobblestone_stack:
+        slot: 12
+        material: COBBLESTONE
+        amount: 64
+        display-name: "&7Cobblestone"
+        lore:
+          - "&7Barata para empezar."
+        buy-price: 48.0
+        sell-price: 3.0
+  food:
+    name: "&cComida"
+    icon: BREAD
+    slot: 13
+    items:
+      bread:
+        slot: 10
+        material: BREAD
+        amount: 16
+        display-name: "&6Pan"
+        lore:
+          - "&7Pack de supervivencia."
+        buy-price: 40.0
+        sell-price: 2.0
+      apple:
+        slot: 12
+        material: APPLE
+        amount: 16
+        display-name: "&cManzanas"
+        lore:
+          - "&7Por si no hay vacas."
+        buy-price: 52.0
+        sell-price: 2.0
+  custom:
+    name: "&bCustom"
+    icon: APPLE
+    slot: 16
+    items:
+      copper_apple:
+        slot: 10
+        custom-item-id: copper_apple
+        amount: 1
+        display-name: "&6Copper Apple"
+        lore:
+          - "&7Item custom del servidor."
+        buy-price: 1500.0
+        sell-price: 50.0

@@ -1,9 +1,25 @@
 modules:
   copper-apple: true
+  smoke-bomb: true
   mission-system: true
+  bounty-system: true
+  shop-system: true
+  inventory-limit: true
+
+inventory-limit:
+  limits:
+    TOTEM_OF_UNDYING: 3
 
 copper-apple:
   consume-cooldown-ms: 5000
+
+smoke-bomb:
+  duration-ticks: 600
+  width: 12.0
+  depth: 12.0
+  height: 5.0
+  linger-ticks: 40
+  smoke-burst-interval-ticks: 100
 
 mission-system:
   daily:
@@ -901,3 +917,15 @@ mission-system:
       params:
         material: CARVED_PUMPKIN
         binding-curse: true
+
+bounty-system:
+  economy:
+    take-percent: 0.30
+    bounty-percent: 0.20
+    minimum-balance: 100.0
+    minimum-bounty: 25.0
+  messages:
+    payout: "&aCobraste {amount} por la bounty de {victim}."
+    new-bounty-victim: "&cTu muerte genero una nueva bounty de {amount}."
+    new-bounty-killer: "&e{victim} ahora tiene una nueva bounty de {amount}."
+    no-refresh: "&7{victim} no tenia balance suficiente para generar nueva bounty."

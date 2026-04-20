@@ -23,11 +23,11 @@ La intencion es crear un loop PvP donde matar a un jugador rico genera riesgo pe
 - Nuevo calculo de bounty sobre la misma victima en la misma muerte, usando su balance restante
 - Configuracion de porcentajes y minimos desde `config.yml`
 - Mensajeria basica para killer y victima
+- HUDs, menus o GUI para listar bounties
+- Comandos administrativos o de jugador para gestionar bounties manualmente
 
 ## Fuera De Alcance
 
-- Comandos administrativos o de jugador para crear bounties manualmente
-- HUDs, menus o GUI para listar bounties
 - Rankings, leaderboards o top de cazadores
 - Integracion con bases de datos externas
 - Economia fallback sin Vault

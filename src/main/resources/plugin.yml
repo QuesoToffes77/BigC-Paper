@@ -12,6 +12,9 @@ commands:
     description: BigCasares management command
     usage: /<command> give <item_id> [player] [amount]
     aliases: [ bc ]
+  shop:
+    description: Open the BigCasares shop
+    usage: /<command>
 
 permissions:
   bigcasares.*:
@@ -23,6 +26,8 @@ permissions:
       bigcasares.missions.open: true
       bigcasares.missions.claim: true
       bigcasares.missions.admin: true
+      bigcasares.shop.open: true
+      bigcasares.shop.reload: true
 
   bigcasares.command.give:
     description: Give BigCasares custom items to yourself
@@ -44,4 +49,12 @@ permissions:
 
   bigcasares.missions.admin:
     description: Manage player missions
+    default: op
+
+  bigcasares.shop.open:
+    description: Open the server shop
+    default: true
+
+  bigcasares.shop.reload:
+    description: Reload BigCasares configs
     default: op
