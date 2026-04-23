@@ -3,6 +3,7 @@ package dev.linqfy.bigCasares;
 import dev.linqfy.bigCasares.items.CustomItemRegistry;
 import dev.linqfy.bigCasares.command.BigCasaresCommand;
 import dev.linqfy.bigCasares.module.ModuleManager;
+import dev.linqfy.bigCasares.modules.airdrop.AirdropModule;
 import dev.linqfy.bigCasares.modules.bounties.BountyModule;
 import dev.linqfy.bigCasares.modules.copperapple.CopperAppleModule;
 import dev.linqfy.bigCasares.modules.inventorylimit.InventoryLimitModule;
@@ -21,6 +22,7 @@ public final class BigCasares extends JavaPlugin {
     private BountyModule bountyModule;
     private ShopModule shopModule;
     private InventoryLimitModule inventoryLimitModule;
+    private AirdropModule airdropModule;
 
     @Override
     public void onEnable() {
@@ -61,6 +63,10 @@ public final class BigCasares extends JavaPlugin {
         return inventoryLimitModule;
     }
 
+    public AirdropModule getAirdropModule() {
+        return airdropModule;
+    }
+
     public void reloadPluginState() {
         if (moduleManager != null) {
             moduleManager.disableActiveModules();
@@ -89,6 +95,7 @@ public final class BigCasares extends JavaPlugin {
         this.bountyModule = new BountyModule(this);
         this.shopModule = new ShopModule(this);
         this.inventoryLimitModule = new InventoryLimitModule(this);
+        this.airdropModule = new AirdropModule(this);
 
         moduleManager.register(new CopperAppleModule(this));
         moduleManager.register(new SmokeBombModule(this));
@@ -96,6 +103,7 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(bountyModule);
         moduleManager.register(shopModule);
         moduleManager.register(inventoryLimitModule);
+        moduleManager.register(airdropModule);
         moduleManager.enableRegisteredModules();
     }
 
