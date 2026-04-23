@@ -15,6 +15,10 @@ commands:
   shop:
     description: Open the BigCasares shop
     usage: /<command>
+  airdrop:
+    description: Airdrop management command
+    usage: /<command> spawn
+    permission: bigcasares.airdrop.spawn
 
 permissions:
   bigcasares.*:
@@ -57,4 +61,8 @@ permissions:
 
   bigcasares.shop.reload:
     description: Reload BigCasares configs
+    default: op
+
+  bigcasares.airdrop.spawn:
+    description: Spawn airdrop manually
     default: op
