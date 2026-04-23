@@ -74,6 +74,10 @@ public final class ModuleManager {
     }
 
     private boolean isEnabledInConfig(String moduleId) {
+        String nestedPath = "modules." + moduleId + ".enabled";
+        if (config.contains(nestedPath)) {
+            return config.getBoolean(nestedPath, true);
+        }
         return config.getBoolean("modules." + moduleId, true);
     }
 
