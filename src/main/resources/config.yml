@@ -5,6 +5,8 @@ modules:
   bounty-system: true
   shop-system: true
   inventory-limit: true
+  airdrop-system:
+    enabled: true
 
 inventory-limit:
   limits:
@@ -929,3 +931,8 @@ bounty-system:
     new-bounty-victim: "&cTu muerte genero una nueva bounty de {amount}."
     new-bounty-killer: "&e{victim} ahora tiene una nueva bounty de {amount}."
     no-refresh: "&7{victim} no tenia balance suficiente para generar nueva bounty."
+
+airdrop-system:
+  interval-minutes: 360
+  radius: 500
+  drop-height: 100
