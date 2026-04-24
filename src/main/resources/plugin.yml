@@ -6,6 +6,8 @@ load: STARTUP
 softdepend: [Vault]
 authors: [ linqfy ]
 description: BigCasares core plugin for server modules
+libraries:
+  - com.pocketcombats:openskill:1.1
 
 commands:
   bigcasares:

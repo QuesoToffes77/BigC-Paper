@@ -8,6 +8,7 @@ import dev.linqfy.bigCasares.modules.copperapple.CopperAppleModule;
 import dev.linqfy.bigCasares.modules.inventorylimit.InventoryLimitModule;
 import dev.linqfy.bigCasares.modules.missions.MissionModule;
 import dev.linqfy.bigCasares.modules.shop.ShopModule;
+import dev.linqfy.bigCasares.modules.skillrating.SkillRatingModule;
 import dev.linqfy.bigCasares.modules.smokebomb.SmokeBombModule;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
@@ -21,6 +22,7 @@ public final class BigCasares extends JavaPlugin {
     private BountyModule bountyModule;
     private ShopModule shopModule;
     private InventoryLimitModule inventoryLimitModule;
+    private SkillRatingModule skillRatingModule;
 
     @Override
     public void onEnable() {
@@ -61,6 +63,10 @@ public final class BigCasares extends JavaPlugin {
         return inventoryLimitModule;
     }
 
+    public SkillRatingModule getSkillRatingModule() {
+        return skillRatingModule;
+    }
+
     public void reloadPluginState() {
         if (moduleManager != null) {
             moduleManager.disableActiveModules();
@@ -89,6 +95,7 @@ public final class BigCasares extends JavaPlugin {
         this.bountyModule = new BountyModule(this);
         this.shopModule = new ShopModule(this);
         this.inventoryLimitModule = new InventoryLimitModule(this);
+        this.skillRatingModule = new SkillRatingModule(this);
 
         moduleManager.register(new CopperAppleModule(this));
         moduleManager.register(new SmokeBombModule(this));
@@ -96,6 +103,7 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(bountyModule);
         moduleManager.register(shopModule);
         moduleManager.register(inventoryLimitModule);
+        moduleManager.register(skillRatingModule);
         moduleManager.enableRegisteredModules();
     }
 

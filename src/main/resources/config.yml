@@ -5,6 +5,7 @@ modules:
   bounty-system: true
   shop-system: true
   inventory-limit: true
+  skill-rating-system: true
 
 inventory-limit:
   limits:
@@ -929,3 +930,14 @@ bounty-system:
     new-bounty-victim: "&cTu muerte genero una nueva bounty de {amount}."
     new-bounty-killer: "&e{victim} ahora tiene una nueva bounty de {amount}."
     no-refresh: "&7{victim} no tenia balance suficiente para generar nueva bounty."
+
+skill-rating-system:
+  default-mu: 25.0
+  default-sigma: 8.333333333333334
+  ordinal-sigma-multiplier: 3.0
+  skill-rating-scale: 100.0
+  tier-thresholds:
+    - 500.0
+    - 1500.0
+    - 2500.0
+    - 3500.0
