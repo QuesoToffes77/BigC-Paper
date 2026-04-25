@@ -49,4 +49,25 @@ class InventoryLimitServiceTest {
         assertTrue(service.canAccept(contents, Material.TOTEM_OF_UNDYING, 1));
         assertFalse(service.canAccept(contents, Material.TOTEM_OF_UNDYING, 2));
     }
+
+    @Test
+    void rawEchoShardsAreLimitedToEight() {
+        InventoryLimitService service = new InventoryLimitService(Map.of(Material.ECHO_SHARD, 8));
+        ItemStack[] contents = {
+            new ItemStack(Material.ECHO_SHARD, 7)
+        };
+
+        assertTrue(service.canAccept(contents, Material.ECHO_SHARD, 1));
+        assertFalse(service.canAccept(contents, Material.ECHO_SHARD, 2));
+    }
+
+    @Test
+    void chargedCrossbowPolicyCountsOnlyEchoChargedCrossbows() {
+        EchoChargedCrossbowLimitPolicy policy = new EchoChargedCrossbowLimitPolicy(3);
+
+        assertEquals(1, policy.overflow(4));
+        assertEquals(0, policy.overflow(3));
+        assertTrue(policy.canAccept(2, 1));
+        assertFalse(policy.canAccept(3, 1));
+    }
 }

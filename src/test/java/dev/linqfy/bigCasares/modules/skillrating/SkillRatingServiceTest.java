@@ -47,6 +47,23 @@ class SkillRatingServiceTest {
         assertEquals(1000.0, settings.skillRating(35.0, 25.0 / 3.0), 0.0001);
     }
 
+    @Test
+    void formatsRatingCommandLine() {
+        SkillRatingState state = new SkillRatingState(
+            UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            31.234,
+            7.891,
+            756.78,
+            2,
+            Instant.parse("2026-04-24T12:00:00Z")
+        );
+
+        assertEquals(
+            "Skill Rating de linqfy: 757 | Tier 2 | mu 31.23 | sigma 7.89",
+            SkillRatingView.format("linqfy", state)
+        );
+    }
+
     private static final class InMemorySkillRatingStorage implements SkillRatingStorage {
         private final Map<UUID, SkillRatingState> states = new HashMap<>();
 

@@ -3,7 +3,7 @@ version: '${version}'
 main: dev.linqfy.bigCasares.BigCasares
 api-version: '1.21'
 load: STARTUP
-softdepend: [Vault]
+softdepend: [Vault, packetevents]
 authors: [ linqfy ]
 description: BigCasares core plugin for server modules
 libraries:
@@ -17,6 +17,13 @@ commands:
   shop:
     description: Open the BigCasares shop
     usage: /<command>
+  rating:
+    description: View skill rating
+    usage: /<command> [player]
+  airdrop:
+    description: Airdrop management command
+    usage: /<command> spawn
+    permission: bigcasares.airdrop.spawn
 
 permissions:
   bigcasares.*:
@@ -30,6 +37,8 @@ permissions:
       bigcasares.missions.admin: true
       bigcasares.shop.open: true
       bigcasares.shop.reload: true
+      bigcasares.skillrating.view: true
+      bigcasares.skillrating.view.others: true
 
   bigcasares.command.give:
     description: Give BigCasares custom items to yourself
@@ -60,3 +69,16 @@ permissions:
   bigcasares.shop.reload:
     description: Reload BigCasares configs
     default: op
+
+  bigcasares.skillrating.view:
+    description: View your own skill rating
+    default: true
+
+  bigcasares.skillrating.view.others:
+    description: View other players' skill rating
+    default: op
+  
+  bigcasares.airdrop.spawn:
+    description: Spawn airdrop manually
+    default: op
+

@@ -11,11 +11,13 @@ class BigCasaresCommandTest {
     void recognizesReloadAndShopSubcommands() {
         assertTrue(BigCasaresCommand.isReload("reload"));
         assertTrue(BigCasaresCommand.isShop("shop"));
+        assertTrue(BigCasaresCommand.isRating("rating"));
     }
 
     @Test
     void suggestsRootSubcommands() {
-        assertEquals(4, BigCasaresCommand.rootSuggestions("").size());
+        assertEquals(5, BigCasaresCommand.rootSuggestions("").size());
         assertTrue(BigCasaresCommand.rootSuggestions("re").contains("reload"));
+        assertTrue(BigCasaresCommand.rootSuggestions("ra").contains("rating"));
     }
 }

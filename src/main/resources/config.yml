@@ -1,6 +1,7 @@
 modules:
   copper-apple: true
   smoke-bomb: true
+  custom-crossbow: true
   mission-system: true
   bounty-system: true
   shop-system: true
@@ -10,6 +11,7 @@ modules:
 inventory-limit:
   limits:
     TOTEM_OF_UNDYING: 3
+    ECHO_SHARD: 8
 
 copper-apple:
   consume-cooldown-ms: 5000
@@ -21,6 +23,19 @@ smoke-bomb:
   height: 5.0
   linger-ticks: 40
   smoke-burst-interval-ticks: 100
+
+custom-crossbow:
+  sonic:
+    range: 32.0
+    radius: 1.0
+    damage: 7.0
+  echo-shard:
+    cooldown-ticks: 100
+  echo-charged-crossbows:
+    max: 3
+  warden-echo-shards:
+    min: 1
+    max: 3
 
 mission-system:
   daily:

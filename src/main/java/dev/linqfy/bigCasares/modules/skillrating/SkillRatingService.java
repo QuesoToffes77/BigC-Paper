@@ -48,6 +48,10 @@ public final class SkillRatingService {
         return new SkillRatingUpdate(updatedKiller, updatedVictim, killer.tier());
     }
 
+    public SkillRatingState ratingFor(UUID playerId) {
+        return storage.load(playerId).orElseGet(() -> SkillRatingState.initial(playerId, settings, clock.get()));
+    }
+
     private SkillRatingState apply(UUID playerId, List<RatingAdjustment<UUID>> adjustments, Instant updatedAt) {
         RatingAdjustment<UUID> adjustment = adjustments.stream()
             .filter(candidate -> candidate.playerId().equals(playerId))

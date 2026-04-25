@@ -5,6 +5,7 @@ import dev.linqfy.bigCasares.command.BigCasaresCommand;
 import dev.linqfy.bigCasares.module.ModuleManager;
 import dev.linqfy.bigCasares.modules.bounties.BountyModule;
 import dev.linqfy.bigCasares.modules.copperapple.CopperAppleModule;
+import dev.linqfy.bigCasares.modules.customcrossbow.CustomCrossbowModule;
 import dev.linqfy.bigCasares.modules.inventorylimit.InventoryLimitModule;
 import dev.linqfy.bigCasares.modules.missions.MissionModule;
 import dev.linqfy.bigCasares.modules.shop.ShopModule;
@@ -99,6 +100,7 @@ public final class BigCasares extends JavaPlugin {
 
         moduleManager.register(new CopperAppleModule(this));
         moduleManager.register(new SmokeBombModule(this));
+        moduleManager.register(new CustomCrossbowModule(this));
         moduleManager.register(missionModule);
         moduleManager.register(bountyModule);
         moduleManager.register(shopModule);
@@ -118,6 +120,11 @@ public final class BigCasares extends JavaPlugin {
         if (shop != null) {
             shop.setExecutor(handler);
             shop.setTabCompleter(handler);
+        }
+        PluginCommand rating = getCommand("rating");
+        if (rating != null) {
+            rating.setExecutor(handler);
+            rating.setTabCompleter(handler);
         }
     }
 }
