@@ -53,4 +53,24 @@ public final class YamlSkillRatingStorage implements SkillRatingStorage {
     private Path fileFor(UUID playerId) {
         return directory.resolve(playerId + ".yml");
     }
+
+    @Override
+    public java.util.List<SkillRatingState> loadAll() {
+        if (!Files.exists(directory)) return java.util.List.of();
+        try (java.util.stream.Stream<Path> stream = Files.list(directory)) {
+            return stream.filter(p -> p.toString().endsWith(".yml"))
+                .map(p -> {
+                    String name = p.getFileName().toString();
+                    try {
+                        return load(UUID.fromString(name.substring(0, name.length() - 4))).orElse(null);
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        } catch (IOException e) {
+            return java.util.List.of();
+        }
+    }
 }

@@ -59,3 +59,45 @@ categories:
           - "&7Item custom del servidor."
         buy-price: 1500.0
         sell-price: 50.0
+
+# Ejemplos listos para activar después de ajustar mundo y coordenadas.
+# Cada NPC abre la categoría con el mismo id; el comercio vanilla permanece desactivado.
+shops:
+  blocks:
+    npc:
+      enabled: false
+      type: PLAYER_MODEL
+      display-name: "§6§lMaestro Constructor"
+      skin:
+        source: PLAYER_NAME
+        value: "Casares"
+      pose: STANDING
+      look-at-player: true
+      immovable: true
+      equipment:
+        main-hand: BRICKS
+      location:
+        world: world
+        x: 0.5
+        y: 65.0
+        z: 0.5
+        yaw: 0.0
+        pitch: 0.0
+  food:
+    npc:
+      enabled: false
+      type: VILLAGER
+      display-name: "§a§lCocinero"
+      profession: farmer
+      biome-type: plains
+      level: 5
+      baby: false
+      silent: true
+      ai: false
+      location:
+        world: world
+        x: 3.5
+        y: 65.0
+        z: 0.5
+        yaw: 0.0
+        pitch: 0.0

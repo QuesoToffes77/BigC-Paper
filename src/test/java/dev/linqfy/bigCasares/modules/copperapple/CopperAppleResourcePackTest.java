@@ -26,6 +26,6 @@ class CopperAppleResourcePackTest {
 
         assertTrue(itemDefinitionJson.contains("\"type\": \"minecraft:model\""));
         assertTrue(itemDefinitionJson.contains("\"model\": \"bigcasares:item/copper_apple\""));
-        assertTrue(packMetaJson.contains("\"pack_format\": 75"));
+        assertTrue(packMetaJson.contains("\"pack_format\": 88"));
     }
 }

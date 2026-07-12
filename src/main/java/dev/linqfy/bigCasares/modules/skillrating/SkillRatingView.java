@@ -7,15 +7,9 @@ public final class SkillRatingView {
     private SkillRatingView() {
     }
 
-    public static String format(String playerName, SkillRatingState state) {
-        return String.format(
-            Locale.US,
-            "Skill Rating de %s: %.0f | Tier %d | mu %.2f | sigma %.2f",
-            playerName,
-            state.skillRating(),
-            state.tier(),
-            state.mu(),
-            state.sigma()
-        );
+    public static String format(String playerName, SkillRatingState state, double uncertaintyScale) {
+        long sk = Math.round(state.skillRating());
+        long unc = Math.round((state.sigma() / (25.0 / 3.0)) * 100.0);
+        return playerName + " [SK: " + sk + "] (Uncertainty: " + unc + "%)";
     }
 }
