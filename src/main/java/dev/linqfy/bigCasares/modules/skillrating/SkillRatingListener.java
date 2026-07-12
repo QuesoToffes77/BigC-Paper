@@ -25,14 +25,11 @@ public final class SkillRatingListener implements Listener {
 
         SkillRatingUpdate update = service.recordKill(killer.getUniqueId(), victim.getUniqueId());
         killer.sendMessage("§aGanaste Skill Rating por matar a " + victim.getName() + ".");
-        killer.sendMessage("§7Rating: " + format(update.killerState().skillRating()) + " | Tier " + update.killerState().tier());
+        killer.sendMessage("§7" + SkillRatingView.format(killer.getName(), update.killerState(), service.getSettings().skillRatingScale()));
 
         if (update.killerTierChanged()) {
             killer.sendMessage("§eSubiste al Tier " + update.killerState().tier() + ".");
         }
     }
 
-    private String format(double value) {
-        return String.format(Locale.ROOT, "%.2f", value);
-    }
 }

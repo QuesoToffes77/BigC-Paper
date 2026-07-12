@@ -4,9 +4,24 @@ modules:
   custom-crossbow: true
   mission-system: true
   bounty-system: true
-  shop-system: true
   inventory-limit: true
   skill-rating-system: true
+  airdrop-system: true
+  resource-pack-system:
+    enabled: true
+  team-system:
+    enabled: true
+  nexus-system:
+    enabled: true
+  entity-shop-system:
+    enabled: true
+  pve-boss-system:
+    enabled: true
+  geyser-integration:
+    enabled: true
+
+airdrop-system:
+  interval-minutes: 60
 
 inventory-limit:
   limits:
@@ -956,3 +971,68 @@ skill-rating-system:
     - 1500.0
     - 2500.0
     - 3500.0
+
+# El build siempre genera ambos packs. Para enviar el ZIP Java, cambie el modo
+# a external-url y publique el archivo en una URL HTTPS accesible por jugadores.
+resource-pack-system:
+  required: true
+  resend-on-version-change: true
+  prompt-message: "Este servidor utiliza modelos, música e interfaces custom."
+  publishing:
+    mode: copy-only
+    public-url: ""
+
+geyser-integration:
+  enabled: true
+  custom-entities: true
+  bedrock-forms: true
+  bedrock-resource-pack: true
+  custom-items: true
+  safe-fallbacks: true
+
+team-system:
+  tag:
+    minimum-length: 2
+    maximum-length: 5
+    # Símbolos o emojis adicionales admitidos en tags; letras y números siempre están permitidos.
+    allowed-symbols: ["⚔", "★", "❤", "☠", "◆", "✦", "🔥", "🛡"]
+  presentation:
+    scoreboard-prefix: true
+    tab-list-name: true
+    display-name: true
+    prefer-placeholder-api: true
+
+nexus-system:
+  maximum-health: 500.0
+  damage:
+    allow-natural-entities: false
+    allow-unowned-explosions: false
+    multipliers:
+      melee: 1.0
+      projectile: 1.0
+      explosion: 1.0
+      fire: 0.0
+      magic: 1.0
+      environment: 0.0
+      custom: 1.0
+  placement:
+    container-clearance-horizontal: 4
+    container-clearance-vertical: 3
+    minimum-open-faces: 2
+    minimum-walkable-width: 2
+    prevent-doorway-placement: true
+
+entity-shop-system:
+  bedrock:
+    use-forms: true
+    player-model-fallback: VILLAGER
+
+pve-boss-system:
+  ui:
+    boss-bar: true
+    action-bar: true
+    floating-text: true
+    update-ticks: 5
+  music:
+    enabled: true
+    vanilla-fallback: true

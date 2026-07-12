@@ -8,4 +8,6 @@ public interface SkillRatingStorage {
     Optional<SkillRatingState> load(UUID playerId);
 
     void save(SkillRatingState state);
+
+    java.util.List<SkillRatingState> loadAll();
 }

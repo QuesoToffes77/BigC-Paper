@@ -59,8 +59,8 @@ class SkillRatingServiceTest {
         );
 
         assertEquals(
-            "Skill Rating de linqfy: 757 | Tier 2 | mu 31.23 | sigma 7.89",
-            SkillRatingView.format("linqfy", state)
+            "linqfy [SK: 757] (Uncertainty: 95%)",
+            SkillRatingView.format("linqfy", state, 100.0)
         );
     }
 
@@ -70,6 +70,11 @@ class SkillRatingServiceTest {
         @Override
         public Optional<SkillRatingState> load(UUID playerId) {
             return Optional.ofNullable(states.get(playerId));
+        }
+
+        @Override
+        public java.util.List<SkillRatingState> loadAll() {
+            return new java.util.ArrayList<>(states.values());
         }
 
         @Override

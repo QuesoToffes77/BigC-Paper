@@ -116,7 +116,6 @@ public final class CustomCrossbowShootListener implements Listener {
         }
         arrow.setDamage(CustomCrossbowRules.amethystDamage(CustomCrossbowRules.NORMAL_ARROW_DAMAGE));
         arrow.setCritical(false);
-        arrow.setKnockbackStrength(0);
         arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
     }
 

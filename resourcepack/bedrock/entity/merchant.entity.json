@@ -1,0 +1,13 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bigcasares:merchant",
+      "materials": {"default": "entity_alphatest"},
+      "textures": {"default": "textures/entity/merchant"},
+      "geometry": {"default": "geometry.bigcasares.merchant"},
+      "render_controllers": ["controller.render.bigcasares.default"],
+      "spawn_egg": {"base_color": "#5B3924", "overlay_color": "#F4C35A"}
+    }
+  }
+}

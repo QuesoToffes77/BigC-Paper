@@ -68,4 +68,15 @@ public final class SkillRatingService {
             updatedAt
         );
     }
+
+    public List<SkillRatingState> getTopPlayers(int limit) {
+        return storage.loadAll().stream()
+                .sorted(java.util.Comparator.comparingDouble(SkillRatingState::skillRating).reversed())
+                .limit(limit)
+                .toList();
+    }
+
+    public SkillRatingSettings getSettings() {
+        return settings;
+    }
 }

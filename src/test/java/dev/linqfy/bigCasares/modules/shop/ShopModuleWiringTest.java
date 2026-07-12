@@ -8,6 +8,6 @@ class ShopModuleWiringTest {
 
     @Test
     void exposesStableModuleId() {
-        assertEquals("shop-system", new ShopModule(null).getId());
+        assertEquals("entity-shop-system", new ShopModule(null).getId());
     }
 }

@@ -1,0 +1,35 @@
+{
+  "format_version": "1.10.0",
+  "animation_controllers": {
+    "controller.animation.bigcasares.nexus": {
+      "initial_state": "idle",
+      "states": {
+        "idle": {
+          "animations": ["idle"],
+          "transitions": [
+            {"critical": "query.health / query.max_health <= 0.25"}
+          ]
+        },
+        "critical": {
+          "animations": ["critical"],
+          "transitions": [
+            {"idle": "query.health / query.max_health > 0.25"}
+          ]
+        }
+      }
+    },
+    "controller.animation.bigcasares.abyss_guardian": {
+      "initial_state": "idle",
+      "states": {
+        "idle": {
+          "animations": ["idle"],
+          "transitions": [{"rage": "query.health / query.max_health <= 0.3"}]
+        },
+        "rage": {
+          "animations": ["rage"],
+          "transitions": [{"idle": "query.health / query.max_health > 0.3"}]
+        }
+      }
+    }
+  }
+}

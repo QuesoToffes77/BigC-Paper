@@ -16,8 +16,23 @@ class BigCasaresCommandTest {
 
     @Test
     void suggestsRootSubcommands() {
-        assertEquals(5, BigCasaresCommand.rootSuggestions("").size());
+        assertEquals(9, BigCasaresCommand.rootSuggestions("").size());
         assertTrue(BigCasaresCommand.rootSuggestions("re").contains("reload"));
         assertTrue(BigCasaresCommand.rootSuggestions("ra").contains("rating"));
+        assertTrue(BigCasaresCommand.rootSuggestions("te").contains("team"));
+        assertTrue(BigCasaresCommand.rootSuggestions("ne").contains("nexus"));
+        assertTrue(BigCasaresCommand.rootSuggestions("bo").contains("boss"));
+    }
+
+    @Test
+    void suggestsCompleteTeamLifecycleAndColors() {
+        assertEquals(
+            java.util.List.of("create", "invite", "join", "leave", "kick", "dissolve", "rename", "tag", "color", "appearance"),
+            BigCasaresCommand.teamSubcommandSuggestions("")
+        );
+        assertEquals(
+            java.util.List.of("DARK_AQUA", "DARK_BLUE", "DARK_GRAY", "DARK_GREEN", "DARK_PURPLE", "DARK_RED"),
+            BigCasaresCommand.teamColorSuggestions("dark_")
+        );
     }
 }

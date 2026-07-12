@@ -1,0 +1,48 @@
+assets:
+  nexus:
+    type: entity-model
+    java-model: bigcasares:nexus
+    bedrock-entity: bigcasares:nexus
+    texture: nexus/nexus
+  abyss-guardian:
+    type: boss-model
+    java-model: bigcasares:abyss_guardian
+    bedrock-entity: bigcasares:abyss_guardian
+    texture: boss/abyss_guardian
+  merchant:
+    type: entity-model
+    java-model: bigcasares:merchant
+    bedrock-entity: bigcasares:merchant
+    texture: entity/merchant
+  abyss-theme:
+    type: music
+    java-sound: bigcasares:music.abyss_guardian
+    bedrock-sound: bigcasares.music.abyss_guardian
+  copper-apple:
+    type: item-model
+    java-model: bigcasares:item/copper_apple
+    texture: item/copper_apple
+  smoke-bomb:
+    type: item-model
+    java-model: bigcasares:item/smoke_bomb
+    texture: item/smoke_bomb
+  prismarine-arrow:
+    type: item-model
+    java-model: bigcasares:item/prismarine_arrow
+    texture: item/prismarine_arrow
+  crossbow-amethyst-shard:
+    type: item-model
+    java-model: bigcasares:item/crossbow_amethyst_shard
+    texture: item/crossbow_amethyst_shard
+  crossbow-echo-shard:
+    type: item-model
+    java-model: bigcasares:item/crossbow_echo_shard
+    texture: item/crossbow_echo_shard
+  crossbow-ender-pearl:
+    type: item-model
+    java-model: bigcasares:item/crossbow_ender_pearl
+    texture: item/crossbow_ender_pearl
+  crossbow-firework-rocket:
+    type: item-model
+    java-model: bigcasares:item/crossbow_firework_rocket
+    texture: item/crossbow_firework_rocket

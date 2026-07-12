@@ -30,6 +30,13 @@ public final class ShopCatalog {
         return Optional.ofNullable(categoriesById.get(normalize(id)));
     }
 
+    public Optional<ShopEntry> entry(String categoryId, String entryId) {
+        String normalizedEntryId = normalize(entryId);
+        return category(categoryId).flatMap(category -> category.entries().stream()
+            .filter(entry -> normalize(entry.id()).equals(normalizedEntryId))
+            .findFirst());
+    }
+
     private String normalize(String id) {
         return id.toLowerCase(Locale.ROOT).trim();
     }

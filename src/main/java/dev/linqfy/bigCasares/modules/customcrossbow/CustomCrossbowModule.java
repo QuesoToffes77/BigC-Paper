@@ -1,7 +1,5 @@
 package dev.linqfy.bigCasares.modules.customcrossbow;
 
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.event.PacketListenerCommon;
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
 import org.bukkit.Bukkit;
@@ -22,7 +20,6 @@ public final class CustomCrossbowModule implements PluginModule {
     private PrismarineArrowItem prismarineArrowItem;
     private PrismarineArrowListener prismarineArrowListener;
     private CustomCrossbowChargeListener chargeListener;
-    private PacketListenerCommon packetUseListener;
 
     public CustomCrossbowModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -58,7 +55,6 @@ public final class CustomCrossbowModule implements PluginModule {
         plugin.getCustomItemRegistry().register(prismarineArrowItem);
         registerRecipe();
         registerListeners(crossbowData, settings, durabilityService, echoShardCooldownService);
-        registerPacketListener();
     }
 
     @Override
@@ -69,7 +65,6 @@ public final class CustomCrossbowModule implements PluginModule {
         if (chargeListener != null) {
             chargeListener.shutdown();
         }
-        unregisterPacketListener();
         if (recipeKey != null) {
             Bukkit.removeRecipe(recipeKey);
         }
@@ -112,21 +107,4 @@ public final class CustomCrossbowModule implements PluginModule {
         plugin.getServer().getPluginManager().registerEvents(new CustomCrossbowLootListener(settings), plugin);
     }
 
-    private void registerPacketListener() {
-        if (plugin.getServer().getPluginManager().getPlugin("packetevents") == null) {
-            plugin.getLogger().warning("PacketEvents not found; custom crossbow right-click-air fallback may be limited.");
-            return;
-        }
-
-        this.packetUseListener = new CustomCrossbowPacketUseListener(chargeListener);
-        PacketEvents.getAPI().getEventManager().registerListener(packetUseListener);
-    }
-
-    private void unregisterPacketListener() {
-        if (packetUseListener == null || plugin.getServer().getPluginManager().getPlugin("packetevents") == null) {
-            return;
-        }
-        PacketEvents.getAPI().getEventManager().unregisterListener(packetUseListener);
-        packetUseListener = null;
-    }
 }

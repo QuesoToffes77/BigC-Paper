@@ -1,0 +1,21 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bigcasares:abyss_guardian",
+      "materials": {"default": "entity_alphatest"},
+      "textures": {"default": "textures/boss/abyss_guardian"},
+      "geometry": {"default": "geometry.bigcasares.abyss_guardian"},
+      "animations": {
+        "idle": "animation.bigcasares.abyss_guardian.idle",
+        "cast": "animation.bigcasares.abyss_guardian.cast",
+        "rage": "animation.bigcasares.abyss_guardian.rage"
+      },
+      "animation_controllers": [
+        {"state": "controller.animation.bigcasares.abyss_guardian"}
+      ],
+      "render_controllers": ["controller.render.bigcasares.default"],
+      "spawn_egg": {"base_color": "#281438", "overlay_color": "#D65CFF"}
+    }
+  }
+}

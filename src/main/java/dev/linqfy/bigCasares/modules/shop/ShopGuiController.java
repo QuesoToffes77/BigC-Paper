@@ -91,7 +91,7 @@ public final class ShopGuiController implements Listener {
             .ifPresent(category -> openCategory(player, category));
     }
 
-    private void openCategory(Player player, ShopCategory category) {
+    public void openCategory(Player player, ShopCategory category) {
         Inventory inventory = Bukkit.createInventory(new ItemMenuHolder(category), 54, ChatColor.GOLD + stripColor(category.name()));
         fill(inventory, Material.BLACK_STAINED_GLASS_PANE, " ");
         inventory.setItem(BACK_SLOT, simpleItem(Material.ARROW, ChatColor.YELLOW + "Volver"));

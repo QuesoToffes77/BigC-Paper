@@ -1,0 +1,37 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.bigcasares.nexus.idle": {
+      "loop": true,
+      "animation_length": 2,
+      "bones": {"root": {"rotation": [0, "query.anim_time * 20", 0]}}
+    },
+    "animation.bigcasares.nexus.damaged": {
+      "animation_length": 0.3,
+      "bones": {"root": {"scale": {"0.0": [1, 1, 1], "0.15": [1.15, 0.85, 1.15], "0.3": [1, 1, 1]}}}
+    },
+    "animation.bigcasares.nexus.critical": {
+      "loop": true,
+      "animation_length": 0.8,
+      "bones": {"root": {"scale": {"0.0": [1, 1, 1], "0.4": [1.08, 1.08, 1.08], "0.8": [1, 1, 1]}}}
+    },
+    "animation.bigcasares.nexus.destroyed": {
+      "animation_length": 1,
+      "bones": {"root": {"scale": {"0.0": [1, 1, 1], "1.0": [0, 0, 0]}, "rotation": [0, 180, 0]}}
+    },
+    "animation.bigcasares.abyss_guardian.idle": {
+      "loop": true,
+      "animation_length": 3,
+      "bones": {"root": {"position": {"0.0": [0, 0, 0], "1.5": [0, 1, 0], "3.0": [0, 0, 0]}}}
+    },
+    "animation.bigcasares.abyss_guardian.cast": {
+      "animation_length": 1,
+      "bones": {"root": {"scale": {"0.0": [1, 1, 1], "1.0": [1.2, 1.2, 1.2]}}}
+    },
+    "animation.bigcasares.abyss_guardian.rage": {
+      "loop": true,
+      "animation_length": 0.5,
+      "bones": {"root": {"rotation": {"0.0": [0, -4, 0], "0.25": [0, 4, 0], "0.5": [0, -4, 0]}}}
+    }
+  }
+}

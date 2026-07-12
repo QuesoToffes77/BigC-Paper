@@ -1,0 +1,22 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bigcasares:nexus",
+      "materials": {"default": "entity_alphatest"},
+      "textures": {"default": "textures/nexus/nexus"},
+      "geometry": {"default": "geometry.bigcasares.nexus"},
+      "animations": {
+        "idle": "animation.bigcasares.nexus.idle",
+        "damaged": "animation.bigcasares.nexus.damaged",
+        "critical": "animation.bigcasares.nexus.critical",
+        "destroyed": "animation.bigcasares.nexus.destroyed"
+      },
+      "animation_controllers": [
+        {"state": "controller.animation.bigcasares.nexus"}
+      ],
+      "render_controllers": ["controller.render.bigcasares.default"],
+      "spawn_egg": {"base_color": "#19243D", "overlay_color": "#39D9FF"}
+    }
+  }
+}

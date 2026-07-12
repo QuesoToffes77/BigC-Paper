@@ -1,9 +1,10 @@
 name: BigCasares
 version: '${version}'
 main: dev.linqfy.bigCasares.BigCasares
-api-version: '1.21'
+api-version: '26.2'
 load: STARTUP
-softdepend: [Vault, packetevents]
+depend: [BetterModel]
+softdepend: [Vault, PlaceholderAPI, Geyser-Spigot, floodgate]
 authors: [ linqfy ]
 description: BigCasares core plugin for server modules
 libraries:
@@ -20,10 +21,25 @@ commands:
   rating:
     description: View skill rating
     usage: /<command> [player]
+    aliases: [ skill ]
   airdrop:
     description: Airdrop management command
     usage: /<command> spawn
     permission: bigcasares.airdrop.spawn
+  team:
+    description: Create, join and manage BigCasares teams
+    usage: /<command> <create|invite|join|leave|kick|dissolve|tag|color|appearance>
+  teammanage:
+    description: Admin manage BigCasares teams
+    usage: /<command> <delete|rename|tag|color|kick>
+    permission: bigcasares.team.admin
+  nexus:
+    description: Manage your team Nexus
+    usage: /<command> [place|claim]
+  boss:
+    description: Manage BigCasares PvE bosses
+    usage: /<command> spawn abyss-guardian
+    permission: bigcasares.boss.spawn
 
 permissions:
   bigcasares.*:
@@ -39,6 +55,14 @@ permissions:
       bigcasares.shop.reload: true
       bigcasares.skillrating.view: true
       bigcasares.skillrating.view.others: true
+      bigcasares.team.appearance: true
+      bigcasares.team.edit: true
+      bigcasares.team.create: true
+      bigcasares.team.join: true
+      bigcasares.team.leave: true
+      bigcasares.team.admin: true
+      bigcasares.nexus.place: true
+      bigcasares.boss.spawn: true
 
   bigcasares.command.give:
     description: Give BigCasares custom items to yourself
@@ -80,5 +104,41 @@ permissions:
   
   bigcasares.airdrop.spawn:
     description: Spawn airdrop manually
+    default: op
+
+  bigcasares.team.appearance:
+    description: View team appearance
+    default: true
+
+  bigcasares.team.edit:
+    description: Invite, kick, dissolve or change appearance as team owner
+    default: true
+
+  bigcasares.team.create:
+    description: Create a BigCasares team
+    default: true
+
+  bigcasares.team.join:
+    description: Join a BigCasares team using a valid invitation
+    default: true
+
+  bigcasares.team.leave:
+    description: Leave a BigCasares team as a non-owner member
+    default: true
+
+  bigcasares.team.admin:
+    description: Administrator access to all teams
+    default: op
+
+  bigcasares.nexus.place:
+    description: Place the Nexus owned by the player's team
+    default: op
+
+  bigcasares.nexus.claim:
+    description: Claim the Nexus owned by the player's team
+    default: true
+
+  bigcasares.boss.spawn:
+    description: Spawn a configured PvE boss
     default: op
 

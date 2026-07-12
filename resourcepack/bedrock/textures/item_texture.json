@@ -1,0 +1,13 @@
+{
+  "resource_pack_name": "bigcasares",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "bigcasares.copper_apple": {"textures": "textures/item/copper_apple"},
+    "bigcasares.smoke_bomb": {"textures": "textures/item/smoke_bomb"},
+    "bigcasares.prismarine_arrow": {"textures": "textures/item/prismarine_arrow"},
+    "bigcasares.crossbow_amethyst_shard": {"textures": "textures/item/crossbow_amethyst_shard"},
+    "bigcasares.crossbow_echo_shard": {"textures": "textures/item/crossbow_echo_shard"},
+    "bigcasares.crossbow_ender_pearl": {"textures": "textures/item/crossbow_ender_pearl"},
+    "bigcasares.crossbow_firework_rocket": {"textures": "textures/item/crossbow_firework_rocket"}
+  }
+}

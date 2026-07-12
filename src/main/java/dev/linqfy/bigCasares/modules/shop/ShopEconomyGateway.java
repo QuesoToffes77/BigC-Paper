@@ -56,6 +56,10 @@ public class ShopEconomyGateway {
         return String.format(Locale.US, "$%.2f", amount);
     }
 
+    public double balance(Player player) {
+        return economy == null ? 0.0 : economy.getBalance(player);
+    }
+
     protected BigCasares plugin() {
         return plugin;
     }

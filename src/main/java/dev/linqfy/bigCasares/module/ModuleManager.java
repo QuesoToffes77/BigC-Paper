@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.module;
 
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
@@ -74,7 +75,25 @@ public final class ModuleManager {
     }
 
     private boolean isEnabledInConfig(String moduleId) {
-        return config.getBoolean("modules." + moduleId, true);
+        return isEnabledInConfig(config, moduleId);
+    }
+
+    static boolean isEnabledInConfig(ConfigurationSection config, String moduleId) {
+        String nestedPath = "modules." + moduleId + ".enabled";
+        if (config.isSet(nestedPath)) {
+            return config.getBoolean(nestedPath);
+        }
+        String flatPath = "modules." + moduleId;
+        if (config.isBoolean(flatPath)) {
+            return config.getBoolean(flatPath);
+        }
+        if ("entity-shop-system".equals(moduleId)) {
+            String legacyPath = "modules.shop-system";
+            if (config.isBoolean(legacyPath)) {
+                return config.getBoolean(legacyPath);
+            }
+        }
+        return true;
     }
 
     private String normalizeModuleId(String moduleId) {

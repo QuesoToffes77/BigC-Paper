@@ -1,0 +1,11 @@
+{
+  "music.abyss_guardian": {
+    "category": "music",
+    "sounds": [
+      {
+        "name": "bigcasares:music/abyss_guardian",
+        "stream": true
+      }
+    ]
+  }
+}
