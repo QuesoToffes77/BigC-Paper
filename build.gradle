@@ -43,6 +43,9 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.12.3")
     compileOnly("org.geysermc.geyser:api:2.11.0-SNAPSHOT")
     implementation("com.pocketcombats:openskill:1.1")
+    implementation("net.dv8tion:JDA:6.4.1") {
+        exclude group: "club.minnced", module: "opus-java"
+    }
     // Unit tests use the matching Spigot API because Paper's ItemStack factory
     // requires a live RegistryAccess implementation. Paper-specific behavior is
     // exercised by run-paper against the real 26.2 server below.

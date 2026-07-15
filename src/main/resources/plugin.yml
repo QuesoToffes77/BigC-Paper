@@ -9,6 +9,7 @@ authors: [ linqfy ]
 description: BigCasares core plugin for server modules
 libraries:
   - com.pocketcombats:openskill:1.1
+  - net.dv8tion:JDA:6.4.1
 
 commands:
   bigcasares:
@@ -40,6 +41,10 @@ commands:
     description: Manage BigCasares PvE bosses
     usage: /<command> spawn abyss-guardian
     permission: bigcasares.boss.spawn
+  servercontrol:
+    description: Abre el panel de control del servidor
+    usage: /<command>
+    aliases: [ control ]
 
 permissions:
   bigcasares.*:
@@ -141,4 +146,3 @@ permissions:
   bigcasares.boss.spawn:
     description: Spawn a configured PvE boss
     default: op
-

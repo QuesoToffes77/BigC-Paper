@@ -19,6 +19,100 @@ modules:
     enabled: true
   geyser-integration:
     enabled: true
+  server-control-system:
+    enabled: true
+  moderation-system:
+    enabled: true
+  discord-integration:
+    enabled: true
+
+server-control-system:
+  vanish:
+    fake-join-message: "§e%player% se unió al servidor"
+    fake-leave-message: "§e%player% salió del servidor"
+
+moderation-system:
+  score-window-seconds: 60
+  warning-threshold: 50
+  critical-threshold: 90
+  alert-cooldown-seconds: 120
+  observation-retention-days: 30
+  sensitive-command-roots:
+    - op
+    - deop
+    - stop
+    - restart
+    - reload
+    - ban
+    - ban-ip
+    - whitelist
+    - lp
+    - luckperms
+    - pex
+    - execute
+  rare-items:
+    - NETHERITE_INGOT
+    - ELYTRA
+    - TOTEM_OF_UNDYING
+    - ENCHANTED_GOLDEN_APPLE
+  signals:
+    chat-rate: { points: 20 }
+    chat-duplicate: { points: 25 }
+    command-rate: { points: 20 }
+    command-duplicate: { points: 25 }
+    sensitive-command: { points: 35 }
+    blocked-end: { points: 20 }
+    blocked-rocket: { points: 20 }
+    reconnect-rate: { points: 20 }
+    ip-join-rate: { points: 35 }
+    ip-account-rate: { points: 40 }
+    pack-cache-timing: { points: 15 }
+    movement-speed: { points: 25 }
+    upward-movement: { points: 30 }
+    melee-reach: { points: 30 }
+    melee-rate: { points: 25 }
+    combat-logout: { points: 20 }
+    illegal-stack: { points: 60 }
+    inventory-click-rate: { points: 15 }
+    rare-item-gain: { points: 25 }
+    security-log: { points: 40 }
+
+discord-integration:
+  guild-id: 0
+  public-channel-id: 0
+  admin-channel-id: 0
+  log-channel-id: 0
+  bridge-channel-id: 0
+  authorized-user-id: 0
+  reconciliation-seconds: 120
+  bridge-avatar-template: "https://mc-heads.net/avatar/%player%/128"
+  servidor:
+    title: "BigCasares"
+    description: "Información oficial del servidor"
+    ip: "play.example.com"
+    port: "25565"
+    version: "Paper 26.2"
+    status: "En línea"
+    color: "#2ECC71"
+    image: ""
+    thumbnail: ""
+    footer: "BigCasares"
+  jugadores:
+    title: "Jugadores activos"
+    empty-text: "No hay jugadores conectados."
+    count-label: "Cantidad"
+    color: "#3498DB"
+    image: ""
+    thumbnail: ""
+    footer: "Lista de jugadores visibles"
+
+emoji-aliases:
+  skull: "☠"
+  heart: "❤"
+  star: "★"
+  swords: "⚔"
+  fire: "🔥"
+  shield: "🛡"
 
 airdrop-system:
   interval-minutes: 60

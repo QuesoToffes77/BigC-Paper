@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares;
 
 import dev.linqfy.bigCasares.items.CustomItemRegistry;
+import dev.linqfy.bigCasares.communication.EmojiAliasService;
 import dev.linqfy.bigCasares.command.BigCasaresCommand;
 import dev.linqfy.bigCasares.module.ModuleManager;
 import dev.linqfy.bigCasares.modules.bounties.BountyModule;
@@ -20,6 +21,10 @@ import dev.linqfy.bigCasares.modules.shop.ShopModule;
 import dev.linqfy.bigCasares.modules.skillrating.SkillRatingModule;
 import dev.linqfy.bigCasares.modules.smokebomb.SmokeBombModule;
 import dev.linqfy.bigCasares.modules.teams.TeamModule;
+import dev.linqfy.bigCasares.modules.discord.DiscordIntegrationModule;
+import dev.linqfy.bigCasares.modules.moderation.ModerationModule;
+import dev.linqfy.bigCasares.modules.servercontrol.ServerControlModule;
+import dev.linqfy.bigCasares.modules.servercontrol.VanishSessionRegistry;
 import dev.linqfy.bigCasares.platform.ClientPlatform;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
@@ -43,6 +48,12 @@ public final class BigCasares extends JavaPlugin {
     private PveBossModule pveBossModule;
     private GeyserIntegrationModule geyserIntegrationModule;
     private AirdropModule airdropModule;
+    private ModerationModule moderationModule;
+    private ServerControlModule serverControlModule;
+    private DiscordIntegrationModule discordIntegrationModule;
+    private EmojiAliasService emojiAliasService;
+    private final VanishSessionRegistry vanishSessionRegistry = new VanishSessionRegistry();
+    private boolean reloadingPluginState;
 
     @Override
     public void onEnable() {
@@ -111,6 +122,30 @@ public final class BigCasares extends JavaPlugin {
         return airdropModule;
     }
 
+    public ModerationModule getModerationModule() {
+        return moderationModule;
+    }
+
+    public ServerControlModule getServerControlModule() {
+        return serverControlModule;
+    }
+
+    public DiscordIntegrationModule getDiscordIntegrationModule() {
+        return discordIntegrationModule;
+    }
+
+    public EmojiAliasService getEmojiAliasService() {
+        return emojiAliasService;
+    }
+
+    public VanishSessionRegistry getVanishSessionRegistry() {
+        return vanishSessionRegistry;
+    }
+
+    public boolean isReloadingPluginState() {
+        return reloadingPluginState;
+    }
+
     public static List<String> frameworkV2ModuleOrder() {
         return List.of(
             "resource-pack-system",
@@ -123,12 +158,17 @@ public final class BigCasares extends JavaPlugin {
     }
 
     public void reloadPluginState() {
-        if (moduleManager != null) {
-            moduleManager.disableActiveModules();
+        reloadingPluginState = true;
+        try {
+            if (moduleManager != null) {
+                moduleManager.disableActiveModules();
+            }
+            reloadConfig();
+            initializeRuntime();
+            registerCommands();
+        } finally {
+            reloadingPluginState = false;
         }
-        reloadConfig();
-        initializeRuntime();
-        registerCommands();
     }
 
     public void openShop(Player player) {
@@ -145,6 +185,7 @@ public final class BigCasares extends JavaPlugin {
 
     private void initializeRuntime() {
         this.customItemRegistry = new CustomItemRegistry();
+        this.emojiAliasService = loadEmojiAliases();
         this.moduleManager = new ModuleManager(this, getConfig());
         this.missionModule = new MissionModule(this);
         this.bountyModule = new BountyModule(this);
@@ -168,6 +209,13 @@ public final class BigCasares extends JavaPlugin {
                 && resourcePackModule.service().map(service -> service.hasLoadedPack(playerId)).orElse(false),
             javaModels
         );
+        this.moderationModule = new ModerationModule(this);
+        this.serverControlModule = new ServerControlModule(
+            this, moderationModule.audit(), moderationModule::acceptSignal, emojiAliasService
+        );
+        this.discordIntegrationModule = new DiscordIntegrationModule(
+            this, moderationModule.audit(), serverControlModule, emojiAliasService
+        );
         this.shopModule.configurePlatform(this::resolveClientPlatform, this::sendBedrockShopForm);
 
         moduleManager.register(new CopperAppleModule(this));
@@ -185,7 +233,26 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(shopModule);
         moduleManager.register(pveBossModule);
         moduleManager.register(geyserIntegrationModule);
+        moduleManager.register(moderationModule);
+        moduleManager.register(serverControlModule);
+        moduleManager.register(discordIntegrationModule);
         moduleManager.enableRegisteredModules();
+    }
+
+    public ClientPlatform resolvePlayerPlatform(UUID playerId) {
+        return resolveClientPlatform(playerId);
+    }
+
+    private EmojiAliasService loadEmojiAliases() {
+        var section = getConfig().getConfigurationSection("emoji-aliases");
+        if (section == null) {
+            return EmojiAliasService.defaults();
+        }
+        java.util.Map<String, String> aliases = new java.util.LinkedHashMap<>();
+        for (String key : section.getKeys(false)) {
+            aliases.put(key.startsWith(":") ? key : ":" + key + ":", section.getString(key, ""));
+        }
+        return new EmojiAliasService(aliases);
     }
 
     private ClientPlatform resolveClientPlatform(UUID playerId) {
