@@ -18,6 +18,10 @@ public interface CustomItem {
     void onConsume(Player player, ItemStack consumedItem);
 
     default boolean matches(ItemStack item) {
+        return matchesLegacy(item);
+    }
+
+    default boolean matchesLegacy(ItemStack item) {
         if (item == null || !item.hasItemMeta()) {
             return false;
         }

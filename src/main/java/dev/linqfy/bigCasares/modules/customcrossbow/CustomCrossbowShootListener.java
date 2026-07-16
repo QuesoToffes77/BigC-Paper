@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.customcrossbow;
 
 import dev.linqfy.bigCasares.BigCasares;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import org.bukkit.Location;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Material;
@@ -34,6 +35,7 @@ public final class CustomCrossbowShootListener implements Listener {
     private final EchoShardCooldownService echoShardCooldownService;
     private final BigCasares plugin;
     private final Consumer<AbstractArrow> prismarineArrowTracker;
+    private final BukkitRuntimeRegistrations registrations;
 
     public CustomCrossbowShootListener(
         BigCasares plugin,
@@ -42,7 +44,8 @@ public final class CustomCrossbowShootListener implements Listener {
         CustomCrossbowSettings settings,
         CustomCrossbowDurabilityService durabilityService,
         EchoShardCooldownService echoShardCooldownService,
-        Consumer<AbstractArrow> prismarineArrowTracker
+        Consumer<AbstractArrow> prismarineArrowTracker,
+        BukkitRuntimeRegistrations registrations
     ) {
         this.plugin = plugin;
         this.crossbowData = crossbowData;
@@ -51,6 +54,7 @@ public final class CustomCrossbowShootListener implements Listener {
         this.durabilityService = durabilityService;
         this.echoShardCooldownService = echoShardCooldownService;
         this.prismarineArrowTracker = prismarineArrowTracker;
+        this.registrations = registrations;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -183,7 +187,11 @@ public final class CustomCrossbowShootListener implements Listener {
         SonicTrailPlan plan = SonicTrailPlan.create(beamRange);
         for (int tick = 0; tick < plan.ticks(); tick++) {
             int currentTick = tick;
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> emitSonicTrailTick(world, start, direction, plan, currentTick), currentTick);
+            registrations.scheduleDelayed(
+                "sonic-trail",
+                () -> emitSonicTrailTick(world, start, direction, plan, currentTick),
+                currentTick
+            );
         }
     }
 

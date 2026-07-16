@@ -2,10 +2,9 @@ package dev.linqfy.bigCasares.modules.copperapple;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.NamespacedKey;
-import org.bukkit.inventory.ShapedRecipe;
 
 public final class CopperAppleModule implements PluginModule {
 
@@ -14,6 +13,7 @@ public final class CopperAppleModule implements PluginModule {
     private final NamespacedKey recipeKey;
 
     private CopperAppleItem copperAppleItem;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public CopperAppleModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -28,35 +28,29 @@ public final class CopperAppleModule implements PluginModule {
 
     @Override
     public void onEnable() {
-        this.copperAppleItem = new CopperAppleItem(itemKey);
-        plugin.getCustomItemRegistry().register(copperAppleItem);
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
 
-        registerRecipe();
-        registerListeners();
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        this.copperAppleItem = new CopperAppleItem(plugin.getCustomItemRegistry(), itemKey);
+        plugin.getCustomItemRegistry().register(copperAppleItem);
+        scope.register("custom-item", () -> plugin.getCustomItemRegistry().unregister(CopperAppleItem.ID));
+
+        registrations.registerListener("craft-listener", new CopperAppleCraftListener(recipeKey, copperAppleItem));
     }
 
     @Override
     public void onDisable() {
-        Bukkit.removeRecipe(recipeKey);
-        plugin.getCustomItemRegistry().unregister(CopperAppleItem.ID);
-    }
-
-    private void registerRecipe() {
-        Bukkit.removeRecipe(recipeKey);
-
-        ShapedRecipe recipe = new ShapedRecipe(recipeKey, copperAppleItem.createItemStack(1));
-        recipe.shape("CCC", "CAC", "CCC");
-        recipe.setIngredient('C', Material.COPPER_INGOT);
-        recipe.setIngredient('A', Material.APPLE);
-
-        Bukkit.addRecipe(recipe);
-    }
-
-    private void registerListeners() {
-        plugin.getServer().getPluginManager().registerEvents(
-            new CopperAppleCraftListener(recipeKey, copperAppleItem),
-            plugin
-        );
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
+        }
+        copperAppleItem = null;
     }
 
 }

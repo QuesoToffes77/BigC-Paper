@@ -3,8 +3,12 @@ package dev.linqfy.bigCasares.command;
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.modules.copperapple.CopperAppleCommand;
 import dev.linqfy.bigCasares.modules.skillrating.SkillRatingView;
+import dev.linqfy.bigCasares.modules.resourcepack.ActivePackManifest;
+import dev.linqfy.bigCasares.modules.resourcepack.PackReloadMessageFormatter;
+import dev.linqfy.bigCasares.items.catalog.ItemCatalogReloadMessageFormatter;
 import dev.linqfy.bigCasares.modules.teams.Team;
 import dev.linqfy.bigCasares.modules.teams.TeamColor;
+import dev.linqfy.bigCasares.reload.ReloadMessageFormatter;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
@@ -23,6 +27,11 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
 
     private static final String SHOP_OPEN_PERMISSION = "bigcasares.shop.open";
     private static final String SHOP_RELOAD_PERMISSION = "bigcasares.shop.reload";
+    private static final String PACK_RELOAD_PERMISSION = "bigcasares.pack.reload";
+    private static final String PACK_INFO_PERMISSION = "bigcasares.pack.info";
+    private static final String PACK_SEND_PERMISSION = "bigcasares.pack.send";
+    private static final String ITEMS_RELOAD_PERMISSION = "bigcasares.items.reload";
+    private static final String ITEMS_INFO_PERMISSION = "bigcasares.items.info";
     private static final String TEAM_CREATE_PERMISSION = "bigcasares.team.create";
     private static final String TEAM_JOIN_PERMISSION = "bigcasares.team.join";
     private static final String TEAM_LEAVE_PERMISSION = "bigcasares.team.leave";
@@ -53,9 +62,19 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
 
     public static List<String> rootSuggestions(String prefix) {
         String lowered = prefix.toLowerCase(Locale.ROOT);
-        return List.of("give", "misiones", "shop", "rating", "skill", "nexus", "team", "boss", "reload").stream()
+        return List.of("give", "misiones", "shop", "rating", "skill", "nexus", "team", "boss", "reload", "pack", "items").stream()
             .filter(option -> option.startsWith(lowered))
             .collect(Collectors.toList());
+    }
+
+    public static List<String> reloadSuggestions(String prefix) {
+        String lowered = prefix.toLowerCase(Locale.ROOT);
+        return List.of("items", "pack").stream().filter(option -> option.startsWith(lowered)).toList();
+    }
+
+    public static List<String> packSuggestions(String prefix) {
+        String lowered = prefix.toLowerCase(Locale.ROOT);
+        return List.of("info", "send").stream().filter(option -> option.startsWith(lowered)).toList();
     }
 
     public static List<String> teamSubcommandSuggestions(String prefix) {
@@ -132,13 +151,26 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
         }
 
         if (isReload(args[0])) {
+            if (args.length == 2 && "pack".equalsIgnoreCase(args[1])) {
+                return reloadPack(sender);
+            }
+            if (args.length == 2 && "items".equalsIgnoreCase(args[1])) {
+                return reloadItems(sender);
+            }
             if (!sender.hasPermission(SHOP_RELOAD_PERMISSION)) {
                 sender.sendMessage(ChatColor.RED + "No tenes permiso para recargar configs.");
                 return true;
             }
-            plugin.reloadPluginState();
-            sender.sendMessage(ChatColor.GREEN + "Configs recargadas.");
+            sender.sendMessage(ReloadMessageFormatter.format(plugin.reloadPluginState()));
             return true;
+        }
+
+        if ("pack".equalsIgnoreCase(args[0])) {
+            return handlePack(sender, dropFirst(args));
+        }
+
+        if ("items".equalsIgnoreCase(args[0])) {
+            return handleItems(sender, dropFirst(args));
         }
 
         if (isShop(args[0])) {
@@ -194,6 +226,25 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             return rootSuggestions(args[0]);
+        }
+
+        if (args.length == 2 && isReload(args[0])) {
+            return reloadSuggestions(args[1]);
+        }
+
+        if ("pack".equalsIgnoreCase(args[0])) {
+            if (args.length == 2) {
+                return packSuggestions(args[1]);
+            }
+            if (args.length == 3 && "send".equalsIgnoreCase(args[1])) {
+                return "all".startsWith(args[2].toLowerCase(Locale.ROOT)) ? List.of("all") : null;
+            }
+            return List.of();
+        }
+
+        if ("items".equalsIgnoreCase(args[0])) {
+            return args.length == 2 && "info".startsWith(args[1].toLowerCase(Locale.ROOT))
+                ? List.of("info") : List.of();
         }
 
         if ("team".equalsIgnoreCase(args[0])) {
@@ -468,6 +519,108 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
         }
         sender.sendMessage(ChatColor.RED + "No tenes permiso para usar ese subcomando.");
         return false;
+    }
+
+    private boolean reloadPack(CommandSender sender) {
+        if (!sender.hasPermission(PACK_RELOAD_PERMISSION) && !sender.hasPermission(SHOP_RELOAD_PERMISSION)) {
+            sender.sendMessage(ChatColor.RED + "No tenes permiso para reconstruir el pack.");
+            return true;
+        }
+        var module = plugin.getResourcePackModule();
+        if (module == null) {
+            sender.sendMessage(ChatColor.RED + "Resource Pack System no está disponible.");
+            return true;
+        }
+        sender.sendMessage(ChatColor.YELLOW + "Construcción del pack iniciada…");
+        module.reloadPack().thenAccept(result -> sender.sendMessage(PackReloadMessageFormatter.format(result)));
+        return true;
+    }
+
+    private boolean reloadItems(CommandSender sender) {
+        if (!sender.hasPermission(ITEMS_RELOAD_PERMISSION) && !sender.hasPermission(SHOP_RELOAD_PERMISSION)) {
+            sender.sendMessage(ChatColor.RED + "No tenes permiso para recargar items.");
+            return true;
+        }
+        var module = plugin.getItemCatalogModule();
+        if (module == null) {
+            sender.sendMessage(ChatColor.RED + "El catálogo de items no está disponible.");
+            return true;
+        }
+        sender.sendMessage(ItemCatalogReloadMessageFormatter.format(module.reloadCatalog()));
+        return true;
+    }
+
+    private boolean handleItems(CommandSender sender, String[] args) {
+        var module = plugin.getItemCatalogModule();
+        if (module == null) {
+            sender.sendMessage(ChatColor.RED + "El catálogo de items no está disponible.");
+            return true;
+        }
+        if (args.length == 1 && "info".equalsIgnoreCase(args[0])) {
+            if (!requirePermission(sender, ITEMS_INFO_PERMISSION)) {
+                return true;
+            }
+            Optional<dev.linqfy.bigCasares.items.catalog.CustomItemCatalog> catalog = plugin.getCustomItemRegistry().catalog();
+            if (catalog.isEmpty()) {
+                sender.sendMessage(ChatColor.YELLOW + "No hay un catálogo de items activo.");
+                return true;
+            }
+            var active = catalog.orElseThrow();
+            sender.sendMessage(ChatColor.GOLD + "Catálogo BigCasares " + active.revision());
+            sender.sendMessage(ChatColor.GRAY + "Definiciones activas: " + active.size());
+            sender.sendMessage(ChatColor.GRAY + "Recarga activa: " + module.isCatalogReloadRunning());
+            return true;
+        }
+        sender.sendMessage(ChatColor.YELLOW + "Uso: /bigcasares items info");
+        return true;
+    }
+
+    private boolean handlePack(CommandSender sender, String[] args) {
+        var module = plugin.getResourcePackModule();
+        if (module == null) {
+            sender.sendMessage(ChatColor.RED + "Resource Pack System no está disponible.");
+            return true;
+        }
+        if (args.length == 1 && "info".equalsIgnoreCase(args[0])) {
+            if (!requirePermission(sender, PACK_INFO_PERMISSION)) {
+                return true;
+            }
+            Optional<ActivePackManifest> active = module.activeManifest();
+            if (active.isEmpty()) {
+                sender.sendMessage(ChatColor.YELLOW + "No hay un pack runtime activo.");
+                return true;
+            }
+            ActivePackManifest manifest = active.orElseThrow();
+            sender.sendMessage(ChatColor.GOLD + "Pack BigCasares " + manifest.version());
+            sender.sendMessage(ChatColor.GRAY + "Java SHA-256: " + manifest.javaSha256());
+            sender.sendMessage(ChatColor.GRAY + "URL: "
+                + (manifest.javaUri() == null ? "copy-only" : manifest.javaUri()));
+            sender.sendMessage(ChatColor.GRAY + "Construcción activa: " + module.isPackReloadRunning());
+            sender.sendMessage(ChatColor.YELLOW + "Bedrock: requiere reinicio para aplicar cambios dinámicos.");
+            return true;
+        }
+        if (args.length == 2 && "send".equalsIgnoreCase(args[0])) {
+            if (!requirePermission(sender, PACK_SEND_PERMISSION)) {
+                return true;
+            }
+            if ("all".equalsIgnoreCase(args[1])) {
+                int sent = module.resendToAll();
+                sender.sendMessage(ChatColor.GREEN + "Pack enviado a " + sent + " jugadores Java.");
+                return true;
+            }
+            Player target = plugin.getServer().getPlayerExact(args[1]);
+            if (target == null || !target.isOnline()) {
+                sender.sendMessage(ChatColor.RED + "Jugador no encontrado o desconectado.");
+                return true;
+            }
+            boolean sent = module.sendPack(target.getUniqueId());
+            sender.sendMessage(sent
+                ? ChatColor.GREEN + "Pack enviado a " + target.getName() + "."
+                : ChatColor.YELLOW + "El pack no se envió; revisá plataforma y modo de publicación.");
+            return true;
+        }
+        sender.sendMessage(ChatColor.YELLOW + "Uso: /bigcasares pack <info|send <jugador|all>>");
+        return true;
     }
 
     private static void sendTeamUsage(CommandSender sender) {
@@ -820,5 +973,9 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GRAY + "/" + label + " nexus <place|claim|give>");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " skill [player]");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " reload");
+        sender.sendMessage(ChatColor.GRAY + "/" + label + " reload pack");
+        sender.sendMessage(ChatColor.GRAY + "/" + label + " reload items");
+        sender.sendMessage(ChatColor.GRAY + "/" + label + " pack <info|send <jugador|all>>");
+        sender.sendMessage(ChatColor.GRAY + "/" + label + " items info");
     }
 }

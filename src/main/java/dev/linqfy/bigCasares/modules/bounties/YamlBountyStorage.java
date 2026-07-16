@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 public final class YamlBountyStorage implements BountyStorage {
 
@@ -41,6 +42,32 @@ public final class YamlBountyStorage implements BountyStorage {
             config.save(fileFor(state.playerId()).toFile());
         } catch (IOException ex) {
             throw new IllegalStateException("No se pudo guardar la bounty de " + state.playerId(), ex);
+        }
+    }
+
+    @Override
+    public Stream<BountyPlayerState> all() {
+        if (!Files.isDirectory(directory)) {
+            return Stream.empty();
+        }
+        try (Stream<Path> files = Files.list(directory)) {
+            return files
+                    .filter(path -> path.getFileName().toString().endsWith(".yml"))
+                    .map(path -> playerId(path.getFileName().toString()))
+                    .flatMap(Optional::stream)
+                    .flatMap(playerId -> load(playerId).stream())
+                    .toList()
+                    .stream();
+        } catch (IOException ex) {
+            throw new IllegalStateException("No se pudieron leer las bounties", ex);
+        }
+    }
+
+    private Optional<UUID> playerId(String filename) {
+        try {
+            return Optional.of(UUID.fromString(filename.substring(0, filename.length() - ".yml".length())));
+        } catch (IllegalArgumentException ex) {
+            return Optional.empty();
         }
     }
 

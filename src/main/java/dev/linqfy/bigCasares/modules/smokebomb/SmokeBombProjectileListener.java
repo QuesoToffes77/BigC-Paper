@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.smokebomb;
 
 import dev.linqfy.bigCasares.BigCasares;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
@@ -39,24 +40,32 @@ public final class SmokeBombProjectileListener implements Listener {
     private final AtomicLong tickCounter = new AtomicLong();
     private final Map<String, ActiveSmokeCloud> activeClouds = new LinkedHashMap<>();
     private final BukkitTask heartbeatTask;
+    private boolean shutdown;
 
     public SmokeBombProjectileListener(
         BigCasares plugin,
         SmokeBombItem smokeBombItem,
         SmokeBombSettings settings,
         SmokeCloudService cloudService,
-        SmokeConcealmentService concealmentService
+        SmokeConcealmentService concealmentService,
+        BukkitRuntimeRegistrations registrations
     ) {
         this.plugin = plugin;
         this.smokeBombItem = smokeBombItem;
         this.settings = settings;
         this.cloudService = cloudService;
         this.concealmentService = concealmentService;
-        this.heartbeatTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::heartbeat, 1L, 1L);
+        this.heartbeatTask = registrations.scheduleRepeating("heartbeat", this::heartbeat, 1L, 1L);
     }
 
     public void shutdown() {
-        heartbeatTask.cancel();
+        if (shutdown) {
+            return;
+        }
+        shutdown = true;
+        if (!heartbeatTask.isCancelled()) {
+            heartbeatTask.cancel();
+        }
         activeClouds.clear();
         concealmentService.revealAll();
     }

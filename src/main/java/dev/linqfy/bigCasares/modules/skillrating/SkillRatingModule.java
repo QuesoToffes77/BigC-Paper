@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.skillrating;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -18,6 +20,7 @@ public final class SkillRatingModule implements PluginModule {
 
     private SkillRatingService service;
     private boolean enabled;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public SkillRatingModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -30,6 +33,14 @@ public final class SkillRatingModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         SkillRatingSettings settings = new SkillRatingSettings(
             plugin.getConfig().getDouble("skill-rating-system.default-mu", DEFAULT_MU),
             plugin.getConfig().getDouble("skill-rating-system.default-sigma", DEFAULT_SIGMA),
@@ -40,13 +51,19 @@ public final class SkillRatingModule implements PluginModule {
         Path playersDirectory = plugin.getDataFolder().toPath().resolve("data").resolve("skill-rating").resolve("players");
         SkillRatingStorage storage = new YamlSkillRatingStorage(playersDirectory);
         this.service = new SkillRatingService(storage, settings, Instant::now);
-        plugin.getServer().getPluginManager().registerEvents(new SkillRatingListener(service), plugin);
+        scope.register("module-state", () -> service = null);
+        registrations.registerListener("skill-rating-listener", new SkillRatingListener(service));
         this.enabled = true;
     }
 
     @Override
     public void onDisable() {
         this.enabled = false;
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
+        }
     }
 
     public boolean isEnabled() {

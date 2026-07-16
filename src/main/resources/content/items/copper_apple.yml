@@ -1,0 +1,25 @@
+id: copper_apple
+mechanic: copper-apple
+material: APPLE
+item-model: bigcasares:copper_apple
+legacy-custom-model-data: 1001
+display:
+  translation-key: item.bigcasares.copper_apple
+  fallback-name: "Manzana de Cobre"
+  lore: []
+max-stack-size: 64
+components:
+  food:
+    nutrition: 4
+    saturation: 1.2
+    can-always-eat: true
+recipe:
+  key: copper_apple_recipe
+  result-amount: 1
+  shape: ["CCC", "CAC", "CCC"]
+  ingredients:
+    C: COPPER_INGOT
+    A: APPLE
+appearance:
+  java-item-definition: java/assets/bigcasares/items/copper_apple.json
+  bedrock-texture: bedrock/textures/item/copper_apple.png

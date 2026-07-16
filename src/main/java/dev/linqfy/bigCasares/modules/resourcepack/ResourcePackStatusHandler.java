@@ -14,7 +14,9 @@ final class ResourcePackStatusHandler {
             return;
         }
         ResourcePackPlayerState state = map(statusName);
-        service.updateState(playerId, state);
+        if (!service.updateState(packId, playerId, state)) {
+            return;
+        }
         if (service.isRequired() && (state == ResourcePackPlayerState.DECLINED
             || state == ResourcePackPlayerState.FAILED
             || state == ResourcePackPlayerState.DISCARDED)) {

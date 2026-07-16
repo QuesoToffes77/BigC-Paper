@@ -3,6 +3,8 @@ package dev.linqfy.bigCasares.modules.discord;
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.communication.EmojiAliasService;
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import dev.linqfy.bigCasares.modules.moderation.AuditEvent;
 import dev.linqfy.bigCasares.modules.moderation.AuditService;
 import dev.linqfy.bigCasares.modules.moderation.AuditSeverity;
@@ -21,6 +23,8 @@ public final class DiscordIntegrationModule implements PluginModule {
     private DiscordGateway gateway;
     private DiscordSettings settings;
     private BukkitTask reconciliationTask;
+    private RuntimeRegistrationScope compatibilityScope;
+    private boolean gatewayStopped = true;
 
     public DiscordIntegrationModule(
         BigCasares plugin,
@@ -52,9 +56,18 @@ public final class DiscordIntegrationModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
         if (plugin == null) {
             return;
         }
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        scope.register("module-state", this::clearRuntimeState);
         settings = DiscordSettings.load(plugin.getConfig());
         try {
             DiscordFieldValidator.validateConfiguration(plugin.getConfig());
@@ -80,23 +93,33 @@ public final class DiscordIntegrationModule implements PluginModule {
         } else {
             gateway = new JdaDiscordGateway(
                 plugin, settings, secrets, emojiAliases, audit,
-                (author, message) -> plugin.getServer().broadcastMessage("§9[Discord] §f" + author + "§7: §f" + message)
+                (author, message) -> plugin.getServer().broadcastMessage(
+                    "§9[Discord] §f" + author + "§7: §f" + message),
+                scope.generation()::isActive
             );
         }
+        DiscordGateway ownedGateway = gateway;
+        gatewayStopped = false;
         if (audit != null) {
-            audit.addSink(gateway);
+            audit.addSink(ownedGateway);
+            scope.register("discord-audit-sink", () -> audit.removeSink(ownedGateway));
         }
         if (serverControl != null && serverControl.service() != null) {
             serverControl.setDiscordPlayerRefresh(this::refreshPlayers);
             serverControl.setMinecraftChatBridge((player, message) -> gateway.sendMinecraftChat(
                 player.getName(), message, avatarUrl(player.getName(), player.getUniqueId().toString())
             ));
+            scope.register("server-control-bridges", () -> {
+                serverControl.setDiscordPlayerRefresh(null);
+                serverControl.setMinecraftChatBridge(null);
+            });
         }
-        gateway.start();
-        gateway.updateServerStatus(true);
+        ownedGateway.start();
+        scope.register("discord-gateway", () -> stopGateway(ownedGateway));
+        ownedGateway.updateServerStatus(true);
         refreshPlayers();
-        reconciliationTask = plugin.getServer().getScheduler().runTaskTimer(
-            plugin, this::refreshPlayers,
+        reconciliationTask = registrations.scheduleRepeating(
+            "discord-reconciliation", this::refreshPlayers,
             settings.reconciliationSeconds() * 20L,
             settings.reconciliationSeconds() * 20L
         );
@@ -120,8 +143,13 @@ public final class DiscordIntegrationModule implements PluginModule {
             if (audit != null) {
                 audit.removeSink(gateway);
             }
-            gateway.stop();
+            stopGateway(gateway);
             gateway = null;
+        }
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
         }
     }
 
@@ -152,5 +180,20 @@ public final class DiscordIntegrationModule implements PluginModule {
         } catch (IllegalArgumentException ex) {
             return false;
         }
+    }
+
+    private void clearRuntimeState() {
+        reconciliationTask = null;
+        gateway = null;
+        gatewayStopped = true;
+        settings = null;
+    }
+
+    private void stopGateway(DiscordGateway ownedGateway) {
+        if (gatewayStopped) {
+            return;
+        }
+        gatewayStopped = true;
+        ownedGateway.stop();
     }
 }

@@ -2,10 +2,9 @@ package dev.linqfy.bigCasares.modules.smokebomb;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.NamespacedKey;
-import org.bukkit.inventory.ShapedRecipe;
 
 public final class SmokeBombModule implements PluginModule {
 
@@ -15,6 +14,7 @@ public final class SmokeBombModule implements PluginModule {
 
     private SmokeBombItem smokeBombItem;
     private SmokeBombProjectileListener projectileListener;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public SmokeBombModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -29,22 +29,32 @@ public final class SmokeBombModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         SmokeBombSettings settings = SmokeBombSettings.load(plugin.getConfig());
         SmokeCloudService cloudService = new SmokeCloudService(settings);
         SmokeConcealmentService concealmentService = new SmokeConcealmentService(plugin);
 
-        this.smokeBombItem = new SmokeBombItem(itemKey);
+        this.smokeBombItem = new SmokeBombItem(plugin.getCustomItemRegistry(), itemKey);
         this.projectileListener = new SmokeBombProjectileListener(
             plugin,
             smokeBombItem,
             settings,
             cloudService,
-            concealmentService
+            concealmentService,
+            registrations
         );
 
         plugin.getCustomItemRegistry().register(smokeBombItem);
-        registerRecipe();
-        registerListeners(concealmentService);
+        scope.register("custom-item", () -> plugin.getCustomItemRegistry().unregister(SmokeBombItem.ID));
+        scope.register("projectile-runtime", projectileListener::shutdown);
+        registerListeners(registrations, concealmentService);
     }
 
     @Override
@@ -52,32 +62,21 @@ public final class SmokeBombModule implements PluginModule {
         if (projectileListener != null) {
             projectileListener.shutdown();
         }
-        if (recipeKey != null) {
-            Bukkit.removeRecipe(recipeKey);
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
         }
-        plugin.getCustomItemRegistry().unregister(SmokeBombItem.ID);
+        projectileListener = null;
+        smokeBombItem = null;
     }
 
-    private void registerRecipe() {
-        Bukkit.removeRecipe(recipeKey);
-
-        ShapedRecipe recipe = new ShapedRecipe(recipeKey, smokeBombItem.createItemStack(1));
-        recipe.shape("PTP", "TRT", "PTP");
-        recipe.setIngredient('P', Material.GUNPOWDER);
-        recipe.setIngredient('T', Material.INK_SAC);
-        recipe.setIngredient('R', Material.REDSTONE);
-        Bukkit.addRecipe(recipe);
-    }
-
-    private void registerListeners(SmokeConcealmentService concealmentService) {
-        plugin.getServer().getPluginManager().registerEvents(
-            new SmokeBombCraftListener(recipeKey, smokeBombItem),
-            plugin
-        );
-        plugin.getServer().getPluginManager().registerEvents(projectileListener, plugin);
-        plugin.getServer().getPluginManager().registerEvents(
-            new SmokeBombVisibilityListener(concealmentService),
-            plugin
-        );
+    private void registerListeners(
+        BukkitRuntimeRegistrations registrations,
+        SmokeConcealmentService concealmentService
+    ) {
+        registrations.registerListener("craft-listener", new SmokeBombCraftListener(recipeKey, smokeBombItem));
+        registrations.registerListener("projectile-listener", projectileListener);
+        registrations.registerListener("visibility-listener", new SmokeBombVisibilityListener(concealmentService));
     }
 }

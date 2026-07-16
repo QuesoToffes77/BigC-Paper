@@ -2,7 +2,10 @@ package dev.linqfy.bigCasares.modules.inventorylimit;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.entity.Player;
+import org.bukkit.event.HandlerList;
 
 public final class InventoryLimitModule implements PluginModule {
 
@@ -10,6 +13,9 @@ public final class InventoryLimitModule implements PluginModule {
 
     private InventoryLimitService service;
     private InventoryLimitListener listener;
+    private BukkitRuntimeRegistrations registrations;
+    private RuntimeRegistrationScope runtimeScope;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public InventoryLimitModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -22,14 +28,29 @@ public final class InventoryLimitModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
+        this.runtimeScope = scope;
+        this.registrations = new BukkitRuntimeRegistrations(plugin, scope);
         reload();
     }
 
     @Override
     public void onDisable() {
-        if (listener != null) {
-            org.bukkit.event.HandlerList.unregisterAll(listener);
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
         }
+        listener = null;
+        service = null;
+        registrations = null;
+        runtimeScope = null;
     }
 
     public BigCasares plugin() {
@@ -39,10 +60,11 @@ public final class InventoryLimitModule implements PluginModule {
     public void reload() {
         this.service = new InventoryLimitService(new InventoryLimitSettingsLoader().load(plugin.getConfig()));
         if (listener != null) {
-            org.bukkit.event.HandlerList.unregisterAll(listener);
+            HandlerList.unregisterAll(listener);
+            runtimeScope.forget("inventory-listener");
         }
         this.listener = new InventoryLimitListener(this, service);
-        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        registrations.registerListener("inventory-listener", listener);
     }
 
     public int enforce(Player player) {
@@ -50,6 +72,9 @@ public final class InventoryLimitModule implements PluginModule {
     }
 
     public void enforceLater(Player player) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> enforce(player));
+        BukkitRuntimeRegistrations current = registrations;
+        if (current != null) {
+            current.scheduleImmediate("inventory-enforcement", () -> enforce(player));
+        }
     }
 }

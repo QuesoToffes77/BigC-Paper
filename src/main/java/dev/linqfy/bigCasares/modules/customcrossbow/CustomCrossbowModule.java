@@ -2,10 +2,9 @@ package dev.linqfy.bigCasares.modules.customcrossbow;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.NamespacedKey;
-import org.bukkit.inventory.ShapedRecipe;
 
 public final class CustomCrossbowModule implements PluginModule {
 
@@ -20,6 +19,7 @@ public final class CustomCrossbowModule implements PluginModule {
     private PrismarineArrowItem prismarineArrowItem;
     private PrismarineArrowListener prismarineArrowListener;
     private CustomCrossbowChargeListener chargeListener;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public CustomCrossbowModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -38,6 +38,14 @@ public final class CustomCrossbowModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         CustomCrossbowSettings settings = CustomCrossbowSettings.load(plugin.getConfig());
         CustomCrossbowData crossbowData = new CustomCrossbowData(
             chargeTypeKey,
@@ -48,13 +56,15 @@ public final class CustomCrossbowModule implements PluginModule {
         CustomCrossbowLoadService loadService = new CustomCrossbowLoadService();
         CustomCrossbowDurabilityService durabilityService = new CustomCrossbowDurabilityService();
         EchoShardCooldownService echoShardCooldownService = new EchoShardCooldownService(settings.echoShardCooldownTicks());
-        this.prismarineArrowItem = new PrismarineArrowItem(prismarineArrowKey);
-        this.prismarineArrowListener = new PrismarineArrowListener(plugin, prismarineArrowItem);
-        this.chargeListener = new CustomCrossbowChargeListener(plugin, crossbowData, settings, loadService);
+        this.prismarineArrowItem = new PrismarineArrowItem(plugin.getCustomItemRegistry(), prismarineArrowKey);
+        this.prismarineArrowListener = new PrismarineArrowListener(prismarineArrowItem, registrations);
+        this.chargeListener = new CustomCrossbowChargeListener(plugin, crossbowData, settings, loadService, registrations);
 
         plugin.getCustomItemRegistry().register(prismarineArrowItem);
-        registerRecipe();
-        registerListeners(crossbowData, settings, durabilityService, echoShardCooldownService);
+        scope.register("custom-item", () -> plugin.getCustomItemRegistry().unregister(PrismarineArrowItem.ID));
+        scope.register("prismarine-runtime", prismarineArrowListener::shutdown);
+        scope.register("charge-runtime", chargeListener::shutdown);
+        registerListeners(registrations, crossbowData, settings, durabilityService, echoShardCooldownService);
     }
 
     @Override
@@ -65,30 +75,26 @@ public final class CustomCrossbowModule implements PluginModule {
         if (chargeListener != null) {
             chargeListener.shutdown();
         }
-        if (recipeKey != null) {
-            Bukkit.removeRecipe(recipeKey);
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
         }
-        plugin.getCustomItemRegistry().unregister(PrismarineArrowItem.ID);
-    }
-
-    private void registerRecipe() {
-        Bukkit.removeRecipe(recipeKey);
-
-        ShapedRecipe recipe = new ShapedRecipe(recipeKey, prismarineArrowItem.createItemStack(4));
-        recipe.shape(" P ", "PAP", " P ");
-        recipe.setIngredient('P', Material.PRISMARINE_SHARD);
-        recipe.setIngredient('A', Material.ARROW);
-        Bukkit.addRecipe(recipe);
+        prismarineArrowListener = null;
+        chargeListener = null;
+        prismarineArrowItem = null;
     }
 
     private void registerListeners(
+        BukkitRuntimeRegistrations registrations,
         CustomCrossbowData crossbowData,
         CustomCrossbowSettings settings,
         CustomCrossbowDurabilityService durabilityService,
         EchoShardCooldownService echoShardCooldownService
     ) {
-        plugin.getServer().getPluginManager().registerEvents(chargeListener, plugin);
-        plugin.getServer().getPluginManager().registerEvents(
+        registrations.registerListener("charge-listener", chargeListener);
+        registrations.registerListener(
+            "shoot-listener",
             new CustomCrossbowShootListener(
                 plugin,
                 crossbowData,
@@ -96,15 +102,15 @@ public final class CustomCrossbowModule implements PluginModule {
                 settings,
                 durabilityService,
                 echoShardCooldownService,
-                prismarineArrowListener::track
-            ),
-            plugin
+                prismarineArrowListener::track,
+                registrations
+            )
         );
-        plugin.getServer().getPluginManager().registerEvents(prismarineArrowListener, plugin);
-        plugin.getServer().getPluginManager().registerEvents(new CustomCrossbowDurabilityListener(durabilityService), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new CustomCrossbowInventoryLimitListener(crossbowData, settings), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new PrismarineArrowCraftListener(recipeKey, prismarineArrowItem), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new CustomCrossbowLootListener(settings), plugin);
+        registrations.registerListener("prismarine-arrow-listener", prismarineArrowListener);
+        registrations.registerListener("durability-listener", new CustomCrossbowDurabilityListener(durabilityService));
+        registrations.registerListener("inventory-limit-listener", new CustomCrossbowInventoryLimitListener(crossbowData, settings));
+        registrations.registerListener("craft-listener", new PrismarineArrowCraftListener(recipeKey, prismarineArrowItem));
+        registrations.registerListener("loot-listener", new CustomCrossbowLootListener(settings));
     }
 
 }

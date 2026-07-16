@@ -1,0 +1,19 @@
+id: nexus
+mechanic: nexus
+material: BEACON
+item-model: bigcasares:nexus
+legacy-custom-model-data: 1004
+display:
+  translation-key: item.bigcasares.nexus
+  fallback-name: "Nexus"
+  lore:
+    - "§7Un artefacto poderoso que protege tu base."
+    - "§7Colócalo para establecer el corazón"
+    - "§7de tu equipo. Solo un Nexus por equipo."
+    - ""
+    - "§eProtege cofres a su alrededor y"
+    - "§ete avisará si está bajo ataque."
+max-stack-size: 64
+appearance:
+  java-item-definition: java/assets/bigcasares/items/nexus.json
+  bedrock-texture: bedrock/textures/nexus/nexus.png

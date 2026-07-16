@@ -1,0 +1,21 @@
+id: smoke_bomb
+mechanic: smoke-bomb
+material: SNOWBALL
+item-model: bigcasares:smoke_bomb
+legacy-custom-model-data: 1002
+display:
+  translation-key: item.bigcasares.smoke_bomb
+  fallback-name: "Bomba de Humo"
+  lore: []
+max-stack-size: 16
+recipe:
+  key: smoke_bomb_recipe
+  result-amount: 1
+  shape: ["PTP", "TRT", "PTP"]
+  ingredients:
+    P: GUNPOWDER
+    T: INK_SAC
+    R: REDSTONE
+appearance:
+  java-item-definition: java/assets/bigcasares/items/smoke_bomb.json
+  bedrock-texture: bedrock/textures/item/smoke_bomb.png

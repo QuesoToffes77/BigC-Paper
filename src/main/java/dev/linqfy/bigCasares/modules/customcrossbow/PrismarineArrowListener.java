@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.customcrossbow;
 
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.AbstractArrow;
@@ -9,7 +10,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
@@ -23,14 +23,24 @@ public final class PrismarineArrowListener implements Listener {
     private final PrismarineArrowItem prismarineArrowItem;
     private final Set<UUID> activeArrows = new LinkedHashSet<>();
     private final BukkitTask heartbeatTask;
+    private boolean shutdown;
 
-    public PrismarineArrowListener(JavaPlugin plugin, PrismarineArrowItem prismarineArrowItem) {
+    public PrismarineArrowListener(
+        PrismarineArrowItem prismarineArrowItem,
+        BukkitRuntimeRegistrations registrations
+    ) {
         this.prismarineArrowItem = prismarineArrowItem;
-        this.heartbeatTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::heartbeat, 1L, 1L);
+        this.heartbeatTask = registrations.scheduleRepeating("prismarine-heartbeat", this::heartbeat, 1L, 1L);
     }
 
     public void shutdown() {
-        heartbeatTask.cancel();
+        if (shutdown) {
+            return;
+        }
+        shutdown = true;
+        if (!heartbeatTask.isCancelled()) {
+            heartbeatTask.cancel();
+        }
         activeArrows.clear();
     }
 

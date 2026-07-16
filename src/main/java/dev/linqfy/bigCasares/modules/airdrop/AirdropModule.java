@@ -1,18 +1,20 @@
 package dev.linqfy.bigCasares.modules.airdrop;
 
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 public final class AirdropModule implements PluginModule {
 
@@ -24,6 +26,13 @@ public final class AirdropModule implements PluginModule {
     private AirdropListener listener;
     private BukkitTask intervalTask;
     private BukkitTask fallingTask;
+    private BukkitRuntimeRegistrations registrations;
+    private BooleanSupplier generationActive;
+    private RuntimeRegistrationScope runtimeScope;
+    private RuntimeRegistrationScope compatibilityScope;
+    private boolean enabled;
+    private long fallingTaskSequence;
+    private String fallingTaskOwnershipId;
 
     public AirdropModule(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -36,6 +45,16 @@ public final class AirdropModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
+        this.runtimeScope = scope;
+        this.registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        this.generationActive = scope.generation()::isActive;
         AirdropSettings settings = AirdropSettings.fromConfig(plugin.getConfig());
         Map<String, Material> lootMaterials = new AirdropLootMaterialResolver().resolveAll();
 
@@ -54,17 +73,19 @@ public final class AirdropModule implements PluginModule {
         service = new AirdropService(settings, gateway, storage);
         listener = new AirdropListener(service, lootMaterials);
 
-        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        scope.register("module-state", this::clearRuntimeState);
+        registrations.registerListener("airdrop-listener", listener);
 
         long intervalTicks = (long) settings.intervalMinutes() * 60L * 20L;
-        intervalTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                triggerAirdrop(world);
-            }
-        }.runTaskTimer(plugin, intervalTicks, intervalTicks);
+        intervalTask = registrations.scheduleRepeating(
+            "airdrop-interval",
+            () -> triggerAirdrop(world),
+            intervalTicks,
+            intervalTicks
+        );
 
-        registerCommand(world);
+        registerCommand(world, registrations);
+        enabled = true;
         restorePersistedDrop(world);
 
         plugin.getLogger().info("[AirdropModule] Enabled. Interval: " + settings.intervalMinutes() + " minutes.");
@@ -72,10 +93,19 @@ public final class AirdropModule implements PluginModule {
 
     @Override
     public void onDisable() {
+        if (!enabled && compatibilityScope == null) {
+            return;
+        }
+        enabled = false;
         cancelIntervalTask();
         cancelFallingTask();
         if (listener != null) {
             listener.clearChestPosition();
+        }
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
         }
         plugin.getLogger().info("[AirdropModule] Disabled.");
     }
@@ -96,10 +126,10 @@ public final class AirdropModule implements PluginModule {
         return result;
     }
 
-    private void registerCommand(World world) {
+    private void registerCommand(World world, BukkitRuntimeRegistrations registrations) {
         var cmd = plugin.getCommand("airdrop");
         if (cmd == null) return;
-        cmd.setExecutor((CommandSender sender, Command command, String label, String[] args) -> {
+        registrations.bindCommand("airdrop-command", cmd, (CommandSender sender, Command command, String label, String[] args) -> {
             if (args.length < 1 || !args[0].equalsIgnoreCase("spawn")) return false;
             if (!sender.hasPermission("bigcasares.airdrop.spawn")) {
                 sender.sendMessage("Â§cNo tienes permiso.");
@@ -112,7 +142,7 @@ public final class AirdropModule implements PluginModule {
                 sender.sendMessage("Â§cNo se pudo generar el airdrop.");
             }
             return true;
-        });
+        }, null);
     }
 
     private void restorePersistedDrop(World world) {
@@ -136,29 +166,70 @@ public final class AirdropModule implements PluginModule {
 
     private void startFallingTask(World world, AirdropPosition position) {
         cancelFallingTask();
-        AirdropFallingTask task = new AirdropFallingTask(world, position, landedPosition -> {
-            fallingTask = null;
+        AirdropFallingTask task = new AirdropFallingTask(
+            world,
+            position,
+            generationActive,
+            landedPosition -> registrations.guard(() -> handleLanding(world, landedPosition)).run()
+        );
+        fallingTaskOwnershipId = "airdrop-falling-" + ++fallingTaskSequence;
+        fallingTask = registrations.ownTask(
+            fallingTaskOwnershipId,
+            task.runTaskTimer(plugin, 0L, 1L)
+        );
+    }
+
+    private void handleLanding(World world, AirdropPosition landedPosition) {
+        try {
             Optional<AirdropData> landed = service.markLanded(landedPosition);
             if (landed.isPresent()) {
                 listener.setChestPosition(landedPosition);
                 return;
             }
             world.getBlockAt(landedPosition.x(), landedPosition.y(), landedPosition.z()).setType(Material.AIR);
-        });
-        fallingTask = task.runTaskTimer(plugin, 0L, 1L);
+        } finally {
+            releaseFallingTaskOwnership();
+        }
     }
 
     private void cancelIntervalTask() {
         if (intervalTask != null) {
-            intervalTask.cancel();
+            if (!intervalTask.isCancelled()) {
+                intervalTask.cancel();
+            }
             intervalTask = null;
         }
     }
 
     private void cancelFallingTask() {
         if (fallingTask != null) {
-            fallingTask.cancel();
-            fallingTask = null;
+            if (!fallingTask.isCancelled()) {
+                fallingTask.cancel();
+            }
         }
+        releaseFallingTaskOwnership();
+    }
+
+    private void releaseFallingTaskOwnership() {
+        fallingTask = null;
+        String ownershipId = fallingTaskOwnershipId;
+        fallingTaskOwnershipId = null;
+        if (runtimeScope != null && ownershipId != null) {
+            runtimeScope.forget(ownershipId);
+        }
+    }
+
+    private void clearRuntimeState() {
+        enabled = false;
+        cancelIntervalTask();
+        cancelFallingTask();
+        if (listener != null) {
+            listener.clearChestPosition();
+        }
+        listener = null;
+        service = null;
+        registrations = null;
+        generationActive = null;
+        runtimeScope = null;
     }
 }

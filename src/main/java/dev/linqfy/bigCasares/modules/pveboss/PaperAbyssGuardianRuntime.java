@@ -65,6 +65,7 @@ public final class PaperAbyssGuardianRuntime implements Listener {
     private final BossAnimationService animationService;
     private final JavaModelGateway javaModels;
     private final BossModelAnimationMapper modelAnimations;
+    private final PveTransientOwner transients = new PveTransientOwner();
     private final Map<UUID, Instance> instances = new LinkedHashMap<>();
     private BukkitTask scheduler;
 
@@ -92,10 +93,14 @@ public final class PaperAbyssGuardianRuntime implements Listener {
     public void start() {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         scheduler = plugin.getServer().getScheduler().runTaskTimer(
-            plugin, this::tick, definition.updateTicks(), definition.updateTicks());
+            plugin, transients.guard(this::tick), definition.updateTicks(), definition.updateTicks());
+        transients.own(scheduler, "boss scheduler", scheduler::cancel);
     }
 
     public UUID spawn(Location location) {
+        if (!transients.isActive()) {
+            throw new IllegalStateException("PvE boss runtime is stopped");
+        }
         World world = java.util.Objects.requireNonNull(location.getWorld(), "location world");
         UUID bossId = UUID.randomUUID();
         Warden boss = world.spawn(location, Warden.class, entity -> {
@@ -165,10 +170,11 @@ public final class PaperAbyssGuardianRuntime implements Listener {
     }
 
     public void stop() {
-        if (scheduler != null) {
-            scheduler.cancel();
-            scheduler = null;
+        for (PveTransientCleanupFailure failure : transients.close()) {
+            plugin.getLogger().warning(
+                "No se pudo limpiar " + failure.resource() + ": " + failure.cause().getMessage());
         }
+        scheduler = null;
         org.bukkit.event.HandlerList.unregisterAll(this);
         new ArrayList<>(instances.keySet()).forEach(id -> remove(id, MusicStopReason.MODULE_DISABLED, true));
         music.stopAll(MusicStopReason.MODULE_DISABLED);
@@ -347,16 +353,7 @@ public final class PaperAbyssGuardianRuntime implements Listener {
                     case SUMMON_CLONE -> {
                         int amount = (int) number(effect, "amount", 1.0);
                         for (int i = 0; i < amount; i++) {
-                            Warden clone = player.getWorld().spawn(player.getLocation().add(Math.random()*4-2, 0, Math.random()*4-2), Warden.class, w -> {
-                                w.setHealth(1.0);
-                                w.getAttribute(Attribute.MAX_HEALTH).setBaseValue(1.0);
-                                w.customName(LEGACY.deserialize(definition.displayName() + " (Clone)"));
-                                w.setCustomNameVisible(true);
-                                w.setTarget(player);
-                            });
-                            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                                if (clone.isValid()) { clone.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, clone.getLocation(), 10); clone.remove(); }
-                            }, (long)(number(effect, "duration", 10.0) * 20));
+                            spawnClone(player, effect);
                         }
                     }
                     case PARTICLE_SHAPE -> {
@@ -372,6 +369,49 @@ public final class PaperAbyssGuardianRuntime implements Listener {
                     default -> {}
                 }
             }
+        }
+    }
+
+    private void spawnClone(Player target, BossAbilityEffectDefinition effect) {
+        Warden clone = target.getWorld().spawn(
+            target.getLocation().add(Math.random() * 4 - 2, 0, Math.random() * 4 - 2),
+            Warden.class,
+            warden -> {
+                warden.setHealth(1.0);
+                warden.getAttribute(Attribute.MAX_HEALTH).setBaseValue(1.0);
+                warden.customName(LEGACY.deserialize(definition.displayName() + " (Clone)"));
+                warden.setCustomNameVisible(true);
+                warden.setTarget(target);
+            }
+        );
+        transients.own(clone, "boss clone " + clone.getUniqueId(), () -> {
+            if (clone.isValid()) {
+                clone.remove();
+            }
+        });
+
+        BukkitTask[] delayedRemoval = new BukkitTask[1];
+        Runnable removeClone = transients.guard(() -> {
+            if (clone.isValid()) {
+                clone.getWorld().spawnParticle(
+                    Particle.CAMPFIRE_COSY_SMOKE, clone.getLocation(), 10);
+            }
+            transients.release(clone);
+            if (delayedRemoval[0] != null) {
+                transients.forget(delayedRemoval[0]);
+            }
+        });
+        try {
+            delayedRemoval[0] = plugin.getServer().getScheduler().runTaskLater(
+                plugin,
+                removeClone,
+                (long) (number(effect, "duration", 10.0) * 20)
+            );
+            BukkitTask task = delayedRemoval[0];
+            transients.own(task, "boss clone removal " + clone.getUniqueId(), task::cancel);
+        } catch (RuntimeException exception) {
+            transients.release(clone);
+            throw exception;
         }
     }
 
@@ -636,10 +676,17 @@ public final class PaperAbyssGuardianRuntime implements Listener {
                 d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
                 d.setGravity(false);
             });
+            transients.own(
+                display,
+                "boss projectile display " + display.getUniqueId(),
+                display::remove
+            );
         }
 
         public void start() {
-            task = plugin.getServer().getScheduler().runTaskTimer(plugin, this, 1, 1);
+            task = plugin.getServer().getScheduler().runTaskTimer(
+                plugin, transients.guard(this), 1, 1);
+            transients.own(task, "boss projectile task", task::cancel);
         }
 
         @Override
@@ -688,8 +735,11 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         }
 
         private void cancel() {
-            display.remove();
-            if (task != null) task.cancel();
+            if (task != null) {
+                transients.release(task);
+                task = null;
+            }
+            transients.release(display);
         }
     }
 
@@ -712,13 +762,15 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         }
 
         public void start() {
-            task = plugin.getServer().getScheduler().runTaskTimer(plugin, this, 1, 1);
+            task = plugin.getServer().getScheduler().runTaskTimer(
+                plugin, transients.guard(this), 1, 1);
+            transients.own(task, "gravity well task", task::cancel);
         }
 
         @Override
         public void run() {
             if (!instance.boss.isValid() || ticksLeft-- <= 0) {
-                if (task != null) task.cancel();
+                cancel();
                 return;
             }
 
@@ -735,6 +787,13 @@ public final class PaperAbyssGuardianRuntime implements Listener {
                         p.setVelocity(p.getVelocity().add(pull));
                     }
                 }
+            }
+        }
+
+        private void cancel() {
+            if (task != null) {
+                transients.release(task);
+                task = null;
             }
         }
     }
@@ -754,13 +813,15 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         }
 
         public void start() {
-            task = plugin.getServer().getScheduler().runTaskTimer(plugin, this, 5, 5);
+            task = plugin.getServer().getScheduler().runTaskTimer(
+                plugin, transients.guard(this), 5, 5);
+            transients.own(task, "time dilation task", task::cancel);
         }
 
         @Override
         public void run() {
             if (!instance.boss.isValid() || ticksLeft <= 0) {
-                if (task != null) task.cancel();
+                cancel();
                 return;
             }
             ticksLeft -= 5;
@@ -773,6 +834,13 @@ public final class PaperAbyssGuardianRuntime implements Listener {
                     p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SLOWNESS, 20, 2));
                     p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.MINING_FATIGUE, 20, 2));
                 }
+            }
+        }
+
+        private void cancel() {
+            if (task != null) {
+                transients.release(task);
+                task = null;
             }
         }
     }

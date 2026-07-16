@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.pveboss;
 
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelHandle;
@@ -25,6 +26,7 @@ public final class PveBossModule implements PluginModule {
     private final JavaModelGateway javaModels;
     private PaperAbyssGuardianRuntime runtime;
     private boolean enabled;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public PveBossModule() {
         this(null, ignored -> ClientPlatform.JAVA, ignored -> false);
@@ -76,10 +78,18 @@ public final class PveBossModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
         enabled = true;
         if (plugin == null) {
             return;
         }
+        scope.register("module-state", this::clearRuntimeState);
         plugin.saveResource("bosses/abyss-guardian.yml", false);
         File file = new File(plugin.getDataFolder(), "bosses/abyss-guardian.yml");
         AbyssGuardianDefinition definition = new AbyssGuardianDefinitionLoader()
@@ -87,6 +97,8 @@ public final class PveBossModule implements PluginModule {
         runtime = new PaperAbyssGuardianRuntime(
             plugin, definition, service, platformGateway, resourcePackLoaded, javaModels);
         runtime.start();
+        PaperAbyssGuardianRuntime ownedRuntime = runtime;
+        scope.register("paper-abyss-guardian-runtime", ownedRuntime::stop);
         plugin.getLogger().info("PvE Boss System listo: Guardián del Abismo cargado.");
     }
 
@@ -98,6 +110,11 @@ public final class PveBossModule implements PluginModule {
         }
         service.shutdown(Instant.now());
         enabled = false;
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
+        }
     }
 
     public boolean isEnabled() {
@@ -117,5 +134,10 @@ public final class PveBossModule implements PluginModule {
 
     public int activeBossCount() {
         return runtime == null ? 0 : runtime.activeCount();
+    }
+
+    private void clearRuntimeState() {
+        runtime = null;
+        enabled = false;
     }
 }

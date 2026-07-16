@@ -49,6 +49,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -62,6 +63,7 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
     private final EmojiAliasService emojiAliases;
     private final AuditSink audit;
     private final BiConsumer<String, String> inboundBridge;
+    private final BooleanSupplier generationActive;
     private final YamlDiscordStateStorage stateStorage;
     private final RemoteCommandPolicy commandPolicy = new RemoteCommandPolicy(Duration.ofSeconds(30));
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -90,12 +92,25 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         AuditSink audit,
         BiConsumer<String, String> inboundBridge
     ) {
+        this(plugin, settings, secrets, emojiAliases, audit, inboundBridge, () -> true);
+    }
+
+    public JdaDiscordGateway(
+        BigCasares plugin,
+        DiscordSettings settings,
+        DiscordSecrets secrets,
+        EmojiAliasService emojiAliases,
+        AuditSink audit,
+        BiConsumer<String, String> inboundBridge,
+        BooleanSupplier generationActive
+    ) {
         this.plugin = plugin;
         this.settings = settings;
         this.secrets = secrets;
         this.emojiAliases = emojiAliases;
         this.audit = audit == null ? ignored -> { } : audit;
         this.inboundBridge = inboundBridge == null ? (author, message) -> { } : inboundBridge;
+        this.generationActive = generationActive == null ? () -> true : generationActive;
         this.stateStorage = new YamlDiscordStateStorage(
             plugin.getDataFolder().toPath().resolve("data").resolve("discord-integration").resolve("state.yml")
         );
@@ -109,6 +124,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
     }
 
     private void connect(boolean includeMessageContent) {
+        if (!callbacksActive()) {
+            return;
+        }
         try {
             JDABuilder builder = includeMessageContent
                 ? JDABuilder.createDefault(secrets.token(), GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
@@ -122,6 +140,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
 
     @Override
     public void stop() {
+        if (stopping) {
+            return;
+        }
         stopping = true;
         updateServerStatus(false);
         healthy = false;
@@ -138,6 +159,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
                 active.shutdownNow();
             }
         }
+        jda = null;
+        publicChannel = null;
+        logChannel = null;
     }
 
     @Override
@@ -163,7 +187,7 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
 
     @Override
     public void sendMinecraftChat(String playerName, String message, String avatarUrl) {
-        if (secrets.bridgeWebhookUrl().isBlank()) {
+        if (!callbacksActive() || secrets.bridgeWebhookUrl().isBlank()) {
             return;
         }
         String safeName = sanitizeUsername(playerName);
@@ -179,6 +203,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
                 .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                 .build();
             httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding()).thenAccept(response -> {
+                if (!callbacksActive()) {
+                    return;
+                }
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
                     audit.publish(AuditEvent.system(
                         AuditSeverity.WARNING, "discord", "bridge-webhook-failed",
@@ -186,9 +213,11 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
                     ));
                 }
             }).exceptionally(error -> {
-                audit.publish(AuditEvent.system(
-                    AuditSeverity.WARNING, "discord", "bridge-webhook-failed", error.getMessage()
-                ));
+                if (callbacksActive()) {
+                    audit.publish(AuditEvent.system(
+                        AuditSeverity.WARNING, "discord", "bridge-webhook-failed", error.getMessage()
+                    ));
+                }
                 return null;
             });
         } catch (IllegalArgumentException ex) {
@@ -198,6 +227,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
 
     @Override
     public void publish(AuditEvent event) {
+        if (!callbacksActive()) {
+            return;
+        }
         if (event.severity() == AuditSeverity.WARNING || event.severity() == AuditSeverity.SEVERE) {
             coalesce(event);
             return;
@@ -207,6 +239,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
 
     @Override
     public void onReady(ReadyEvent event) {
+        if (!callbacksActive()) {
+            return;
+        }
         Guild guild = event.getJDA().getGuildById(settings.guildId());
         if (guild == null) {
             plugin.getLogger().warning("Discord desactivado: el bot no pertenece al guild configurado.");
@@ -231,6 +266,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
 
     @Override
     public void onSessionDisconnect(SessionDisconnectEvent event) {
+        if (!callbacksActive()) {
+            return;
+        }
         healthy = false;
         if (event.getCloseCode() == CloseCode.DISALLOWED_INTENTS && inboundBridgeEnabled && !stopping) {
             inboundBridgeEnabled = false;
@@ -240,7 +278,7 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
             );
             event.getJDA().shutdownNow();
             coalescer.schedule(() -> {
-                if (!stopping) {
+                if (callbacksActive()) {
                     connect(false);
                 }
             }, 1, TimeUnit.SECONDS);
@@ -249,7 +287,8 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
-        if (!inboundBridgeEnabled || !event.isFromGuild() || event.getGuild().getIdLong() != settings.guildId()
+        if (!callbacksActive() || !inboundBridgeEnabled || !event.isFromGuild()
+            || event.getGuild().getIdLong() != settings.guildId()
             || event.getChannel().getIdLong() != settings.bridgeChannelId()
             || event.getAuthor().isBot() || event.getMessage().isWebhookMessage()) {
             return;
@@ -265,12 +304,13 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
             return;
         }
         String safe = emojiAliases.replace(sanitizeMentions(content.toString()));
-        plugin.getServer().getScheduler().runTask(plugin, () -> inboundBridge.accept(event.getAuthor().getName(), safe));
+        runMainThread(() -> inboundBridge.accept(event.getAuthor().getName(), safe));
     }
 
     @Override
     public void onCommandAutoCompleteInteraction(CommandAutoCompleteInteractionEvent event) {
-        if (!"discordadmin".equals(event.getName()) || !"field".equals(event.getFocusedOption().getName())) {
+        if (!callbacksActive() || !"discordadmin".equals(event.getName())
+            || !"field".equals(event.getFocusedOption().getName())) {
             return;
         }
         String query = event.getFocusedOption().getValue().toLowerCase(java.util.Locale.ROOT);
@@ -285,6 +325,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+        if (!callbacksActive()) {
+            return;
+        }
         if ("discordadmin".equals(event.getName())) {
             handleSetFields(event);
         } else if ("discordcommand".equals(event.getName())) {
@@ -294,6 +337,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
+        if (!callbacksActive()) {
+            return;
+        }
         String componentId = event.getComponentId();
         if (!(componentId.startsWith("bigcasares:confirm:") || componentId.startsWith("bigcasares:reject:"))) {
             return;
@@ -333,7 +379,7 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         }
         String field = event.getOption("field").getAsString();
         String rawValue = event.getOption("value").getAsString();
-        event.deferReply(true).queue(hook -> plugin.getServer().getScheduler().runTask(plugin, () -> {
+        event.deferReply(true).queue(hook -> runMainThread(() -> {
             try {
                 String value = DiscordFieldValidator.validate(field, rawValue);
                 plugin.getConfig().set("discord-integration." + field, value);
@@ -373,7 +419,7 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
     }
 
     private void executeRemote(String command, InteractionHook hook) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
+        runMainThread(() -> {
             CapturingLogHandler capture = new CapturingLogHandler();
             Logger root = Logger.getLogger("");
             root.addHandler(capture);
@@ -430,13 +476,27 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
     }
 
     private void ensureManagedMessage(TextChannel channel, long messageId, MessageEmbed embed, java.util.function.LongConsumer created) {
+        if (!callbacksActive()) {
+            return;
+        }
+        java.util.function.LongConsumer guardedCreated = id -> {
+            if (callbacksActive()) {
+                created.accept(id);
+            }
+        };
         if (messageId <= 0) {
-            channel.sendMessageEmbeds(embed).queue(message -> created.accept(message.getIdLong()), this::managedMessageFailure);
+            channel.sendMessageEmbeds(embed).queue(
+                message -> guardedCreated.accept(message.getIdLong()), this::managedMessageFailure);
             return;
         }
         channel.retrieveMessageById(messageId).queue(
             message -> message.editMessageEmbeds(embed).queue(null, this::managedMessageFailure),
-            failure -> channel.sendMessageEmbeds(embed).queue(message -> created.accept(message.getIdLong()), this::managedMessageFailure)
+            failure -> {
+                if (callbacksActive()) {
+                    channel.sendMessageEmbeds(embed).queue(
+                        message -> guardedCreated.accept(message.getIdLong()), this::managedMessageFailure);
+                }
+            }
         );
     }
 
@@ -446,7 +506,10 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
     }
 
     private void managedMessageFailure(Throwable failure) {
-        audit.publish(AuditEvent.system(AuditSeverity.WARNING, "discord", "managed-message-failed", failure.getMessage()));
+        if (callbacksActive()) {
+            audit.publish(AuditEvent.system(
+                AuditSeverity.WARNING, "discord", "managed-message-failed", failure.getMessage()));
+        }
     }
 
     private synchronized void coalesce(AuditEvent event) {
@@ -461,6 +524,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
     }
 
     private void flushPending(String fingerprint) {
+        if (!callbacksActive()) {
+            return;
+        }
         PendingAudit pending;
         synchronized (this) {
             pending = pendingWarnings.remove(fingerprint);
@@ -482,6 +548,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         }
         MessageEmbed embed = new DiscordEmbedFactory(plugin.getConfig()).audit(event, duplicates);
         channel.sendMessageEmbeds(embed).queue(null, failure -> {
+            if (!callbacksActive()) {
+                return;
+            }
             synchronized (JdaDiscordGateway.this) {
                 healthy = false;
                 if (outageQueue.size() >= MAX_OUTAGE_EVENTS) {
@@ -497,6 +566,21 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
             AuditEvent event = outageQueue.removeFirst();
             deliverOrQueue(event, 1);
         }
+    }
+
+    private boolean callbacksActive() {
+        return !stopping && generationActive.getAsBoolean();
+    }
+
+    private void runMainThread(Runnable callback) {
+        if (!callbacksActive()) {
+            return;
+        }
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (callbacksActive()) {
+                callback.run();
+            }
+        });
     }
 
     private List<String> outputChunks(List<String> lines, boolean success) {

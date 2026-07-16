@@ -92,7 +92,18 @@ tasks.withType(Test).configureEach {
 }
 
 def generatedResourcePackDirectory = layout.buildDirectory.dir("generated-resourcepacks")
+def generatedResourcePackSeedDirectory = layout.buildDirectory.dir("generated-resourcepack-seed")
 def betterModelJavaPack = providers.gradleProperty("bettermodelJavaPack")
+
+tasks.register("generateResourcePackSeed", Zip) {
+    group = "build"
+    description = "Packages editable BigCasares resource-pack sources as a reproducible runtime seed."
+    from(layout.projectDirectory.dir("resourcepack"))
+    destinationDirectory.set(generatedResourcePackSeedDirectory)
+    archiveFileName.set("bigcasares-content-seed.zip")
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
 
 tasks.register("generateResourcePacks", JavaExec) {
     group = "build"
@@ -114,9 +125,12 @@ tasks.register("generateResourcePacks", JavaExec) {
 }
 
 tasks.named("jar") {
-    dependsOn(tasks.named("generateResourcePacks"))
+    dependsOn(tasks.named("generateResourcePacks"), tasks.named("generateResourcePackSeed"))
     from(generatedResourcePackDirectory) {
         into("generated-resourcepacks")
+    }
+    from(tasks.named("generateResourcePackSeed")) {
+        into("seed-content")
     }
 }
 

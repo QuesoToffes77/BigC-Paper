@@ -16,12 +16,16 @@ class BigCasaresCommandTest {
 
     @Test
     void suggestsRootSubcommands() {
-        assertEquals(9, BigCasaresCommand.rootSuggestions("").size());
+        assertEquals(11, BigCasaresCommand.rootSuggestions("").size());
         assertTrue(BigCasaresCommand.rootSuggestions("re").contains("reload"));
         assertTrue(BigCasaresCommand.rootSuggestions("ra").contains("rating"));
         assertTrue(BigCasaresCommand.rootSuggestions("te").contains("team"));
         assertTrue(BigCasaresCommand.rootSuggestions("ne").contains("nexus"));
         assertTrue(BigCasaresCommand.rootSuggestions("bo").contains("boss"));
+        assertTrue(BigCasaresCommand.rootSuggestions("pa").contains("pack"));
+        assertTrue(BigCasaresCommand.rootSuggestions("it").contains("items"));
+        assertEquals(java.util.List.of("items", "pack"), BigCasaresCommand.reloadSuggestions(""));
+        assertEquals(java.util.List.of("info", "send"), BigCasaresCommand.packSuggestions(""));
     }
 
     @Test

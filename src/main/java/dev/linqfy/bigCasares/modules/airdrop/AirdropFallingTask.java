@@ -8,6 +8,7 @@ import org.bukkit.World;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
 
 public final class AirdropFallingTask extends BukkitRunnable {
 
@@ -15,6 +16,7 @@ public final class AirdropFallingTask extends BukkitRunnable {
 
     private final World world;
     private final Consumer<AirdropPosition> onLand;
+    private final BooleanSupplier active;
 
     private double currentY;
     private final int targetX;
@@ -22,16 +24,30 @@ public final class AirdropFallingTask extends BukkitRunnable {
     private final int groundY;
 
     public AirdropFallingTask(World world, AirdropPosition position, Consumer<AirdropPosition> onLand) {
+        this(world, position, () -> true, onLand);
+    }
+
+    public AirdropFallingTask(
+        World world,
+        AirdropPosition position,
+        BooleanSupplier active,
+        Consumer<AirdropPosition> onLand
+    ) {
         this.world = world;
         this.targetX = position.x();
         this.targetZ = position.z();
         this.groundY = world.getHighestBlockYAt(targetX, targetZ);
         this.currentY = position.y();
+        this.active = active;
         this.onLand = onLand;
     }
 
     @Override
     public void run() {
+        if (!active.getAsBoolean()) {
+            cancel();
+            return;
+        }
         currentY -= FALL_SPEED;
 
         Location particleLoc = new Location(world, targetX + 0.5, currentY, targetZ + 0.5);

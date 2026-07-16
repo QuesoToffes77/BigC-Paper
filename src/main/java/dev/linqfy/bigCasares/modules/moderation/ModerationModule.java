@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.moderation;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.scheduler.BukkitTask;
@@ -23,6 +25,9 @@ public final class ModerationModule implements PluginModule {
     private BukkitTask purgeTask;
     private BukkitTask rareItemTask;
     private RareItemGainTracker rareItemTracker;
+    private BukkitRuntimeRegistrations registrations;
+    private RuntimeRegistrationScope compatibilityScope;
+    private boolean shutdownStarted;
 
     public ModerationModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -35,9 +40,19 @@ public final class ModerationModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
         if (plugin == null) {
             return;
         }
+        shutdownStarted = false;
+        this.registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        scope.register("module-state", this::clearRuntimeState);
         settings = ModerationSettings.load(plugin.getConfig());
         scoring = new AbuseScoringService(
             settings.scoreWindow(), settings.warningThreshold(), settings.criticalThreshold(), settings.alertCooldown()
@@ -49,21 +64,32 @@ public final class ModerationModule implements PluginModule {
         );
         ModerationSignalTracker tracker = new ModerationSignalTracker(settings.sensitiveCommands());
         listener = new ModerationListener(plugin, this, tracker);
-        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        registrations.registerListener("moderation-listener", listener);
+        BukkitRuntimeRegistrations activeRegistrations = registrations;
         logHandler = new ModerationLogHandler(
-            () -> plugin.getServer().getOnlinePlayers(), this::acceptSignal, audit
+            () -> plugin.getServer().getOnlinePlayers(),
+            signal -> activeRegistrations.guard(() -> acceptSignal(signal)).run(),
+            audit
         );
         Logger.getLogger("").addHandler(logHandler);
+        ModerationLogHandler ownedLogHandler = logHandler;
+        scope.register("root-log-handler", () -> Logger.getLogger("").removeHandler(ownedLogHandler));
         purgeObservations();
-        purgeTask = plugin.getServer().getScheduler().runTaskTimerAsynchronously(
-            plugin, this::purgeObservations, 20L * 60L * 60L, 20L * 60L * 60L * 24L
-        );
-        rareItemTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::sampleRareItems, 20L, 20L);
+        purgeTask = registrations.ownTask("observation-purge-task",
+            plugin.getServer().getScheduler().runTaskTimerAsynchronously(
+                plugin, registrations.guard(this::purgeObservations),
+                20L * 60L * 60L, 20L * 60L * 60L * 24L
+            ));
+        rareItemTask = registrations.scheduleRepeating("rare-item-task", this::sampleRareItems, 20L, 20L);
         audit.publish(AuditEvent.system(AuditSeverity.INFO, "lifecycle", "plugin-enabled", "BigCasares inició"));
     }
 
     @Override
     public void onDisable() {
+        if (shutdownStarted) {
+            return;
+        }
+        shutdownStarted = true;
         if (plugin != null) {
             audit.publish(AuditEvent.system(AuditSeverity.INFO, "lifecycle", "plugin-disabled", "BigCasares se detiene"));
         }
@@ -83,6 +109,12 @@ public final class ModerationModule implements PluginModule {
             Logger.getLogger("").removeHandler(logHandler);
             logHandler = null;
         }
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
+        }
+        clearRuntimeState();
     }
 
     public AuditService audit() {
@@ -114,9 +146,15 @@ public final class ModerationModule implements PluginModule {
         result.alert().ifPresent(severity -> {
             Runnable alert = () -> alertStaff(signal, result.score(), severity);
             if (plugin.getServer().isPrimaryThread()) {
-                alert.run();
+                BukkitRuntimeRegistrations current = registrations;
+                if (current != null) {
+                    current.guard(alert).run();
+                }
             } else {
-                plugin.getServer().getScheduler().runTask(plugin, alert);
+                BukkitRuntimeRegistrations current = registrations;
+                if (current != null) {
+                    current.scheduleImmediate("moderation-staff-alert", alert);
+                }
             }
         });
     }
@@ -209,5 +247,18 @@ public final class ModerationModule implements PluginModule {
             rareItemTracker.sample(Instant.now(), player.getUniqueId(), player.getName(), counts)
                 .ifPresent(this::acceptSignal);
         }
+    }
+
+    private void clearRuntimeState() {
+        purgeTask = null;
+        rareItemTask = null;
+        listener = null;
+        logHandler = null;
+        registrations = null;
+        rareItemTracker = null;
+        scoring = null;
+        observations = null;
+        settings = null;
+        shutdownStarted = true;
     }
 }
