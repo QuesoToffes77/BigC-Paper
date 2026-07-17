@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.customcrossbow;
 
 import dev.linqfy.bigCasares.BigCasares;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -28,18 +29,21 @@ public final class CustomCrossbowChargeListener implements Listener {
     private final CustomCrossbowData crossbowData;
     private final CustomCrossbowSettings settings;
     private final CustomCrossbowLoadService loadService;
+    private final BukkitRuntimeRegistrations registrations;
     private final Map<UUID, BukkitTask> loadingTasks = new HashMap<>();
 
     public CustomCrossbowChargeListener(
         BigCasares plugin,
         CustomCrossbowData crossbowData,
         CustomCrossbowSettings settings,
-        CustomCrossbowLoadService loadService
+        CustomCrossbowLoadService loadService,
+        BukkitRuntimeRegistrations registrations
     ) {
         this.plugin = plugin;
         this.crossbowData = crossbowData;
         this.settings = settings;
         this.loadService = loadService;
+        this.registrations = registrations;
     }
 
     public void shutdown() {
@@ -98,8 +102,8 @@ public final class CustomCrossbowChargeListener implements Listener {
         player.playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, 0.8f, 1.0f);
         ItemStack crossbowSnapshot = crossbow.clone();
         ItemStack offhandSnapshot = offhand.clone();
-        BukkitTask task = plugin.getServer().getScheduler().runTaskLater(
-            plugin,
+        BukkitTask task = registrations.scheduleDelayed(
+            "charge-load",
             () -> completeLoading(player.getUniqueId(), loadTicks, crossbowSnapshot, offhandSnapshot),
             loadTicks
         );

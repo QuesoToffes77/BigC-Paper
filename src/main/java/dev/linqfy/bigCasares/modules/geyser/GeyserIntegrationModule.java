@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.geyser;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,6 +21,7 @@ public final class GeyserIntegrationModule implements PluginModule {
     private final BigCasares plugin;
     private Optional<GeyserApiFacade> facade;
     private GeyserPlatformGateway platformGateway;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public GeyserIntegrationModule(BigCasares plugin) {
         this(plugin, null);
@@ -37,10 +40,18 @@ public final class GeyserIntegrationModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
         closeFacade();
         if (plugin == null) {
             return;
         }
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         GeyserSettings settings = GeyserSettings.load(plugin.getConfig());
         if (!settings.enabled()) {
             return;
@@ -54,7 +65,7 @@ public final class GeyserIntegrationModule implements PluginModule {
             Class<?> type = Class.forName(RUNTIME_BRIDGE, true, plugin.getClass().getClassLoader());
             Consumer<Runnable> mainThreadExecutor = task -> {
                 if (plugin.isEnabled()) {
-                    plugin.getServer().getScheduler().runTask(plugin, task);
+                    registrations.scheduleImmediate("geyser-main-thread-callback", task);
                 }
             };
             GeyserApiFacade runtime = (GeyserApiFacade) type
@@ -62,6 +73,7 @@ public final class GeyserIntegrationModule implements PluginModule {
                 .newInstance(settings, mainThreadExecutor);
             this.facade = Optional.of(runtime);
             this.platformGateway = new GeyserPlatformGateway(facade);
+            scope.register("geyser-runtime", this::closeFacade);
             extractBedrockPack().ifPresent(pack -> {
                 if (!runtime.registerResourcePack(pack)) {
                     plugin.getLogger().warning("El pack Bedrock no pudo registrarse; se mantienen los fallbacks seguros.");
@@ -90,6 +102,11 @@ public final class GeyserIntegrationModule implements PluginModule {
     @Override
     public void onDisable() {
         closeFacade();
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
+        }
     }
 
     public GeyserPlatformGateway platformGateway() {

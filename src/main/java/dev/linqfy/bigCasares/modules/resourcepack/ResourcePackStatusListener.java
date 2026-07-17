@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.resourcepack;
 
 import dev.linqfy.bigCasares.BigCasares;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -13,11 +14,17 @@ public final class ResourcePackStatusListener implements Listener {
     private final BigCasares plugin;
     private final ResourcePackService service;
     private final ResourcePackStatusHandler statusHandler;
+    private final BukkitRuntimeRegistrations registrations;
 
-    public ResourcePackStatusListener(BigCasares plugin, ResourcePackService service) {
+    public ResourcePackStatusListener(
+        BigCasares plugin,
+        ResourcePackService service,
+        BukkitRuntimeRegistrations registrations
+    ) {
         this.plugin = plugin;
         this.service = service;
         this.statusHandler = new ResourcePackStatusHandler(service);
+        this.registrations = registrations;
     }
 
     @EventHandler
@@ -25,14 +32,14 @@ public final class ResourcePackStatusListener implements Listener {
         Player player = event.getPlayer();
         java.util.UUID playerId = player.getUniqueId();
 
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+        registrations.scheduleDelayed("join-pack-request", () -> {
             if (!player.isOnline()) {
                 return;
             }
             service.requestFor(playerId);
 
             if (service.isRequired()) {
-                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                registrations.scheduleDelayed("required-pack-timeout", () -> {
                     if (!player.isOnline()) {
                         return;
                     }
@@ -40,9 +47,9 @@ public final class ResourcePackStatusListener implements Listener {
                     if (state == ResourcePackPlayerState.SENT || state == ResourcePackPlayerState.NOT_REQUESTED) {
                         player.kick(Component.text("Necesitas cargar el resource pack de BigCasares para jugar."));
                     }
-                }, 400L); // 20 seconds timeout to accept the pack prompt
+                }, 400L);
             }
-        }, 20L); // 1 second delay to let client load
+        }, 20L);
     }
 
     @EventHandler

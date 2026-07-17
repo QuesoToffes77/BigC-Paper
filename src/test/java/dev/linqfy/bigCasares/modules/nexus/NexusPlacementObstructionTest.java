@@ -57,6 +57,25 @@ class NexusPlacementObstructionTest {
         assertTrue(result.allowed());
     }
 
+    @Test
+    void rejectsPlacementsBelowMinusTenOrAboveOneHundredFifty() {
+        FakeProbe probe = new FakeProbe();
+
+        NexusPlacementResult below = policy.validateNexusPlacement(new NexusBlockPosition(0, -11, 0), probe);
+        NexusPlacementResult above = policy.validateNexusPlacement(new NexusBlockPosition(0, 151, 0), probe);
+
+        assertEquals(NexusPlacementRejection.Y_OUT_OF_RANGE, below.rejection());
+        assertEquals(NexusPlacementRejection.Y_OUT_OF_RANGE, above.rejection());
+    }
+
+    @Test
+    void permitsBoundaryPlacementHeights() {
+        FakeProbe probe = new FakeProbe();
+
+        assertTrue(policy.validateNexusPlacement(new NexusBlockPosition(0, -10, 0), probe).allowed());
+        assertTrue(policy.validateNexusPlacement(new NexusBlockPosition(0, 150, 0), probe).allowed());
+    }
+
     private void blockFace(FakeProbe probe, int x, int z) {
         probe.put(origin.offset(x * 2, 0, z * 2), "STONE");
         probe.put(origin.offset(x * 2, 1, z * 2), "STONE");

@@ -1,0 +1,67 @@
+package dev.linqfy.bigCasares.modules.resourcepack;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+class EmbeddedPackHttpServerTest {
+
+    @TempDir
+    Path tempDir;
+
+    @Test
+    void servesOnlyImmutableContentAddressedArtifactsAndKeepsOldArtifactReadable() throws Exception {
+        Path artifacts = tempDir.resolve("artifacts");
+        Files.createDirectories(artifacts);
+        String oldFile = "bigcasares-java-1111111111111111.zip";
+        String newFile = "bigcasares-java-2222222222222222.zip";
+        Files.write(artifacts.resolve(oldFile), "old".getBytes(StandardCharsets.UTF_8));
+        EmbeddedPackHttpServer server = new EmbeddedPackHttpServer(
+            artifacts,
+            new EmbeddedPackHttpSettings("127.0.0.1", 0, URI.create("https://packs.example.test"), 2)
+        );
+        server.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<byte[]> oldBefore = get(client, server.localUri(oldFile));
+            Files.write(artifacts.resolve(newFile), "new".getBytes(StandardCharsets.UTF_8));
+            HttpResponse<byte[]> oldAfter = get(client, server.localUri(oldFile));
+            HttpResponse<byte[]> current = get(client, server.localUri(newFile));
+            HttpResponse<byte[]> missing = get(client,
+                URI.create("http://127.0.0.1:" + server.boundPort() + "/packs/../active-pack.json"));
+
+            assertEquals(200, oldBefore.statusCode());
+            assertEquals(200, oldAfter.statusCode());
+            assertEquals(200, current.statusCode());
+            assertEquals(404, missing.statusCode());
+            assertArrayEquals("old".getBytes(StandardCharsets.UTF_8), oldAfter.body());
+            assertEquals("public, max-age=31536000, immutable",
+                current.headers().firstValue("Cache-Control").orElseThrow());
+            assertEquals("https://packs.example.test/packs/" + newFile, server.publicUri(newFile).toString());
+        } finally {
+            int port = server.boundPort();
+            server.close();
+            try (ServerSocket rebound = new ServerSocket()) {
+                rebound.bind(new InetSocketAddress("127.0.0.1", port));
+                assertFalse(rebound.isClosed());
+            }
+        }
+    }
+
+    private static HttpResponse<byte[]> get(HttpClient client, URI uri) throws Exception {
+        return client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+    }
+}

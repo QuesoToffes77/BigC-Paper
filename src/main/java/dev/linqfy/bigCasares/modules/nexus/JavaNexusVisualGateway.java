@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.nexus;
 
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelHandle;
 import dev.linqfy.bigCasares.modules.model.JavaModelKeys;
@@ -48,12 +49,16 @@ public final class JavaNexusVisualGateway implements NexusVisualGateway {
     private org.bukkit.scheduler.BukkitTask particleTask;
     private double particleAngle = 0.0;
 
-    public JavaNexusVisualGateway(JavaPlugin plugin, JavaModelGateway models) {
+    public JavaNexusVisualGateway(
+        JavaPlugin plugin,
+        JavaModelGateway models,
+        BukkitRuntimeRegistrations registrations
+    ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.models = Objects.requireNonNull(models, "models");
         this.nexusIdKey = new NamespacedKey(plugin, "nexus_id");
         this.visualRoleKey = new NamespacedKey(plugin, "nexus_visual_role");
-        this.particleTask = Bukkit.getScheduler().runTaskTimer(plugin, this::spawnAuraParticles, 2L, 2L);
+        this.particleTask = registrations.scheduleRepeating("nexus-aura-particles", this::spawnAuraParticles, 2L, 2L);
     }
 
     @Override

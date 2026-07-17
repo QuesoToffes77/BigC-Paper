@@ -1,0 +1,20 @@
+id: prismarine_arrow
+mechanic: prismarine-arrow
+material: ARROW
+item-model: bigcasares:prismarine_arrow
+legacy-custom-model-data: 1003
+display:
+  translation-key: item.bigcasares.prismarine_arrow
+  fallback-name: "Flecha de Prismarina"
+  lore: []
+max-stack-size: 64
+recipe:
+  key: prismarine_arrow_recipe
+  result-amount: 4
+  shape: [" P ", "PAP", " P "]
+  ingredients:
+    P: PRISMARINE_SHARD
+    A: ARROW
+appearance:
+  java-item-definition: java/assets/bigcasares/items/prismarine_arrow.json
+  bedrock-texture: bedrock/textures/item/prismarine_arrow.png

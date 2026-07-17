@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.shop;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import dev.linqfy.bigCasares.modules.bounties.BountyEconomyGateway;
 import dev.linqfy.bigCasares.platform.ClientPlatform;
 import dev.linqfy.bigCasares.platform.ClientPlatformGateway;
@@ -39,6 +41,9 @@ public final class ShopModule implements PluginModule {
     private BedrockFormSender bedrockFormSender;
     private final ShopFormGeneration formGeneration = new ShopFormGeneration();
     private boolean enabled;
+    private BukkitRuntimeRegistrations registrations;
+    private RuntimeRegistrationScope compatibilityScope;
+    private long runtimeResourceSequence;
 
     public ShopModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -51,6 +56,15 @@ public final class ShopModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
+        this.registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        scope.register("module-state", this::clearRuntimeState);
         plugin.saveResource("shop.yml", false);
         reload();
     }
@@ -68,6 +82,11 @@ public final class ShopModule implements PluginModule {
             npcListener = null;
         }
         despawnNpcs();
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
+        }
     }
 
     public BigCasares plugin() {
@@ -92,14 +111,16 @@ public final class ShopModule implements PluginModule {
             org.bukkit.event.HandlerList.unregisterAll(guiController);
         }
         this.guiController = new ShopGuiController(this, catalog, service);
-        plugin.getServer().getPluginManager().registerEvents(guiController, plugin);
+        ShopGuiController ownedGuiController = guiController;
+        registrations.registerListener(nextResourceId("shop-gui-listener"), ownedGuiController);
+        registrations.ownCleanup(nextResourceId("shop-gui-windows"), ownedGuiController::closeAll);
         if (npcListener != null) {
             org.bukkit.event.HandlerList.unregisterAll(npcListener);
         }
         despawnNpcs();
         this.npcFactory = new ShopNpcFactory(plugin);
         this.npcListener = new ShopNpcListener(npcFactory, this::openNpcShop);
-        plugin.getServer().getPluginManager().registerEvents(npcListener, plugin);
+        registrations.registerListener(nextResourceId("shop-npc-listener"), npcListener);
         spawnConfiguredNpcs(configuration);
         this.enabled = true;
         formGeneration.activateNext();
@@ -153,8 +174,10 @@ public final class ShopModule implements PluginModule {
                 .map(category -> new ShopViewItem(category.id(), category.name(), "", "", null, true))
                 .toList()
         );
+        BukkitRuntimeRegistrations activeRegistrations = registrations;
         boolean sent = bedrockFormSender.send(playerId, view,
-            index -> handleBedrockCategoryResponse(playerId, generation, view, index));
+            index -> activeRegistrations.guard(
+                () -> handleBedrockCategoryResponse(playerId, generation, view, index)).run());
         if (!sent) {
             new ChatFallbackShopUi(plugin.getServer()).openShop(player.getUniqueId(), view);
         }
@@ -177,8 +200,10 @@ public final class ShopModule implements PluginModule {
                 economyGateway.has(player, entry.buyPrice())
             )).toList()
         );
+        BukkitRuntimeRegistrations activeRegistrations = registrations;
         boolean sent = bedrockFormSender.send(playerId, view,
-            index -> handleBedrockPurchaseResponse(playerId, generation, view, index));
+            index -> activeRegistrations.guard(
+                () -> handleBedrockPurchaseResponse(playerId, generation, view, index)).run());
         if (!sent) {
             new ChatFallbackShopUi(plugin.getServer()).openShop(player.getUniqueId(), view);
         }
@@ -242,7 +267,9 @@ public final class ShopModule implements PluginModule {
                 (float) location.getDouble("yaw"), (float) location.getDouble("pitch")
             );
             try {
-                npcs.add(npcFactory.spawn(spawn, definition));
+                LivingEntity npcEntity = npcFactory.spawn(spawn, definition);
+                npcs.add(npcEntity);
+                registrations.ownCleanup(nextResourceId("shop-npc"), () -> removeNpc(npcEntity));
             } catch (IllegalArgumentException | IllegalStateException ex) {
                 plugin.getLogger().warning("No se pudo crear el NPC de shop " + shopId + ": " + ex.getMessage());
             }
@@ -279,14 +306,32 @@ public final class ShopModule implements PluginModule {
     }
 
     private void despawnNpcs() {
-        npcs.forEach(entity -> {
-            if (entity != null) {
-                ClientEntityPresentationRegistry.unregister(entity.getUniqueId());
-            }
-            if (entity != null && entity.isValid()) {
-                entity.remove();
-            }
-        });
+        npcs.forEach(this::removeNpc);
         npcs.clear();
+    }
+
+    private void removeNpc(LivingEntity entity) {
+        if (entity != null) {
+            ClientEntityPresentationRegistry.unregister(entity.getUniqueId());
+        }
+        if (entity != null && entity.isValid()) {
+            entity.remove();
+        }
+    }
+
+    private String nextResourceId(String prefix) {
+        return prefix + "-" + ++runtimeResourceSequence;
+    }
+
+    private void clearRuntimeState() {
+        enabled = false;
+        formGeneration.invalidate();
+        npcs.clear();
+        guiController = null;
+        npcListener = null;
+        npcFactory = null;
+        service = null;
+        economyGateway = null;
+        registrations = null;
     }
 }

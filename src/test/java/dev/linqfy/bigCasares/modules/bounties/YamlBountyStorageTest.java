@@ -37,4 +37,15 @@ class YamlBountyStorageTest {
 
         assertEquals(Optional.empty(), loaded);
     }
+
+    @Test
+    void listsEveryStoredBounty() {
+        YamlBountyStorage storage = new YamlBountyStorage(tempDir);
+        UUID firstId = UUID.fromString("00000000-0000-0000-0000-000000000021");
+        UUID secondId = UUID.fromString("00000000-0000-0000-0000-000000000022");
+        storage.save(new BountyPlayerState(firstId, 50.0, Instant.now()));
+        storage.save(new BountyPlayerState(secondId, 100.0, Instant.now()));
+
+        assertEquals(2, storage.all().count());
+    }
 }

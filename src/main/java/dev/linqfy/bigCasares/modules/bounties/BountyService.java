@@ -1,6 +1,8 @@
 package dev.linqfy.bigCasares.modules.bounties;
 
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -52,5 +54,16 @@ public final class BountyService {
         BountyPlayerState updated = new BountyPlayerState(victimId, current.activeBounty() + amount, clock.get());
         storage.save(updated);
         return updated;
+    }
+
+    public List<BountyPlayerState> topBounties(int limit) {
+        if (limit < 1) {
+            return List.of();
+        }
+        return storage.all()
+                .filter(state -> state.activeBounty() > 0.0)
+                .sorted(Comparator.comparingDouble(BountyPlayerState::activeBounty).reversed())
+                .limit(limit)
+                .toList();
     }
 }

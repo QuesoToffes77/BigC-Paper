@@ -2,7 +2,7 @@ name: BigCasares
 version: '${version}'
 main: dev.linqfy.bigCasares.BigCasares
 api-version: '26.2'
-load: STARTUP
+load: POSTWORLD
 depend: [BetterModel]
 softdepend: [Vault, PlaceholderAPI, Geyser-Spigot, floodgate]
 authors: [ linqfy ]
@@ -45,6 +45,17 @@ commands:
     description: Abre el panel de control del servidor
     usage: /<command>
     aliases: [ control ]
+  bounty:
+    description: View the bounty leaderboard
+    usage: /<command> top
+  bal:
+    description: View your balance or the balance leaderboard
+    usage: /<command> [top]
+    aliases: [ balance ]
+  withdraw:
+    description: Withdraw balance into a redeemable payment paper
+    usage: /<command> <amount>
+    aliases: [ widthdraw, pay ]
 
 permissions:
   bigcasares.*:
@@ -58,6 +69,11 @@ permissions:
       bigcasares.missions.admin: true
       bigcasares.shop.open: true
       bigcasares.shop.reload: true
+      bigcasares.pack.reload: true
+      bigcasares.pack.info: true
+      bigcasares.pack.send: true
+      bigcasares.items.reload: true
+      bigcasares.items.info: true
       bigcasares.skillrating.view: true
       bigcasares.skillrating.view.others: true
       bigcasares.team.appearance: true
@@ -97,6 +113,26 @@ permissions:
 
   bigcasares.shop.reload:
     description: Reload BigCasares configs
+    default: op
+
+  bigcasares.pack.reload:
+    description: Build and activate the BigCasares Java resource pack
+    default: op
+
+  bigcasares.pack.info:
+    description: View the active BigCasares resource-pack identity and URL
+    default: op
+
+  bigcasares.pack.send:
+    description: Send the active BigCasares resource pack to Java players
+    default: op
+
+  bigcasares.items.reload:
+    description: Reload the BigCasares declarative item catalog
+    default: op
+
+  bigcasares.items.info:
+    description: View the active BigCasares item catalog revision
     default: op
 
   bigcasares.skillrating.view:

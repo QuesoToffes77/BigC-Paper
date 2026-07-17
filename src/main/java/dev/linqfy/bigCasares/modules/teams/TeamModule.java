@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.teams;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.HandlerList;
 
@@ -21,6 +23,7 @@ public final class TeamModule implements PluginModule {
     private TeamCommandService commandService;
     private TeamPresentationListener listener;
     private Object placeholderExpansion;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public TeamModule() {
         this(null);
@@ -37,9 +40,18 @@ public final class TeamModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
         if (plugin == null) {
             return;
         }
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        scope.register("module-state", this::clearRuntimeState);
         TeamTagValidator.configureAllowedSymbols(plugin.getConfig().getStringList("team-system.tag.allowed-symbols"));
         File file = new File(plugin.getDataFolder(), "data/teams/teams.yml");
         this.service = new TeamService(new YamlTeamStorage(file));
@@ -55,10 +67,10 @@ public final class TeamModule implements PluginModule {
         this.commandService = new TeamCommandService(
             service, presentationService, invitationService, Clock.systemUTC());
         this.listener = new TeamPresentationListener(presentationService);
-        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        registrations.registerListener("team-presentation-listener", listener);
         plugin.getServer().getOnlinePlayers().forEach(player ->
             presentationService.refreshPlayer(player.getUniqueId()));
-        registerPlaceholderExpansion();
+        registerPlaceholderExpansion(scope);
     }
 
     @Override
@@ -68,10 +80,12 @@ public final class TeamModule implements PluginModule {
             listener = null;
         }
         unregisterPlaceholderExpansion();
-        commandService = null;
-        invitationService = null;
-        presentationService = null;
-        service = null;
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
+        }
+        clearRuntimeState();
     }
 
     public BigCasares plugin() {
@@ -90,7 +104,7 @@ public final class TeamModule implements PluginModule {
         return Optional.ofNullable(commandService);
     }
 
-    private void registerPlaceholderExpansion() {
+    private void registerPlaceholderExpansion(RuntimeRegistrationScope scope) {
         if (plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") == null) {
             plugin.getLogger().info("PlaceholderAPI no está instalado; Team System continúa sin placeholders.");
             return;
@@ -109,6 +123,7 @@ public final class TeamModule implements PluginModule {
             boolean registered = (boolean) type.getMethod("register").invoke(expansion);
             if (registered) {
                 placeholderExpansion = expansion;
+                scope.register("placeholder-expansion", this::unregisterPlaceholderExpansion);
             }
         } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException
                  | IllegalAccessException | InvocationTargetException | LinkageError ex) {
@@ -128,5 +143,14 @@ public final class TeamModule implements PluginModule {
         } catch (ReflectiveOperationException ex) {
             plugin.getLogger().log(Level.FINE, "No se pudo desregistrar la expansión de equipos", ex);
         }
+    }
+
+    private void clearRuntimeState() {
+        listener = null;
+        placeholderExpansion = null;
+        commandService = null;
+        invitationService = null;
+        presentationService = null;
+        service = null;
     }
 }

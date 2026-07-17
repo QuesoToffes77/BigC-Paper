@@ -1,0 +1,13 @@
+{
+  "name": "bigcasares-minecraft-test-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node client.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "mineflayer": "4.37.1"
+  }
+}

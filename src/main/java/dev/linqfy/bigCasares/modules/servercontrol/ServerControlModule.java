@@ -3,6 +3,8 @@ package dev.linqfy.bigCasares.modules.servercontrol;
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.communication.EmojiAliasService;
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import dev.linqfy.bigCasares.modules.moderation.AbuseSignal;
 import dev.linqfy.bigCasares.modules.moderation.AuditEvent;
 import dev.linqfy.bigCasares.modules.moderation.AuditSeverity;
@@ -37,6 +39,9 @@ public final class ServerControlModule implements PluginModule {
     private BukkitTask maintenanceTask;
     private Runnable discordPlayerRefresh = () -> { };
     private BiConsumer<Player, String> minecraftChatBridge = (player, message) -> { };
+    private BukkitRuntimeRegistrations registrations;
+    private RuntimeRegistrationScope compatibilityScope;
+    private boolean resistanceStopped;
 
     public ServerControlModule(BigCasares plugin, AuditSink audit, Consumer<AbuseSignal> signalConsumer) {
         this(plugin, audit, signalConsumer, null);
@@ -61,24 +66,37 @@ public final class ServerControlModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
         if (plugin == null) {
             return;
         }
+        this.registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        scope.register("module-state", this::clearRuntimeState);
         Path statePath = plugin.getDataFolder().toPath()
             .resolve("data").resolve("server-control-system").resolve("state.yml");
         this.service = new ServerControlService(new YamlControlStorage(statePath), Clock.systemUTC());
         this.resistance = new ResistanceManager(service.state().resistanceLevel());
+        this.resistanceStopped = false;
+        scope.register("resistance-sessions", this::shutdownResistance);
         this.vanish = new VanishManager(
             plugin, plugin.getVanishSessionRegistry(), ServerControlSettings.load(plugin.getConfig()), audit
         );
+        scope.register("vanish-sessions", this::shutdownVanish);
         this.vanish.setPlayerListRefresh(this::refreshDiscordPlayers);
         EmojiAliasService emojiAliases = loadEmojiAliases();
         ServerControlMenu menu = new ServerControlMenu(plugin, this);
         this.listener = new ServerControlListener(this, menu, emojiAliases);
-        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        registrations.registerListener("server-control-listener", listener);
         PluginCommand command = plugin.getCommand("servercontrol");
         if (command != null) {
-            command.setExecutor(new ServerControlCommand(menu));
+            registrations.bindCommand(
+                "server-control-command", command, new ServerControlCommand(menu), command.getTabCompleter());
         }
         applyPvpToWorlds(service.effectivePvp(Instant.now()));
         service.takeRecoveredExpiration().ifPresent(this::applyPvpTransition);
@@ -86,7 +104,8 @@ public final class ServerControlModule implements PluginModule {
             resistance.handlePlayer(player);
         }
         vanish.recoverOnlineSessions();
-        maintenanceTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::maintenanceTick, 20L, 20L);
+        maintenanceTask = registrations.scheduleRepeating("maintenance-task", this::maintenanceTick, 20L, 20L);
+        scope.register("external-callback-bindings", this::resetExternalCallbacks);
         audit.publish(AuditEvent.system(AuditSeverity.INFO, "lifecycle", "server-control-enabled", "Controles del servidor habilitados"));
     }
 
@@ -100,11 +119,13 @@ public final class ServerControlModule implements PluginModule {
             HandlerList.unregisterAll(listener);
             listener = null;
         }
-        if (resistance != null && plugin != null) {
-            resistance.shutdown(plugin.getServer().getOnlinePlayers());
-        }
-        if (vanish != null && plugin != null && !plugin.isReloadingPluginState()) {
-            vanish.clearOnlineSessions();
+        shutdownResistance();
+        shutdownVanish();
+        resetExternalCallbacks();
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
         }
     }
 
@@ -183,7 +204,11 @@ public final class ServerControlModule implements PluginModule {
     }
 
     public void bridgeMinecraftChat(Player player, String message) {
-        minecraftChatBridge.accept(player, message);
+        BukkitRuntimeRegistrations current = registrations;
+        BiConsumer<Player, String> bridge = minecraftChatBridge;
+        if (current != null) {
+            current.guard(() -> bridge.accept(player, message)).run();
+        }
     }
 
     public List<String> visiblePlayerNames() {
@@ -195,10 +220,9 @@ public final class ServerControlModule implements PluginModule {
     }
 
     public void runNextTick(Runnable runnable) {
-        if (plugin.getServer().isPrimaryThread()) {
-            plugin.getServer().getScheduler().runTask(plugin, runnable);
-        } else {
-            plugin.getServer().getScheduler().runTask(plugin, runnable);
+        BukkitRuntimeRegistrations current = registrations;
+        if (current != null) {
+            current.scheduleImmediate("server-control-next-tick", runnable);
         }
     }
 
@@ -287,6 +311,40 @@ public final class ServerControlModule implements PluginModule {
             }
         }
         return null;
+    }
+
+    private void resetExternalCallbacks() {
+        discordPlayerRefresh = () -> { };
+        minecraftChatBridge = (player, message) -> { };
+    }
+
+    private void shutdownResistance() {
+        if (resistanceStopped || resistance == null || plugin == null) {
+            return;
+        }
+        resistanceStopped = true;
+        resistance.shutdown(plugin.getServer().getOnlinePlayers());
+    }
+
+    private void shutdownVanish() {
+        if (vanish == null || plugin == null) {
+            return;
+        }
+        vanish.setPlayerListRefresh(null);
+        if (!plugin.isReloadingPluginState()) {
+            vanish.clearOnlineSessions();
+        }
+    }
+
+    private void clearRuntimeState() {
+        maintenanceTask = null;
+        listener = null;
+        registrations = null;
+        resistance = null;
+        resistanceStopped = true;
+        vanish = null;
+        service = null;
+        resetExternalCallbacks();
     }
 
     private boolean isDangerousFloor(Material material) {

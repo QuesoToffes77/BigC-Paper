@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -44,6 +45,19 @@ class ResourcePackServiceTest {
     }
 
     @Test
+    void manualRequestForcesDeliveryWhenAutomaticResendIsDisabled() {
+        ResourcePackManifest manifest = manifest("075a3f4dec4b");
+        AtomicInteger requests = new AtomicInteger();
+        ResourcePackService service = service(manifest,
+            (playerId, packId, uri, sha1, prompt, required) -> requests.incrementAndGet(), false);
+
+        assertTrue(service.requestFor(PLAYER_ID));
+        assertFalse(service.requestFor(PLAYER_ID));
+        assertTrue(service.forceRequestFor(PLAYER_ID));
+        assertEquals(2, requests.get());
+    }
+
+    @Test
     void ignoresStatusEventsForResourcePacksOwnedByOtherPlugins() {
         ResourcePackManifest manifest = manifest("075a3f4dec4b");
         ResourcePackService service = service(manifest, (playerId, packId, uri, sha1, prompt, required) -> { });
@@ -76,6 +90,25 @@ class ResourcePackServiceTest {
     }
 
     @Test
+    void transitionRecognizesButDoesNotApplyLatePreviousPackStatus() {
+        ResourcePackManifest previous = manifest("075a3f4dec4b");
+        ResourcePackManifest current = manifest("175a3f4dec4b");
+        ResourcePackService service = service(previous, (playerId, packId, uri, sha1, prompt, required) -> { });
+        ResourcePackStatusHandler handler = new ResourcePackStatusHandler(service);
+        service.activate(current, URI.create("https://example.com/current.zip"));
+
+        handler.handle(previous.javaUuid(), PLAYER_ID, "SUCCESSFULLY_LOADED", () -> { });
+
+        assertTrue(service.isBigCasaresPack(previous.javaUuid()));
+        assertTrue(service.isBigCasaresPack(current.javaUuid()));
+        assertEquals(ResourcePackPlayerState.NOT_REQUESTED, service.state(PLAYER_ID));
+
+        handler.handle(current.javaUuid(), PLAYER_ID, "SUCCESSFULLY_LOADED", () -> { });
+
+        assertEquals(ResourcePackPlayerState.LOADED, service.state(PLAYER_ID));
+    }
+
+    @Test
     void listenerRejectsForeignPackIdsBeforeReadingPlayerStatus() throws Exception {
         String source = Files.readString(Path.of(
             "src/main/java/dev/linqfy/bigCasares/modules/resourcepack/ResourcePackStatusListener.java"
@@ -89,10 +122,18 @@ class ResourcePackServiceTest {
     }
 
     private static ResourcePackService service(ResourcePackManifest manifest, ResourcePackGateway gateway) {
+        return service(manifest, gateway, true);
+    }
+
+    private static ResourcePackService service(
+        ResourcePackManifest manifest,
+        ResourcePackGateway gateway,
+        boolean resendOnVersionChange
+    ) {
         return new ResourcePackService(
             new ResourcePackSettings(
                 false,
-                true,
+                resendOnVersionChange,
                 "BigCasares pack",
                 new ResourcePackPublisher(ResourcePackPublisher.Mode.EXTERNAL_URL,
                     URI.create("https://example.com/bigcasares.zip"))

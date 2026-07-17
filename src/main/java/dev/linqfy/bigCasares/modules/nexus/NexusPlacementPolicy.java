@@ -10,6 +10,8 @@ public final class NexusPlacementPolicy {
 
     private static final int HITBOX_HORIZONTAL_RADIUS = 1;
     private static final int HITBOX_HEIGHT = 3;
+    private static final int MINIMUM_PLACEMENT_Y = -10;
+    private static final int MAXIMUM_PLACEMENT_Y = 150;
 
     private static final List<Face> CARDINAL_FACES = List.of(
             new Face(0, -1),
@@ -34,6 +36,14 @@ public final class NexusPlacementPolicy {
     ) {
         Objects.requireNonNull(origin, "origin");
         Objects.requireNonNull(probe, "probe");
+
+        if (origin.y() < MINIMUM_PLACEMENT_Y || origin.y() > MAXIMUM_PLACEMENT_Y) {
+            return NexusPlacementResult.rejected(
+                    NexusPlacementRejection.Y_OUT_OF_RANGE,
+                    origin,
+                    null
+            );
+        }
 
         NexusPlacementResult containerResult = findBlockingContainer(origin, probe);
         if (!containerResult.allowed()) {

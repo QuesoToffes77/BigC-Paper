@@ -2,13 +2,14 @@ package dev.linqfy.bigCasares.modules.missions;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 
 import java.time.DayOfWeek;
@@ -33,6 +34,7 @@ public final class MissionModule implements PluginModule {
     private VaultEconomyGateway economyGateway;
     private MissionHudController hudController;
     private boolean enabled;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public MissionModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -45,6 +47,14 @@ public final class MissionModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         Economy economy = VaultEconomyGateway.resolveOrThrow(plugin);
         this.catalog = new MissionCatalogLoader().load(plugin.getConfig());
         this.storage = new YamlMissionStorage(plugin.getDataFolder().toPath().resolve("data").resolve("missions").resolve("players"));
@@ -60,14 +70,21 @@ public final class MissionModule implements PluginModule {
         );
         this.hudController = new MissionHudController(this, economyGateway);
 
-        registerListener(new MissionListener(this));
-        registerListener(hudController);
+        scope.register("module-state", this::clearRuntimeState);
+        scope.register("hud-open-views", hudController::closeOpenViews);
+        registrations.registerListener("mission-listener", new MissionListener(this));
+        registrations.registerListener("hud-listener", hudController);
         this.enabled = true;
     }
 
     @Override
     public void onDisable() {
         this.enabled = false;
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
+        }
     }
 
     public boolean isEnabled() {
@@ -273,8 +290,13 @@ public final class MissionModule implements PluginModule {
         }
     }
 
-    private void registerListener(Listener listener) {
-        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+    private void clearRuntimeState() {
+        enabled = false;
+        hudController = null;
+        playerMissionService = null;
+        economyGateway = null;
+        storage = null;
+        catalog = null;
     }
 
     private Instant nextDailyReset() {

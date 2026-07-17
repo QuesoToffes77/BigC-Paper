@@ -9,6 +9,8 @@ modules:
   airdrop-system: true
   resource-pack-system:
     enabled: true
+  custom-item-catalog:
+    enabled: true
   team-system:
     enabled: true
   nexus-system:
@@ -1066,15 +1068,23 @@ skill-rating-system:
     - 2500.0
     - 3500.0
 
-# El build siempre genera ambos packs. Para enviar el ZIP Java, cambie el modo
-# a external-url y publique el archivo en una URL HTTPS accesible por jugadores.
+# El build siempre genera ambos packs. Use external-url con una URL publicada,
+# embedded-http con public-url/bind-address/port, o copy-only sin envío automático.
 resource-pack-system:
   required: true
   resend-on-version-change: true
   prompt-message: "Este servidor utiliza modelos, música e interfaces custom."
+  bettermodel-java-pack: ""
   publishing:
     mode: copy-only
     public-url: ""
+    bind-address: "127.0.0.1"
+    port: 8123
+    worker-threads: 2
+
+custom-item-catalog:
+  reconciliation:
+    stacks-per-tick: 36
 
 geyser-integration:
   enabled: true

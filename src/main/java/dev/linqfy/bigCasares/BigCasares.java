@@ -3,11 +3,18 @@ package dev.linqfy.bigCasares;
 import dev.linqfy.bigCasares.items.CustomItemRegistry;
 import dev.linqfy.bigCasares.communication.EmojiAliasService;
 import dev.linqfy.bigCasares.command.BigCasaresCommand;
+import dev.linqfy.bigCasares.command.RequiredCommandBindings;
 import dev.linqfy.bigCasares.module.ModuleManager;
+import dev.linqfy.bigCasares.module.ModuleLifecycleReport;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeCleanupOutcome;
+import dev.linqfy.bigCasares.module.runtime.RuntimeCleanupReport;
+import dev.linqfy.bigCasares.module.runtime.RuntimeGeneration;
 import dev.linqfy.bigCasares.modules.bounties.BountyModule;
 import dev.linqfy.bigCasares.modules.copperapple.CopperAppleModule;
 import dev.linqfy.bigCasares.modules.customcrossbow.CustomCrossbowModule;
 import dev.linqfy.bigCasares.modules.inventorylimit.InventoryLimitModule;
+import dev.linqfy.bigCasares.modules.items.ItemCatalogModule;
 import dev.linqfy.bigCasares.modules.geyser.BedrockShopForm;
 import dev.linqfy.bigCasares.modules.geyser.GeyserIntegrationModule;
 import dev.linqfy.bigCasares.modules.missions.MissionModule;
@@ -26,6 +33,10 @@ import dev.linqfy.bigCasares.modules.moderation.ModerationModule;
 import dev.linqfy.bigCasares.modules.servercontrol.ServerControlModule;
 import dev.linqfy.bigCasares.modules.servercontrol.VanishSessionRegistry;
 import dev.linqfy.bigCasares.platform.ClientPlatform;
+import dev.linqfy.bigCasares.reload.ReloadCoordinator;
+import dev.linqfy.bigCasares.reload.ReloadOperation;
+import dev.linqfy.bigCasares.reload.ReloadResult;
+import dev.linqfy.bigCasares.reload.ReloadStatus;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -35,6 +46,10 @@ import java.util.UUID;
 
 public final class BigCasares extends JavaPlugin {
 
+    private static final List<String> ROOT_COMMAND_NAMES = List.of(
+        "bigcasares", "shop", "rating", "team", "teammanage", "nexus", "boss"
+    );
+
     private ModuleManager moduleManager;
     private CustomItemRegistry customItemRegistry;
     private MissionModule missionModule;
@@ -43,6 +58,7 @@ public final class BigCasares extends JavaPlugin {
     private InventoryLimitModule inventoryLimitModule;
     private SkillRatingModule skillRatingModule;
     private ResourcePackModule resourcePackModule;
+    private ItemCatalogModule itemCatalogModule;
     private TeamModule teamModule;
     private NexusModule nexusModule;
     private PveBossModule pveBossModule;
@@ -53,13 +69,24 @@ public final class BigCasares extends JavaPlugin {
     private DiscordIntegrationModule discordIntegrationModule;
     private EmojiAliasService emojiAliasService;
     private final VanishSessionRegistry vanishSessionRegistry = new VanishSessionRegistry();
-    private boolean reloadingPluginState;
+    private final ReloadCoordinator reloadCoordinator = new ReloadCoordinator();
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        initializeRuntime();
-        registerCommands();
+        try {
+            ModuleLifecycleReport activation = initializeRuntime(new RuntimeGeneration(0));
+            if (activation.hasFailures()) {
+                throw new IllegalStateException(
+                    "BigCasares runtime activation failed",
+                    activation.failures().getFirst().failure()
+                );
+            }
+            registerCommands();
+        } catch (RuntimeException | Error failure) {
+            cleanupFailedStartup(failure);
+            throw failure;
+        }
 
         getLogger().info("BigCasares enabled. Active modules: "
             + moduleManager.getActiveModuleCount() + "/"
@@ -69,9 +96,8 @@ public final class BigCasares extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (moduleManager != null) {
-            moduleManager.disableActiveModules();
-        }
+        disableCurrentRuntime();
+        logCleanupFailures(cleanupBukkitRuntime());
     }
 
     public CustomItemRegistry getCustomItemRegistry() {
@@ -100,6 +126,10 @@ public final class BigCasares extends JavaPlugin {
 
     public ResourcePackModule getResourcePackModule() {
         return resourcePackModule;
+    }
+
+    public ItemCatalogModule getItemCatalogModule() {
+        return itemCatalogModule;
     }
 
     public TeamModule getTeamModule() {
@@ -143,7 +173,7 @@ public final class BigCasares extends JavaPlugin {
     }
 
     public boolean isReloadingPluginState() {
-        return reloadingPluginState;
+        return reloadCoordinator.isReloading();
     }
 
     public static List<String> frameworkV2ModuleOrder() {
@@ -157,18 +187,49 @@ public final class BigCasares extends JavaPlugin {
         );
     }
 
-    public void reloadPluginState() {
-        reloadingPluginState = true;
-        try {
-            if (moduleManager != null) {
-                moduleManager.disableActiveModules();
+    public ReloadResult reloadPluginState() {
+        ReloadResult result = reloadCoordinator.execute(new ReloadOperation() {
+            @Override
+            public ModuleLifecycleReport disableRuntime() {
+                return disableCurrentRuntime();
             }
-            reloadConfig();
-            initializeRuntime();
-            registerCommands();
-        } finally {
-            reloadingPluginState = false;
+
+            @Override
+            public RuntimeCleanupReport cleanupRuntime() {
+                RuntimeCleanupReport report = cleanupBukkitRuntime();
+                logCleanupFailures(report);
+                return report;
+            }
+
+            @Override
+            public void reloadConfiguration() {
+                reloadConfig();
+            }
+
+            @Override
+            public ModuleLifecycleReport initializeRuntime(RuntimeGeneration generation) {
+                return BigCasares.this.initializeRuntime(generation);
+            }
+
+            @Override
+            public void bindCommands() {
+                registerCommands();
+            }
+
+            @Override
+            public int activeModuleCount() {
+                return moduleManager == null ? 0 : moduleManager.getActiveModuleCount();
+            }
+
+            @Override
+            public int registeredModuleCount() {
+                return moduleManager == null ? 0 : moduleManager.getRegisteredModuleCount();
+            }
+        });
+        if (result.status() == ReloadStatus.FAILED) {
+            logReloadFailure(result);
         }
+        return result;
     }
 
     public void openShop(Player player) {
@@ -183,7 +244,7 @@ public final class BigCasares extends JavaPlugin {
         return inventoryLimitModule == null ? 0 : inventoryLimitModule.enforce(player);
     }
 
-    private void initializeRuntime() {
+    private ModuleLifecycleReport initializeRuntime(RuntimeGeneration generation) {
         this.customItemRegistry = new CustomItemRegistry();
         this.emojiAliasService = loadEmojiAliases();
         this.moduleManager = new ModuleManager(this, getConfig());
@@ -195,6 +256,7 @@ public final class BigCasares extends JavaPlugin {
         this.geyserIntegrationModule = new GeyserIntegrationModule(this);
         this.airdropModule = new AirdropModule(this);
         this.resourcePackModule = new ResourcePackModule(this, this::resolveClientPlatform);
+        this.itemCatalogModule = new ItemCatalogModule(this, customItemRegistry);
         this.teamModule = new TeamModule(this);
         JavaModelGateway javaModels = JavaModelGatewayFactory.create(this);
         this.nexusModule = new NexusModule(this, playerId ->
@@ -218,6 +280,8 @@ public final class BigCasares extends JavaPlugin {
         );
         this.shopModule.configurePlatform(this::resolveClientPlatform, this::sendBedrockShopForm);
 
+        moduleManager.register(resourcePackModule);
+        moduleManager.register(itemCatalogModule);
         moduleManager.register(new CopperAppleModule(this));
         moduleManager.register(new SmokeBombModule(this));
         moduleManager.register(new CustomCrossbowModule(this));
@@ -227,7 +291,6 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(skillRatingModule);
         moduleManager.register(airdropModule);
 
-        moduleManager.register(resourcePackModule);
         moduleManager.register(teamModule);
         moduleManager.register(nexusModule);
         moduleManager.register(shopModule);
@@ -236,7 +299,7 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(moderationModule);
         moduleManager.register(serverControlModule);
         moduleManager.register(discordIntegrationModule);
-        moduleManager.enableRegisteredModules();
+        return moduleManager.enableRegisteredModules(generation);
     }
 
     public ClientPlatform resolvePlayerPlatform(UUID playerId) {
@@ -284,27 +347,82 @@ public final class BigCasares extends JavaPlugin {
 
     private void registerCommands() {
         BigCasaresCommand handler = new BigCasaresCommand(this);
-        PluginCommand management = getCommand("bigcasares");
-        if (management != null) {
-            management.setExecutor(handler);
-            management.setTabCompleter(handler);
+        List<PluginCommand> commands = RequiredCommandBindings.resolve(this::getCommand, ROOT_COMMAND_NAMES);
+        for (PluginCommand command : commands) {
+            command.setExecutor(handler);
+            command.setTabCompleter(handler);
         }
-        PluginCommand shop = getCommand("shop");
-        if (shop != null) {
-            shop.setExecutor(handler);
-            shop.setTabCompleter(handler);
+    }
+
+    private ModuleLifecycleReport disableCurrentRuntime() {
+        ModuleManager retiringManager = moduleManager;
+        try {
+            return retiringManager == null
+                ? ModuleLifecycleReport.empty()
+                : retiringManager.disableActiveModules();
+        } finally {
+            clearRuntimeReferences();
         }
-        PluginCommand rating = getCommand("rating");
-        if (rating != null) {
-            rating.setExecutor(handler);
-            rating.setTabCompleter(handler);
-        }
-        for (String commandName : List.of("team", "teammanage", "nexus", "boss")) {
-            PluginCommand command = getCommand(commandName);
-            if (command != null) {
-                command.setExecutor(handler);
-                command.setTabCompleter(handler);
+    }
+
+    private RuntimeCleanupReport cleanupBukkitRuntime() {
+        return BukkitRuntimeRegistrations.runTemporaryPluginWideFallback(this);
+    }
+
+    private void cleanupFailedStartup(Throwable failure) {
+        try {
+            ModuleLifecycleReport shutdown = disableCurrentRuntime();
+            for (var outcome : shutdown.failures()) {
+                failure.addSuppressed(outcome.failure());
             }
+        } catch (Throwable shutdownFailure) {
+            failure.addSuppressed(shutdownFailure);
+        }
+        RuntimeCleanupReport cleanup = cleanupBukkitRuntime();
+        logCleanupFailures(cleanup);
+        for (RuntimeCleanupOutcome outcome : cleanup.failures()) {
+            failure.addSuppressed(outcome.failure());
+        }
+    }
+
+    private void logCleanupFailures(RuntimeCleanupReport report) {
+        for (RuntimeCleanupOutcome failure : report.failures()) {
+            getLogger().log(
+                java.util.logging.Level.SEVERE,
+                "Failed temporary runtime cleanup: " + failure.resourceId(),
+                failure.failure()
+            );
+        }
+    }
+
+    private void clearRuntimeReferences() {
+        moduleManager = null;
+        customItemRegistry = null;
+        missionModule = null;
+        bountyModule = null;
+        shopModule = null;
+        inventoryLimitModule = null;
+        skillRatingModule = null;
+        resourcePackModule = null;
+        itemCatalogModule = null;
+        teamModule = null;
+        nexusModule = null;
+        pveBossModule = null;
+        geyserIntegrationModule = null;
+        airdropModule = null;
+        moderationModule = null;
+        serverControlModule = null;
+        discordIntegrationModule = null;
+        emojiAliasService = null;
+    }
+
+    private void logReloadFailure(ReloadResult result) {
+        Throwable failure = result.failure();
+        String message = "Plugin-state reload failed during " + result.failurePhase();
+        if (failure == null) {
+            getLogger().severe(message);
+        } else {
+            getLogger().log(java.util.logging.Level.SEVERE, message, failure);
         }
     }
 }

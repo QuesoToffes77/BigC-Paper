@@ -9,13 +9,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class ResourcePackService {
     private final ResourcePackSettings settings;
-    private final ResourcePackManifest manifest;
     private final ResourcePackGateway gateway;
     private final ClientPlatformGateway platformGateway;
     private final Map<UUID, ResourcePackPlayerState> states = new ConcurrentHashMap<>();
+    private final AtomicReference<Delivery> delivery;
+    private volatile UUID previousPackId;
 
     public ResourcePackService(
         ResourcePackSettings settings,
@@ -24,24 +26,38 @@ public final class ResourcePackService {
         ClientPlatformGateway platformGateway
     ) {
         this.settings = settings;
-        this.manifest = manifest;
         this.gateway = gateway;
         this.platformGateway = platformGateway;
+        this.delivery = new AtomicReference<>(new Delivery(
+            manifest,
+            settings.publisher().javaPackUri().orElse(null)
+        ));
     }
 
     public boolean requestFor(UUID playerId) {
+        return requestFor(playerId, false);
+    }
+
+    public boolean forceRequestFor(UUID playerId) {
+        return requestFor(playerId, true);
+    }
+
+    private boolean requestFor(UUID playerId, boolean force) {
         if (platformGateway.resolvePlatform(playerId) == ClientPlatform.BEDROCK) {
             return false;
         }
-        Optional<URI> uri = settings.publisher().javaPackUri();
-        if (uri.isEmpty()) {
+        Delivery currentDelivery = delivery.get();
+        if (currentDelivery.uri() == null) {
             return false;
         }
         ResourcePackPlayerState current = state(playerId);
-        if (!settings.resendOnVersionChange() && current != ResourcePackPlayerState.NOT_REQUESTED) {
+        if (!force && !settings.resendOnVersionChange()
+            && current != ResourcePackPlayerState.NOT_REQUESTED) {
             return false;
         }
-        gateway.requestJavaPack(playerId, manifest.javaUuid(), uri.get(), HexFormat.of().parseHex(manifest.javaSha1()),
+        ResourcePackManifest manifest = currentDelivery.manifest();
+        gateway.requestJavaPack(playerId, manifest.javaUuid(), currentDelivery.uri(),
+            HexFormat.of().parseHex(manifest.javaSha1()),
             settings.promptMessage(), settings.required());
         states.put(playerId, ResourcePackPlayerState.SENT);
         return true;
@@ -49,6 +65,14 @@ public final class ResourcePackService {
 
     public void updateState(UUID playerId, ResourcePackPlayerState state) {
         states.put(playerId, state);
+    }
+
+    public boolean updateState(UUID packId, UUID playerId, ResourcePackPlayerState state) {
+        if (!delivery.get().manifest().javaUuid().equals(packId)) {
+            return false;
+        }
+        states.put(playerId, state);
+        return true;
     }
 
     public ResourcePackPlayerState state(UUID playerId) {
@@ -64,10 +88,26 @@ public final class ResourcePackService {
     }
 
     public boolean isBigCasaresPack(UUID packId) {
-        return manifest.javaUuid().equals(packId);
+        return delivery.get().manifest().javaUuid().equals(packId) || packId.equals(previousPackId);
+    }
+
+    public void activate(ResourcePackManifest manifest, URI uri) {
+        Delivery previous = delivery.getAndSet(new Delivery(manifest, uri));
+        previousPackId = previous.manifest().javaUuid();
+    }
+
+    public ResourcePackManifest currentManifest() {
+        return delivery.get().manifest();
+    }
+
+    public Optional<URI> currentUri() {
+        return Optional.ofNullable(delivery.get().uri());
     }
 
     public void forget(UUID playerId) {
         states.remove(playerId);
+    }
+
+    private record Delivery(ResourcePackManifest manifest, URI uri) {
     }
 }

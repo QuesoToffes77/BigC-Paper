@@ -1,6 +1,8 @@
 package dev.linqfy.bigCasares.modules.nexus;
 
 import dev.linqfy.bigCasares.module.PluginModule;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelHandle;
 import dev.linqfy.bigCasares.modules.teams.Team;
@@ -47,6 +49,7 @@ public final class NexusModule implements PluginModule {
     private BukkitTask restoreTask;
     private BukkitTask attackTask;
     private NexusItem nexusItem;
+    private RuntimeRegistrationScope compatibilityScope;
 
     public NexusModule(JavaPlugin plugin) {
         this(plugin, ignored -> Optional.empty());
@@ -104,18 +107,32 @@ public final class NexusModule implements PluginModule {
 
     @Override
     public void onEnable() {
+        RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
+        this.compatibilityScope = scope;
+        onEnable(scope);
+    }
+
+    @Override
+    public void onEnable(RuntimeRegistrationScope scope) {
         if (plugin == null) {
             throw new IllegalStateException("NexusModule needs a plugin instance before it can be enabled");
         }
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        scope.register("module-state", this::clearRuntimeState);
         org.bukkit.NamespacedKey itemKey = new org.bukkit.NamespacedKey(plugin, "nexus");
-        this.nexusItem = new NexusItem(itemKey);
         if (plugin instanceof dev.linqfy.bigCasares.BigCasares bc) {
+            this.nexusItem = new NexusItem(bc.getCustomItemRegistry(), itemKey);
             bc.getCustomItemRegistry().register(nexusItem);
+            scope.register("custom-item", () -> bc.getCustomItemRegistry().unregister(NexusItem.ID));
+        } else {
+            throw new IllegalStateException("NexusModule requires the BigCasares item catalog");
         }
         settings = NexusSettings.fromConfig(plugin.getConfig());
         storageFile = new File(plugin.getDataFolder(), "data/nexus/nexuses.yml");
         loadStoredNexuses();
-        visualGateway = new JavaNexusVisualGateway(plugin, javaModels);
+        visualGateway = new JavaNexusVisualGateway(plugin, javaModels, registrations);
+        JavaNexusVisualGateway ownedVisualGateway = visualGateway;
+        scope.register("visual-gateway", ownedVisualGateway::shutdown);
         NexusTeamGateway teamGateway = explicitTeamGateway == null ? this::isMemberOfOwningTeam : explicitTeamGateway;
         service = new NexusService(
             settings.maximumHealth(), settings.damageMultipliers(), teamGateway, visualGateway,
@@ -133,8 +150,9 @@ public final class NexusModule implements PluginModule {
                     StoredNexus sn = stored.get(nid);
                     if (sn != null) {
                         plugin.getServer().broadcastMessage("§c¡El Nexus del equipo " + sn.teamName() + " está bajo ataque!");
-                        if (plugin instanceof dev.linqfy.bigCasares.BigCasares bc && bc.getTeamModule() != null) {
-                            bc.getTeamModule().service().ifPresent(ts -> {
+                        if (plugin instanceof dev.linqfy.bigCasares.BigCasares activeBigCasares
+                            && activeBigCasares.getTeamModule() != null) {
+                            activeBigCasares.getTeamModule().service().ifPresent(ts -> {
                                 var teamOpt = ts.findById(sn.teamId());
                                 if (teamOpt.isPresent()) {
                                     for (UUID member : teamOpt.get().members().keySet()) {
@@ -152,13 +170,13 @@ public final class NexusModule implements PluginModule {
             },
             this::registerContainer
         );
-        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        registrations.registerListener("nexus-listener", listener);
         containerListener = new NexusContainerListener(this);
-        plugin.getServer().getPluginManager().registerEvents(containerListener, plugin);
-        restoreTask = plugin.getServer().getScheduler().runTask(plugin, this::restoreStoredNexuses);
-        attackTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::refreshTransientState, 20L, 20L);
+        registrations.registerListener("nexus-container-listener", containerListener);
+        restoreTask = registrations.scheduleImmediate("nexus-restore", this::restoreStoredNexuses);
+        attackTask = registrations.scheduleRepeating("nexus-attack-state", this::refreshTransientState, 20L, 20L);
 
-        plugin.getServer().getPluginManager().registerEvents(new org.bukkit.event.Listener() {
+        registrations.registerListener("nexus-placement-listener", new org.bukkit.event.Listener() {
             @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.HIGH, ignoreCancelled = true)
             public void onNexusPlace(org.bukkit.event.block.BlockPlaceEvent event) {
                 if (nexusItem.matches(event.getItemInHand())) {
@@ -193,7 +211,7 @@ public final class NexusModule implements PluginModule {
                     }
                 }
             }
-        }, plugin);
+        });
 
         plugin.getLogger().info("[NexusModule] Enabled with final-damage processing and YAML recovery.");
     }
@@ -217,8 +235,12 @@ public final class NexusModule implements PluginModule {
         if (plugin instanceof dev.linqfy.bigCasares.BigCasares bc) {
             bc.getCustomItemRegistry().unregister(NexusItem.ID);
         }
-        service = null;
-        visualGateway = null;
+        RuntimeRegistrationScope scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope != null) {
+            scope.close();
+        }
+        clearRuntimeState();
     }
 
     public NexusPlacementAttempt placeNexus(Location location, Team team) {
@@ -398,6 +420,18 @@ public final class NexusModule implements PluginModule {
     }
 
     private record StoredNexus(TeamId teamId, String teamName, NexusVisualRequest request) {
+    }
+
+    private void clearRuntimeState() {
+        restoreTask = null;
+        attackTask = null;
+        listener = null;
+        containerListener = null;
+        nexusItem = null;
+        service = null;
+        visualGateway = null;
+        settings = null;
+        storageFile = null;
     }
 
     private boolean registerContainer(org.bukkit.block.Block block, UUID playerId) {

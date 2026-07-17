@@ -48,6 +48,14 @@ public final class MissionHudController implements Listener {
         player.openInventory(inventory);
     }
 
+    public void closeOpenViews() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (isMissionTitle(player.getOpenInventory().getTitle())) {
+                player.closeInventory();
+            }
+        }
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         HumanEntity clicker = event.getWhoClicked();
@@ -56,10 +64,7 @@ public final class MissionHudController implements Listener {
         }
 
         String title = event.getView().getTitle();
-        if (!title.equals(MissionTexts.title(MissionHudView.MAIN_MENU))
-            && !title.equals(MissionTexts.title(MissionHudView.DAILY_LIST))
-            && !title.equals(MissionTexts.title(MissionHudView.WEEKLY_LIST))
-            && !title.equals(MissionTexts.title(MissionHudView.CLAIMABLES))) {
+        if (!isMissionTitle(title)) {
             return;
         }
 
@@ -136,6 +141,13 @@ public final class MissionHudController implements Listener {
         lore.add(MissionTexts.status(assignment));
         lore.add(ChatColor.GRAY + "Reinicio: " + MissionTexts.formatTimeRemaining(Duration.between(Instant.now(), resetsAt)));
         return createMenuItem(iconFor(assignment), ChatColor.WHITE + assignment.definition().title(), lore);
+    }
+
+    private boolean isMissionTitle(String title) {
+        return title.equals(MissionTexts.title(MissionHudView.MAIN_MENU))
+            || title.equals(MissionTexts.title(MissionHudView.DAILY_LIST))
+            || title.equals(MissionTexts.title(MissionHudView.WEEKLY_LIST))
+            || title.equals(MissionTexts.title(MissionHudView.CLAIMABLES));
     }
 
     private ItemStack createMenuItem(Material material, String name, List<String> lore) {

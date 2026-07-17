@@ -3,6 +3,8 @@ package dev.linqfy.bigCasares.modules.resourcepack;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 
 record ResourcePackFixture(
     Path sourceRoot,
@@ -53,8 +55,9 @@ record ResourcePackFixture(
             """);
         Files.writeString(bedrockRoot.resolve("entity/nexus.entity.json"), "{\"format_version\":\"1.10.0\"}");
         if (includeTexture) {
-            Files.write(javaRoot.resolve("assets/bigcasares/textures/nexus/nexus.png"), new byte[]{1, 2, 3});
-            Files.write(bedrockRoot.resolve("textures/nexus/nexus.png"), new byte[]{1, 2, 3});
+            BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+            ImageIO.write(image, "png", javaRoot.resolve("assets/bigcasares/textures/nexus/nexus.png").toFile());
+            ImageIO.write(image, "png", bedrockRoot.resolve("textures/nexus/nexus.png").toFile());
         }
         return new ResourcePackFixture(source, registry, javaRoot, bedrockRoot, output);
     }
