@@ -2,19 +2,19 @@
 
 ## Goal
 
-Make the Nuke Shot visibly expand from one compressed TNT into real horizontal TNT rings. The completed formation contains exactly 250 TNT with populations that grow approximately exponentially. The Nuke Shot and Tracker Compass reuse Minecraft's built-in TNT and compass appearances without downloading or adding replacement textures.
+Make the Nuke Shot visibly expand from one compressed TNT into real horizontal TNT rings. The completed formation contains exactly 350 TNT with populations that grow approximately exponentially. The Nuke Shot and Tracker Compass reuse Minecraft's built-in TNT and compass appearances without downloading or adding replacement textures.
 
 ## Nuke Formation
 
-The formation contains one center point plus five rings. Ring populations are fixed at `8`, `16`, `32`, `64`, and `129`, for exactly 250 TNT including the center. Ring radii remain evenly spaced by the configured `radius-step`, whose default is 5 blocks. The default radii are therefore `5`, `10`, `15`, `20`, and `25` blocks. Points within each ring are evenly distributed by angle.
+The formation contains one center point plus six rings. Ring populations are fixed at `6`, `11`, `22`, `44`, `89`, and `177`, for exactly 350 TNT including the center. Ring radii remain evenly spaced by the configured `radius-step`, whose default is 3 blocks. The default radii are therefore `3`, `6`, `9`, `12`, `15`, and `18` blocks. Points within each ring are evenly distributed by angle.
 
-The center TNT appears immediately at the configured height above the activating player. One complete ring appears every configured `ring-interval-ticks`. Previously displayed TNT remains visible, so the formation grows outward from the compressed center instead of replacing it. After the fifth ring appears, all 250 displays are atomically replaced with primed TNT. The center participates in the explosion.
+The center TNT appears immediately at the configured height above the activating player. One complete ring appears every configured `ring-interval-ticks`. Previously displayed TNT remains visible, so the formation grows outward from the compressed center instead of replacing it. After the sixth ring appears, all 350 displays are atomically replaced with primed TNT. The center participates in the explosion.
 
-The population curve is normalized doubling rather than literal powers of two so the total remains exactly 250. The outer rings intentionally become much denser than circumference-proportional rings to preserve the requested exponential visual.
+The population curve is normalized doubling rather than literal powers of two so the total remains exactly 350. The outer rings intentionally become much denser than circumference-proportional rings to preserve the requested exponential visual.
 
 ## Runtime and Failure Handling
 
-`NukeRingLayout` remains the Bukkit-free geometry boundary and returns the five rings. `NukeAnimationRuntime` owns the center point separately, then owns display creation, ring timing, conversion to primed TNT, and cleanup.
+`NukeRingLayout` remains the Bukkit-free geometry boundary and returns the six rings. `NukeAnimationRuntime` owns the center point separately, then owns display creation, ring timing, conversion to primed TNT, and cleanup.
 
 If the world disappears, display creation fails, or primed-TNT creation fails, the runtime removes entities it created using the existing cleanup behavior. Existing TNT fuse, explosion, damage, protection, and source attribution rules remain unchanged.
 
@@ -26,19 +26,19 @@ Compatibility copies under both Java resource-pack trees stay aligned. Catalog i
 
 ## Configuration
 
-The nuke default total becomes 250. The default ring count remains five because the center is not a ring. The default `radius-step` becomes `5.0`; existing height and ring-interval defaults remain unchanged. Configuration validation requires a positive total, ring count, and radius step and rejects combinations that cannot produce the normalized exponential layout.
+The nuke default total becomes 350. The default ring count becomes six because the center is not a ring. The default `radius-step` becomes `3.0`; existing height and ring-interval defaults remain unchanged. Configuration validation requires a positive total, ring count, and radius step and rejects combinations that cannot produce the normalized exponential layout.
 
 ## Verification
 
 Test-first coverage will establish:
 
-- one center plus ring populations `8, 16, 32, 64, 129`;
-- exactly 250 unique formation points;
+- one center plus ring populations `6, 11, 22, 44, 89, 177`;
+- exactly 350 unique formation points;
 - evenly spaced radii and angular distribution;
-- default ring radii of `5`, `10`, `15`, `20`, and `25` blocks;
+- default ring radii of `3`, `6`, `9`, `12`, `15`, and `18` blocks;
 - the center remains present through expansion and is included at release;
-- five ring steps at five-tick intervals;
-- default settings load 250 TNT and five rings;
+- six ring steps at five-tick intervals with release at tick 30;
+- default settings load 350 TNT and six rings;
 - Nuke Shot and Tracker Compass model JSON references use vanilla Minecraft assets.
 
 Verification runs the focused special-items tests first, followed by the full Gradle test and build tasks. `gradle clean` is excluded so `build/run-server` remains intact.
