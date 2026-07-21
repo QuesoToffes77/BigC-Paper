@@ -30,8 +30,12 @@ public final class InventoryLimitListener implements Listener {
             return;
         }
         ItemStack stack = event.getItem().getItemStack();
-        if (service.isLimited(stack.getType()) && !service.canAccept(player, stack.getType(), stack.getAmount())) {
-            event.setCancelled(true);
+        java.util.Map<Material, Integer> incoming = service.countLimitedItemsInStack(stack);
+        for (java.util.Map.Entry<Material, Integer> entry : incoming.entrySet()) {
+            if (!service.canAccept(player, entry.getKey(), entry.getValue())) {
+                event.setCancelled(true);
+                return;
+            }
         }
     }
 
@@ -45,14 +49,17 @@ public final class InventoryLimitListener implements Listener {
         }
 
         ItemStack candidate = resolveIncomingStack(event);
-        if (candidate == null || !service.isLimited(candidate.getType())) {
+        java.util.Map<Material, Integer> incoming = service.countLimitedItemsInStack(candidate);
+        if (incoming.isEmpty()) {
             return;
         }
 
-        if (!service.canAccept(player, candidate.getType(), candidate.getAmount())) {
-            event.setCancelled(true);
-            service.sendLimitMessage(player, candidate.getType());
-            return;
+        for (java.util.Map.Entry<Material, Integer> entry : incoming.entrySet()) {
+            if (!service.canAccept(player, entry.getKey(), entry.getValue())) {
+                event.setCancelled(true);
+                service.sendLimitMessage(player, entry.getKey());
+                return;
+            }
         }
 
         module.enforceLater(player);
@@ -68,7 +75,7 @@ public final class InventoryLimitListener implements Listener {
                 continue;
             }
             ItemStack newStack = event.getNewItems().get(rawSlot);
-            if (newStack != null && service.isLimited(newStack.getType())) {
+            if (!service.countLimitedItemsInStack(newStack).isEmpty()) {
                 module.enforceLater(player);
                 return;
             }
@@ -77,10 +84,27 @@ public final class InventoryLimitListener implements Listener {
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onSwapHands(PlayerSwapHandItemsEvent event) {
-        Material mainType = typeOf(event.getMainHandItem());
-        Material offType = typeOf(event.getOffHandItem());
-        if ((service.isLimited(mainType) && !service.canAccept(event.getPlayer(), mainType, 0))
-            || (service.isLimited(offType) && !service.canAccept(event.getPlayer(), offType, 0))) {
+        boolean triggerEnforce = false;
+        
+        java.util.Map<Material, Integer> mainCounts = service.countLimitedItemsInStack(event.getMainHandItem());
+        for (java.util.Map.Entry<Material, Integer> entry : mainCounts.entrySet()) {
+            if (!service.canAccept(event.getPlayer(), entry.getKey(), 0)) {
+                triggerEnforce = true;
+                break;
+            }
+        }
+        
+        if (!triggerEnforce) {
+            java.util.Map<Material, Integer> offCounts = service.countLimitedItemsInStack(event.getOffHandItem());
+            for (java.util.Map.Entry<Material, Integer> entry : offCounts.entrySet()) {
+                if (!service.canAccept(event.getPlayer(), entry.getKey(), 0)) {
+                    triggerEnforce = true;
+                    break;
+                }
+            }
+        }
+        
+        if (triggerEnforce) {
             module.enforceLater(event.getPlayer());
         }
     }

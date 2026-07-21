@@ -23,6 +23,18 @@ commands:
     description: View skill rating
     usage: /<command> [player]
     aliases: [ skill ]
+  peligro:
+    description: View your danger level
+    usage: /<command> [expandir]
+  tumba:
+    description: Manage your tombstone
+    usage: /<command> abrir
+  misiones:
+    description: View your missions
+    usage: /<command>
+  baltop:
+    description: View the richest players
+    usage: /<command>
   airdrop:
     description: Airdrop management command
     usage: /<command> spawn
@@ -45,6 +57,9 @@ commands:
     description: Abre el panel de control del servidor
     usage: /<command>
     aliases: [ control ]
+  adminme:
+    description: Toggle vanish mode
+    usage: /<command>
   bounty:
     description: View the bounty leaderboard
     usage: /<command> top
@@ -56,6 +71,25 @@ commands:
     description: Withdraw balance into a redeemable payment paper
     usage: /<command> <amount>
     aliases: [ widthdraw, pay ]
+  linkeardiscord:
+    description: Vincula tu cuenta de Minecraft con Discord
+    usage: /<command>
+  resourcepack:
+    description: Reload or send resource pack manually
+    usage: /<command>
+  mobscaling:
+    description: Mob Scaling system management command
+    usage: /<command> factor
+    permission: bigcasares.mobscaling.admin
+  timer:
+    description: Start a bossbar timer
+    usage: /<command> <seconds> [title]
+    permission: bigcasares.command.timer
+  warp:
+    description: Opens the warp menu or manages warps
+    usage: /<command> [manage]
+    aliases: [ warps ]
+
 
 permissions:
   bigcasares.*:
@@ -84,6 +118,26 @@ permissions:
       bigcasares.team.admin: true
       bigcasares.nexus.place: true
       bigcasares.boss.spawn: true
+      bigcasares.mobscaling.admin: true
+      bigcasares.command.timer: true
+      bigcasares.danger.view: true
+      bigcasares.danger.view.others: true
+
+  bigcasares.command.timer:
+    description: Start a bossbar timer
+    default: op
+
+  bigcasares.warp.use:
+    description: Use the warp command
+    default: true
+
+  bigcasares.warp.manage:
+    description: Manage the warp system
+    default: op
+
+  bigcasares.mobscaling.admin:
+    description: Manage the mob scaling module
+    default: op
 
   bigcasares.command.give:
     description: Give BigCasares custom items to yourself
@@ -141,7 +195,7 @@ permissions:
 
   bigcasares.skillrating.view.others:
     description: View other players' skill rating
-    default: op
+    default: true
   
   bigcasares.airdrop.spawn:
     description: Spawn airdrop manually
@@ -182,3 +236,11 @@ permissions:
   bigcasares.boss.spawn:
     description: Spawn a configured PvE boss
     default: op
+
+  bigcasares.danger.view:
+    description: View your own danger level
+    default: true
+
+  bigcasares.danger.view.others:
+    description: View other players' danger levels
+    default: true

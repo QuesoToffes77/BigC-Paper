@@ -20,6 +20,14 @@ public final class CopperAppleItem extends CatalogBackedCustomItem {
     @Override
     public void onConsume(Player player, ItemStack consumedItem) {
         player.addPotionEffect(new PotionEffect(
+            PotionEffectType.INSTANT_HEALTH,
+            1,
+            0,
+            false,
+            false,
+            false
+        ));
+        player.addPotionEffect(new PotionEffect(
             PotionEffectType.ABSORPTION,
             CopperAppleBalance.ABSORPTION_TICKS,
             CopperAppleBalance.ABSORPTION_AMPLIFIER,

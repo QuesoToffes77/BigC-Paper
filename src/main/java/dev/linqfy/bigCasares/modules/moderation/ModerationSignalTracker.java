@@ -24,6 +24,8 @@ public final class ModerationSignalTracker {
     private final Map<String, Map<UUID, Instant>> accountsByIp = new HashMap<>();
     private final Map<UUID, Deque<Instant>> meleeHits = new HashMap<>();
     private final Map<UUID, Deque<Instant>> inventoryClicks = new HashMap<>();
+    private final Map<UUID, String> lastKnownIps = new HashMap<>();
+    private final Map<String, Set<UUID>> allAccountsByIp = new HashMap<>();
 
     public ModerationSignalTracker(Set<String> sensitiveCommands) {
         this.sensitiveCommands = sensitiveCommands;
@@ -73,6 +75,18 @@ public final class ModerationSignalTracker {
         if (accounts.size() == 3) {
             signals.add(signal(now, playerId, playerName, "ip-account-rate", 40, "3 UUID desde una IP en 10 minutos"));
         }
+
+        String previousIp = lastKnownIps.get(playerId);
+        if (previousIp != null && !previousIp.equals(ip)) {
+            Set<UUID> otherAccounts = allAccountsByIp.getOrDefault(ip, Set.of());
+            long others = otherAccounts.stream().filter(id -> !id.equals(playerId)).count();
+            if (others > 0) {
+                signals.add(signal(now, playerId, playerName, "ip-sudden-change", 100, "Cambio de IP abrupto cruzado con " + others + " cuenta(s) en " + ip));
+            }
+        }
+        lastKnownIps.put(playerId, ip);
+        allAccountsByIp.computeIfAbsent(ip, k -> new java.util.HashSet<>()).add(playerId);
+
         return signals;
     }
 

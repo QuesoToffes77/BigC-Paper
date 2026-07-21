@@ -5,17 +5,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public record ItemRecipeDefinition(String key, int resultAmount, List<String> shape, Map<Character, String> ingredients) {
+public record ItemRecipeDefinition(
+    String key,
+    int resultAmount,
+    RecipeType type,
+    List<String> shape,
+    Map<Character, String> ingredients,
+    List<String> shapelessIngredients
+) {
+
+    public ItemRecipeDefinition(String key, int resultAmount, List<String> shape, Map<Character, String> ingredients) {
+        this(key, resultAmount, RecipeType.SHAPED, shape, ingredients, List.of());
+    }
+
+    public static ItemRecipeDefinition shapeless(String key, int resultAmount, List<String> ingredients) {
+        return new ItemRecipeDefinition(key, resultAmount, RecipeType.SHAPELESS, List.of(), Map.of(), ingredients);
+    }
 
     public ItemRecipeDefinition {
         key = normalizeKey(key);
         if (resultAmount < 1 || resultAmount > 64) {
             throw new IllegalArgumentException("resultAmount must be between 1 and 64");
         }
+        type = Objects.requireNonNull(type, "type");
         shape = List.copyOf(Objects.requireNonNull(shape, "shape"));
-        if (shape.isEmpty() || shape.size() > 3 || shape.stream().anyMatch(row -> row == null || row.length() > 3)) {
-            throw new IllegalArgumentException("shape must contain one to three rows with at most three columns");
-        }
+        shapelessIngredients = Objects.requireNonNull(shapelessIngredients, "shapelessIngredients").stream()
+            .map(ItemRecipeDefinition::normalizeMaterial).toList();
         Map<Character, String> normalizedIngredients = new LinkedHashMap<>();
         for (Map.Entry<Character, String> entry : Objects.requireNonNull(ingredients, "ingredients").entrySet()) {
             Character keyCharacter = Objects.requireNonNull(entry.getKey(), "ingredient key");
@@ -27,12 +42,27 @@ public record ItemRecipeDefinition(String key, int resultAmount, List<String> sh
                 throw new IllegalArgumentException("duplicate recipe ingredient: " + keyCharacter);
             }
         }
-        for (String row : shape) {
-            for (int index = 0; index < row.length(); index++) {
-                char character = row.charAt(index);
-                if (character != ' ' && !normalizedIngredients.containsKey(character)) {
-                    throw new IllegalArgumentException("recipe shape references an undefined ingredient: " + character);
+        if (type == RecipeType.SHAPED) {
+            if (shape.isEmpty() || shape.size() > 3 || shape.stream().anyMatch(row -> row == null || row.length() > 3)) {
+                throw new IllegalArgumentException("shape must contain one to three rows with at most three columns");
+            }
+            if (!shapelessIngredients.isEmpty()) {
+                throw new IllegalArgumentException("shaped recipes cannot define shapeless ingredients");
+            }
+            for (String row : shape) {
+                for (int index = 0; index < row.length(); index++) {
+                    char character = row.charAt(index);
+                    if (character != ' ' && !normalizedIngredients.containsKey(character)) {
+                        throw new IllegalArgumentException("recipe shape references an undefined ingredient: " + character);
+                    }
                 }
+            }
+        } else {
+            if (!shape.isEmpty() || !normalizedIngredients.isEmpty()) {
+                throw new IllegalArgumentException("shapeless recipes cannot define a shape or keyed ingredients");
+            }
+            if (shapelessIngredients.isEmpty() || shapelessIngredients.size() > 9) {
+                throw new IllegalArgumentException("shapeless recipes must contain one to nine ingredients");
             }
         }
         ingredients = Map.copyOf(normalizedIngredients);

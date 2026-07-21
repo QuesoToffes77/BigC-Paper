@@ -1,0 +1,19 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bigcasares:sahur_bat",
+      "materials": {"default": "entity_alphatest"},
+      "textures": {"default": "textures/boss/sahur_bat"},
+      "geometry": {"default": "geometry.bigcasares.sahur_bat"},
+      "animations": {
+        "rise_type_throw": "animation.bigcasares.sahur_bat.rise_type_throw",
+        "spin_type_throw": "animation.bigcasares.sahur_bat.spin_type_throw",
+        "type_shield": "animation.bigcasares.sahur_bat.type_shield",
+        "type_launch_attack": "animation.bigcasares.sahur_bat.type_launch_attack"
+      },
+      "render_controllers": ["controller.render.bigcasares.default"],
+      "spawn_egg": {"base_color": "#55361F", "overlay_color": "#D9AF72"}
+    }
+  }
+}

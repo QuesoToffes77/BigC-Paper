@@ -270,6 +270,11 @@ class AirdropServiceTest {
             }
             return true;
         }
+
+        @Override
+        public Optional<AirdropPosition> getRandomPlayerPosition() {
+            return Optional.empty();
+        }
     }
 
     private static final class CountdownGateway implements AirdropWorldGateway {
@@ -296,6 +301,11 @@ class AirdropServiceTest {
         @Override
         public boolean isSafeOpenSpace(int x, int y, int z) {
             return true;
+        }
+
+        @Override
+        public Optional<AirdropPosition> getRandomPlayerPosition() {
+            return Optional.empty();
         }
     }
 }

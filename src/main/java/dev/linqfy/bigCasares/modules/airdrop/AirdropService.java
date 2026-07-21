@@ -88,9 +88,20 @@ public final class AirdropService {
     }
 
     private Optional<AirdropPosition> generateValidPosition() {
+        Optional<AirdropPosition> playerPos = world.getRandomPlayerPosition();
+
         for (int attempt = 0; attempt < MAX_LOCATION_RETRIES; attempt++) {
-            int x = random.nextInt(settings.radius() * 2 + 1) - settings.radius();
-            int z = random.nextInt(settings.radius() * 2 + 1) - settings.radius();
+            int x, z;
+            if (playerPos.isPresent()) {
+                double angle = random.nextDouble() * 2 * Math.PI;
+                int distance = 400 + random.nextInt(201); // 400 to 600 blocks
+                x = playerPos.get().x() + (int) (Math.cos(angle) * distance);
+                z = playerPos.get().z() + (int) (Math.sin(angle) * distance);
+            } else {
+                x = random.nextInt(settings.radius() * 2 + 1) - settings.radius();
+                z = random.nextInt(settings.radius() * 2 + 1) - settings.radius();
+            }
+
             int groundY = world.getHighestBlockY(x, z);
             int chestY = groundY + 1;
 

@@ -5,9 +5,14 @@
     "bigcasares.copper_apple": {"textures": "textures/item/copper_apple"},
     "bigcasares.smoke_bomb": {"textures": "textures/item/smoke_bomb"},
     "bigcasares.prismarine_arrow": {"textures": "textures/item/prismarine_arrow"},
+    "bigcasares.echo_arrow": {"textures": "textures/item/echo_arrow"},
+    "bigcasares.golden_tipped_amethyst_arrow": {"textures": "textures/item/golden_tipped_amethyst_arrow"},
+    "bigcasares.tracker_compass": {"textures": "textures/items/compass_item"},
+    "bigcasares.nuke_shot": {"textures": "textures/blocks/tnt_side"},
     "bigcasares.crossbow_amethyst_shard": {"textures": "textures/item/crossbow_amethyst_shard"},
     "bigcasares.crossbow_echo_shard": {"textures": "textures/item/crossbow_echo_shard"},
     "bigcasares.crossbow_ender_pearl": {"textures": "textures/item/crossbow_ender_pearl"},
-    "bigcasares.crossbow_firework_rocket": {"textures": "textures/item/crossbow_firework_rocket"}
+    "bigcasares.crossbow_firework_rocket": {"textures": "textures/item/crossbow_firework_rocket"},
+    "bigcasares.sahurs_bat": {"textures": "textures/item/sahurs_bat"}
   }
 }

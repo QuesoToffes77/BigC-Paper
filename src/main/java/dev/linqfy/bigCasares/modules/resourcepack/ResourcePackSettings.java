@@ -29,7 +29,8 @@ public record ResourcePackSettings(
         }
         ConfigurationSection publishing = section.getConfigurationSection("publishing");
         String mode = publishing == null ? "copy-only" : publishing.getString("mode", "copy-only");
-        String publicUrl = publishing == null ? null : publishing.getString("public-url");
+        String publicUrl = publishing == null ? null : publishing.getString(
+            "public-base-url", publishing.getString("public-url"));
         String bindAddress = publishing == null
             ? "127.0.0.1" : publishing.getString("bind-address", "127.0.0.1");
         int port = publishing == null ? 8123 : publishing.getInt("port", 8123);

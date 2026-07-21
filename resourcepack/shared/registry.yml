@@ -9,6 +9,16 @@ assets:
     java-model: bigcasares:abyss_guardian
     bedrock-entity: bigcasares:abyss_guardian
     texture: boss/abyss_guardian
+  tung-tung-sahur:
+    type: boss-model
+    java-model: bigcasares:boss_sahur
+    bedrock-entity: bigcasares:sahur
+    texture: boss/sahur
+  sahur-bat:
+    type: entity-model
+    java-model: bigcasares:bat_boss
+    bedrock-entity: bigcasares:sahur_bat
+    texture: boss/sahur_bat
   merchant:
     type: entity-model
     java-model: bigcasares:merchant
@@ -30,6 +40,22 @@ assets:
     type: item-model
     java-model: bigcasares:item/prismarine_arrow
     texture: item/prismarine_arrow
+  echo-arrow:
+    type: item-model
+    java-model: bigcasares:item/echo_arrow
+    texture: item/echo_arrow
+  golden-tipped-amethyst-arrow:
+    type: item-model
+    java-model: bigcasares:item/golden_tipped_amethyst_arrow
+    texture: item/golden_tipped_amethyst_arrow
+  tracker-compass:
+    type: item-model
+    java-model: bigcasares:item/tracker_compass
+    texture: minecraft:items/compass_item
+  nuke-shot:
+    type: item-model
+    java-model: bigcasares:item/nuke_shot
+    texture: minecraft:blocks/tnt_side
   crossbow-amethyst-shard:
     type: item-model
     java-model: bigcasares:item/crossbow_amethyst_shard
@@ -46,3 +72,7 @@ assets:
     type: item-model
     java-model: bigcasares:item/crossbow_firework_rocket
     texture: item/crossbow_firework_rocket
+  sahurs-bat:
+    type: item-model
+    java-model: bigcasares:item/sahurs_bat
+    texture: item/sahurs_bat

@@ -2,7 +2,6 @@ package dev.linqfy.bigCasares.modules.pveboss;
 
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelHandle;
-import dev.linqfy.bigCasares.modules.model.JavaModelKeys;
 import dev.linqfy.bigCasares.platform.ClientPlatform;
 import dev.linqfy.bigCasares.platform.ClientPlatformGateway;
 import dev.linqfy.bigCasares.platform.ClientEntityPresentationRegistry;
@@ -51,6 +50,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Consumer;
 
 public final class PaperAbyssGuardianRuntime implements Listener {
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
@@ -65,6 +65,7 @@ public final class PaperAbyssGuardianRuntime implements Listener {
     private final BossAnimationService animationService;
     private final JavaModelGateway javaModels;
     private final BossModelAnimationMapper modelAnimations;
+    private final Consumer<List<BossDamageStanding>> damageLeaderboard;
     private final PveTransientOwner transients = new PveTransientOwner();
     private final Map<UUID, Instance> instances = new LinkedHashMap<>();
     private BukkitTask scheduler;
@@ -77,6 +78,18 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         Function<UUID, Boolean> resourcePackLoaded,
         JavaModelGateway javaModels
     ) {
+        this(plugin, definition, service, platformGateway, resourcePackLoaded, javaModels, ignored -> { });
+    }
+
+    public PaperAbyssGuardianRuntime(
+        JavaPlugin plugin,
+        AbyssGuardianDefinition definition,
+        PveBossService service,
+        ClientPlatformGateway platformGateway,
+        Function<UUID, Boolean> resourcePackLoaded,
+        JavaModelGateway javaModels,
+        Consumer<List<BossDamageStanding>> damageLeaderboard
+    ) {
         this.plugin = plugin;
         this.definition = definition;
         this.service = service;
@@ -84,10 +97,12 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         this.resourcePackLoaded = resourcePackLoaded;
         this.presentation = new BossPresentationService(new PaperBossPresentationAdapter());
         this.music = new BossMusicService(new PaperBossAudioGateway(plugin.getServer()));
-        this.bossIdKey = new NamespacedKey(plugin, "pve_boss_id");
+        this.bossIdKey = new NamespacedKey(plugin,
+            definition.id().equals("tung-tung-sahur") ? "sahur_boss_id" : "pve_boss_id");
         this.animationService = new BossAnimationService(new PaperBossAnimationGateway(new dev.linqfy.bigCasares.modules.geyser.GeyserBossVisualGateway()));
         this.javaModels = java.util.Objects.requireNonNull(javaModels, "javaModels");
         this.modelAnimations = new BossModelAnimationMapper();
+        this.damageLeaderboard = java.util.Objects.requireNonNull(damageLeaderboard, "damageLeaderboard");
     }
 
     public void start() {
@@ -103,8 +118,16 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         }
         World world = java.util.Objects.requireNonNull(location.getWorld(), "location world");
         UUID bossId = UUID.randomUUID();
+        double audienceRadiusSquared = definition.audienceRadius() * definition.audienceRadius();
+        int participantCount = (int) world.getPlayers().stream()
+            .filter(Player::isOnline)
+            .filter(player -> !player.isDead())
+            .filter(player -> player.getGameMode() != org.bukkit.GameMode.SPECTATOR)
+            .filter(player -> player.getLocation().distanceSquared(location) <= audienceRadiusSquared)
+            .count();
+        double instanceMaximumHealth = definition.maximumHealthFor(participantCount);
         Warden boss = world.spawn(location, Warden.class, entity -> {
-            ClientEntityPresentationRegistry.register(entity.getUniqueId(), "WARDEN", "pve_boss_id");
+            ClientEntityPresentationRegistry.register(entity.getUniqueId(), "WARDEN", bossIdKey.getKey());
             entity.getPersistentDataContainer().set(bossIdKey, PersistentDataType.STRING, bossId.toString());
             entity.customName(LEGACY.deserialize(definition.displayName()));
             entity.setCustomNameVisible(false);
@@ -112,17 +135,25 @@ public final class PaperAbyssGuardianRuntime implements Listener {
             entity.setRemoveWhenFarAway(false);
             entity.setInvisible(true);
             entity.setAI(false);
+            entity.setGravity(true);
             entity.setSilent(true);
             entity.setAware(false);
             AttributeInstance maxHealth = entity.getAttribute(Attribute.MAX_HEALTH);
             if (maxHealth == null) {
                 throw new IllegalStateException("Warden has no max-health attribute");
             }
-            double vanillaHealth = Math.min(definition.maximumHealth(), 1024.0);
+            double vanillaHealth = Math.min(instanceMaximumHealth, 1024.0);
             maxHealth.setBaseValue(vanillaHealth);
             entity.setHealth(vanillaHealth);
         });
-        JavaModelHandle model = javaModels.attach(boss, JavaModelKeys.ABYSS_GUARDIAN);
+        JavaModelHandle model;
+        try {
+            model = javaModels.attach(boss, definition.javaModelKey());
+        } catch (RuntimeException failure) {
+            ClientEntityPresentationRegistry.unregister(boss.getUniqueId());
+            boss.remove();
+            throw failure;
+        }
         TextDisplay text = world.spawn(location.clone().add(0.0, 4.0, 0.0), TextDisplay.class, display -> {
             mark(display, bossId);
             display.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
@@ -138,7 +169,7 @@ public final class PaperAbyssGuardianRuntime implements Listener {
             this::executeEffects,
             new Telegraphs()
         );
-        BossHealthPool health = new BossHealthPool(definition.maximumHealth());
+        BossHealthPool health = new BossHealthPool(instanceMaximumHealth);
 
         BossAnimationDefinition idleAnim = definition.animationFor("idle");
         if (idleAnim != null) {
@@ -154,9 +185,22 @@ public final class PaperAbyssGuardianRuntime implements Listener {
             coordinator,
             health,
             new ConcurrentHashMap<>(),
+            new ConcurrentHashMap<>(),
+            definition.id().equals("tung-tung-sahur")
+                ? new PaperSahurCombatController(
+                    plugin,
+                    bossId,
+                    boss,
+                    model,
+                    javaModels,
+                    () -> eligiblePlayers(boss),
+                    animation -> animateModel(model, animation)
+                )
+                : null,
             1
         );
         instances.put(bossId, instance);
+        if (instance.sahur != null) instance.sahur.start();
         service.registerInstance(coordinator);
 
         BossAudience audience = audienceFor(boss);
@@ -183,9 +227,10 @@ public final class PaperAbyssGuardianRuntime implements Listener {
     @EventHandler
     public void onDeath(EntityDeathEvent event) {
         readBossId(event.getEntity()).ifPresent(id -> {
+            Instance instance = instances.get(id);
             event.getDrops().clear();
             event.setDroppedExp(0);
-            announce(instances.get(id), "defeat", BossAnnouncementChannel.CHAT);
+            publishDamageLeaderboard(instance);
             remove(id, MusicStopReason.BOSS_DEFEATED, false);
         });
     }
@@ -197,11 +242,28 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         if (instance == null || event.getFinalDamage() <= 0.0) {
             return;
         }
+        if (event instanceof EntityDamageByEntityEvent byEntity
+            && byEntity.getDamager() instanceof Projectile projectile
+            && instance.sahur != null
+            && instance.sahur.blocks(projectile)) {
+            event.setCancelled(true);
+            projectile.remove();
+            return;
+        }
         event.setCancelled(true);
         double damage = event.getFinalDamage();
         instance.health.damage(damage);
-        attackingPlayer(event).ifPresent(player ->
-            instance.damageByPlayer.merge(player.getUniqueId(), damage, Double::sum));
+        attackingPlayer(event).ifPresent(player -> {
+            instance.damageByPlayer.merge(player.getUniqueId(), damage, Double::sum);
+            instance.damageReachedAt.put(player.getUniqueId(), Instant.now());
+            if (instance.sahur != null
+                && event instanceof EntityDamageByEntityEvent byEntity
+                && !(byEntity.getDamager() instanceof Projectile)
+                && player.getFallDistance() > 0.0f
+                && !player.isOnGround()) {
+                instance.sahur.recordCriticalHit(Instant.now());
+            }
+        });
         Location effectLocation = instance.boss.getLocation().add(0.0, 1.5, 0.0);
         instance.boss.getWorld().spawnParticle(
             Particle.DAMAGE_INDICATOR, effectLocation, 8, 0.8, 1.0, 0.8, 0.05);
@@ -272,10 +334,10 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         presentation.showBoss(audience, view(instance));
         instance.text.text(LEGACY.deserialize(
             "§5§l" + definition.displayName() + "\n§f" + Math.round(health)
-                + " §7/ §f" + Math.round(definition.maximumHealth()) + " HP\n§dFASE " + roman(phase)));
+                + " §7/ §f" + Math.round(instance.health.maximum()) + " HP\n§dFASE " + roman(phase)));
 
         BossAbilityContext context = new BossAbilityContext(
-            position(loc), health, definition.maximumHealth(), phase,
+            position(loc), health, instance.health.maximum(), phase,
             candidates(instance), currentTarget(instance.boss).orElse(null));
         Optional<BossAbilityRuntime> runtime = instance.coordinator.tick(now, context);
         if (runtime.isPresent()) {
@@ -332,6 +394,9 @@ public final class PaperAbyssGuardianRuntime implements Listener {
             return;
         }
         for (BossAbilityEffectDefinition effect : ability.effects()) {
+            if (instance.sahur != null && instance.sahur.execute(effect.type(), runtime.targets())) {
+                continue;
+            }
             for (UUID targetId : runtime.targets()) {
                 Player player = Bukkit.getPlayer(targetId);
                 if (player == null || !player.isOnline()) {
@@ -422,6 +487,7 @@ public final class PaperAbyssGuardianRuntime implements Listener {
             presentation.defeatBoss(bossId);
             music.stopBoss(bossId, reason);
             animationService.removeBoss(bossId);
+            if (instance.sahur != null) instance.sahur.close();
             announce(instance, "defeat", BossAnnouncementChannel.CHAT);
             ClientEntityPresentationRegistry.unregister(instance.boss.getUniqueId());
             animateModel(instance.model, "death");
@@ -431,6 +497,30 @@ public final class PaperAbyssGuardianRuntime implements Listener {
                 instance.boss.remove();
             }
         }
+    }
+
+    private void publishDamageLeaderboard(Instance instance) {
+        if (instance == null) return;
+        List<BossDamageStanding> standings = new BossDamageRanking().topThree(
+            instance.damageByPlayer.entrySet().stream()
+                .map(entry -> new BossDamageContribution(
+                    entry.getKey(),
+                    entry.getValue(),
+                    instance.damageReachedAt.getOrDefault(entry.getKey(), Instant.MAX)
+                ))
+                .toList()
+        );
+        damageLeaderboard.accept(standings);
+    }
+
+    private List<Player> eligiblePlayers(Warden boss) {
+        double radiusSquared = definition.audienceRadius() * definition.audienceRadius();
+        return boss.getWorld().getPlayers().stream()
+            .filter(Player::isOnline)
+            .filter(player -> !player.isDead())
+            .filter(player -> player.getGameMode() != org.bukkit.GameMode.SPECTATOR)
+            .filter(player -> player.getLocation().distanceSquared(boss.getLocation()) <= radiusSquared)
+            .toList();
     }
 
     private BossAudience audienceFor(Warden boss) {
@@ -463,7 +553,7 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         return new BossView(
             id,
             definition.displayName(),
-            new BossHealthView(id, instance.health.current(), definition.maximumHealth()),
+            new BossHealthView(id, instance.health.current(), instance.health.maximum()),
             new BossPhaseView(id, instance.phase, "Fase " + roman(instance.phase), instance.phase == 3 ? "ENFURECIDO" : ""),
             instance.phase == 3 ? "ENFURECIDO" : ""
         );
@@ -610,6 +700,8 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         private final BossAbilityCoordinator coordinator;
         private final BossHealthPool health;
         private final Map<UUID, Double> damageByPlayer;
+        private final Map<UUID, Instant> damageReachedAt;
+        private final PaperSahurCombatController sahur;
         private int phase;
 
         private Instance(
@@ -620,6 +712,8 @@ public final class PaperAbyssGuardianRuntime implements Listener {
             BossAbilityCoordinator coordinator,
             BossHealthPool health,
             Map<UUID, Double> damageByPlayer,
+            Map<UUID, Instant> damageReachedAt,
+            PaperSahurCombatController sahur,
             int phase
         ) {
             this.id = id;
@@ -629,6 +723,8 @@ public final class PaperAbyssGuardianRuntime implements Listener {
             this.coordinator = coordinator;
             this.health = health;
             this.damageByPlayer = damageByPlayer;
+            this.damageReachedAt = damageReachedAt;
+            this.sahur = sahur;
             this.phase = phase;
         }
     }

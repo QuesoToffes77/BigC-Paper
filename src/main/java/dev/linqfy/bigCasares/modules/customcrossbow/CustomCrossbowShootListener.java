@@ -30,30 +30,39 @@ public final class CustomCrossbowShootListener implements Listener {
 
     private final CustomCrossbowData crossbowData;
     private final PrismarineArrowItem prismarineArrowItem;
+    private final EchoArrowItem echoArrowItem;
+    private final GoldenTippedAmethystArrowItem amethystArrowItem;
     private final CustomCrossbowSettings settings;
     private final CustomCrossbowDurabilityService durabilityService;
     private final EchoShardCooldownService echoShardCooldownService;
     private final BigCasares plugin;
     private final Consumer<AbstractArrow> prismarineArrowTracker;
+    private final Consumer<Player> rocketJumpTracker;
     private final BukkitRuntimeRegistrations registrations;
 
     public CustomCrossbowShootListener(
         BigCasares plugin,
         CustomCrossbowData crossbowData,
         PrismarineArrowItem prismarineArrowItem,
+        EchoArrowItem echoArrowItem,
+        GoldenTippedAmethystArrowItem amethystArrowItem,
         CustomCrossbowSettings settings,
         CustomCrossbowDurabilityService durabilityService,
         EchoShardCooldownService echoShardCooldownService,
         Consumer<AbstractArrow> prismarineArrowTracker,
+        Consumer<Player> rocketJumpTracker,
         BukkitRuntimeRegistrations registrations
     ) {
         this.plugin = plugin;
         this.crossbowData = crossbowData;
         this.prismarineArrowItem = prismarineArrowItem;
+        this.echoArrowItem = echoArrowItem;
+        this.amethystArrowItem = amethystArrowItem;
         this.settings = settings;
         this.durabilityService = durabilityService;
         this.echoShardCooldownService = echoShardCooldownService;
         this.prismarineArrowTracker = prismarineArrowTracker;
+        this.rocketJumpTracker = rocketJumpTracker;
         this.registrations = registrations;
     }
 
@@ -70,6 +79,33 @@ public final class CustomCrossbowShootListener implements Listener {
 
         var storedCharge = crossbowData.readCharge(bow);
         if (storedCharge.isEmpty()) {
+            if (echoArrowItem.matches(event.getConsumable())) {
+                if (!tryUseEchoShard(player, event)) {
+                    return;
+                }
+                event.setCancelled(true);
+                event.getProjectile().remove();
+                fireSonicBeam(player);
+                durabilityService.applyDirect(bow, CustomCrossbowRules.durabilityCost(CustomCrossbowChargeType.ECHO_SHARD));
+                crossbowData.clearNativeAppearance(bow);
+                return;
+            }
+            if (amethystArrowItem.matches(event.getConsumable())) {
+                applyAmethystArrow(event);
+                durabilityService.record(player, CustomCrossbowRules.durabilityCost(CustomCrossbowChargeType.AMETHYST_SHARD));
+                crossbowData.clearNativeAppearance(bow);
+                return;
+            }
+            if (event.getConsumable() != null && event.getConsumable().getType() == Material.FIREWORK_ROCKET) {
+                if (!player.isOnGround()) {
+                    event.setCancelled(true);
+                    event.getProjectile().remove();
+                    markPrismarineArrow(event);
+                    return;
+                }
+                applyRocketJump(player, nativeFireworkCharge(event.getConsumable(), bow));
+                durabilityService.record(player, CustomCrossbowRules.durabilityCost(CustomCrossbowChargeType.FIREWORK_ROCKET));
+            }
             markPrismarineArrow(event);
             return;
         }
@@ -86,13 +122,29 @@ public final class CustomCrossbowShootListener implements Listener {
 
         switch (charge.type()) {
             case ECHO_SHARD -> fireSonicBeam(player);
-            case FIREWORK_ROCKET -> applyRocketJump(player, charge);
+            case FIREWORK_ROCKET -> {
+                if (!player.isOnGround()) {
+                    event.setCancelled(true);
+                    event.getProjectile().remove();
+                    return;
+                }
+                applyRocketJump(player, charge);
+            }
             case AMETHYST_SHARD -> applyAmethystArrow(event);
             case ENDER_PEARL -> fireEnderPearl(player, plan);
         }
         applyDurability(player, bow, charge.type(), plan.cancelVanillaProjectile());
         crossbowData.clearCharge(bow);
         writeBackCrossbow(player, event.getHand(), bow);
+    }
+
+    private StoredCrossbowCharge nativeFireworkCharge(ItemStack firework, ItemStack crossbow) {
+        int power = 1;
+        if (firework.getItemMeta() instanceof org.bukkit.inventory.meta.FireworkMeta meta && meta.hasPower()) {
+            power = meta.getPower();
+        }
+        int chargeCount = crossbow.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.MULTISHOT) > 0 ? 3 : 1;
+        return new StoredCrossbowCharge(CustomCrossbowChargeType.FIREWORK_ROCKET, power, chargeCount);
     }
 
     private void markPrismarineArrow(EntityShootBowEvent event) {
@@ -124,10 +176,15 @@ public final class CustomCrossbowShootListener implements Listener {
     }
 
     private void applyRocketJump(Player player, StoredCrossbowCharge charge) {
+        float pitch = player.getLocation().getPitch();
+        if (pitch < 30.0f) {
+            return;
+        }
         Vector velocity = player.getVelocity();
         velocity.setY(Math.max(velocity.getY(), CustomCrossbowRules.rocketJumpVelocity(charge.fireworkPower(), charge.chargeCount())));
         player.setVelocity(velocity);
-        player.damage(CustomCrossbowRules.rocketJumpDamage(charge.fireworkPower(), charge.chargeCount()), player);
+        player.setFallDistance(0.0f);
+        rocketJumpTracker.accept(player);
     }
 
     private void fireEnderPearl(Player player, CustomCrossbowShotPlan plan) {

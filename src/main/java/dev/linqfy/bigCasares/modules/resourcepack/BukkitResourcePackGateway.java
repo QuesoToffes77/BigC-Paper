@@ -25,7 +25,13 @@ public final class BukkitResourcePackGateway implements ResourcePackGateway {
     ) {
         Player player = server.getPlayer(playerId);
         if (player != null && player.isOnline()) {
-            player.setResourcePack(packId, publicUri.toString(), sha1, Component.text(prompt), required);
+            player.addResourcePack(packId, publicUri.toString(), sha1, prompt, required);
         }
+    }
+
+    @Override
+    public void removeJavaPack(UUID playerId, UUID packId) {
+        Player player = server.getPlayer(playerId);
+        if (player != null && player.isOnline()) player.removeResourcePack(packId);
     }
 }

@@ -17,8 +17,14 @@ import dev.linqfy.bigCasares.modules.inventorylimit.InventoryLimitModule;
 import dev.linqfy.bigCasares.modules.items.ItemCatalogModule;
 import dev.linqfy.bigCasares.modules.geyser.BedrockShopForm;
 import dev.linqfy.bigCasares.modules.geyser.GeyserIntegrationModule;
+import dev.linqfy.bigCasares.modules.danger.DangerModule;
+import dev.linqfy.bigCasares.modules.tombstone.TombstoneModule;
+import dev.linqfy.bigCasares.modules.specialitems.SpecialItemsModule;
+import dev.linqfy.bigCasares.modules.warp.WarpModule;
+
 import dev.linqfy.bigCasares.modules.missions.MissionModule;
 import dev.linqfy.bigCasares.modules.airdrop.AirdropModule;
+import dev.linqfy.bigCasares.modules.mobscaling.MobScalingModule;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelGatewayFactory;
 import dev.linqfy.bigCasares.modules.nexus.NexusModule;
@@ -57,6 +63,11 @@ public final class BigCasares extends JavaPlugin {
     private ShopModule shopModule;
     private InventoryLimitModule inventoryLimitModule;
     private SkillRatingModule skillRatingModule;
+    private DangerModule dangerModule;
+    private TombstoneModule tombstoneModule;
+    private SpecialItemsModule specialItemsModule;
+    private WarpModule warpModule;
+
     private ResourcePackModule resourcePackModule;
     private ItemCatalogModule itemCatalogModule;
     private TeamModule teamModule;
@@ -64,6 +75,7 @@ public final class BigCasares extends JavaPlugin {
     private PveBossModule pveBossModule;
     private GeyserIntegrationModule geyserIntegrationModule;
     private AirdropModule airdropModule;
+    private MobScalingModule mobScalingModule;
     private ModerationModule moderationModule;
     private ServerControlModule serverControlModule;
     private DiscordIntegrationModule discordIntegrationModule;
@@ -124,6 +136,24 @@ public final class BigCasares extends JavaPlugin {
         return skillRatingModule;
     }
 
+
+    
+    public DangerModule getDangerModule() {
+        return dangerModule;
+    }
+
+    public TombstoneModule getTombstoneModule() {
+        return tombstoneModule;
+    }
+    
+    public SpecialItemsModule getSpecialItemsModule() {
+        return specialItemsModule;
+    }
+
+    public WarpModule getWarpModule() {
+        return warpModule;
+    }
+
     public ResourcePackModule getResourcePackModule() {
         return resourcePackModule;
     }
@@ -150,6 +180,10 @@ public final class BigCasares extends JavaPlugin {
 
     public AirdropModule getAirdropModule() {
         return airdropModule;
+    }
+
+    public MobScalingModule getMobScalingModule() {
+        return mobScalingModule;
     }
 
     public ModerationModule getModerationModule() {
@@ -253,8 +287,14 @@ public final class BigCasares extends JavaPlugin {
         this.shopModule = new ShopModule(this);
         this.inventoryLimitModule = new InventoryLimitModule(this);
         this.skillRatingModule = new SkillRatingModule(this);
+        
+        this.dangerModule = new DangerModule(this);
+        this.tombstoneModule = new TombstoneModule(this);
+        this.specialItemsModule = new SpecialItemsModule(this);
+        this.warpModule = new WarpModule(this);
         this.geyserIntegrationModule = new GeyserIntegrationModule(this);
         this.airdropModule = new AirdropModule(this);
+        this.mobScalingModule = new MobScalingModule(this);
         this.resourcePackModule = new ResourcePackModule(this, this::resolveClientPlatform);
         this.itemCatalogModule = new ItemCatalogModule(this, customItemRegistry);
         this.teamModule = new TeamModule(this);
@@ -289,7 +329,13 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(bountyModule);
         moduleManager.register(inventoryLimitModule);
         moduleManager.register(skillRatingModule);
+        moduleManager.register(dangerModule);
+        moduleManager.register(tombstoneModule);
+        moduleManager.register(specialItemsModule);
+        moduleManager.register(warpModule);
+
         moduleManager.register(airdropModule);
+        moduleManager.register(mobScalingModule);
 
         moduleManager.register(teamModule);
         moduleManager.register(nexusModule);
@@ -352,6 +398,21 @@ public final class BigCasares extends JavaPlugin {
             command.setExecutor(handler);
             command.setTabCompleter(handler);
         }
+        
+        dev.linqfy.bigCasares.command.TimerCommand timerCmd = new dev.linqfy.bigCasares.command.TimerCommand(this);
+        PluginCommand timerPluginCmd = getCommand("timer");
+        if (timerPluginCmd != null) {
+            timerPluginCmd.setExecutor(timerCmd);
+            timerPluginCmd.setTabCompleter(timerCmd);
+            getServer().getPluginManager().registerEvents(timerCmd, this);
+        }
+
+        dev.linqfy.bigCasares.command.WarpCommand warpCmd = new dev.linqfy.bigCasares.command.WarpCommand(warpModule);
+        PluginCommand warpPluginCmd = getCommand("warp");
+        if (warpPluginCmd != null) {
+            warpPluginCmd.setExecutor(warpCmd);
+            warpPluginCmd.setTabCompleter(warpCmd);
+        }
     }
 
     private ModuleLifecycleReport disableCurrentRuntime() {
@@ -403,6 +464,11 @@ public final class BigCasares extends JavaPlugin {
         shopModule = null;
         inventoryLimitModule = null;
         skillRatingModule = null;
+        dangerModule = null;
+        tombstoneModule = null;
+        specialItemsModule = null;
+        warpModule = null;
+
         resourcePackModule = null;
         itemCatalogModule = null;
         teamModule = null;
@@ -410,6 +476,7 @@ public final class BigCasares extends JavaPlugin {
         pveBossModule = null;
         geyserIntegrationModule = null;
         airdropModule = null;
+        mobScalingModule = null;
         moderationModule = null;
         serverControlModule = null;
         discordIntegrationModule = null;

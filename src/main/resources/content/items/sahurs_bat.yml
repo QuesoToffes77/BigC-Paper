@@ -1,0 +1,19 @@
+id: sahurs_bat
+mechanic: sahurs-bat
+material: IRON_SWORD
+item-model: bigcasares:item/sahurs_bat
+legacy-custom-model-data: 1010
+display:
+  translation-key: item.bigcasares.sahurs_bat
+  fallback-name: "Bate de Sahur"
+  lore:
+    - "§7Premio al mayor daño contra Tung Tung Tung Sahur."
+max-stack-size: 1
+components:
+  max-damage: 125
+  combat:
+    attack-damage: 6.0
+    attack-speed: 5.0
+appearance:
+  java-item-definition: java/assets/bigcasares/items/sahurs_bat.json
+  bedrock-texture: bedrock/textures/item/sahurs_bat.png

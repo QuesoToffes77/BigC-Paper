@@ -86,6 +86,13 @@ public final class ServerControlListener implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         module.vanish().handleViewerJoin(event.getPlayer());
+        if (module.vanish().isVanished(event.getPlayer())) {
+            event.joinMessage(null);
+        } else {
+            event.joinMessage(Component.translatable("multiplayer.player.joined")
+                .arguments(Component.text(event.getPlayer().getName()).color(net.kyori.adventure.text.format.NamedTextColor.YELLOW))
+                .color(net.kyori.adventure.text.format.NamedTextColor.YELLOW));
+        }
         module.resistance().handlePlayer(event.getPlayer());
         module.refreshDiscordPlayers();
     }
@@ -109,6 +116,10 @@ public final class ServerControlListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         if (module.vanish().handleDisconnect(event.getPlayer())) {
             event.quitMessage(null);
+        } else {
+            event.quitMessage(Component.translatable("multiplayer.player.left")
+                .arguments(Component.text(event.getPlayer().getName()).color(net.kyori.adventure.text.format.NamedTextColor.YELLOW))
+                .color(net.kyori.adventure.text.format.NamedTextColor.YELLOW));
         }
         module.resistance().handleDisconnect(event.getPlayer());
         module.refreshDiscordPlayers();

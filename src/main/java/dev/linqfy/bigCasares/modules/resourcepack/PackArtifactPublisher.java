@@ -12,6 +12,8 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.HexFormat;
+import java.util.UUID;
 
 public final class PackArtifactPublisher {
 
@@ -70,6 +72,40 @@ public final class PackArtifactPublisher {
         Objects.requireNonNull(publication, "publication");
         if (publication.changed()) {
             writeActiveManifest(publication.manifest());
+        }
+    }
+
+    public Optional<JavaPackDelivery> publishBetterModel(
+        Path source,
+        Function<String, URI> urlResolver
+    ) throws IOException {
+        Objects.requireNonNull(source, "source");
+        Path normalized = source.toAbsolutePath().normalize();
+        if (!Files.exists(normalized)) {
+            throw new IllegalArgumentException("BetterModel resource pack does not exist: " + normalized);
+        }
+        Path temporary = null;
+        Path archive = normalized;
+        if (Files.isDirectory(normalized)) {
+            Path staging = packsRoot.resolve("staging");
+            Files.createDirectories(staging);
+            temporary = Files.createTempFile(staging, "bettermodel-", ".zip");
+            DeterministicZipWriter.write(normalized, temporary);
+            archive = temporary;
+        }
+        try {
+            String sha256 = PackFileDigests.digest(archive, "SHA-256");
+            String sha1 = PackFileDigests.digest(archive, "SHA-1");
+            String fileName = "bettermodel-java-" + sha256.substring(0, 16) + ".zip";
+            Path artifacts = packsRoot.resolve("artifacts");
+            Files.createDirectories(artifacts);
+            publishImmutable(archive, artifacts.resolve(fileName), sha256);
+            URI uri = urlResolver.apply(fileName);
+            if (uri == null) return Optional.empty();
+            UUID id = UUID.nameUUIDFromBytes(("bettermodel:" + sha256).getBytes(StandardCharsets.UTF_8));
+            return Optional.of(new JavaPackDelivery(id, uri, HexFormat.of().parseHex(sha1), "bettermodel"));
+        } finally {
+            if (temporary != null) Files.deleteIfExists(temporary);
         }
     }
 

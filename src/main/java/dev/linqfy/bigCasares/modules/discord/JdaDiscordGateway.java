@@ -64,6 +64,7 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
     private final AuditSink audit;
     private final BiConsumer<String, String> inboundBridge;
     private final BooleanSupplier generationActive;
+    private final DiscordLinkService linkService;
     private final YamlDiscordStateStorage stateStorage;
     private final RemoteCommandPolicy commandPolicy = new RemoteCommandPolicy(Duration.ofSeconds(30));
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -92,7 +93,7 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         AuditSink audit,
         BiConsumer<String, String> inboundBridge
     ) {
-        this(plugin, settings, secrets, emojiAliases, audit, inboundBridge, () -> true);
+        this(plugin, settings, secrets, emojiAliases, audit, inboundBridge, () -> true, null);
     }
 
     public JdaDiscordGateway(
@@ -102,7 +103,8 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         EmojiAliasService emojiAliases,
         AuditSink audit,
         BiConsumer<String, String> inboundBridge,
-        BooleanSupplier generationActive
+        BooleanSupplier generationActive,
+        DiscordLinkService linkService
     ) {
         this.plugin = plugin;
         this.settings = settings;
@@ -111,6 +113,7 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         this.audit = audit == null ? ignored -> { } : audit;
         this.inboundBridge = inboundBridge == null ? (author, message) -> { } : inboundBridge;
         this.generationActive = generationActive == null ? () -> true : generationActive;
+        this.linkService = linkService;
         this.stateStorage = new YamlDiscordStateStorage(
             plugin.getDataFolder().toPath().resolve("data").resolve("discord-integration").resolve("state.yml")
         );
@@ -129,8 +132,8 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         }
         try {
             JDABuilder builder = includeMessageContent
-                ? JDABuilder.createDefault(secrets.token(), GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
-                : JDABuilder.createDefault(secrets.token(), GatewayIntent.GUILD_MESSAGES);
+                ? JDABuilder.createDefault(secrets.token(), GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT, GatewayIntent.DIRECT_MESSAGES)
+                : JDABuilder.createDefault(secrets.token(), GatewayIntent.GUILD_MESSAGES, GatewayIntent.DIRECT_MESSAGES);
             jda = builder.addEventListeners(this).build();
         } catch (RuntimeException ex) {
             healthy = false;
@@ -226,6 +229,22 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
     }
 
     @Override
+    public void sendPrivateMessage(long userId, String message) {
+        if (!callbacksActive() || jda == null) {
+            return;
+        }
+        jda.retrieveUserById(userId).queue(user -> {
+            user.openPrivateChannel().queue(channel -> {
+                channel.sendMessage(message).queue();
+            }, error -> {
+                // Ignore if we can't open DM
+            });
+        }, error -> {
+            // Ignore if user not found
+        });
+    }
+
+    @Override
     public void publish(AuditEvent event) {
         if (!callbacksActive()) {
             return;
@@ -244,8 +263,9 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         }
         Guild guild = event.getJDA().getGuildById(settings.guildId());
         if (guild == null) {
-            plugin.getLogger().warning("Discord desactivado: el bot no pertenece al guild configurado.");
-            event.getJDA().shutdown();
+            plugin.getLogger().warning("Discord desactivado: completá los IDs en config.yml. El bot no pertenece al guild configurado (ID: " + settings.guildId() + ").");
+            JDA currentJda = event.getJDA();
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, currentJda::shutdown);
             return;
         }
         publicChannel = guild.getTextChannelById(settings.publicChannelId());
@@ -253,8 +273,10 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         if (publicChannel == null || logChannel == null
             || guild.getTextChannelById(settings.adminChannelId()) == null
             || guild.getTextChannelById(settings.bridgeChannelId()) == null) {
-            plugin.getLogger().warning("Discord desactivado: falta al menos un canal configurado o accesible.");
-            event.getJDA().shutdown();
+            plugin.getLogger().warning(String.format("Discord desactivado: completá token y bridge-webhook-url (y channel IDs). Faltan canales: public=%s, log=%s, admin=%s, bridge=%s", 
+                settings.publicChannelId(), settings.logChannelId(), settings.adminChannelId(), settings.bridgeChannelId()));
+            JDA currentJda = event.getJDA();
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, currentJda::shutdown);
             return;
         }
         registerCommands(guild);
@@ -276,21 +298,38 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
                 "El intent privilegiado MESSAGE_CONTENT no está habilitado en el portal de Discord; "
                     + "el puente Discord → Minecraft queda desactivado."
             );
-            event.getJDA().shutdownNow();
-            coalescer.schedule(() -> {
-                if (callbacksActive()) {
-                    connect(false);
-                }
-            }, 1, TimeUnit.SECONDS);
+            JDA currentJda = event.getJDA();
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+                currentJda.shutdownNow();
+                coalescer.schedule(() -> {
+                    if (callbacksActive()) {
+                        connect(false);
+                    }
+                }, 1, TimeUnit.SECONDS);
+            });
         }
     }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
-        if (!callbacksActive() || !inboundBridgeEnabled || !event.isFromGuild()
-            || event.getGuild().getIdLong() != settings.guildId()
-            || event.getChannel().getIdLong() != settings.bridgeChannelId()
-            || event.getAuthor().isBot() || event.getMessage().isWebhookMessage()) {
+        if (!callbacksActive() || event.getAuthor().isBot() || event.getMessage().isWebhookMessage()) {
+            return;
+        }
+
+        if (!event.isFromGuild()) {
+            if (linkService != null) {
+                String code = event.getMessage().getContentRaw().trim();
+                if (linkService.verifyCode(code, event.getAuthor().getIdLong())) {
+                    event.getChannel().sendMessage("¡Cuenta vinculada exitosamente con Minecraft!").queue();
+                } else {
+                    event.getChannel().sendMessage("Código inválido o expirado. Genera uno nuevo en Minecraft con `/linkeardiscord`.").queue();
+                }
+            }
+            return;
+        }
+
+        if (!inboundBridgeEnabled || event.getGuild().getIdLong() != settings.guildId()
+            || event.getChannel().getIdLong() != settings.bridgeChannelId()) {
             return;
         }
         StringBuilder content = new StringBuilder(event.getMessage().getContentDisplay());

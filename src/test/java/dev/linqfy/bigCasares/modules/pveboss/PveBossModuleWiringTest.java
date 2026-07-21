@@ -15,6 +15,10 @@ class PveBossModuleWiringTest {
     @Test
     void exposesTheStableModuleId() {
         assertEquals("pve-boss-system", new PveBossModule().getId());
+        assertEquals(
+            List.of("abyss-guardian", "tung-tung-sahur"),
+            PveBossModule.supportedBossIds()
+        );
     }
 
     @Test

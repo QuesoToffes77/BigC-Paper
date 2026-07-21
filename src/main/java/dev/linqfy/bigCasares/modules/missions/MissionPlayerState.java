@@ -10,6 +10,7 @@ public record MissionPlayerState(
     Instant dailyResetsAt,
     Instant weeklyResetsAt,
     Map<String, MissionAssignment> dailyAssignments,
-    Map<String, MissionAssignment> weeklyAssignments
+    Map<String, MissionAssignment> weeklyAssignments,
+    Instant dailyRerolledAt
 ) {
 }

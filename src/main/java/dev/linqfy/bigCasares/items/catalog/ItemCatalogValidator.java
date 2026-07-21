@@ -17,7 +17,12 @@ public final class ItemCatalogValidator {
         "copper_apple", "copper-apple",
         "smoke_bomb", "smoke-bomb",
         "prismarine_arrow", "prismarine-arrow",
-        "nexus", "nexus"
+        "nexus", "nexus",
+        "echo_arrow", "echo-arrow",
+        "golden_tipped_amethyst_arrow", "golden-amethyst-arrow",
+        "tracker_compass", "tracker-compass",
+        "nuke_shot", "nuke-shot",
+        "sahurs_bat", "sahurs-bat"
     );
 
     private final ItemMaterialValidator materials;

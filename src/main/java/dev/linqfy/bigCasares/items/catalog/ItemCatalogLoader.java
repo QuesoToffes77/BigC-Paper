@@ -57,16 +57,32 @@ public final class ItemCatalogLoader {
             display.getStringList("lore")
         );
         int maxStackSize = yaml.getInt("max-stack-size", 64);
+        Integer maxDamage = yaml.isSet("components.max-damage")
+            ? yaml.getInt("components.max-damage") : null;
         ItemFoodDefinition food = parseFood(yaml.getConfigurationSection("components.food"), source);
         ItemRecipeDefinition recipe = parseRecipe(yaml.getConfigurationSection("recipe"), source);
+        ItemCombatDefinition combat = parseCombat(yaml.getConfigurationSection("components.combat"), source);
         ConfigurationSection appearance = requiredSection(yaml, "appearance", source);
         ItemAppearanceDefinition appearanceDefinition = new ItemAppearanceDefinition(
             requiredString(appearance, "java-item-definition", source),
             requiredString(appearance, "bedrock-texture", source)
         );
         return new CustomItemDefinition(
-            id, mechanic, material, itemModel, modelData, displayDefinition, maxStackSize, food, recipe,
+            id, mechanic, material, itemModel, modelData, displayDefinition, maxStackSize, maxDamage, food, recipe,
+            combat,
             appearanceDefinition
+        );
+    }
+
+    private static ItemCombatDefinition parseCombat(ConfigurationSection combat, Path source) {
+        if (combat == null) {
+            return null;
+        }
+        if (!combat.isSet("attack-damage") || !combat.isSet("attack-speed")) {
+            throw new IllegalArgumentException("combat component is incomplete in " + source);
+        }
+        return new ItemCombatDefinition(
+            combat.getDouble("attack-damage"), combat.getDouble("attack-speed")
         );
     }
 
@@ -89,6 +105,17 @@ public final class ItemCatalogLoader {
         String key = requiredString(recipe, "key", source);
         if (!recipe.isInt("result-amount")) {
             throw new IllegalArgumentException("recipe result-amount is required in " + source);
+        }
+        String type = recipe.getString("type", "shaped").trim().toUpperCase(java.util.Locale.ROOT);
+        if (type.equals("SHAPELESS")) {
+            List<String> ingredients = recipe.getStringList("ingredients");
+            if (ingredients.isEmpty()) {
+                throw new IllegalArgumentException("shapeless recipe ingredients are required in " + source);
+            }
+            return ItemRecipeDefinition.shapeless(key, recipe.getInt("result-amount"), ingredients);
+        }
+        if (!type.equals("SHAPED")) {
+            throw new IllegalArgumentException("unknown recipe type in " + source + ": " + type);
         }
         List<String> shape = recipe.getStringList("shape");
         ConfigurationSection ingredients = requiredSection(recipe, "ingredients", source);

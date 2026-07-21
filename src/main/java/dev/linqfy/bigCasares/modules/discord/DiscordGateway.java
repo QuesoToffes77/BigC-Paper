@@ -17,4 +17,6 @@ public interface DiscordGateway extends AuditSink {
     void updateVisiblePlayers(List<String> playerNames);
 
     void sendMinecraftChat(String playerName, String message, String avatarUrl);
+    
+    void sendPrivateMessage(long userId, String message);
 }

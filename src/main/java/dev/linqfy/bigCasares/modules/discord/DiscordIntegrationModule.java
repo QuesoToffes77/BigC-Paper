@@ -25,6 +25,7 @@ public final class DiscordIntegrationModule implements PluginModule {
     private BukkitTask reconciliationTask;
     private RuntimeRegistrationScope compatibilityScope;
     private boolean gatewayStopped = true;
+    private DiscordLinkService linkService;
 
     public DiscordIntegrationModule(
         BigCasares plugin,
@@ -88,6 +89,9 @@ public final class DiscordIntegrationModule implements PluginModule {
             );
             return;
         }
+        linkService = new DiscordLinkService(plugin);
+        plugin.getCommand("linkeardiscord").setExecutor(new dev.linqfy.bigCasares.command.LinkDiscordCommand(linkService));
+        
         if (injectedGateway != null) {
             gateway = injectedGateway;
         } else {
@@ -95,7 +99,8 @@ public final class DiscordIntegrationModule implements PluginModule {
                 plugin, settings, secrets, emojiAliases, audit,
                 (author, message) -> plugin.getServer().broadcastMessage(
                     "§9[Discord] §f" + author + "§7: §f" + message),
-                scope.generation()::isActive
+                scope.generation()::isActive,
+                linkService
             );
         }
         DiscordGateway ownedGateway = gateway;
@@ -157,6 +162,10 @@ public final class DiscordIntegrationModule implements PluginModule {
         return gateway;
     }
 
+    public DiscordLinkService linkService() {
+        return linkService;
+    }
+
     public void refreshPlayers() {
         if (gateway == null || serverControl == null || serverControl.service() == null) {
             return;
@@ -187,6 +196,7 @@ public final class DiscordIntegrationModule implements PluginModule {
         gateway = null;
         gatewayStopped = true;
         settings = null;
+        linkService = null;
     }
 
     private void stopGateway(DiscordGateway ownedGateway) {

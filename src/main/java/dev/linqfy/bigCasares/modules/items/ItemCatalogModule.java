@@ -26,7 +26,15 @@ public final class ItemCatalogModule implements PluginModule {
     public static final String MODULE_ID = "custom-item-catalog";
 
     private static final List<String> DEFAULT_FILES = List.of(
-        "copper_apple.yml", "smoke_bomb.yml", "prismarine_arrow.yml", "nexus.yml"
+        "copper_apple.yml",
+        "smoke_bomb.yml",
+        "prismarine_arrow.yml",
+        "nexus.yml",
+        "echo_arrow.yml",
+        "golden_tipped_amethyst_arrow.yml",
+        "tracker_compass.yml",
+        "nuke_shot.yml",
+        "sahurs_bat.yml"
     );
 
     private final BigCasares plugin;

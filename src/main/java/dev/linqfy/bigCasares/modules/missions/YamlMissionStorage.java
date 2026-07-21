@@ -28,13 +28,16 @@ public final class YamlMissionStorage implements MissionStorage {
         }
 
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+        String rerolledStr = yaml.getString("daily-rerolled-at");
+        Instant dailyRerolledAt = rerolledStr != null ? Instant.parse(rerolledStr) : null;
         return Optional.of(new MissionPlayerState(
             playerId,
             Instant.parse(yaml.getString("generated-at")),
             Instant.parse(yaml.getString("daily-resets-at")),
             Instant.parse(yaml.getString("weekly-resets-at")),
             readAssignments(yaml.getConfigurationSection("daily")),
-            readAssignments(yaml.getConfigurationSection("weekly"))
+            readAssignments(yaml.getConfigurationSection("weekly")),
+            dailyRerolledAt
         ));
     }
 
@@ -47,6 +50,9 @@ public final class YamlMissionStorage implements MissionStorage {
             yaml.set("generated-at", state.generatedAt().toString());
             yaml.set("daily-resets-at", state.dailyResetsAt().toString());
             yaml.set("weekly-resets-at", state.weeklyResetsAt().toString());
+            if (state.dailyRerolledAt() != null) {
+                yaml.set("daily-rerolled-at", state.dailyRerolledAt().toString());
+            }
             writeAssignments(yaml.createSection("daily"), state.dailyAssignments());
             writeAssignments(yaml.createSection("weekly"), state.weeklyAssignments());
             yaml.save(resolveFile(state.playerId()).toFile());
@@ -84,7 +90,8 @@ public final class YamlMissionStorage implements MissionStorage {
             MissionProgressSnapshot snapshot = new MissionProgressSnapshot(
                 entry.getInt("progress"),
                 entry.getBoolean("completed"),
-                entry.getBoolean("claimed")
+                entry.getBoolean("claimed"),
+                new java.util.LinkedHashSet<>(entry.getStringList("markers"))
             );
             assignments.put(id, new MissionAssignment(definition, snapshot));
         }
@@ -112,6 +119,7 @@ public final class YamlMissionStorage implements MissionStorage {
             section.set("progress", snapshot.progress());
             section.set("completed", snapshot.completed());
             section.set("claimed", snapshot.claimed());
+            section.set("markers", snapshot.markers().stream().sorted().toList());
         }
     }
 

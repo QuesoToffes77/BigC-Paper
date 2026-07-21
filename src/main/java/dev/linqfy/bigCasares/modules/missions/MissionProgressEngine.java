@@ -17,7 +17,9 @@ public final class MissionProgressEngine {
         return switch (definition.type()) {
             case HOLD_EXACT_ITEM_COUNT, WAX_BLOCK_COUNT, CROUCH_ON_SLEEPING_BED -> asInt(context.getOrDefault("count", 0));
             case EQUIP_SPECIFIC_ITEM, STAND_ON_BLOCK_AT_Y, RENAME_ITEM_TO_EXACT_NAME, NAME_ENTITY_AFTER_PLAYER,
-                FINAL_HIT_PLAYER_WITH_ITEM, KILL_ENTITY_WITH_ITEM_ONLY -> asInt(context.getOrDefault("count", 0));
+                FINAL_HIT_PLAYER_WITH_ITEM, KILL_ENTITY_WITH_ITEM_ONLY, VISIT_BIOME, VISIT_BIOME_SET,
+                REACH_DISTANCE_FROM_SPAWN, ENTER_ENVIRONMENT, OPEN_LOOT_TABLE, CATCH_FISH_IN_BIOME,
+                KILL_ENTITY_IN_BIOME -> asInt(context.getOrDefault("count", 0));
         };
     }
 

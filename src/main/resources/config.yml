@@ -123,6 +123,14 @@ inventory-limit:
   limits:
     TOTEM_OF_UNDYING: 3
     ECHO_SHARD: 8
+    FIREWORK_ROCKET: 64
+    GOLDEN_APPLE: 32
+    ENCHANTED_GOLDEN_APPLE: 2
+    ENDER_PEARL: 16
+    COBWEB: 24
+    POTION: 5
+    SPLASH_POTION: 2
+    LINGERING_POTION: 5
 
 copper-apple:
   consume-cooldown-ms: 5000

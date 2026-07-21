@@ -30,10 +30,9 @@ public final class ResourcePackBuilder {
 
     public ResourcePackBuildResult build() throws IOException {
         Path registryFile = sourceRoot.resolve("shared/registry.yml");
-        Path javaRoot = sourceRoot.resolve("java");
-        Path bedrockRoot = sourceRoot.resolve("bedrock");
+        Path javaSource = sourceRoot.resolve("java");
+        Path bedrockSource = sourceRoot.resolve("bedrock");
         ResourcePackRegistry registry = ResourcePackRegistry.load(registryFile);
-        new ResourcePackValidator().validate(registry, javaRoot, bedrockRoot);
 
         String inputSha = treeDigest(sourceRoot, "SHA-256");
         Path manifestFile = outputDirectory.resolve("manifest.json");
@@ -47,6 +46,13 @@ public final class ResourcePackBuilder {
         }
 
         Files.createDirectories(outputDirectory);
+        Path assembledRoot = outputDirectory.resolve("assembled");
+        Path javaRoot = assembledRoot.resolve("java");
+        Path bedrockRoot = assembledRoot.resolve("bedrock");
+        copyTree(javaSource, javaRoot);
+        copyTree(bedrockSource, bedrockRoot);
+        new SharedResourcePackAssembler().assemble(sourceRoot, javaRoot, bedrockRoot, registry);
+        new ResourcePackValidator().validate(registry, javaRoot, bedrockRoot);
         new JavaResourcePackBuilder().build(javaRoot, outputDirectory);
         new BedrockResourcePackBuilder().build(bedrockRoot, outputDirectory);
         String javaSha = fileDigest(javaPack, "SHA-1");
@@ -73,6 +79,19 @@ public final class ResourcePackBuilder {
                 bedrockUuid
             ), StandardCharsets.UTF_8);
         return new ResourcePackBuildResult(manifest, false);
+    }
+
+    private static void copyTree(Path source, Path destination) throws IOException {
+        try (var paths = Files.walk(source)) {
+            for (Path path : paths.sorted().toList()) {
+                Path target = destination.resolve(source.relativize(path));
+                if (Files.isDirectory(path)) Files.createDirectories(target);
+                else {
+                    Files.createDirectories(target.getParent());
+                    Files.copy(path, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
     }
 
     private static UUID readBedrockUuid(Path manifest) throws IOException {

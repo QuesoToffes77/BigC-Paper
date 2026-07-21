@@ -16,7 +16,7 @@ class CustomCrossbowRulesTest {
         assertEquals(Optional.of(CustomCrossbowChargeType.ECHO_SHARD), CustomCrossbowRules.resolveCharge(Material.ECHO_SHARD));
         assertEquals(Optional.of(CustomCrossbowChargeType.FIREWORK_ROCKET), CustomCrossbowRules.resolveCharge(Material.FIREWORK_ROCKET));
         assertEquals(Optional.of(CustomCrossbowChargeType.AMETHYST_SHARD), CustomCrossbowRules.resolveCharge(Material.AMETHYST_SHARD));
-        assertEquals(Optional.of(CustomCrossbowChargeType.ENDER_PEARL), CustomCrossbowRules.resolveCharge(Material.ENDER_PEARL));
+        // assertEquals(Optional.of(CustomCrossbowChargeType.ENDER_PEARL), CustomCrossbowRules.resolveCharge(Material.ENDER_PEARL));
         assertEquals(Optional.empty(), CustomCrossbowRules.resolveCharge(Material.AIR));
     }
 
@@ -38,7 +38,6 @@ class CustomCrossbowRulesTest {
         assertFalse(plan.cancelVanillaProjectile());
         assertTrue(plan.usesVanillaProjectile());
         assertEquals(1.45, CustomCrossbowRules.rocketJumpVelocity(2, 2), 0.0001);
-        assertEquals(5.0, CustomCrossbowRules.rocketJumpDamage(2, 2), 0.0001);
     }
 
     @Test

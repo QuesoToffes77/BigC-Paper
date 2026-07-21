@@ -12,9 +12,11 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class CustomCrossbowLootListener implements Listener {
 
     private final CustomCrossbowSettings settings;
+    private final EchoArrowItem echoArrow;
 
-    public CustomCrossbowLootListener(CustomCrossbowSettings settings) {
+    public CustomCrossbowLootListener(CustomCrossbowSettings settings, EchoArrowItem echoArrow) {
         this.settings = settings;
+        this.echoArrow = echoArrow;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -32,6 +34,6 @@ public final class CustomCrossbowLootListener implements Listener {
         }
 
         int amount = ThreadLocalRandom.current().nextInt(settings.wardenDropMin(), settings.wardenDropMax() + 1);
-        event.getDrops().add(EchoShardLootPolicy.createWardenEchoShardDrop(amount));
+        event.getDrops().add(echoArrow.createItemStack(amount));
     }
 }

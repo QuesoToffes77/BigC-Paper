@@ -40,6 +40,19 @@ class PrismarineArrowResourcePackTest {
             String itemDefinitionJson = Files.readString(itemDefinition);
             assertTrue(itemDefinitionJson.contains("\"type\": \"minecraft:model\""));
             assertTrue(itemDefinitionJson.contains("\"model\": \"bigcasares:item/" + modelId + "\""));
+
+            String rawModelJson = Files.readString(rawModel);
+            assertTrue(rawModelJson.contains("\"parent\": \"minecraft:item/crossbow_arrow\""),
+                    "Loaded crossbow model must inherit the vanilla arrow-loaded crossbow transforms: " + modelId);
+
+            Path generatedPackSourceModel = Path.of(
+                    "resourcepack", "java", "assets", "bigcasares", "models", "item", modelId + ".json"
+            );
+            assertTrue(Files.exists(generatedPackSourceModel),
+                    "Missing Java pack models/item/" + modelId + ".json");
+            String generatedPackSourceJson = Files.readString(generatedPackSourceModel);
+            assertTrue(generatedPackSourceJson.contains("\"parent\": \"minecraft:item/crossbow_arrow\""),
+                    "Generated Java pack source must inherit the vanilla arrow-loaded crossbow transforms: " + modelId);
         }
     }
 }

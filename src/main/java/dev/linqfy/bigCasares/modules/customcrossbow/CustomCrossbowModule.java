@@ -14,11 +14,14 @@ public final class CustomCrossbowModule implements PluginModule {
     private final NamespacedKey chargeCountKey;
     private final NamespacedKey originalItemModelKey;
     private final NamespacedKey prismarineArrowKey;
+    private final NamespacedKey echoArrowKey;
+    private final NamespacedKey amethystArrowKey;
     private final NamespacedKey recipeKey;
 
     private PrismarineArrowItem prismarineArrowItem;
+    private EchoArrowItem echoArrowItem;
+    private GoldenTippedAmethystArrowItem amethystArrowItem;
     private PrismarineArrowListener prismarineArrowListener;
-    private CustomCrossbowChargeListener chargeListener;
     private RuntimeRegistrationScope compatibilityScope;
 
     public CustomCrossbowModule(BigCasares plugin) {
@@ -28,6 +31,8 @@ public final class CustomCrossbowModule implements PluginModule {
         this.chargeCountKey = plugin == null ? null : new NamespacedKey(plugin, "custom_crossbow_charge_count");
         this.originalItemModelKey = plugin == null ? null : new NamespacedKey(plugin, "custom_crossbow_original_item_model");
         this.prismarineArrowKey = plugin == null ? null : new NamespacedKey(plugin, "prismarine_arrow");
+        this.echoArrowKey = plugin == null ? null : new NamespacedKey(plugin, "echo_arrow");
+        this.amethystArrowKey = plugin == null ? null : new NamespacedKey(plugin, "golden_tipped_amethyst_arrow");
         this.recipeKey = plugin == null ? null : new NamespacedKey(plugin, "prismarine_arrow_recipe");
     }
 
@@ -53,18 +58,23 @@ public final class CustomCrossbowModule implements PluginModule {
             chargeCountKey,
             originalItemModelKey
         );
-        CustomCrossbowLoadService loadService = new CustomCrossbowLoadService();
         CustomCrossbowDurabilityService durabilityService = new CustomCrossbowDurabilityService();
         EchoShardCooldownService echoShardCooldownService = new EchoShardCooldownService(settings.echoShardCooldownTicks());
         this.prismarineArrowItem = new PrismarineArrowItem(plugin.getCustomItemRegistry(), prismarineArrowKey);
+        this.echoArrowItem = new EchoArrowItem(plugin.getCustomItemRegistry(), echoArrowKey);
+        this.amethystArrowItem = new GoldenTippedAmethystArrowItem(plugin.getCustomItemRegistry(), amethystArrowKey);
         this.prismarineArrowListener = new PrismarineArrowListener(prismarineArrowItem, registrations);
-        this.chargeListener = new CustomCrossbowChargeListener(plugin, crossbowData, settings, loadService, registrations);
+        RocketJumpAirController rocketJumpAirController = new RocketJumpAirController(plugin, registrations);
 
         plugin.getCustomItemRegistry().register(prismarineArrowItem);
+        plugin.getCustomItemRegistry().register(echoArrowItem);
+        plugin.getCustomItemRegistry().register(amethystArrowItem);
         scope.register("custom-item", () -> plugin.getCustomItemRegistry().unregister(PrismarineArrowItem.ID));
+        scope.register("echo-arrow-item", () -> plugin.getCustomItemRegistry().unregister(EchoArrowItem.ID));
+        scope.register("amethyst-arrow-item", () -> plugin.getCustomItemRegistry().unregister(GoldenTippedAmethystArrowItem.ID));
         scope.register("prismarine-runtime", prismarineArrowListener::shutdown);
-        scope.register("charge-runtime", chargeListener::shutdown);
-        registerListeners(registrations, crossbowData, settings, durabilityService, echoShardCooldownService);
+        registerListeners(registrations, crossbowData, settings, durabilityService,
+            echoShardCooldownService, rocketJumpAirController);
     }
 
     @Override
@@ -72,17 +82,15 @@ public final class CustomCrossbowModule implements PluginModule {
         if (prismarineArrowListener != null) {
             prismarineArrowListener.shutdown();
         }
-        if (chargeListener != null) {
-            chargeListener.shutdown();
-        }
         RuntimeRegistrationScope scope = compatibilityScope;
         compatibilityScope = null;
         if (scope != null) {
             scope.close();
         }
         prismarineArrowListener = null;
-        chargeListener = null;
         prismarineArrowItem = null;
+        echoArrowItem = null;
+        amethystArrowItem = null;
     }
 
     private void registerListeners(
@@ -90,19 +98,34 @@ public final class CustomCrossbowModule implements PluginModule {
         CustomCrossbowData crossbowData,
         CustomCrossbowSettings settings,
         CustomCrossbowDurabilityService durabilityService,
-        EchoShardCooldownService echoShardCooldownService
+        EchoShardCooldownService echoShardCooldownService,
+        RocketJumpAirController rocketJumpAirController
     ) {
-        registrations.registerListener("charge-listener", chargeListener);
+        registrations.registerListener(
+            "native-load-listener",
+            new NativeCrossbowLoadListener(crossbowData, echoArrowItem, amethystArrowItem, settings, registrations)
+        );
+        registrations.registerListener(
+            "echo-conversion-listener",
+            new EchoArrowConversionListener(echoArrowItem, settings.maxEchoArrows(), registrations)
+        );
+        registrations.registerListener(
+            "custom-arrow-limit-listener",
+            new CustomArrowLimitListener(echoArrowItem, amethystArrowItem, settings)
+        );
         registrations.registerListener(
             "shoot-listener",
             new CustomCrossbowShootListener(
                 plugin,
                 crossbowData,
                 prismarineArrowItem,
+                echoArrowItem,
+                amethystArrowItem,
                 settings,
                 durabilityService,
                 echoShardCooldownService,
                 prismarineArrowListener::track,
+                rocketJumpAirController::activate,
                 registrations
             )
         );
@@ -110,7 +133,7 @@ public final class CustomCrossbowModule implements PluginModule {
         registrations.registerListener("durability-listener", new CustomCrossbowDurabilityListener(durabilityService));
         registrations.registerListener("inventory-limit-listener", new CustomCrossbowInventoryLimitListener(crossbowData, settings));
         registrations.registerListener("craft-listener", new PrismarineArrowCraftListener(recipeKey, prismarineArrowItem));
-        registrations.registerListener("loot-listener", new CustomCrossbowLootListener(settings));
+        registrations.registerListener("loot-listener", new CustomCrossbowLootListener(settings, echoArrowItem));
     }
 
 }

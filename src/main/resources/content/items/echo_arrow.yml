@@ -1,0 +1,13 @@
+id: echo_arrow
+mechanic: echo-arrow
+material: ARROW
+item-model: bigcasares:echo_arrow
+legacy-custom-model-data: 1005
+display:
+  translation-key: item.bigcasares.echo_arrow
+  fallback-name: "Flecha de Eco"
+  lore: []
+max-stack-size: 64
+appearance:
+  java-item-definition: java/assets/bigcasares/items/echo_arrow.json
+  bedrock-texture: bedrock/textures/item/echo_arrow.png

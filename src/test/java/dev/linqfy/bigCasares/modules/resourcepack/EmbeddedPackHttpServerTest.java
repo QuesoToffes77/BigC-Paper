@@ -12,10 +12,15 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EmbeddedPackHttpServerTest {
 
@@ -58,6 +63,52 @@ class EmbeddedPackHttpServerTest {
                 rebound.bind(new InetSocketAddress("127.0.0.1", port));
                 assertFalse(rebound.isClosed());
             }
+        }
+    }
+
+    @Test
+    void servesBetterModelArtifactsPublishedByTheResourcePackModule() throws Exception {
+        Path artifacts = tempDir.resolve("artifacts");
+        Files.createDirectories(artifacts);
+        String file = "bettermodel-java-866b1c84240fd8aa.zip";
+        Files.write(artifacts.resolve(file), "bettermodel".getBytes(StandardCharsets.UTF_8));
+        EmbeddedPackHttpServer server = new EmbeddedPackHttpServer(
+            artifacts,
+            new EmbeddedPackHttpSettings("127.0.0.1", 0, URI.create("https://packs.example.test"), 1)
+        );
+        server.start();
+        try {
+            HttpResponse<byte[]> response = get(HttpClient.newHttpClient(), server.localUri(file));
+
+            assertEquals(200, response.statusCode());
+            assertArrayEquals("bettermodel".getBytes(StandardCharsets.UTF_8), response.body());
+            assertEquals("https://packs.example.test/packs/" + file, server.publicUri(file).toString());
+        } finally {
+            server.close();
+        }
+    }
+
+    @Test
+    void downloadWorkersCanBurstBeyondTheConfiguredIdlePool() throws Exception {
+        ExecutorService workers = EmbeddedPackHttpServer.createWorkerExecutor(2);
+        CountDownLatch entered = new CountDownLatch(3);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            for (int index = 0; index < 3; index++) {
+                workers.submit(() -> {
+                    entered.countDown();
+                    try {
+                        release.await();
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+            }
+
+            assertTrue(entered.await(Duration.ofSeconds(2).toMillis(), TimeUnit.MILLISECONDS));
+        } finally {
+            release.countDown();
+            workers.shutdownNow();
         }
     }
 

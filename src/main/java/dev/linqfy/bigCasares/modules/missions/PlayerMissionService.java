@@ -53,7 +53,8 @@ public final class PlayerMissionService {
             dailyExpired ? freshState.dailyResetsAt() : existingState.dailyResetsAt(),
             weeklyExpired ? freshState.weeklyResetsAt() : existingState.weeklyResetsAt(),
             dailyExpired ? freshState.dailyAssignments() : existingState.dailyAssignments(),
-            weeklyExpired ? freshState.weeklyAssignments() : existingState.weeklyAssignments()
+            weeklyExpired ? freshState.weeklyAssignments() : existingState.weeklyAssignments(),
+            dailyExpired ? null : existingState.dailyRerolledAt()
         );
     }
 
@@ -63,8 +64,25 @@ public final class PlayerMissionService {
             boolean completed = MissionProgressEngine.isCompleted(assignment.definition(), clampedProgress);
             return new MissionAssignment(
                 assignment.definition(),
-                new MissionProgressSnapshot(clampedProgress, completed, assignment.snapshot().claimed())
+                new MissionProgressSnapshot(clampedProgress, completed, assignment.snapshot().claimed(), assignment.snapshot().markers())
             );
+        });
+    }
+
+    public MissionPlayerState addProgressMarker(
+        MissionPlayerState state,
+        MissionScope scope,
+        String missionId,
+        String marker
+    ) {
+        return withUpdatedAssignment(state, scope, missionId, assignment -> {
+            java.util.Set<String> markers = new java.util.LinkedHashSet<>(assignment.snapshot().markers());
+            markers.add(marker);
+            int progress = markers.size();
+            return new MissionAssignment(assignment.definition(), new MissionProgressSnapshot(
+                progress, MissionProgressEngine.isCompleted(assignment.definition(), progress),
+                assignment.snapshot().claimed(), markers
+            ));
         });
     }
 
@@ -84,12 +102,28 @@ public final class PlayerMissionService {
                 updated = withUpdatedAssignment(updated, scope, assignment.definition().id(), current ->
                     new MissionAssignment(
                         current.definition(),
-                        new MissionProgressSnapshot(current.snapshot().progress(), true, true)
+                        new MissionProgressSnapshot(current.snapshot().progress(), true, true, current.snapshot().markers())
                     )
                 );
             }
         }
         return updated;
+    }
+
+    public MissionPlayerState rerollDailyAssignments(UUID playerId, MissionPlayerState state, Instant now) {
+        MissionPlayerState freshDaily = rotationPolicy.createFreshState(
+            playerId, catalog, dailyCount, 0, now,
+            nextDailyResetSupplier.get(), nextWeeklyResetSupplier.get()
+        );
+        return new MissionPlayerState(
+            playerId,
+            state.generatedAt(),
+            state.dailyResetsAt(),
+            state.weeklyResetsAt(),
+            freshDaily.dailyAssignments(),
+            state.weeklyAssignments(),
+            now
+        );
     }
 
     private MissionPlayerState createFreshState(UUID playerId) {
@@ -126,7 +160,8 @@ public final class PlayerMissionService {
                 state.dailyResetsAt(),
                 state.weeklyResetsAt(),
                 updatedAssignments,
-                state.weeklyAssignments()
+                state.weeklyAssignments(),
+                state.dailyRerolledAt()
             )
             : new MissionPlayerState(
                 state.playerId(),
@@ -134,7 +169,8 @@ public final class PlayerMissionService {
                 state.dailyResetsAt(),
                 state.weeklyResetsAt(),
                 state.dailyAssignments(),
-                updatedAssignments
+                updatedAssignments,
+                state.dailyRerolledAt()
             );
     }
 

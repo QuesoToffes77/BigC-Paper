@@ -1,0 +1,14 @@
+id: tracker_compass
+mechanic: tracker-compass
+material: COMPASS
+item-model: minecraft:compass
+legacy-custom-model-data: 1007
+display:
+  translation-key: item.bigcasares.tracker_compass
+  fallback-name: "Brújula Rastreadora"
+  lore:
+    - "§7Golpeá a un jugador para rastrearlo."
+max-stack-size: 1
+appearance:
+  java-item-definition: java/assets/bigcasares/items/tracker_compass.json
+  bedrock-texture: bedrock/textures/item/tracker_compass.png

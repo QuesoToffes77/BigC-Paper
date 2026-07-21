@@ -36,6 +36,10 @@ public final class ResourcePackStatusListener implements Listener {
             if (!player.isOnline()) {
                 return;
             }
+            if (plugin.getResourcePackModule().isManualPlayer(player)) {
+                plugin.getResourcePackModule().notifyManualUpdate(player);
+                return;
+            }
             service.requestFor(playerId);
 
             if (service.isRequired()) {
@@ -59,6 +63,9 @@ public final class ResourcePackStatusListener implements Listener {
 
     @EventHandler
     public void onStatus(PlayerResourcePackStatusEvent event) {
+        if (plugin.getResourcePackModule().isManualPlayer(event.getPlayer())) {
+            return;
+        }
         if (!service.isBigCasaresPack(event.getID())) {
             return;
         }
@@ -68,5 +75,11 @@ public final class ResourcePackStatusListener implements Listener {
             event.getStatus().name(),
             () -> event.getPlayer().kick(Component.text("Necesitas cargar el resource pack de BigCasares para jugar."))
         );
+        if (ResourcePackStatusHandler.map(event.getStatus().name()) == ResourcePackPlayerState.FAILED) {
+            Player player = event.getPlayer();
+            registrations.scheduleDelayed("resource-pack-download-retry", () -> {
+                if (player.isOnline()) service.retryFailedFor(player.getUniqueId());
+            }, 100L);
+        }
     }
 }

@@ -5,14 +5,79 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ItemCatalogLoaderTest {
 
+    @Test
+    void loadsShapelessRecipe() throws Exception {
+        Path catalog = tempDir.resolve("catalog");
+        Files.createDirectories(catalog);
+        Files.writeString(catalog.resolve("golden_amethyst_arrow.yml"), """
+            id: golden_tipped_amethyst_arrow
+            mechanic: golden-amethyst-arrow
+            material: ARROW
+            item-model: bigcasares:golden_tipped_amethyst_arrow
+            display:
+              translation-key: item.bigcasares.golden_tipped_amethyst_arrow
+              fallback-name: Flecha de amatista con punta de oro
+              lore: []
+            max-stack-size: 64
+            recipe:
+              type: shapeless
+              key: golden_tipped_amethyst_arrow_recipe
+              result-amount: 1
+              ingredients: [AMETHYST_SHARD, GOLD_INGOT, ARROW]
+            appearance:
+              java-item-definition: java/assets/bigcasares/items/golden_tipped_amethyst_arrow.json
+              bedrock-texture: bedrock/textures/item/golden_tipped_amethyst_arrow.png
+            """);
+
+        ItemRecipeDefinition recipe = new ItemCatalogLoader().load(catalog)
+            .require("golden_tipped_amethyst_arrow").recipeDefinition().orElseThrow();
+
+        assertEquals(RecipeType.SHAPELESS, recipe.type());
+        assertEquals(List.of("AMETHYST_SHARD", "GOLD_INGOT", "ARROW"), recipe.shapelessIngredients());
+    }
+
     @TempDir
     Path tempDir;
+
+    @Test
+    void loadsSahursBatCombatValuesWithoutARecipe() throws Exception {
+        Files.writeString(tempDir.resolve("sahurs_bat.yml"), """
+            id: sahurs_bat
+            mechanic: sahurs-bat
+            material: IRON_SWORD
+            item-model: bigcasares:sahurs_bat
+            display:
+              translation-key: item.bigcasares.sahurs_bat
+              fallback-name: Bate de Sahur
+              lore: []
+            max-stack-size: 1
+            components:
+              max-damage: 250
+              combat:
+                attack-damage: 6.0
+                attack-speed: 3.2
+            appearance:
+              java-item-definition: java/assets/bigcasares/items/sahurs_bat.json
+              bedrock-texture: bedrock/textures/item/sahurs_bat.png
+            """);
+
+        CustomItemDefinition definition = new ItemCatalogLoader().load(tempDir).require("sahurs_bat");
+
+        assertEquals("IRON_SWORD", definition.material());
+        assertEquals(1, definition.maxStackSize());
+        assertEquals(250, definition.maxDamage());
+        assertEquals(6.0, definition.combatDefinition().orElseThrow().attackDamage());
+        assertEquals(3.2, definition.combatDefinition().orElseThrow().attackSpeed());
+        assertTrue(definition.recipeDefinition().isEmpty());
+    }
 
     @Test
     void loadsACompleteDefinitionIntoAnImmutableCatalog() throws Exception {
@@ -53,6 +118,31 @@ class ItemCatalogLoaderTest {
         assertEquals(1001, definition.legacyCustomModelData().orElseThrow());
         assertEquals(4, definition.foodDefinition().orElseThrow().nutrition());
         assertEquals("CCC", definition.recipeDefinition().orElseThrow().shape().getFirst());
+    }
+
+    @Test
+    void loadsOnePointMaximumDamageForNukeShot() throws Exception {
+        Files.writeString(tempDir.resolve("nuke_shot.yml"), """
+            id: nuke_shot
+            mechanic: nuke-shot
+            material: FISHING_ROD
+            item-model: bigcasares:nuke_shot
+            display:
+              translation-key: item.bigcasares.nuke_shot
+              fallback-name: Nuke Shot
+              lore: []
+            max-stack-size: 1
+            components:
+              max-damage: 1
+            appearance:
+              java-item-definition: java/assets/bigcasares/items/nuke_shot.json
+              bedrock-texture: bedrock/textures/item/nuke_shot.png
+            """);
+
+        CustomItemDefinition definition = new ItemCatalogLoader().load(tempDir).require("nuke_shot");
+
+        assertEquals(1, definition.maxStackSize());
+        assertEquals(1, definition.maxDamage());
     }
 
     @Test

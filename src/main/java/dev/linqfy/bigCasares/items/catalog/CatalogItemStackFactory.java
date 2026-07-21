@@ -3,8 +3,12 @@ package dev.linqfy.bigCasares.items.catalog;
 import dev.linqfy.bigCasares.items.ModelDataUtil;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.components.FoodComponent;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -56,6 +60,14 @@ public final class CatalogItemStackFactory {
             meta.setLore(definition.display().lore());
         }
         definition.foodDefinition().ifPresent(food -> applyFood(meta, food));
+        definition.combatDefinition().ifPresent(combat -> applyCombat(meta, definition.id(), combat));
+        if (definition.maxDamage() != null) {
+            if (!(meta instanceof Damageable damageable)) {
+                throw new IllegalArgumentException(
+                    "max-damage requires a damageable material: " + definition.material());
+            }
+            damageable.setMaxDamage(definition.maxDamage());
+        }
         definition.legacyCustomModelData().ifPresent(modelData -> {
             ModelDataUtil.writeCustomModelData(meta, modelData);
             meta.getPersistentDataContainer().set(itemLegacyModelDataKey, PersistentDataType.INTEGER, modelData);
@@ -121,5 +133,53 @@ public final class CatalogItemStackFactory {
         food.setSaturation(definition.saturation());
         food.setCanAlwaysEat(definition.canAlwaysEat());
         meta.setFood(food);
+    }
+
+    static void applyCombat(ItemMeta meta, String itemId, ItemCombatDefinition combat) {
+        CombatModifierPlan plan = combatModifierPlan(itemId, combat);
+        replaceCombatModifier(
+            meta,
+            Attribute.ATTACK_DAMAGE,
+            new NamespacedKey("bigcasares", plan.damageKey()),
+            plan.damageAmount()
+        );
+        replaceCombatModifier(
+            meta,
+            Attribute.ATTACK_SPEED,
+            new NamespacedKey("bigcasares", plan.speedKey()),
+            plan.speedAmount()
+        );
+    }
+
+    static CombatModifierPlan combatModifierPlan(String itemId, ItemCombatDefinition combat) {
+        java.util.Objects.requireNonNull(itemId, "itemId");
+        java.util.Objects.requireNonNull(combat, "combat");
+        return new CombatModifierPlan(
+            itemId + "_attack_damage",
+            combat.attackDamage() - 1.0,
+            itemId + "_attack_speed",
+            combat.attackSpeed() - 4.0
+        );
+    }
+
+    record CombatModifierPlan(String damageKey, double damageAmount, String speedKey, double speedAmount) { }
+
+    private static void replaceCombatModifier(
+        ItemMeta meta,
+        Attribute attribute,
+        NamespacedKey key,
+        double amount
+    ) {
+        java.util.Collection<AttributeModifier> existing = meta.getAttributeModifiers(attribute);
+        if (existing != null) {
+            for (AttributeModifier modifier : java.util.List.copyOf(existing)) {
+                if (modifier.getKey().equals(key)) {
+                    meta.removeAttributeModifier(attribute, modifier);
+                }
+            }
+        }
+        meta.addAttributeModifier(attribute, new AttributeModifier(
+            key, amount, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlotGroup.MAINHAND
+        ));
     }
 }

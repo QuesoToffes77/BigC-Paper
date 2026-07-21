@@ -88,7 +88,8 @@ class PlayerMissionServiceTest {
             Instant.parse("2026-04-20T00:00:00Z"),
             Instant.parse("2026-04-26T00:00:00Z"),
             Map.of("daily-a", new MissionAssignment(catalog.byScope(MissionScope.DAILY).getFirst(), MissionProgressSnapshot.fresh())),
-            Map.of("weekly-a", new MissionAssignment(catalog.byScope(MissionScope.WEEKLY).getFirst(), MissionProgressSnapshot.fresh()))
+            Map.of("weekly-a", new MissionAssignment(catalog.byScope(MissionScope.WEEKLY).getFirst(), MissionProgressSnapshot.fresh())),
+            null
         );
 
         MissionPlayerState refreshed = service.getOrCreateState(playerId, oldState);

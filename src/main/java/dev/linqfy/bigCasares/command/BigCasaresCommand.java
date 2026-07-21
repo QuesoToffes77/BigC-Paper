@@ -37,8 +37,9 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
     private static final String TEAM_LEAVE_PERMISSION = "bigcasares.team.leave";
     private static final String TEAM_EDIT_PERMISSION = "bigcasares.team.edit";
     private static final String TEAM_APPEARANCE_PERMISSION = "bigcasares.team.appearance";
-    private static final String RATING_VIEW_PERMISSION = "bigcasares.skillrating.view";
-    private static final String RATING_VIEW_OTHERS_PERMISSION = "bigcasares.skillrating.view.others";
+
+    private static final String DANGER_VIEW_PERMISSION = "bigcasares.danger.view";
+    private static final String DANGER_VIEW_OTHERS_PERMISSION = "bigcasares.danger.view.others";
 
     private final BigCasares plugin;
     private final CopperAppleCommand legacyCommand;
@@ -56,13 +57,13 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
         return "shop".equalsIgnoreCase(value);
     }
 
-    public static boolean isRating(String value) {
-        return "rating".equalsIgnoreCase(value);
+    public static boolean isDanger(String value) {
+        return "peligro".equalsIgnoreCase(value);
     }
 
     public static List<String> rootSuggestions(String prefix) {
         String lowered = prefix.toLowerCase(Locale.ROOT);
-        return List.of("give", "misiones", "shop", "rating", "skill", "nexus", "team", "boss", "reload", "pack", "items").stream()
+        return List.of("give", "misiones", "shop", "peligro", "nexus", "team", "boss", "tumba", "reload", "pack", "items", "baltop").stream()
             .filter(option -> option.startsWith(lowered))
             .collect(Collectors.toList());
     }
@@ -75,6 +76,22 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
     public static List<String> packSuggestions(String prefix) {
         String lowered = prefix.toLowerCase(Locale.ROOT);
         return List.of("info", "send").stream().filter(option -> option.startsWith(lowered)).toList();
+    }
+
+    public static List<String> bossIdSuggestions(String prefix) {
+        String lowered = prefix.toLowerCase(Locale.ROOT);
+        return List.of("abyss-guardian", "tung-tung-sahur").stream()
+            .filter(id -> id.startsWith(lowered))
+            .toList();
+    }
+
+    public static boolean isSupportedBossId(String value) {
+        return value != null && dev.linqfy.bigCasares.modules.pveboss.PveBossModule.supportedBossIds()
+            .contains(value.toLowerCase(Locale.ROOT));
+    }
+
+    public static List<String> tombstoneSuggestions(String prefix) {
+        return "abrir".startsWith(prefix.toLowerCase(Locale.ROOT)) ? List.of("abrir") : List.of();
     }
 
     public static List<String> teamSubcommandSuggestions(String prefix) {
@@ -127,10 +144,14 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if ("shop".equalsIgnoreCase(command.getName())) {
-            return openShop(sender);
+            sender.sendMessage(ChatColor.RED + "El comando /shop está desactivado. Por favor, busca a los Mercaderes en el mundo.");
+            return true;
         }
-        if ("rating".equalsIgnoreCase(command.getName()) || "skill".equalsIgnoreCase(command.getName())) {
-            return showRating(sender, args);
+        if ("resourcepack".equalsIgnoreCase(command.getName())) {
+            return handleManualResourcePack(sender);
+        }
+        if ("peligro".equalsIgnoreCase(command.getName())) {
+            return showDanger(sender, args);
         }
         if ("team".equalsIgnoreCase(command.getName())) {
             return handleTeam(sender, args);
@@ -143,6 +164,15 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
         }
         if ("nexus".equalsIgnoreCase(command.getName())) {
             return handleNexus(sender, args);
+        }
+        if ("tumba".equalsIgnoreCase(command.getName())) {
+            return handleTombstone(sender, args);
+        }
+        if ("misiones".equalsIgnoreCase(command.getName())) {
+            return delegateToMisionesHandler(sender, command, label, args);
+        }
+        if ("baltop".equalsIgnoreCase(command.getName())) {
+            return handleBaltop(sender, args);
         }
 
         if (args.length == 0) {
@@ -174,11 +204,12 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
         }
 
         if (isShop(args[0])) {
-            return openShop(sender);
+            sender.sendMessage(ChatColor.RED + "El comando /shop está desactivado. Por favor, busca a los Mercaderes en el mundo.");
+            return true;
         }
 
-        if (isRating(args[0]) || "skill".equalsIgnoreCase(args[0])) {
-            return showRating(sender, dropFirst(args));
+        if (isDanger(args[0])) {
+            return showDanger(sender, dropFirst(args));
         }
 
         if ("team".equalsIgnoreCase(args[0])) {
@@ -197,6 +228,14 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
             return handleNexus(sender, dropFirst(args));
         }
 
+        if ("tumba".equalsIgnoreCase(args[0])) {
+            return handleTombstone(sender, dropFirst(args));
+        }
+
+        if ("baltop".equalsIgnoreCase(args[0])) {
+            return handleBaltop(sender, dropFirst(args));
+        }
+
         return legacyCommand.onCommand(sender, command, label, args);
     }
 
@@ -205,8 +244,9 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
         if ("shop".equalsIgnoreCase(command.getName())) {
             return List.of();
         }
-        if ("rating".equalsIgnoreCase(command.getName()) || "skill".equalsIgnoreCase(command.getName())) {
-            return List.of();
+        if ("peligro".equalsIgnoreCase(command.getName())) {
+            if (args.length == 1) return "expandir".startsWith(args[0].toLowerCase(Locale.ROOT)) ? List.of("expandir") : null;
+            return null;
         }
         if ("team".equalsIgnoreCase(command.getName())) {
             return teamSuggestions(sender, args);
@@ -215,13 +255,22 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
             return args.length == 1
                 ? List.of("spawn").stream().filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList()
                 : args.length == 2 && "spawn".equalsIgnoreCase(args[0])
-                    ? List.of("abyss-guardian").stream().filter(value -> value.startsWith(args[1].toLowerCase(Locale.ROOT))).toList()
+                    ? bossIdSuggestions(args[1])
                     : List.of();
         }
         if ("nexus".equalsIgnoreCase(command.getName())) {
             if (args.length == 1) return List.of("place", "claim", "give").stream().filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
             if (args.length == 2 && "give".equalsIgnoreCase(args[0])) return null; // Player names
             return List.of();
+        }
+        if ("tumba".equalsIgnoreCase(command.getName())) {
+            return args.length == 1 ? tombstoneSuggestions(args[0]) : List.of();
+        }
+        if ("misiones".equalsIgnoreCase(command.getName())) {
+            String[] cmdArgs = new String[args.length + 1];
+            cmdArgs[0] = "misiones";
+            System.arraycopy(args, 0, cmdArgs, 1, args.length);
+            return legacyCommand.onTabComplete(sender, command, alias, cmdArgs);
         }
 
         if (args.length == 1) {
@@ -249,6 +298,19 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
 
         if ("team".equalsIgnoreCase(args[0])) {
             return teamSuggestions(sender, dropFirst(args));
+        }
+
+        if ("boss".equalsIgnoreCase(args[0])) {
+            String[] bossArgs = dropFirst(args);
+            return bossArgs.length == 1
+                ? List.of("spawn").stream().filter(value -> value.startsWith(bossArgs[0].toLowerCase(Locale.ROOT))).toList()
+                : bossArgs.length == 2 && "spawn".equalsIgnoreCase(bossArgs[0])
+                    ? bossIdSuggestions(bossArgs[1])
+                    : List.of();
+        }
+
+        if ("tumba".equalsIgnoreCase(args[0])) {
+            return args.length == 2 ? tombstoneSuggestions(args[1]) : List.of();
         }
 
         return legacyCommand.onTabComplete(sender, command, alias, args);
@@ -718,8 +780,8 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (args.length != 2 || !"spawn".equalsIgnoreCase(args[0])
-            || !"abyss-guardian".equalsIgnoreCase(args[1])) {
-            sender.sendMessage(ChatColor.YELLOW + "Uso: /boss spawn abyss-guardian");
+            || !isSupportedBossId(args[1])) {
+            sender.sendMessage(ChatColor.YELLOW + "Uso: /boss spawn abyss-guardian|tung-tung-sahur");
             return true;
         }
         try {
@@ -729,8 +791,8 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
             }
             org.bukkit.Location location = player.getLocation().clone()
                 .add(facing.normalize().multiply(6.0));
-            java.util.UUID id = plugin.getPveBossModule().spawnAbyssGuardian(location);
-            sender.sendMessage(ChatColor.DARK_PURPLE + "Guardián del Abismo creado: " + id);
+            java.util.UUID id = plugin.getPveBossModule().spawn(args[1], location);
+            sender.sendMessage(ChatColor.DARK_PURPLE + "Boss creado: " + args[1] + " (" + id + ")");
         } catch (IllegalArgumentException | IllegalStateException ex) {
             sender.sendMessage(ChatColor.RED + ex.getMessage());
         }
@@ -910,47 +972,105 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean showRating(CommandSender sender, String[] args) {
-        if (!sender.hasPermission(RATING_VIEW_PERMISSION)) {
-            sender.sendMessage(ChatColor.RED + "No tenes permiso para ver skill rating.");
+    private boolean handleManualResourcePack(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ChatColor.RED + "Solo jugadores pueden usar /resourcepack.");
             return true;
         }
-        if (plugin.getSkillRatingModule() == null || !plugin.getSkillRatingModule().isEnabled()) {
-            sender.sendMessage(ChatColor.RED + "Skill rating no esta disponible.");
+        var module = plugin.getResourcePackModule();
+        if (module == null) {
+            sender.sendMessage(ChatColor.RED + "Resource Pack System no está disponible.");
             return true;
         }
+        List<dev.linqfy.bigCasares.modules.resourcepack.JavaPackDelivery> downloads =
+            module.enableManualDownloads(player);
+        if (downloads.isEmpty()) {
+            sender.sendMessage(ChatColor.RED + "No hay un resource pack HTTP disponible ahora.");
+            return true;
+        }
+        dev.linqfy.bigCasares.modules.resourcepack.ManualResourcePackMessages
+            .sendDownloads(player, downloads);
+        return true;
+    }
 
-        OfflinePlayer target;
+    private boolean handleTombstone(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ChatColor.RED + "Solo jugadores pueden abrir tumbas.");
+            return true;
+        }
+        if (args.length != 1 || !"abrir".equalsIgnoreCase(args[0])) {
+            sender.sendMessage(ChatColor.YELLOW + "Uso: /tumba abrir");
+            return true;
+        }
+        var module = plugin.getTombstoneModule();
+        if (module == null) {
+            sender.sendMessage(ChatColor.RED + "El sistema de tumbas no está disponible.");
+            return true;
+        }
+        if (!module.openNearby(player, 3.0)) {
+            sender.sendMessage(ChatColor.RED + "No hay ninguna tumba a 3 bloques.");
+        }
+        return true;
+    }
+
+    private boolean showDanger(CommandSender sender, String[] args) {
+        if (!sender.hasPermission(DANGER_VIEW_PERMISSION)) {
+            sender.sendMessage(ChatColor.RED + "No tenés permiso para consultar el peligro.");
+            return true;
+        }
+        if (plugin.getDangerModule() == null || plugin.getDangerModule().service().isEmpty()) {
+            sender.sendMessage(ChatColor.RED + "El sistema de peligro no está disponible.");
+            return true;
+        }
+        var danger = plugin.getDangerModule().service().orElseThrow();
+        boolean expand = args.length > 0 && "expandir".equalsIgnoreCase(args[0]);
+        String requested = expand ? (args.length > 1 ? args[1] : null) : (args.length > 0 ? args[0] : null);
+        OfflinePlayer target = requested == null && sender instanceof Player player
+            ? player : requested == null ? null : plugin.getServer().getOfflinePlayer(requested);
+        if (target == null) {
+            sender.sendMessage(ChatColor.RED + "Uso: /peligro [jugador] o /peligro expandir [jugador]");
+            return true;
+        }
+        if (!target.getUniqueId().equals(sender instanceof Player player ? player.getUniqueId() : null)
+            && !sender.hasPermission(DANGER_VIEW_OTHERS_PERMISSION)) {
+            sender.sendMessage(ChatColor.RED + "No tenés permiso para consultar a otros jugadores.");
+            return true;
+        }
+        var snapshot = danger.snapshot(target.getUniqueId());
+        String name = target.getName() == null ? target.getUniqueId().toString() : target.getName();
+        sender.sendMessage(ChatColor.GOLD + "Peligro de " + name + ": " + ChatColor.WHITE + snapshot.totalScore()
+            + ChatColor.GRAY + "/100 - " + snapshot.tier().displayName());
+        sender.sendMessage(ChatColor.GRAY + "Actividad: " + snapshot.activityScore()
+            + " | Aporte de habilidad: " + snapshot.skillContribution());
+        if (expand && plugin.getSkillRatingModule() != null && plugin.getSkillRatingModule().service() != null) {
+            var state = plugin.getSkillRatingModule().service().ratingFor(target.getUniqueId());
+            sender.sendMessage(ChatColor.AQUA + "Skill Rating: " + state.skillRating() + " | Tier " + state.tier());
+            sender.sendMessage(ChatColor.GRAY + "Mu: " + state.mu() + " | Sigma: " + state.sigma()
+                + " | Actualizado: " + state.updatedAt());
+        }
         if (args.length == 0) {
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(ChatColor.RED + "Uso: /skill <player>");
                 return true;
             }
-            var state = plugin.getSkillRatingModule().service().ratingFor(player.getUniqueId());
-            double scale = plugin.getSkillRatingModule().service().getSettings().skillRatingScale();
-            sender.sendMessage(ChatColor.AQUA + "Tu " + SkillRatingView.format(player.getName(), state, scale));
-
-            sender.sendMessage(ChatColor.GOLD + "--- Top 10 Skill Rating ---");
-            var top = plugin.getSkillRatingModule().service().getTopPlayers(10);
+            sender.sendMessage(ChatColor.GOLD + "--- Top 10 de Peligro ---");
+            var top = danger.top(10);
             int rank = 1;
-            for (var pState : top) {
-                String name = plugin.getServer().getOfflinePlayer(pState.playerId()).getName();
-                if (name == null) name = "Unknown";
-                sender.sendMessage(ChatColor.YELLOW + String.valueOf(rank) + ". " + SkillRatingView.format(name, pState, scale));
+            for (var standing : top) {
+                String standingName = plugin.getServer().getOfflinePlayer(standing.playerId()).getName();
+                if (standingName == null) standingName = "Desconocido";
+                sender.sendMessage(ChatColor.YELLOW + String.valueOf(rank) + ". " + standingName
+                    + ChatColor.GRAY + " - " + standing.totalScore() + " (" + standing.tier().displayName() + ")");
                 rank++;
             }
-            return true;
-        } else {
-            if (!sender.hasPermission(RATING_VIEW_OTHERS_PERMISSION)) {
-                sender.sendMessage(ChatColor.RED + "No tenes permiso para ver ratings de otros jugadores.");
-                return true;
-            }
-            target = plugin.getServer().getOfflinePlayer(args[0]);
-            var state = plugin.getSkillRatingModule().service().ratingFor(target.getUniqueId());
-            double scale = plugin.getSkillRatingModule().service().getSettings().skillRatingScale();
-            sender.sendMessage(ChatColor.AQUA + SkillRatingView.format(target.getName() == null ? target.getUniqueId().toString() : target.getName(), state, scale));
-            return true;
         }
+        return true;
+    }
+
+    private boolean delegateToMisionesHandler(CommandSender sender, Command command, String label, String[] args) {
+        String[] cmdArgs = new String[args.length + 1];
+        cmdArgs[0] = "misiones";
+        System.arraycopy(args, 0, cmdArgs, 1, args.length);
+        return legacyCommand.onCommand(sender, command, label, cmdArgs);
     }
 
     private String[] dropFirst(String[] args) {
@@ -967,15 +1087,51 @@ public final class BigCasaresCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GRAY + "/" + label + " give <item_id> [player] [amount]");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " misiones [diarias|semanales|reclamar]");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " shop");
-        sender.sendMessage(ChatColor.GRAY + "/" + label + " rating [player]");
+        sender.sendMessage(ChatColor.GRAY + "/" + label + " peligro [jugador]");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " team <create|invite|join|leave|kick|dissolve|tag|color|appearance>");
-        sender.sendMessage(ChatColor.GRAY + "/" + label + " boss spawn abyss-guardian");
+        sender.sendMessage(ChatColor.GRAY + "/" + label + " boss spawn abyss-guardian|tung-tung-sahur");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " nexus <place|claim|give>");
-        sender.sendMessage(ChatColor.GRAY + "/" + label + " skill [player]");
+        sender.sendMessage(ChatColor.GRAY + "/" + label + " tumba abrir");
+        sender.sendMessage(ChatColor.GRAY + "/" + label + " baltop");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " reload");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " reload pack");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " reload items");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " pack <info|send <jugador|all>>");
         sender.sendMessage(ChatColor.GRAY + "/" + label + " items info");
+    }
+
+    private boolean handleBaltop(CommandSender sender, String[] args) {
+        sender.sendMessage(ChatColor.YELLOW + "Calculando el top de balances...");
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                net.milkbowl.vault.economy.Economy economy = dev.linqfy.bigCasares.modules.missions.VaultEconomyGateway.resolveOrThrow(plugin);
+                java.util.List<java.util.Map.Entry<String, Double>> top = new java.util.ArrayList<>();
+                for (org.bukkit.OfflinePlayer p : plugin.getServer().getOfflinePlayers()) {
+                    if (p.getName() != null && p.hasPlayedBefore()) {
+                        top.add(new java.util.AbstractMap.SimpleEntry<>(p.getName(), economy.getBalance(p)));
+                    }
+                }
+                top.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+                java.util.List<java.util.Map.Entry<String, Double>> finalTop = top.subList(0, Math.min(10, top.size()));
+                
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    sender.sendMessage(ChatColor.GOLD + "--- Top 10 Balances ---");
+                    int rank = 1;
+                    for (var entry : finalTop) {
+                        String formatted = dev.linqfy.bigCasares.modules.missions.VaultEconomyGateway.formatFallback(entry.getValue(), "$");
+                        try {
+                            formatted = economy.format(entry.getValue());
+                        } catch (Exception ignored) {}
+                        sender.sendMessage(ChatColor.YELLOW + String.valueOf(rank) + ". " + entry.getKey() + ChatColor.GRAY + " - " + ChatColor.GREEN + formatted);
+                        rank++;
+                    }
+                });
+            } catch (Exception e) {
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    sender.sendMessage(ChatColor.RED + "No se pudo obtener el baltop. Vault no esta disponible.");
+                });
+            }
+        });
+        return true;
     }
 }

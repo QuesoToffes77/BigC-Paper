@@ -4,8 +4,10 @@ import dev.linqfy.bigCasares.platform.ClientPlatform;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,6 +57,68 @@ class ResourcePackServiceTest {
         assertFalse(service.requestFor(PLAYER_ID));
         assertTrue(service.forceRequestFor(PLAYER_ID));
         assertEquals(2, requests.get());
+    }
+
+    @Test
+    void transientDownloadFailuresAreRetriedTwiceThenStop() {
+        ResourcePackManifest manifest = manifest("075a3f4dec4b");
+        AtomicInteger requests = new AtomicInteger();
+        ResourcePackService service = service(manifest,
+            (playerId, packId, uri, sha1, prompt, required) -> requests.incrementAndGet());
+
+        assertTrue(service.requestFor(PLAYER_ID));
+        service.updateState(manifest.javaUuid(), PLAYER_ID, ResourcePackPlayerState.FAILED);
+        assertTrue(service.retryFailedFor(PLAYER_ID));
+        service.updateState(manifest.javaUuid(), PLAYER_ID, ResourcePackPlayerState.FAILED);
+        assertTrue(service.retryFailedFor(PLAYER_ID));
+        service.updateState(manifest.javaUuid(), PLAYER_ID, ResourcePackPlayerState.FAILED);
+        assertFalse(service.retryFailedFor(PLAYER_ID));
+
+        assertEquals(3, requests.get());
+    }
+
+    @Test
+    void oneLoadedPackDoesNotResetRetriesForAnotherFailingPackInTheStack() {
+        ResourcePackManifest manifest = manifest("075a3f4dec4b");
+        UUID betterModelId = UUID.fromString("00000000-0000-0000-0000-000000000081");
+        AtomicInteger requests = new AtomicInteger();
+        ResourcePackService service = service(manifest,
+            (playerId, packId, uri, sha1, prompt, required) -> requests.incrementAndGet());
+        service.activateStack(manifest, URI.create("https://example.com/bigcasares.zip"), List.of(
+            new JavaPackDelivery(betterModelId, URI.create("https://example.com/bettermodel.zip"),
+                new byte[20], "bettermodel")
+        ));
+
+        assertTrue(service.requestFor(PLAYER_ID));
+        for (int attempt = 0; attempt < 2; attempt++) {
+            service.updateState(betterModelId, PLAYER_ID, ResourcePackPlayerState.LOADED);
+            service.updateState(manifest.javaUuid(), PLAYER_ID, ResourcePackPlayerState.FAILED);
+            assertTrue(service.retryFailedFor(PLAYER_ID));
+        }
+        service.updateState(betterModelId, PLAYER_ID, ResourcePackPlayerState.LOADED);
+        service.updateState(manifest.javaUuid(), PLAYER_ID, ResourcePackPlayerState.FAILED);
+
+        assertFalse(service.retryFailedFor(PLAYER_ID));
+        assertEquals(6, requests.get());
+    }
+
+    @Test
+    void exposesEveryManualDownloadAndChangesRevisionWithThePackStack() throws Exception {
+        ResourcePackManifest manifest = manifest("075a3f4dec4b");
+        ResourcePackService service = service(manifest,
+            (playerId, packId, uri, sha1, prompt, required) -> { });
+        Method downloads = ResourcePackService.class.getMethod("currentDownloads");
+        Method revision = ResourcePackService.class.getMethod("currentRevision");
+        String baseRevision = (String) revision.invoke(service);
+
+        service.activateStack(manifest, URI.create("https://example.com/bigcasares.zip"), List.of(
+            new JavaPackDelivery(UUID.fromString("00000000-0000-0000-0000-000000000081"),
+                URI.create("https://example.com/bettermodel.zip"), new byte[20], "bettermodel")
+        ));
+
+        assertEquals(2, ((List<?>) downloads.invoke(service)).size());
+        assertFalse(baseRevision.equals(revision.invoke(service)));
+        assertTrue(((String) revision.invoke(service)).matches("[0-9a-f]{16}"));
     }
 
     @Test

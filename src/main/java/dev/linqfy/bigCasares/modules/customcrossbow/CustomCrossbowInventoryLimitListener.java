@@ -29,7 +29,8 @@ public final class CustomCrossbowInventoryLimitListener implements Listener {
             return;
         }
         ItemStack stack = event.getItem().getItemStack();
-        if (crossbowData.isEchoChargedCrossbow(stack) && !canAccept(player, 1)) {
+        int incoming = countInStack(stack);
+        if (incoming > 0 && !canAccept(player, incoming)) {
             event.setCancelled(true);
         }
     }
@@ -41,10 +42,11 @@ public final class CustomCrossbowInventoryLimitListener implements Listener {
         }
 
         ItemStack candidate = resolveIncomingStack(event);
-        if (!crossbowData.isEchoChargedCrossbow(candidate)) {
+        int incoming = countInStack(candidate);
+        if (incoming == 0) {
             return;
         }
-        if (!canAccept(player, candidate.getAmount())) {
+        if (!canAccept(player, incoming)) {
             event.setCancelled(true);
             player.sendMessage("§cNo podes tener mas de " + settings.maxEchoChargedCrossbows() + " crossbows cargadas con Echo Shard.");
         }
@@ -69,20 +71,57 @@ public final class CustomCrossbowInventoryLimitListener implements Listener {
         ItemStack[] storage = player.getInventory().getStorageContents();
         for (int i = storage.length - 1; i >= 0 && remaining > 0; i--) {
             ItemStack stack = storage[i];
-            if (!crossbowData.isEchoChargedCrossbow(stack)) {
-                continue;
+            if (stack == null) continue;
+
+            if (crossbowData.isEchoChargedCrossbow(stack)) {
+                storage[i] = null;
+                remaining--;
+                player.getWorld().dropItemNaturally(player.getLocation(), stack);
+            } else if (stack.hasItemMeta() && stack.getItemMeta() instanceof org.bukkit.inventory.meta.BundleMeta bundleMeta) {
+                java.util.List<ItemStack> bundledItems = new java.util.ArrayList<>(bundleMeta.getItems());
+                boolean changed = false;
+                for (int j = bundledItems.size() - 1; j >= 0 && remaining > 0; j--) {
+                    ItemStack bStack = bundledItems.get(j);
+                    if (crossbowData.isEchoChargedCrossbow(bStack)) {
+                        bundledItems.remove(j);
+                        remaining--;
+                        player.getWorld().dropItemNaturally(player.getLocation(), bStack);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    bundleMeta.setItems(bundledItems);
+                    stack.setItemMeta(bundleMeta);
+                    storage[i] = stack;
+                }
             }
-            storage[i] = null;
-            remaining--;
-            player.getWorld().dropItemNaturally(player.getLocation(), stack);
         }
         player.getInventory().setStorageContents(storage);
 
         ItemStack offhand = player.getInventory().getItemInOffHand();
-        if (remaining > 0 && crossbowData.isEchoChargedCrossbow(offhand)) {
-            player.getInventory().setItemInOffHand(null);
-            remaining--;
-            player.getWorld().dropItemNaturally(player.getLocation(), offhand);
+        if (remaining > 0 && offhand != null) {
+            if (crossbowData.isEchoChargedCrossbow(offhand)) {
+                player.getInventory().setItemInOffHand(null);
+                remaining--;
+                player.getWorld().dropItemNaturally(player.getLocation(), offhand);
+            } else if (offhand.hasItemMeta() && offhand.getItemMeta() instanceof org.bukkit.inventory.meta.BundleMeta bundleMeta) {
+                java.util.List<ItemStack> bundledItems = new java.util.ArrayList<>(bundleMeta.getItems());
+                boolean changed = false;
+                for (int j = bundledItems.size() - 1; j >= 0 && remaining > 0; j--) {
+                    ItemStack bStack = bundledItems.get(j);
+                    if (crossbowData.isEchoChargedCrossbow(bStack)) {
+                        bundledItems.remove(j);
+                        remaining--;
+                        player.getWorld().dropItemNaturally(player.getLocation(), bStack);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    bundleMeta.setItems(bundledItems);
+                    offhand.setItemMeta(bundleMeta);
+                    player.getInventory().setItemInOffHand(offhand);
+                }
+            }
         }
         return overflow - remaining;
     }
@@ -90,12 +129,23 @@ public final class CustomCrossbowInventoryLimitListener implements Listener {
     public int countEchoChargedCrossbows(Player player) {
         int total = 0;
         for (ItemStack stack : player.getInventory().getStorageContents()) {
-            if (crossbowData.isEchoChargedCrossbow(stack)) {
-                total += Math.max(1, stack.getAmount());
-            }
+            total += countInStack(stack);
         }
-        if (crossbowData.isEchoChargedCrossbow(player.getInventory().getItemInOffHand())) {
-            total++;
+        total += countInStack(player.getInventory().getItemInOffHand());
+        return total;
+    }
+
+    private int countInStack(ItemStack stack) {
+        if (stack == null) return 0;
+        int total = 0;
+        if (crossbowData.isEchoChargedCrossbow(stack)) {
+            total += Math.max(1, stack.getAmount());
+        } else if (stack.hasItemMeta() && stack.getItemMeta() instanceof org.bukkit.inventory.meta.BundleMeta bundleMeta) {
+            for (ItemStack bStack : bundleMeta.getItems()) {
+                if (crossbowData.isEchoChargedCrossbow(bStack)) {
+                    total += Math.max(1, bStack.getAmount());
+                }
+            }
         }
         return total;
     }
