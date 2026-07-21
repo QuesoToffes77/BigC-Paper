@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.function.Predicate;
 
 public final class BountyService {
 
@@ -12,17 +13,43 @@ public final class BountyService {
     private final BountyEconomy economy;
     private final BountySettings settings;
     private final Supplier<Instant> clock;
+    private final Predicate<UUID> lethalVictim;
+    private final java.util.function.Function<UUID, Double> killerMultiplier;
 
     public BountyService(BountyStorage storage, BountyEconomy economy, BountySettings settings, Supplier<Instant> clock) {
+        this(storage, economy, settings, clock, ignored -> false, ignored -> 1.0);
+    }
+
+    public BountyService(
+        BountyStorage storage,
+        BountyEconomy economy,
+        BountySettings settings,
+        Supplier<Instant> clock,
+        Predicate<UUID> lethalVictim
+    ) {
+        this(storage, economy, settings, clock, lethalVictim, ignored -> 1.0);
+    }
+
+    public BountyService(
+        BountyStorage storage,
+        BountyEconomy economy,
+        BountySettings settings,
+        Supplier<Instant> clock,
+        Predicate<UUID> lethalVictim,
+        java.util.function.Function<UUID, Double> killerMultiplier
+    ) {
         this.storage = storage;
         this.economy = economy;
         this.settings = settings;
         this.clock = clock;
+        this.lethalVictim = lethalVictim;
+        this.killerMultiplier = killerMultiplier;
     }
 
     public BountyProcessingResult handlePlayerKill(UUID victimId, UUID killerId) {
         BountyPlayerState current = storage.load(victimId).orElse(BountyPlayerState.empty(victimId, clock.get()));
-        double paidOut = current.activeBounty();
+        double basePayout = current.activeBounty();
+        double paidOut = basePayout * killerMultiplier.apply(killerId);
 
         if (paidOut > 0.0) {
             economy.deposit(killerId, paidOut);
@@ -34,7 +61,8 @@ public final class BountyService {
             return new BountyProcessingResult(paidOut, 0.0, 0.0, 0.0, false, paidOut > 0.0);
         }
 
-        double newBounty = balance * settings.bountyPercent();
+        double bountyPercent = lethalVictim.test(victimId) ? 0.25 : settings.bountyPercent();
+        double newBounty = balance * bountyPercent;
         if (newBounty < settings.minimumBounty()) {
             storage.save(new BountyPlayerState(victimId, 0.0, clock.get()));
             return new BountyProcessingResult(paidOut, 0.0, 0.0, 0.0, false, paidOut > 0.0);

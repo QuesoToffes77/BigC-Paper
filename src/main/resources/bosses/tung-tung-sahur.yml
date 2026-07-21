@@ -1,0 +1,240 @@
+id: tung-tung-sahur
+display-name: "TUNG TUNG TUNG SANIGGER"
+maximum-health: 6767.0
+audience-radius: 64.0
+
+presentation:
+  java-model-key: boss_sahur
+
+raid-scaling:
+  enabled: true
+  base-health: 6767.0
+  health-per-player: 0.0
+  minimum-players: 10
+  maximum-players: 20
+
+ui:
+  update-ticks: 2
+
+phases:
+  phase-2-at: 0.66
+  phase-3-at: 0.33
+
+category-weights:
+  physical: 1.0
+  magic: 0.75
+  movement: 1.1
+  defensive: 0.55
+
+animations:
+  idle:
+    type: LOOPING
+    duration-ticks: 160
+    scale: [1.0, 1.0]
+    y-offset: [0.0, 0.0]
+    y-rotation: [0, 0]
+    priority: 0
+  walk:
+    type: LOOPING
+    duration-ticks: 40
+    scale: [1.0, 1.0]
+    y-offset: [0.0, 0.0]
+    y-rotation: [0, 0]
+    priority: 2
+  sprint:
+    type: LOOPING
+    duration-ticks: 20
+    scale: [1.0, 1.0]
+    y-offset: [0.0, 0.0]
+    y-rotation: [0, 0]
+    priority: 30
+  bat_hit:
+    type: ONE_SHOT
+    duration-ticks: 10
+    scale: [1.0, 1.0]
+    y-offset: [0.0, 0.0]
+    y-rotation: [0, 0]
+    priority: 20
+  spin_in_place:
+    type: ONE_SHOT
+    duration-ticks: 80
+    scale: [1.0, 1.0]
+    y-offset: [0.0, 0.0]
+    y-rotation: [0, 1440]
+    priority: 25
+  stomp:
+    type: ONE_SHOT
+    duration-ticks: 10
+    scale: [1.0, 1.0]
+    y-offset: [0.0, 0.0]
+    y-rotation: [0, 0]
+    priority: 25
+
+abilities:
+  bat-hit:
+    category: PHYSICAL
+    animation: bat_hit
+    cooldown-seconds: 5.0
+    cast-time-seconds: 0.25
+    priority: 90
+    interruptible: false
+    conditions:
+      - type: TARGET_IN_RANGE
+        value: 4.0
+      - type: NOT_CASTING
+    targets:
+      type: NEAREST_PLAYER
+      radius: 4.0
+      max-targets: 1
+    telegraph:
+      type: CONE
+      radius: 4.0
+      particle: minecraft:dust
+      warning-sound: minecraft:entity.player.attack.strong
+    effects:
+      - type: SAHUR_BAT_HIT
+
+  stomp:
+    category: PHYSICAL
+    animation: stomp
+    cooldown-seconds: 12.0
+    cast-time-seconds: 0.5
+    priority: 75
+    interruptible: false
+    conditions:
+      - type: NOT_CASTING
+    targets:
+      type: ALL_IN_RADIUS
+      radius: 8.0
+    telegraph:
+      type: CIRCLE
+      radius: 8.0
+      particle: minecraft:dust
+      warning-sound: minecraft:entity.warden.attack_impact
+    effects:
+      - type: SAHUR_STOMP
+
+  wall-charge:
+    category: MOVEMENT
+    animation: sprint
+    cooldown-seconds: 18.0
+    cast-time-seconds: 1.2
+    priority: 85
+    interruptible: false
+    conditions:
+      - type: NOT_CASTING
+    targets:
+      type: ALL_IN_RADIUS
+      radius: 40.0
+    telegraph:
+      type: LINE
+      radius: 2.25
+      particle: minecraft:dust
+      warning-sound: minecraft:entity.ravager.roar
+    effects:
+      - type: SAHUR_CHARGE
+
+  spin-attack:
+    category: MOVEMENT
+    animation: spin_in_place
+    cooldown-seconds: 10.0
+    cast-time-seconds: 0.2
+    priority: 82
+    interruptible: false
+    conditions:
+      - type: NOT_CASTING
+    targets:
+      type: ALL_IN_RADIUS
+      radius: 6.0
+    telegraph:
+      type: CIRCLE
+      radius: 6.0
+      particle: minecraft:dust
+      warning-sound: minecraft:entity.player.attack.sweep
+    effects:
+      - type: SAHUR_SPIN
+
+  hunter-bat:
+    category: MAGIC
+    animation: idle
+    cooldown-seconds: 14.0
+    cast-time-seconds: 0.75
+    priority: 65
+    interruptible: true
+    conditions:
+      - type: NOT_CASTING
+    targets:
+      type: FARTHEST_PLAYER
+      radius: 50.0
+      max-targets: 1
+    telegraph:
+      type: TARGET_MARK
+      radius: 2.0
+      particle: minecraft:dust
+      warning-sound: minecraft:entity.bat.takeoff
+    effects:
+      - type: SAHUR_HUNTER_BAT
+
+  shield-bats:
+    category: DEFENSIVE
+    animation: idle
+    cooldown-seconds: 20.0
+    cast-time-seconds: 0.5
+    priority: 60
+    interruptible: true
+    conditions:
+      - type: HEALTH_BELOW
+        value: 0.66
+      - type: NOT_CASTING
+    targets:
+      type: ALL_IN_RADIUS
+      radius: 50.0
+    telegraph:
+      type: CIRCLE
+      radius: 3.0
+      particle: minecraft:dust
+      warning-sound: minecraft:item.shield.block
+    effects:
+      - type: SAHUR_SHIELD_BATS
+
+  launch-bat:
+    category: MAGIC
+    animation: idle
+    cooldown-seconds: 16.0
+    cast-time-seconds: 1.0
+    priority: 70
+    interruptible: true
+    conditions:
+      - type: NOT_CASTING
+    targets:
+      type: RANDOM_PLAYER
+      radius: 45.0
+      max-targets: 1
+    telegraph:
+      type: GROUND_MARK
+      radius: 2.0
+      particle: minecraft:dust
+      warning-sound: minecraft:entity.ender_dragon.flap
+    effects:
+      - type: SAHUR_LAUNCH_BAT
+
+dialogue:
+  spawn:
+    - "§6§lTUNG TUNG TUNG SANIGGER"
+    - "§eLa arena empieza a temblar."
+  phase-2:
+    - "§c¡No pueden esconderse detrás de sus arcos!"
+  phase-3:
+    - "§4§lSAHUR ENTRA EN FURIA"
+  defeat:
+    - "§7El último golpe del sahur queda en silencio."
+
+music:
+  enabled: false
+  radius: 64
+  stop-when-leaving-radius: true
+  fallback-sound: minecraft:music_disc.5
+  tracks:
+    phase-1: bigcasares:music.sahur
+    phase-2: bigcasares:music.sahur
+    phase-3: bigcasares:music.sahur

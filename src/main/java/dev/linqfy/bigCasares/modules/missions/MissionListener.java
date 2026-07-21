@@ -20,6 +20,10 @@ import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.world.LootGenerateEvent;
 import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.ItemStack;
 
@@ -105,6 +109,13 @@ public final class MissionListener implements Listener {
         if (event.getEntity() instanceof IronGolem) {
             module.completeMobKillMission(killer, "IRON_GOLEM", weapon);
         }
+        module.recordOutboundProgress(
+            killer,
+            MissionType.KILL_ENTITY_IN_BIOME,
+            biomeKey(event.getEntity().getLocation()),
+            0.0,
+            event.getEntityType().name()
+        );
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -132,5 +143,49 @@ public final class MissionListener implements Listener {
         if (event.getEntity() instanceof Player player) {
             module.revalidatePassiveMissions(player);
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent event) {
+        if (event.getTo() == null || event.getFrom().getBlockX() == event.getTo().getBlockX()
+            && event.getFrom().getBlockY() == event.getTo().getBlockY()
+            && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) return;
+        Player player = event.getPlayer();
+        String biome = biomeKey(event.getTo());
+        module.recordOutboundProgress(player, MissionType.VISIT_BIOME, biome, 0.0, null);
+        module.recordOutboundProgress(player, MissionType.VISIT_BIOME_SET, biome, 0.0, null);
+        module.recordOutboundProgress(
+            player, MissionType.ENTER_ENVIRONMENT, player.getWorld().getEnvironment().name(), 0.0, null);
+        org.bukkit.Location spawn = player.getWorld().getSpawnLocation();
+        double dx = player.getLocation().getX() - spawn.getX();
+        double dz = player.getLocation().getZ() - spawn.getZ();
+        module.recordOutboundProgress(
+            player, MissionType.REACH_DISTANCE_FROM_SPAWN, null, Math.sqrt(dx * dx + dz * dz), null);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onLootGenerate(LootGenerateEvent event) {
+        if (event.getEntity() instanceof Player player && event.getLootTable() != null) {
+            module.recordOutboundProgress(
+                player, MissionType.OPEN_LOOT_TABLE, event.getLootTable().getKey().toString(), 0.0, null);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFish(PlayerFishEvent event) {
+        if (event.getState() == PlayerFishEvent.State.CAUGHT_FISH) {
+            module.recordOutboundProgress(
+                event.getPlayer(), MissionType.CATCH_FISH_IN_BIOME,
+                biomeKey(event.getPlayer().getLocation()), 0.0, null);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onQuit(PlayerQuitEvent event) {
+        module.flush(event.getPlayer().getUniqueId());
+    }
+
+    private String biomeKey(org.bukkit.Location location) {
+        return location.getBlock().getBiome().getKey().getKey();
     }
 }

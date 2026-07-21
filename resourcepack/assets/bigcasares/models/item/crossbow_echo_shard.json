@@ -1,5 +1,5 @@
 {
-  "parent": "minecraft:item/handheld",
+  "parent": "minecraft:item/crossbow_arrow",
   "textures": {
     "layer0": "bigcasares:item/crossbow_echo_shard"
   }

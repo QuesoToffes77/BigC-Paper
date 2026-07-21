@@ -23,6 +23,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 
 public final class MissionModule implements PluginModule {
 
@@ -35,6 +38,8 @@ public final class MissionModule implements PluginModule {
     private MissionHudController hudController;
     private boolean enabled;
     private RuntimeRegistrationScope compatibilityScope;
+    private final Map<UUID, MissionPlayerState> stateCache = new LinkedHashMap<>();
+    private final Set<UUID> dirtyPlayers = new LinkedHashSet<>();
 
     public MissionModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -74,6 +79,7 @@ public final class MissionModule implements PluginModule {
         scope.register("hud-open-views", hudController::closeOpenViews);
         registrations.registerListener("mission-listener", new MissionListener(this));
         registrations.registerListener("hud-listener", hudController);
+        registrations.scheduleRepeating("mission-state-flush", this::flushDirtyStates, 600L, 600L);
         this.enabled = true;
     }
 
@@ -104,6 +110,8 @@ public final class MissionModule implements PluginModule {
         MissionPlayerState state = getOrCreateState(player);
         MissionPlayerState claimed = playerMissionService.claimAllCompleted(player.getUniqueId(), state, economyGateway);
         storage.save(claimed);
+        stateCache.put(player.getUniqueId(), claimed);
+        dirtyPlayers.remove(player.getUniqueId());
         double amount = sumClaimables(state);
         if (amount > 0.0) {
             player.sendMessage("§aReclamaste " + economyGateway.format(amount) + " en recompensas.");
@@ -115,6 +123,34 @@ public final class MissionModule implements PluginModule {
     public void reroll(Player player) {
         MissionPlayerState fresh = playerMissionService.getOrCreateState(player.getUniqueId(), null);
         storage.save(fresh);
+        stateCache.put(player.getUniqueId(), fresh);
+        dirtyPlayers.remove(player.getUniqueId());
+    }
+
+    public void rerollDaily(Player player) {
+        MissionPlayerState state = getOrCreateState(player);
+
+        if (state.dailyRerolledAt() != null) {
+            ZoneId zone = ZoneId.systemDefault();
+            int hour = plugin.getConfig().getInt("mission-system.reset.daily-hour", 0);
+            LocalDateTime nowLdt = LocalDateTime.now(zone);
+            LocalDateTime periodStart = nowLdt.withHour(hour).withMinute(0).withSecond(0).withNano(0);
+            if (periodStart.isAfter(nowLdt)) {
+                periodStart = periodStart.minusDays(1);
+            }
+            Instant periodStartInstant = periodStart.atZone(zone).toInstant();
+
+            if (!state.dailyRerolledAt().isBefore(periodStartInstant)) {
+                player.sendMessage("§cYa usaste tu rerol diario. Espera al reinicio diario.");
+                return;
+            }
+        }
+
+        MissionPlayerState rerolled = playerMissionService.rerollDailyAssignments(player.getUniqueId(), state, Instant.now());
+        storage.save(rerolled);
+        stateCache.put(player.getUniqueId(), rerolled);
+        dirtyPlayers.remove(player.getUniqueId());
+        player.sendMessage("§aTus misiones diarias fueron reasignadas.");
     }
 
     public void reset(Player player) {
@@ -122,10 +158,12 @@ public final class MissionModule implements PluginModule {
     }
 
     public MissionPlayerState getOrCreateState(Player player) {
-        Optional<MissionPlayerState> loaded = storage.load(player.getUniqueId());
-        MissionPlayerState resolved = playerMissionService.getOrCreateState(player.getUniqueId(), loaded.orElse(null));
-        storage.save(resolved);
-        return resolved;
+        return stateCache.compute(player.getUniqueId(), (id, cached) -> {
+            MissionPlayerState source = cached == null ? storage.load(id).orElse(null) : cached;
+            MissionPlayerState resolved = playerMissionService.getOrCreateState(id, source);
+            if (resolved != source) dirtyPlayers.add(id);
+            return resolved;
+        });
     }
 
     public int countClaimables(MissionPlayerState state) {
@@ -176,7 +214,7 @@ public final class MissionModule implements PluginModule {
             updated = revalidateAssignment(player, updated, MissionScope.WEEKLY, assignment);
         }
 
-        storage.save(updated);
+        cacheUpdated(updated);
     }
 
     private MissionPlayerState revalidateAssignment(Player player, MissionPlayerState state, MissionScope scope, MissionAssignment assignment) {
@@ -222,7 +260,77 @@ public final class MissionModule implements PluginModule {
         MissionPlayerState updated = state;
         updated = updateScope(player, updated, MissionScope.DAILY, missionType, mode, value, material, text, entityType);
         updated = updateScope(player, updated, MissionScope.WEEKLY, missionType, mode, value, material, text, entityType);
-        storage.save(updated);
+        cacheUpdated(updated);
+    }
+
+    public void recordOutboundProgress(
+        Player player,
+        MissionType type,
+        String marker,
+        double metric,
+        String entityType
+    ) {
+        MissionPlayerState state = getOrCreateState(player);
+        MissionPlayerState updated = updateOutboundScope(state, MissionScope.DAILY, type, marker, metric, entityType);
+        updated = updateOutboundScope(updated, MissionScope.WEEKLY, type, marker, metric, entityType);
+        cacheUpdated(updated);
+    }
+
+    public void flush(UUID playerId) {
+        MissionPlayerState state = stateCache.remove(playerId);
+        if (state != null && dirtyPlayers.remove(playerId)) storage.save(state);
+    }
+
+    private MissionPlayerState updateOutboundScope(
+        MissionPlayerState state, MissionScope scope, MissionType type, String marker, double metric, String entityType
+    ) {
+        Map<String, MissionAssignment> assignments = scope == MissionScope.DAILY
+            ? state.dailyAssignments() : state.weeklyAssignments();
+        MissionPlayerState updated = state;
+        for (MissionAssignment assignment : assignments.values()) {
+            MissionDefinition definition = assignment.definition();
+            if (definition.type() != type || !matchesOutbound(definition, marker, metric, entityType)) continue;
+            if (type == MissionType.VISIT_BIOME_SET) {
+                updated = playerMissionService.addProgressMarker(updated, scope, definition.id(), marker);
+            } else if (type == MissionType.CATCH_FISH_IN_BIOME || type == MissionType.KILL_ENTITY_IN_BIOME) {
+                updated = playerMissionService.updateAbsoluteProgress(
+                    updated, scope, definition.id(), assignment.snapshot().progress() + 1);
+            } else {
+                updated = playerMissionService.updateAbsoluteProgress(updated, scope, definition.id(), definition.goal());
+            }
+        }
+        return updated;
+    }
+
+    private boolean matchesOutbound(MissionDefinition definition, String marker, double metric, String entityType) {
+        return switch (definition.type()) {
+            case VISIT_BIOME, CATCH_FISH_IN_BIOME -> marker != null
+                && marker.equalsIgnoreCase(String.valueOf(definition.params().get("biome")));
+            case VISIT_BIOME_SET -> marker != null && ((List<?>) definition.params().getOrDefault("biomes", List.of()))
+                .stream().map(String::valueOf).anyMatch(marker::equalsIgnoreCase);
+            case REACH_DISTANCE_FROM_SPAWN -> metric >= Double.parseDouble(String.valueOf(definition.params().get("distance")));
+            case ENTER_ENVIRONMENT -> marker != null
+                && marker.equalsIgnoreCase(String.valueOf(definition.params().get("environment")));
+            case OPEN_LOOT_TABLE -> marker != null
+                && marker.endsWith(String.valueOf(definition.params().get("loot-table")));
+            case KILL_ENTITY_IN_BIOME -> marker != null && entityType != null
+                && marker.equalsIgnoreCase(String.valueOf(definition.params().get("biome")))
+                && entityType.equalsIgnoreCase(String.valueOf(definition.params().get("entity")));
+            default -> false;
+        };
+    }
+
+    private void cacheUpdated(MissionPlayerState state) {
+        stateCache.put(state.playerId(), state);
+        dirtyPlayers.add(state.playerId());
+    }
+
+    private void flushDirtyStates() {
+        for (UUID playerId : List.copyOf(dirtyPlayers)) {
+            MissionPlayerState state = stateCache.get(playerId);
+            if (state != null) storage.save(state);
+            dirtyPlayers.remove(playerId);
+        }
     }
 
     private MissionPlayerState updateScope(
@@ -291,6 +399,9 @@ public final class MissionModule implements PluginModule {
     }
 
     private void clearRuntimeState() {
+        if (storage != null) flushDirtyStates();
+        stateCache.clear();
+        dirtyPlayers.clear();
         enabled = false;
         hudController = null;
         playerMissionService = null;

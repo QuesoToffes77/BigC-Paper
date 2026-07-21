@@ -16,7 +16,9 @@ public record AbyssGuardianDefinition(
     Map<String, List<String>> dialogue,
     Map<Integer, BossMusicTrack> musicByPhase,
     Map<String, BossAnimationDefinition> animations,
-    Map<BossBehaviourCategory, Double> categoryWeights
+    Map<BossBehaviourCategory, Double> categoryWeights,
+    String javaModelKey,
+    BossRaidScaling raidScaling
 ) {
     public AbyssGuardianDefinition {
         id = requireText(id, "id");
@@ -41,6 +43,7 @@ public record AbyssGuardianDefinition(
         musicByPhase = Map.copyOf(musicByPhase);
         animations = animations == null ? Map.of() : Map.copyOf(animations);
         categoryWeights = categoryWeights == null ? Map.of() : Map.copyOf(categoryWeights);
+        javaModelKey = requireText(javaModelKey, "javaModelKey");
     }
 
     public BossAnimationDefinition animationFor(String id) {
@@ -56,6 +59,13 @@ public record AbyssGuardianDefinition(
 
     public BossMusicTrack musicForPhase(int phase) {
         return Objects.requireNonNull(musicByPhase.get(phase), "music for phase " + phase);
+    }
+
+    public double maximumHealthFor(int participantCount) {
+        if (participantCount < 0) {
+            throw new IllegalArgumentException("participantCount must be non-negative");
+        }
+        return raidScaling == null ? maximumHealth : raidScaling.maximumHealth(participantCount);
     }
 
     private static String requireText(String value, String field) {

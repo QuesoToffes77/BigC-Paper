@@ -32,7 +32,8 @@ public final class MissionRotationPolicy {
             dailyReset,
             weeklyReset,
             select(playerId, catalog.byScope(MissionScope.DAILY), dailyCount),
-            select(playerId, catalog.byScope(MissionScope.WEEKLY), weeklyCount)
+            select(playerId, catalog.byScope(MissionScope.WEEKLY), weeklyCount),
+            null
         );
     }
 

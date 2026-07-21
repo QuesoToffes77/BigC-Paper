@@ -4,5 +4,10 @@
   "item.bigcasares.smoke_bomb": "Smoke Bomb",
   "item.bigcasares.smoke_bomb.tooltip": "Explodes into a cloud that conceals living entities.",
   "item.bigcasares.prismarine_arrow": "Prismarine Arrow",
-  "item.bigcasares.prismarine_arrow.tooltip": "Cuts through water with much lower drag."
+  "item.bigcasares.prismarine_arrow.tooltip": "Cuts through water with much lower drag.",
+  "item.bigcasares.echo_arrow": "Flecha de Eco",
+  "item.bigcasares.golden_tipped_amethyst_arrow": "Flecha de Amatista con Punta de Oro",
+  "item.bigcasares.tracker_compass": "Tracker Compass",
+  "item.bigcasares.nuke_shot": "Nuke Shot",
+  "item.bigcasares.sahurs_bat": "Sahur's Bat"
 }

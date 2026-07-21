@@ -45,7 +45,7 @@ class CatalogRecipeRuntimeTest {
         CustomItemDefinition item = new CustomItemDefinition(
             "copper_apple", "copper-apple", "APPLE", "bigcasares:copper_apple", OptionalInt.of(1001),
             new ItemDisplayDefinition("item.bigcasares.copper_apple", "Manzana de Cobre", List.of()),
-            64, null, recipe,
+            64, null, null, recipe, null,
             new ItemAppearanceDefinition(
                 "java/assets/bigcasares/items/copper_apple.json",
                 "bedrock/textures/item/copper_apple.png"

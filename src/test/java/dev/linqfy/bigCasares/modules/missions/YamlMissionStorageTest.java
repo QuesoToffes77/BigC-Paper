@@ -26,7 +26,8 @@ class YamlMissionStorageTest {
             Instant.parse("2026-04-20T00:00:00Z"),
             Instant.parse("2026-04-26T00:00:00Z"),
             new LinkedHashMap<>(Map.of("tuff-67", new MissionAssignment(definition, new MissionProgressSnapshot(67, true, true)))),
-            Map.of()
+            Map.of(),
+            null
         );
 
         YamlMissionStorage storage = new YamlMissionStorage(tempDir);

@@ -10,8 +10,8 @@ display:
 max-stack-size: 64
 components:
   food:
-    nutrition: 4
-    saturation: 1.2
+    nutrition: 8
+    saturation: 4.8
     can-always-eat: true
 recipe:
   key: copper_apple_recipe

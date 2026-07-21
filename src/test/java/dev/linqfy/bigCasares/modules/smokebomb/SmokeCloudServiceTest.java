@@ -12,7 +12,7 @@ class SmokeCloudServiceTest {
     @Test
     void keepsEntityConcealedInsideCloudAndForTwoSecondsAfterExit() {
         UUID entityId = UUID.randomUUID();
-        SmokeBombSettings settings = new SmokeBombSettings(20 * 30, 12.0, 12.0, 5.0, 40L, 20L * 5);
+        SmokeBombSettings settings = settings();
         SmokeCloudService service = new SmokeCloudService(settings);
 
         service.createCloud("cloud-1", 0L);
@@ -36,7 +36,7 @@ class SmokeCloudServiceTest {
     @Test
     void cancelsPendingRevealWhenEntityReentersBeforeLingerEnds() {
         UUID entityId = UUID.randomUUID();
-        SmokeBombSettings settings = new SmokeBombSettings(20 * 30, 12.0, 12.0, 5.0, 40L, 20L * 5);
+        SmokeBombSettings settings = settings();
         SmokeCloudService service = new SmokeCloudService(settings);
 
         service.createCloud("cloud-1", 0L);
@@ -54,7 +54,7 @@ class SmokeCloudServiceTest {
     @Test
     void expiresCloudAfterThirtySecondsButHonorsLinger() {
         UUID entityId = UUID.randomUUID();
-        SmokeBombSettings settings = new SmokeBombSettings(20 * 30, 12.0, 12.0, 5.0, 40L, 20L * 5);
+        SmokeBombSettings settings = settings();
         SmokeCloudService service = new SmokeCloudService(settings);
 
         service.createCloud("cloud-1", 0L);
@@ -66,5 +66,20 @@ class SmokeCloudServiceTest {
 
         SmokeCloudService.TickResult revealTick = service.tick(641L, Set.of());
         assertEquals(Set.of(entityId), revealTick.newlyRevealed());
+    }
+
+    private SmokeBombSettings settings() {
+        return new SmokeBombSettings(
+            20L * 30,
+            12.0,
+            12.0,
+            5.0,
+            40L,
+            20L,
+            200,
+            60,
+            32.0,
+            5L
+        );
     }
 }

@@ -1,0 +1,14 @@
+id: nuke_shot
+mechanic: nuke-shot
+material: FISHING_ROD
+item-model: minecraft:fishing_rod
+legacy-custom-model-data: 1008
+display:
+  translation-key: item.bigcasares.nuke_shot
+  fallback-name: "Nuke Shot"
+  lore:
+    - "§cUn disparo. Trescientos cincuenta problemas."
+max-stack-size: 1
+appearance:
+  java-item-definition: java/assets/bigcasares/items/nuke_shot.json
+  bedrock-texture: bedrock/textures/item/nuke_shot.png

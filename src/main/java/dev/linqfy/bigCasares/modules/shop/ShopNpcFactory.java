@@ -11,6 +11,7 @@ import org.bukkit.Registry;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Villager;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
@@ -28,21 +29,30 @@ public final class ShopNpcFactory {
         this.shopIdKey = new NamespacedKey(plugin, "shop_npc_id");
     }
 
-    public LivingEntity spawn(Location location, ShopNpcDefinition definition) {
+    public java.util.List<org.bukkit.entity.Entity> spawn(Location location, ShopNpcDefinition definition) {
         Objects.requireNonNull(location.getWorld(), "location world");
         LivingEntity entity = switch (definition.type()) {
             case PLAYER_MODEL -> spawnMannequin(location, definition);
             case VILLAGER -> spawnVillager(location, definition);
         };
         entity.getPersistentDataContainer().set(shopIdKey, PersistentDataType.STRING, definition.shopId());
-        entity.customName(LEGACY.deserialize(definition.displayName()));
-        entity.setCustomNameVisible(true);
+        // Deshabilitar customName del mob porque usaremos el TextDisplay
+        entity.setCustomNameVisible(false);
         entity.setSilent(true);
         entity.setPersistent(true);
         entity.setInvulnerable(true);
         entity.setCollidable(false);
         applyEquipment(entity.getEquipment(), definition);
-        return entity;
+        
+        TextDisplay display = location.getWorld().spawn(location.clone().add(0, 2.3, 0), TextDisplay.class, text -> {
+            text.text(LEGACY.deserialize(definition.displayName() + "\n§7Click para abrir"));
+            text.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+            text.setAlignment(TextDisplay.TextAlignment.CENTER);
+            text.setPersistent(true);
+            text.getPersistentDataContainer().set(shopIdKey, PersistentDataType.STRING, definition.shopId());
+        });
+        
+        return java.util.List.of(entity, display);
     }
 
     public Optional<String> shopId(org.bukkit.entity.Entity entity) {
@@ -73,22 +83,22 @@ public final class ShopNpcFactory {
     }
 
     private Villager spawnVillager(Location location, ShopNpcDefinition definition) {
-        return location.getWorld().spawn(location, Villager.class, villager -> {
-            villager.setAI(false);
-            villager.setGravity(true);
-            Villager.Profession profession = Registry.VILLAGER_PROFESSION.getOrThrow(
-                NamespacedKey.minecraft(definition.profession()));
-            Villager.Type type = Registry.VILLAGER_TYPE.getOrThrow(
-                NamespacedKey.minecraft(definition.biomeType()));
-            villager.setProfession(profession);
-            villager.setVillagerType(type);
-            villager.setVillagerLevel(definition.villagerLevel());
-            if (definition.baby()) {
-                villager.setBaby();
-            } else {
-                villager.setAdult();
-            }
-        });
+        Villager villager = location.getWorld().spawn(location, Villager.class);
+        villager.setAI(false);
+        villager.setGravity(false);
+        Villager.Profession profession = Registry.VILLAGER_PROFESSION.getOrThrow(
+            NamespacedKey.minecraft(definition.profession()));
+        Villager.Type type = Registry.VILLAGER_TYPE.getOrThrow(
+            NamespacedKey.minecraft(definition.biomeType()));
+        villager.setProfession(profession);
+        villager.setVillagerType(type);
+        villager.setVillagerLevel(definition.villagerLevel());
+        if (definition.baby()) {
+            villager.setBaby();
+        } else {
+            villager.setAdult();
+        }
+        return villager;
     }
 
     private static void applyEquipment(EntityEquipment equipment, ShopNpcDefinition definition) {

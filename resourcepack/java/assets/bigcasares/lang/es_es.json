@@ -4,5 +4,10 @@
   "item.bigcasares.smoke_bomb": "Bomba de Humo",
   "item.bigcasares.smoke_bomb.tooltip": "Explota en una nube que oculta entidades vivas.",
   "item.bigcasares.prismarine_arrow": "Flecha de Prismarina",
-  "item.bigcasares.prismarine_arrow.tooltip": "Atraviesa el agua con mucha menos resistencia."
+  "item.bigcasares.prismarine_arrow.tooltip": "Atraviesa el agua con mucha menos resistencia.",
+  "item.bigcasares.echo_arrow": "Flecha de Eco",
+  "item.bigcasares.golden_tipped_amethyst_arrow": "Flecha de Amatista con Punta de Oro",
+  "item.bigcasares.tracker_compass": "Brújula Rastreadora",
+  "item.bigcasares.nuke_shot": "Nuke Shot",
+  "item.bigcasares.sahurs_bat": "Bate de Sahur"
 }

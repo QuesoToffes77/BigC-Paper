@@ -11,7 +11,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class EmbeddedPackHttpServer implements AutoCloseable {
@@ -34,17 +36,30 @@ public final class EmbeddedPackHttpServer implements AutoCloseable {
         Files.createDirectories(artifactsRoot);
         InetAddress address = InetAddress.getByName(settings.bindAddress());
         HttpServer created = HttpServer.create(new InetSocketAddress(address, settings.port()), 0);
-        AtomicInteger sequence = new AtomicInteger();
-        ExecutorService createdWorkers = Executors.newFixedThreadPool(settings.workerThreads(), runnable -> {
-            Thread thread = new Thread(runnable, "bigcasares-pack-http-" + sequence.incrementAndGet());
-            thread.setDaemon(true);
-            return thread;
-        });
+        ExecutorService createdWorkers = createWorkerExecutor(settings.workerThreads());
         created.createContext("/packs/", this::handle);
         created.setExecutor(createdWorkers);
         created.start();
         server = created;
         workers = createdWorkers;
+    }
+
+    static ExecutorService createWorkerExecutor(int idleWorkers) {
+        AtomicInteger sequence = new AtomicInteger();
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+            idleWorkers,
+            Math.max(64, idleWorkers),
+            30L,
+            TimeUnit.SECONDS,
+            new SynchronousQueue<>(),
+            runnable -> {
+                Thread thread = new Thread(runnable, "bigcasares-pack-http-" + sequence.incrementAndGet());
+                thread.setDaemon(true);
+                return thread;
+            }
+        );
+        executor.allowCoreThreadTimeOut(true);
+        return executor;
     }
 
     public synchronized int boundPort() {
@@ -117,7 +132,8 @@ public final class EmbeddedPackHttpServer implements AutoCloseable {
     }
 
     private static boolean safeArtifactName(String value) {
-        return value.matches("bigcasares-(?:java|bedrock)-[0-9a-f]{16}\\.(?:zip|mcpack)");
+        return value.matches("(?:(?:bigcasares|bettermodel)-java-[0-9a-f]{16}\\.zip"
+            + "|bigcasares-bedrock-[0-9a-f]{16}\\.mcpack)");
     }
 
     private static URI resolve(URI base, String artifactFile) {

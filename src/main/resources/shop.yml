@@ -45,6 +45,62 @@ categories:
           - "&7Por si no hay vacas."
         buy-price: 52.0
         sell-price: 2.0
+  especiales:
+    name: "&bItems Especiales"
+    icon: NETHER_STAR
+    slot: 14
+    items: {}
+  no_farmeables:
+    name: "&eItems no farmeables"
+    icon: DIAMOND
+    slot: 15
+    items:
+      sponge:
+        slot: 10
+        material: SPONGE
+        amount: 8
+        display-name: "&eEsponja"
+        lore:
+          - "&7Para secar el agua."
+        buy-price: 800.0
+        sell-price: 100.0
+      slime_ball:
+        slot: 11
+        material: SLIME_BALL
+        amount: 16
+        display-name: "&aBola de Slime"
+        lore:
+          - "&7Para pistones pegajosos."
+        buy-price: 500.0
+        sell-price: 50.0
+      goat_horn:
+        slot: 12
+        material: GOAT_HORN
+        amount: 1
+        display-name: "&fCuerno de Cabra"
+        lore:
+          - "&7¡Suena el cuerno!"
+        buy-price: 1200.0
+        sell-price: 200.0
+      heart_of_the_sea:
+        slot: 13
+        material: HEART_OF_THE_SEA
+        amount: 1
+        display-name: "&bCorazón del Mar"
+        lore:
+          - "&7Canalizador de poder."
+        buy-price: 2500.0
+        sell-price: 500.0
+      spider_eye:
+        slot: 14
+        material: SPIDER_EYE
+        amount: 16
+        display-name: "&cOjo de Araña"
+        lore:
+          - "&7Esencial para pociones."
+        buy-price: 400.0
+        sell-price: 40.0
+
   custom:
     name: "&bCustom"
     icon: APPLE
@@ -59,13 +115,40 @@ categories:
           - "&7Item custom del servidor."
         buy-price: 1500.0
         sell-price: 50.0
+      nexus:
+        slot: 11
+        custom-item-id: nexus
+        amount: 1
+        display-name: "&bNexus"
+        lore:
+          - "&7Protege tu base y alerta ataques."
+        buy-price: 5000.0
+        sell-price: 500.0
+      nuke_shot:
+        slot: 12
+        custom-item-id: nuke_shot
+        amount: 1
+        display-name: "&cNuke Shot"
+        lore:
+          - "&7Dispara un anillo de 350 TNTs."
+        buy-price: 2500.0
+        sell-price: 500.0
+      tracker_compass:
+        slot: 13
+        custom-item-id: tracker_compass
+        amount: 1
+        display-name: "&eBrújula Rastreadora"
+        lore:
+          - "&7Rastrea jugadores al golpearlos."
+        buy-price: 1500.0
+        sell-price: 300.0
 
 # Ejemplos listos para activar después de ajustar mundo y coordenadas.
 # Cada NPC abre la categoría con el mismo id; el comercio vanilla permanece desactivado.
 shops:
   blocks:
     npc:
-      enabled: false
+      enabled: true
       type: PLAYER_MODEL
       display-name: "§6§lMaestro Constructor"
       skin:
@@ -85,7 +168,7 @@ shops:
         pitch: 0.0
   food:
     npc:
-      enabled: false
+      enabled: true
       type: VILLAGER
       display-name: "§a§lCocinero"
       profession: farmer

@@ -65,6 +65,13 @@ public final class InventoryLimitModule implements PluginModule {
         }
         this.listener = new InventoryLimitListener(this, service);
         registrations.registerListener("inventory-listener", listener);
+        
+        runtimeScope.forget("inventory-enforcer-task");
+        registrations.scheduleRepeating("inventory-enforcer-task", () -> {
+            for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+                enforce(player);
+            }
+        }, 2400L, 2400L);
     }
 
     public int enforce(Player player) {

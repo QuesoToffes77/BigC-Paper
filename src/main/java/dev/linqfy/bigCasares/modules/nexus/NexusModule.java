@@ -161,6 +161,15 @@ public final class NexusModule implements PluginModule {
                                             p.playSound(p.getLocation(), org.bukkit.Sound.EVENT_MOB_EFFECT_RAID_OMEN, 1.0f, 1.0f);
                                             p.sendTitle("", "§c¡Tú Nexus está bajo ataque!", 10, 70, 20);
                                         }
+                                        var discordModule = activeBigCasares.getDiscordIntegrationModule();
+                                        if (discordModule != null && discordModule.gateway() != null && discordModule.linkService() != null) {
+                                            discordModule.linkService().getDiscordId(member).ifPresent(discordId -> {
+                                                discordModule.gateway().sendPrivateMessage(
+                                                    discordId,
+                                                    "🚨 **¡ALERTA DE NEXUS!** 🚨\nTu base está siendo atacada en BigCasares. ¡Conéctate rápido para defenderla!"
+                                                );
+                                            });
+                                        }
                                     }
                                 }
                             });

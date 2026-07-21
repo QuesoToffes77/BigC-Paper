@@ -1,0 +1,21 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bigcasares:sahur",
+      "materials": {"default": "entity_alphatest"},
+      "textures": {"default": "textures/boss/sahur"},
+      "geometry": {"default": "geometry.bigcasares.sahur"},
+      "animations": {
+        "idle": "animation.bigcasares.sahur.idle",
+        "walk": "animation.bigcasares.sahur.walk",
+        "sprint": "animation.bigcasares.sahur.sprint",
+        "bat_hit": "animation.bigcasares.sahur.bat_hit",
+        "spin_in_place": "animation.bigcasares.sahur.spin_in_place",
+        "stomp": "animation.bigcasares.sahur.stomp"
+      },
+      "render_controllers": ["controller.render.bigcasares.default"],
+      "spawn_egg": {"base_color": "#83542B", "overlay_color": "#D9AF72"}
+    }
+  }
+}

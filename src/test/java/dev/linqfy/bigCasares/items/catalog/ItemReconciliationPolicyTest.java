@@ -36,7 +36,7 @@ class ItemReconciliationPolicyTest {
         String material = "copper_apple".equals(id) ? "APPLE" : "SNOWBALL";
         return new CustomItemDefinition(
             id, mechanic, material, "bigcasares:" + id, OptionalInt.empty(),
-            new ItemDisplayDefinition("item.bigcasares." + id, id, List.of()), 64, null, null,
+            new ItemDisplayDefinition("item.bigcasares." + id, id, List.of()), 64, null, null, null, null,
             new ItemAppearanceDefinition(
                 "java/assets/bigcasares/items/" + id + ".json",
                 "bedrock/textures/item/" + id + ".png"

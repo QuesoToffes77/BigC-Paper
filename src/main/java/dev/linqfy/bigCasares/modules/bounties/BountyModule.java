@@ -55,7 +55,22 @@ public final class BountyModule implements PluginModule {
         Path playersDirectory = plugin.getDataFolder().toPath().resolve("data").resolve("bounties").resolve("players");
         BountyStorage storage = new YamlBountyStorage(playersDirectory);
         this.economyGateway = new BountyEconomyGateway(plugin, economy);
-        this.service = new BountyService(storage, economyGateway, settings, Instant::now);
+        this.service = new BountyService(storage, economyGateway, settings, Instant::now, victimId ->
+            plugin.getDangerModule() != null && plugin.getDangerModule().service()
+                .map(danger -> danger.snapshot(victimId).tier() == dev.linqfy.bigCasares.modules.danger.DangerTier.LETAL)
+                .orElse(false),
+            killerId -> {
+                if (plugin.getDangerModule() == null) return 1.0;
+                return plugin.getDangerModule().service()
+                    .map(danger -> {
+                        dev.linqfy.bigCasares.modules.danger.DangerTier tier = danger.snapshot(killerId).tier();
+                        if (tier == dev.linqfy.bigCasares.modules.danger.DangerTier.PELIGROSO) return 1.1; // +10%
+                        if (tier == dev.linqfy.bigCasares.modules.danger.DangerTier.LETAL) return 1.3;     // +30%
+                        return 1.0;
+                    })
+                    .orElse(1.0);
+            }
+        );
         this.paymentVouchers = new PaymentVoucherService(
                 new YamlPaymentVoucherStorage(plugin.getDataFolder().toPath().resolve("data").resolve("payments")),
                 economyGateway

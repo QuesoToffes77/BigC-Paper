@@ -60,7 +60,16 @@ public final class TeamModule implements PluginModule {
         boolean tab = presentation == null || presentation.getBoolean("tab-list-name", true);
         boolean display = presentation == null || presentation.getBoolean("display-name", true);
         BukkitTeamNamePresentationGateway gateway = new BukkitTeamNamePresentationGateway(
-            plugin.getServer(), service, scoreboard, tab, display
+            plugin.getServer(), service, scoreboard, tab, display,
+            playerId -> plugin.getDangerModule() == null
+                ? net.kyori.adventure.text.format.NamedTextColor.GRAY
+                : plugin.getDangerModule().service()
+                    .map(danger -> switch (danger.snapshot(playerId).tier()) {
+                        case NORMAL -> net.kyori.adventure.text.format.NamedTextColor.GRAY;
+                        case PELIGROSO -> net.kyori.adventure.text.format.NamedTextColor.YELLOW;
+                        case LETAL -> net.kyori.adventure.text.format.NamedTextColor.RED;
+                    })
+                    .orElse(net.kyori.adventure.text.format.NamedTextColor.GRAY)
         );
         this.presentationService = new TeamPresentationService(service, gateway);
         this.invitationService = new TeamInvitationService(Clock.systemUTC(), Duration.ofMinutes(5));

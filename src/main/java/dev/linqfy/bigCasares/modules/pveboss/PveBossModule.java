@@ -5,13 +5,19 @@ import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelHandle;
+import dev.linqfy.bigCasares.modules.model.BetterModelAssetInstaller;
 import dev.linqfy.bigCasares.platform.ClientPlatform;
 import dev.linqfy.bigCasares.platform.ClientPlatformGateway;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.event.HandlerList;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -24,7 +30,10 @@ public final class PveBossModule implements PluginModule {
     private final ClientPlatformGateway platformGateway;
     private final Function<UUID, Boolean> resourcePackLoaded;
     private final JavaModelGateway javaModels;
-    private PaperAbyssGuardianRuntime runtime;
+    private final Map<String, PaperAbyssGuardianRuntime> runtimes = new LinkedHashMap<>();
+    private BossDefinitionCatalog definitions = new BossDefinitionCatalog(List.of());
+    private SahurRewardService rewardService;
+    private SahurRewardListener rewardListener;
     private boolean enabled;
     private RuntimeRegistrationScope compatibilityScope;
 
@@ -76,6 +85,10 @@ public final class PveBossModule implements PluginModule {
         return MODULE_ID;
     }
 
+    public static List<String> supportedBossIds() {
+        return List.of("abyss-guardian", "tung-tung-sahur");
+    }
+
     @Override
     public void onEnable() {
         RuntimeRegistrationScope scope = new RuntimeRegistrationScope();
@@ -90,24 +103,61 @@ public final class PveBossModule implements PluginModule {
             return;
         }
         scope.register("module-state", this::clearRuntimeState);
-        plugin.saveResource("bosses/abyss-guardian.yml", false);
-        File file = new File(plugin.getDataFolder(), "bosses/abyss-guardian.yml");
-        AbyssGuardianDefinition definition = new AbyssGuardianDefinitionLoader()
-            .load(YamlConfiguration.loadConfiguration(file));
-        runtime = new PaperAbyssGuardianRuntime(
-            plugin, definition, service, platformGateway, resourcePackLoaded, javaModels);
-        runtime.start();
-        PaperAbyssGuardianRuntime ownedRuntime = runtime;
-        scope.register("paper-abyss-guardian-runtime", ownedRuntime::stop);
-        plugin.getLogger().info("PvE Boss System listo: Guardián del Abismo cargado.");
+        BetterModelAssetInstaller.installSahurModels(plugin);
+        org.bukkit.scheduler.BukkitTask delayedModelReload = plugin.getServer().getScheduler().runTaskLater(plugin,
+            () -> BetterModelAssetInstaller.installSahurModels(plugin), 60L);
+        scope.register("sahur-delayed-model-reload", delayedModelReload::cancel);
+        rewardService = new SahurRewardService(
+            new YamlBossRewardStore(Path.of(plugin.getDataFolder().getPath(), "boss-rewards.yml")),
+            new PaperSahurRewardDelivery(plugin.getCustomItemRegistry()));
+        rewardListener = new SahurRewardListener(rewardService);
+        plugin.getServer().getPluginManager().registerEvents(rewardListener, plugin);
+        scope.register("sahur-reward-listener", () -> HandlerList.unregisterAll(rewardListener));
+        rewardService.deliverPendingForOnline(plugin.getServer().getOnlinePlayers().stream()
+            .map(org.bukkit.entity.Player::getUniqueId).toList());
+        AbyssGuardianDefinitionLoader loader = new AbyssGuardianDefinitionLoader();
+        List<AbyssGuardianDefinition> loaded = supportedBossIds().stream().map(id -> {
+            String resourcePath = "bosses/" + id + ".yml";
+            plugin.saveResource(resourcePath, false);
+            File file = new File(plugin.getDataFolder(), resourcePath);
+            return loader.load(YamlConfiguration.loadConfiguration(file));
+        }).toList();
+        definitions = new BossDefinitionCatalog(loaded);
+
+        for (AbyssGuardianDefinition definition : loaded) {
+            PaperAbyssGuardianRuntime runtime = new PaperAbyssGuardianRuntime(
+                plugin, definition, service, platformGateway, resourcePackLoaded, javaModels, standings -> {
+                    if (definition.id().equals("tung-tung-sahur")) {
+                        standings.stream().filter(standing -> standing.placement() <= 3).forEach(standing -> {
+                            BossReward reward = BossReward.forSahurPlacement(standing.placement());
+                            rewardService.award(standing.playerId(), reward);
+                            org.bukkit.entity.Player winner = plugin.getServer().getPlayer(standing.playerId());
+                            if (winner != null) {
+                                winner.sendMessage("§6Tung Tung Tung Sahur §7- Puesto #" + standing.placement()
+                                    + " con §c" + String.format(java.util.Locale.ROOT, "%.1f", standing.damage())
+                                    + " de daño§7. Premio: §e" + reward.amount() + "x " + reward.itemId() + "§7.");
+                            }
+                        });
+                    }
+                    if (plugin.getDangerModule() == null) return;
+                    plugin.getDangerModule().service().ifPresent(danger -> standings.forEach(standing -> {
+                        danger.awardBossPlacement(standing.playerId(), standing.placement());
+                        plugin.getDangerModule().refreshPresentation(standing.playerId());
+                    }));
+                });
+            runtime.start();
+            runtimes.put(definition.id(), runtime);
+            scope.register("paper-boss-runtime-" + definition.id(), runtime::stop);
+        }
+        plugin.getLogger().info("PvE Boss System listo: Guardián del Abismo y Tung Tung Tung Sahur cargados.");
     }
 
     @Override
     public void onDisable() {
-        if (runtime != null) {
-            runtime.stop();
-            runtime = null;
+        if (plugin != null) {
+            runtimes.values().forEach(PaperAbyssGuardianRuntime::stop);
         }
+        runtimes.clear();
         service.shutdown(Instant.now());
         enabled = false;
         RuntimeRegistrationScope scope = compatibilityScope;
@@ -125,19 +175,35 @@ public final class PveBossModule implements PluginModule {
         return service;
     }
 
+    public java.util.Optional<SahurRewardService> rewardService() {
+        return java.util.Optional.ofNullable(rewardService);
+    }
+
     public UUID spawnAbyssGuardian(Location location) {
-        if (!enabled || runtime == null) {
+        return spawn("abyss-guardian", location);
+    }
+
+    public UUID spawn(String bossId, Location location) {
+        if (!enabled) {
             throw new IllegalStateException("PvE Boss System no está disponible.");
+        }
+        AbyssGuardianDefinition definition = definitions.require(bossId);
+        PaperAbyssGuardianRuntime runtime = runtimes.get(definition.id());
+        if (runtime == null) {
+            throw new IllegalStateException("El boss " + definition.displayName() + " no está disponible.");
         }
         return runtime.spawn(location);
     }
 
     public int activeBossCount() {
-        return runtime == null ? 0 : runtime.activeCount();
+        return runtimes.values().stream().mapToInt(PaperAbyssGuardianRuntime::activeCount).sum();
     }
 
     private void clearRuntimeState() {
-        runtime = null;
+        runtimes.clear();
+        definitions = new BossDefinitionCatalog(List.of());
+        rewardListener = null;
+        rewardService = null;
         enabled = false;
     }
 }

@@ -161,6 +161,17 @@ public final class AirdropModule implements PluginModule {
             AirdropPosition chestPosition = data.position();
             world.getBlockAt(chestPosition.x(), chestPosition.y(), chestPosition.z()).setType(Material.CHEST);
             listener.setChestPosition(chestPosition);
+            
+            registrations.scheduleDelayed("airdrop-despawn-" + chestPosition.hashCode(), () -> {
+                Optional<AirdropData> curr = service.getCurrentDrop();
+                if (curr.isPresent() && curr.get().phase() == AirdropPhase.LANDED &&
+                    curr.get().position().equals(chestPosition)) {
+                    world.getBlockAt(chestPosition.x(), chestPosition.y(), chestPosition.z()).setType(Material.AIR);
+                    listener.clearChestPosition();
+                    service.claim();
+                    plugin.getServer().broadcastMessage("§e✈ El Airdrop ha desaparecido (tiempo agotado).");
+                }
+            }, 20L * 60L * 15L);
         }
     }
 
@@ -184,6 +195,16 @@ public final class AirdropModule implements PluginModule {
             Optional<AirdropData> landed = service.markLanded(landedPosition);
             if (landed.isPresent()) {
                 listener.setChestPosition(landedPosition);
+                registrations.scheduleDelayed("airdrop-despawn-" + landedPosition.hashCode(), () -> {
+                    Optional<AirdropData> curr = service.getCurrentDrop();
+                    if (curr.isPresent() && curr.get().phase() == AirdropPhase.LANDED &&
+                        curr.get().position().equals(landedPosition)) {
+                        world.getBlockAt(landedPosition.x(), landedPosition.y(), landedPosition.z()).setType(Material.AIR);
+                        listener.clearChestPosition();
+                        service.claim();
+                        plugin.getServer().broadcastMessage("§e✈ El Airdrop ha desaparecido (tiempo agotado).");
+                    }
+                }, 20L * 60L * 15L);
                 return;
             }
             world.getBlockAt(landedPosition.x(), landedPosition.y(), landedPosition.z()).setType(Material.AIR);

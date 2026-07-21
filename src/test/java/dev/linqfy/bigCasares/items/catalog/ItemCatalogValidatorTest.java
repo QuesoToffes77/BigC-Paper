@@ -34,7 +34,7 @@ class ItemCatalogValidatorTest {
         CustomItemDefinition second = new CustomItemDefinition(
             "smoke_bomb", "smoke-bomb", "SNOWBALL",
             "bigcasares:copper_apple", OptionalInt.of(1001),
-            display(), 16, null, null, appearance());
+            display(), 16, null, null, null, null, appearance());
 
         assertThrows(IllegalArgumentException.class, () -> new ItemCatalogValidator().validate(
             new CustomItemCatalog(Map.of(first.id(), first, second.id(), second)), pack));
@@ -46,7 +46,7 @@ class ItemCatalogValidatorTest {
         CustomItemDefinition invalidMechanic = new CustomItemDefinition(
             "copper_apple", "arbitrary-yaml-action", "APPLE",
             "bigcasares:copper_apple", OptionalInt.of(1001),
-            display(), 64, null, null, appearance());
+            display(), 64, null, null, null, null, appearance());
 
         assertThrows(IllegalArgumentException.class, () -> new ItemCatalogValidator().validate(
             new CustomItemCatalog(Map.of(invalidMechanic.id(), invalidMechanic)), pack));
@@ -93,7 +93,7 @@ class ItemCatalogValidatorTest {
         return new CustomItemDefinition(
             id, "copper-apple", "APPLE",
             "bigcasares:copper_apple", OptionalInt.of(modelData),
-            display(), 64, null, null, appearance());
+            display(), 64, null, null, null, null, appearance());
     }
 
     private static ItemDisplayDefinition display() {

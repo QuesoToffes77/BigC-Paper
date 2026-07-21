@@ -18,8 +18,15 @@ public final class InventoryLimitService {
     public int count(ItemStack[] contents, Material material) {
         int total = 0;
         for (ItemStack stack : contents) {
-            if (stack != null && stack.getType() == material) {
+            if (stack == null) continue;
+            if (stack.getType() == material) {
                 total += stack.getAmount();
+            } else if (stack.getType() == Material.BUNDLE && stack.getItemMeta() instanceof org.bukkit.inventory.meta.BundleMeta bundleMeta) {
+                for (ItemStack bStack : bundleMeta.getItems()) {
+                    if (bStack.getType() == material) {
+                        total += bStack.getAmount();
+                    }
+                }
             }
         }
         return total;
@@ -48,21 +55,56 @@ public final class InventoryLimitService {
             return 0;
         }
 
+        // First pass: normal stacks
         for (int i = contents.length - 1; i >= 0 && remaining > 0; i--) {
             ItemStack stack = contents[i];
-            if (stack == null || stack.getType() != material) {
-                continue;
+            if (stack == null) continue;
+
+            if (stack.getType() == material) {
+                int taken = Math.min(stack.getAmount(), remaining);
+                int nextAmount = stack.getAmount() - taken;
+                remaining -= taken;
+
+                if (nextAmount <= 0) {
+                    contents[i] = null;
+                } else {
+                    stack.setAmount(nextAmount);
+                    contents[i] = stack;
+                }
             }
+        }
 
-            int taken = Math.min(stack.getAmount(), remaining);
-            int nextAmount = stack.getAmount() - taken;
-            remaining -= taken;
+        // Second pass: inside bundles
+        if (remaining > 0) {
+            for (int i = contents.length - 1; i >= 0 && remaining > 0; i--) {
+                ItemStack stack = contents[i];
+                if (stack == null) continue;
 
-            if (nextAmount <= 0) {
-                contents[i] = null;
-            } else {
-                stack.setAmount(nextAmount);
-                contents[i] = stack;
+                if (stack.getType() == Material.BUNDLE && stack.getItemMeta() instanceof org.bukkit.inventory.meta.BundleMeta bundleMeta) {
+                    java.util.List<ItemStack> bundledItems = new java.util.ArrayList<>(bundleMeta.getItems());
+                    boolean changed = false;
+                    for (int j = bundledItems.size() - 1; j >= 0 && remaining > 0; j--) {
+                        ItemStack bStack = bundledItems.get(j);
+                        if (bStack.getType() == material) {
+                            int taken = Math.min(bStack.getAmount(), remaining);
+                            int nextAmount = bStack.getAmount() - taken;
+                            remaining -= taken;
+
+                            if (nextAmount <= 0) {
+                                bundledItems.remove(j);
+                            } else {
+                                bStack.setAmount(nextAmount);
+                                bundledItems.set(j, bStack);
+                            }
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        bundleMeta.setItems(bundledItems);
+                        stack.setItemMeta(bundleMeta);
+                        contents[i] = stack;
+                    }
+                }
             }
         }
 
@@ -71,6 +113,22 @@ public final class InventoryLimitService {
 
     public boolean isLimited(Material material) {
         return limits.containsKey(material);
+    }
+
+    public Map<Material, Integer> countLimitedItemsInStack(ItemStack stack) {
+        Map<Material, Integer> counts = new java.util.HashMap<>();
+        if (stack == null) return counts;
+        
+        if (isLimited(stack.getType())) {
+            counts.put(stack.getType(), stack.getAmount());
+        } else if (stack.getType() == Material.BUNDLE && stack.getItemMeta() instanceof org.bukkit.inventory.meta.BundleMeta bundleMeta) {
+            for (ItemStack bStack : bundleMeta.getItems()) {
+                if (isLimited(bStack.getType())) {
+                    counts.put(bStack.getType(), counts.getOrDefault(bStack.getType(), 0) + bStack.getAmount());
+                }
+            }
+        }
+        return counts;
     }
 
     public boolean canAccept(Player player, Material material, int incomingAmount) {

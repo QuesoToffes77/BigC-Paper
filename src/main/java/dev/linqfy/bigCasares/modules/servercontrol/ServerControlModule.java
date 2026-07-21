@@ -98,6 +98,11 @@ public final class ServerControlModule implements PluginModule {
             registrations.bindCommand(
                 "server-control-command", command, new ServerControlCommand(menu), command.getTabCompleter());
         }
+        PluginCommand adminMeCmd = plugin.getCommand("adminme");
+        if (adminMeCmd != null) {
+            registrations.bindCommand(
+                "admin-me-command", adminMeCmd, new AdminMeCommand(this), null);
+        }
         applyPvpToWorlds(service.effectivePvp(Instant.now()));
         service.takeRecoveredExpiration().ifPresent(this::applyPvpTransition);
         for (Player player : plugin.getServer().getOnlinePlayers()) {

@@ -8,7 +8,11 @@ public record SmokeBombSettings(
     double depth,
     double height,
     long lingerTicks,
-    long smokeBurstIntervalTicks
+    long smokeBurstIntervalTicks,
+    int impactParticles,
+    int cloudParticles,
+    double particleViewDistance,
+    long occupancyIntervalTicks
 ) {
 
     public static SmokeBombSettings load(FileConfiguration config) {
@@ -18,7 +22,11 @@ public record SmokeBombSettings(
             config.getDouble("smoke-bomb.depth", 12.0),
             config.getDouble("smoke-bomb.height", 5.0),
             config.getLong("smoke-bomb.linger-ticks", 20L * 2),
-            config.getLong("smoke-bomb.smoke-burst-interval-ticks", 20L * 5)
+            config.getLong("smoke-bomb.smoke-burst-interval-ticks", 20L),
+            config.getInt("smoke-bomb.impact-particles", 200),
+            config.getInt("smoke-bomb.cloud-particles", 60),
+            config.getDouble("smoke-bomb.particle-view-distance", 32.0),
+            config.getLong("smoke-bomb.occupancy-interval-ticks", 5L)
         );
     }
 
@@ -34,6 +42,9 @@ public record SmokeBombSettings(
         }
         if (smokeBurstIntervalTicks <= 0L) {
             throw new IllegalArgumentException("smoke-burst-interval-ticks debe ser mayor a cero.");
+        }
+        if (impactParticles < 0 || cloudParticles < 0 || particleViewDistance <= 0.0 || occupancyIntervalTicks <= 0L) {
+            throw new IllegalArgumentException("La configuración de rendimiento del humo no es válida.");
         }
     }
 

@@ -12,7 +12,7 @@ class CopperAppleBalanceTest {
         assertEquals(4, CopperAppleBalance.NUTRITION);
         assertEquals(2.4f, CopperAppleBalance.SATURATION);
         assertEquals(600, CopperAppleBalance.ABSORPTION_TICKS);
-        assertEquals(60, CopperAppleBalance.REGENERATION_TICKS);
+        assertEquals(160, CopperAppleBalance.REGENERATION_TICKS);
         assertEquals(0, CopperAppleBalance.ABSORPTION_AMPLIFIER);
         assertEquals(0, CopperAppleBalance.REGENERATION_AMPLIFIER);
     }

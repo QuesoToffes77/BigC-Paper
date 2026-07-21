@@ -4,7 +4,6 @@ import org.bukkit.configuration.ConfigurationSection;
 
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -47,7 +46,21 @@ public final class AbyssGuardianDefinitionLoader {
             dialogue,
             tracks,
             loadAnimations(root.getConfigurationSection("animations")),
-            loadCategoryWeights(root.getConfigurationSection("category-weights"))
+            loadCategoryWeights(root.getConfigurationSection("category-weights")),
+            root.getString("presentation.java-model-key", "bigcasares_abyss_guardian"),
+            loadRaidScaling(root.getConfigurationSection("raid-scaling"))
+        );
+    }
+
+    private BossRaidScaling loadRaidScaling(ConfigurationSection section) {
+        if (section == null || !section.getBoolean("enabled", false)) {
+            return null;
+        }
+        return new BossRaidScaling(
+            section.getDouble("base-health"),
+            section.getDouble("health-per-player"),
+            section.getInt("minimum-players"),
+            section.getInt("maximum-players")
         );
     }
 

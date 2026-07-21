@@ -13,8 +13,10 @@ public record CustomItemDefinition(
     OptionalInt legacyCustomModelData,
     ItemDisplayDefinition display,
     int maxStackSize,
+    Integer maxDamage,
     ItemFoodDefinition food,
     ItemRecipeDefinition recipe,
+    ItemCombatDefinition combat,
     ItemAppearanceDefinition appearance
 ) {
 
@@ -31,6 +33,9 @@ public record CustomItemDefinition(
         if (maxStackSize < 1 || maxStackSize > 64) {
             throw new IllegalArgumentException("maxStackSize must be between 1 and 64");
         }
+        if (maxDamage != null && maxDamage < 1) {
+            throw new IllegalArgumentException("maxDamage must be positive");
+        }
         appearance = Objects.requireNonNull(appearance, "appearance");
     }
 
@@ -40,6 +45,10 @@ public record CustomItemDefinition(
 
     public Optional<ItemRecipeDefinition> recipeDefinition() {
         return Optional.ofNullable(recipe);
+    }
+
+    public Optional<ItemCombatDefinition> combatDefinition() {
+        return Optional.ofNullable(combat);
     }
 
     private static String normalizeId(String value) {

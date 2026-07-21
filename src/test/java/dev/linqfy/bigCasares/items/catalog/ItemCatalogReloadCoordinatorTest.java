@@ -72,7 +72,7 @@ class ItemCatalogReloadCoordinatorTest {
     private static CustomItemCatalog catalog(String name) {
         CustomItemDefinition definition = new CustomItemDefinition(
             "copper_apple", "copper-apple", "APPLE", "bigcasares:copper_apple", OptionalInt.of(1001),
-            new ItemDisplayDefinition("item.bigcasares.copper_apple", name, List.of()), 64, null, null,
+            new ItemDisplayDefinition("item.bigcasares.copper_apple", name, List.of()), 64, null, null, null, null,
             new ItemAppearanceDefinition(
                 "java/assets/bigcasares/items/copper_apple.json",
                 "bedrock/textures/item/copper_apple.png"

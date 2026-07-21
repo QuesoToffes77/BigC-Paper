@@ -13,4 +13,7 @@ public interface ResourcePackGateway {
         String prompt,
         boolean required
     );
+
+    default void removeJavaPack(UUID playerId, UUID packId) {
+    }
 }

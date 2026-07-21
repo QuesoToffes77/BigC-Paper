@@ -18,7 +18,7 @@ public final class CustomCrossbowRules {
             case ECHO_SHARD -> Optional.of(CustomCrossbowChargeType.ECHO_SHARD);
             case FIREWORK_ROCKET -> Optional.of(CustomCrossbowChargeType.FIREWORK_ROCKET);
             case AMETHYST_SHARD -> Optional.of(CustomCrossbowChargeType.AMETHYST_SHARD);
-            case ENDER_PEARL -> Optional.of(CustomCrossbowChargeType.ENDER_PEARL);
+            // case ENDER_PEARL -> Optional.of(CustomCrossbowChargeType.ENDER_PEARL);
             default -> Optional.empty();
         };
     }

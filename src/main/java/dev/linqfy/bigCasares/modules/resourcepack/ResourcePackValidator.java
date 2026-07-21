@@ -22,9 +22,9 @@ public final class ResourcePackValidator {
                 NamespacedPath entity = NamespacedPath.parse(asset.bedrockEntity());
                 require(bedrockRoot.resolve("entity").resolve(entity.path() + ".entity.json"), missing);
             }
-            if (asset.texture() != null) {
-                require(javaRoot.resolve("assets/bigcasares/textures").resolve(asset.texture() + ".png"), missing);
-                require(bedrockRoot.resolve("textures").resolve(asset.texture() + ".png"), missing);
+            if (asset.texture() != null && !asset.usesBuiltinTexture()) {
+                require(javaRoot.resolve("assets/bigcasares/textures").resolve(asset.texturePath() + ".png"), missing);
+                require(bedrockRoot.resolve("textures").resolve(asset.texturePath() + ".png"), missing);
             }
             if (asset.javaSound() != null) {
                 NamespacedPath sound = NamespacedPath.parse(asset.javaSound());

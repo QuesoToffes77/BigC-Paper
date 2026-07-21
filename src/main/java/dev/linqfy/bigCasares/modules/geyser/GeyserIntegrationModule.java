@@ -88,6 +88,10 @@ public final class GeyserIntegrationModule implements PluginModule {
                 runtime.registerCustomEntity(new GeyserCustomEntityDefinition(
                     "WARDEN", "bigcasares:abyss_guardian", "pve_boss_id"));
                 runtime.registerCustomEntity(new GeyserCustomEntityDefinition(
+                    "WARDEN", "bigcasares:sahur", "sahur_boss_id"));
+                runtime.registerCustomEntity(new GeyserCustomEntityDefinition(
+                    "BAT", "bigcasares:sahur_bat", "sahur_bat_id"));
+                runtime.registerCustomEntity(new GeyserCustomEntityDefinition(
                     "MANNEQUIN", "bigcasares:merchant", "shop_npc_id"));
                 plugin.getLogger().warning("La API de entidades custom de Geyser 2.11 es experimental; los fallbacks siguen activos.");
             }
@@ -139,13 +143,16 @@ public final class GeyserIntegrationModule implements PluginModule {
 
     private static java.util.List<GeyserCustomItemDefinition> customItemDefinitions() {
         return java.util.List.of(
-            item("apple", "copper_apple", "Copper Apple"),
-            item("snowball", "smoke_bomb", "Smoke Bomb"),
-            item("arrow", "prismarine_arrow", "Prismarine Arrow"),
-            item("crossbow", "crossbow_amethyst_shard", "Amethyst Crossbow"),
-            item("crossbow", "crossbow_echo_shard", "Echo Crossbow"),
-            item("crossbow", "crossbow_ender_pearl", "Ender Pearl Crossbow"),
-            item("crossbow", "crossbow_firework_rocket", "Firework Crossbow")
+            item("apple", "copper_apple", "Manzana de Cobre"),
+            item("snowball", "smoke_bomb", "Bomba de Humo"),
+            item("arrow", "prismarine_arrow", "Flecha de Prismarina"),
+            item("arrow", "echo_arrow", "Flecha de Eco"),
+            item("arrow", "golden_tipped_amethyst_arrow", "Flecha de Amatista con Punta de Oro"),
+            item("crossbow", "crossbow_amethyst_shard", "Ballesta de Amatista"),
+            item("crossbow", "crossbow_echo_shard", "Ballesta de Eco"),
+            item("crossbow", "crossbow_ender_pearl", "Ballesta de Perla de Ender"),
+            item("crossbow", "crossbow_firework_rocket", "Ballesta de Fuegos Artificiales"),
+            item("iron_sword", "sahurs_bat", "Bate de Sahur")
         );
     }
 

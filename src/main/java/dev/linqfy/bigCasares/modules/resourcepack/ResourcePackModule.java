@@ -19,6 +19,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.net.URI;
+import org.bukkit.entity.Player;
+import org.bukkit.ChatColor;
+import kr.toxicity.model.api.BetterModel;
+import kr.toxicity.model.api.BetterModelPlatform;
+import kr.toxicity.model.api.event.ModelEventListener;
+import kr.toxicity.model.api.event.PluginEndReloadEvent;
 
 public final class ResourcePackModule implements PluginModule {
     private final BigCasares plugin;
@@ -34,6 +40,9 @@ public final class ResourcePackModule implements PluginModule {
     private ResourcePackSettings settings;
     private Path contentPackRoot;
     private Path packsRoot;
+    private List<JavaPackDelivery> betterModelPacks = List.of();
+    private ModelEventListener betterModelReloadListener;
+    private boolean suppressBetterModelHook;
 
     public ResourcePackModule(BigCasares plugin) {
         this(plugin, ignored -> ClientPlatform.JAVA);
@@ -70,13 +79,14 @@ public final class ResourcePackModule implements PluginModule {
         this.artifactPublisher = new PackArtifactPublisher(packsRoot);
         startHttpServer(scope);
         ActivePackManifest active = loadOrBuildActivePack();
+        this.betterModelPacks = reloadAndPublishBetterModel();
         this.service = new ResourcePackService(
             settings,
             active.deliveryManifest(),
             new BukkitResourcePackGateway(plugin.getServer()),
             platformGateway
         );
-        service.activate(active.deliveryManifest(), active.javaUri());
+        service.activateStack(active.deliveryManifest(), currentJavaUri(active), betterModelPacks);
         this.listener = new ResourcePackStatusListener(plugin, service, registrations);
         registrations.registerListener("resource-pack-status-listener", listener);
         this.packReloadCoordinator = new PackReloadCoordinator();
@@ -86,6 +96,7 @@ public final class ResourcePackModule implements PluginModule {
             return thread;
         });
         this.commitExecutor = runnable -> registrations.scheduleImmediate("pack-reload-commit", runnable);
+        subscribeToBetterModelReloads(scope);
         scope.register("pack-reload-runtime", this::shutdownPackRuntime);
     }
 
@@ -116,6 +127,14 @@ public final class ResourcePackModule implements PluginModule {
                 UUID.randomUUID(), PackReloadStatus.CANCELLED, null, java.time.Duration.ZERO,
                 activeManifest().orElse(null), null, List.of(), null));
         }
+        try {
+            this.betterModelPacks = reloadAndPublishBetterModel();
+        } catch (RuntimeException failure) {
+            return CompletableFuture.completedFuture(new PackReloadResult(
+                UUID.randomUUID(), PackReloadStatus.FAILED, PackReloadPhase.BUILD,
+                java.time.Duration.ZERO, activeManifest().orElse(null), null, List.of(), failure
+            ));
+        }
         CompletableFuture<PackReloadResult> result = coordinator.execute(new PackReloadOperation() {
             @Override
             public Optional<ActivePackManifest> activeManifest() throws Exception {
@@ -138,7 +157,7 @@ public final class ResourcePackModule implements PluginModule {
             public void commit(PackPublication publication) throws Exception {
                 artifactPublisher.activate(publication);
                 ActivePackManifest manifest = publication.manifest();
-                service.activate(manifest.deliveryManifest(), manifest.javaUri());
+                service.activateStack(manifest.deliveryManifest(), currentJavaUri(manifest), betterModelPacks);
                 if (publication.changed()) {
                     resendChangedPackToAll();
                 }
@@ -165,6 +184,37 @@ public final class ResourcePackModule implements PluginModule {
 
     public boolean sendPack(UUID playerId) {
         return service != null && service.forceRequestFor(playerId);
+    }
+
+    public List<JavaPackDelivery> enableManualDownloads(Player player) {
+        if (service == null || player == null) {
+            return List.of();
+        }
+        String revision = service.currentRevision();
+        var desired = ManualResourcePackTracker.tagsFor(player.getScoreboardTags(), revision);
+        for (String tag : List.copyOf(player.getScoreboardTags())) {
+            if (ManualResourcePackTracker.isManagedTag(tag) && !desired.contains(tag)) {
+                player.removeScoreboardTag(tag);
+            }
+        }
+        desired.stream().filter(ManualResourcePackTracker::isManagedTag)
+            .forEach(player::addScoreboardTag);
+        return service.currentDownloads();
+    }
+
+    public boolean isManualPlayer(Player player) {
+        return player != null && ManualResourcePackTracker.isManual(player.getScoreboardTags());
+    }
+
+    public boolean notifyManualUpdate(Player player) {
+        if (service == null || player == null
+            || !ManualResourcePackTracker.needsUpdate(player.getScoreboardTags(), service.currentRevision())) {
+            return false;
+        }
+        player.sendMessage(ChatColor.YELLOW + "El resource pack fue actualizado. Ejecutá "
+            + ChatColor.AQUA + "/resourcepack" + ChatColor.YELLOW
+            + " para descargar la versión nueva.");
+        return true;
     }
 
     public int resendToAll() {
@@ -240,17 +290,86 @@ public final class ResourcePackModule implements PluginModule {
     private URI javaArtifactUri(String artifactFile) {
         return switch (settings.publisher().mode()) {
             case COPY_ONLY -> null;
-            case EXTERNAL_URL -> settings.publisher().publicUri();
+            case EXTERNAL_URL -> resolveExternalArtifactUri(artifactFile, false);
             case EMBEDDED_HTTP -> httpServer.publicUri(artifactFile);
         };
     }
 
+    private URI currentJavaUri(ActivePackManifest active) {
+        return PackDeliveryUriResolver.resolve(active, this::javaArtifactUri);
+    }
+
     private List<JavaPackLayerProvider> javaLayers() {
-        String configured = plugin.getConfig().getString("resource-pack-system.bettermodel-java-pack", "").trim();
-        if (configured.isEmpty()) {
-            return List.of();
+        return List.of();
+    }
+
+    private List<JavaPackDelivery> reloadAndPublishBetterModel() {
+        suppressBetterModelHook = true;
+        try {
+            BetterModelPlatform.ReloadResult result = BetterModel.platform().reload();
+            if (!(result instanceof BetterModelPlatform.ReloadResult.Success success)) {
+                throw new IllegalStateException("BetterModel reload failed: " + result);
+            }
+            return publishBetterModelDirectory(success.packResult().directory().toPath());
+        } finally {
+            suppressBetterModelHook = false;
         }
-        return List.of(JavaPackLayerProvider.fixed("bettermodel", Path.of(configured)));
+    }
+
+    private List<JavaPackDelivery> publishBetterModelDirectory(Path directory) {
+        try {
+            return artifactPublisher.publishBetterModel(directory, this::betterModelArtifactUri)
+                .map(List::of).orElseGet(List::of);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not publish BetterModel resource pack", exception);
+        }
+    }
+
+    private URI betterModelArtifactUri(String artifactFile) {
+        return switch (settings.publisher().mode()) {
+            case COPY_ONLY -> null;
+            case EMBEDDED_HTTP -> httpServer.publicUri(artifactFile);
+            case EXTERNAL_URL -> {
+                yield resolveExternalArtifactUri(artifactFile, true);
+            }
+        };
+    }
+
+    private URI resolveExternalArtifactUri(String artifactFile, boolean betterModel) {
+        if (betterModel) {
+            String explicit = plugin.getConfig().getString(
+                "resource-pack-system.publishing.bettermodel-public-url", "").trim();
+            if (!explicit.isEmpty()) return URI.create(explicit);
+        }
+        String configuredBase = plugin.getConfig().getString(
+            "resource-pack-system.publishing.public-base-url", "").trim();
+        if (configuredBase.isEmpty()) return settings.publisher().publicUri();
+        return URI.create(configuredBase.endsWith("/") ? configuredBase + artifactFile : configuredBase + "/" + artifactFile);
+    }
+
+    private void subscribeToBetterModelReloads(RuntimeRegistrationScope scope) {
+        betterModelReloadListener = BetterModel.eventBus().subscribe(
+            BetterModel.platform(), PluginEndReloadEvent.class, event -> {
+                if (suppressBetterModelHook || !(event.result() instanceof BetterModelPlatform.ReloadResult.Success success)) {
+                    return;
+                }
+                CompletableFuture.supplyAsync(
+                    () -> publishBetterModelDirectory(success.packResult().directory().toPath()), packWorker
+                ).thenAcceptAsync(packs -> {
+                    betterModelPacks = packs;
+                    activeManifest().ifPresent(active -> service.activateStack(
+                        active.deliveryManifest(), currentJavaUri(active), betterModelPacks));
+                    resendChangedPackToAll();
+                }, commitExecutor).exceptionally(failure -> {
+                    plugin.getLogger().log(Level.SEVERE, "BetterModel pack republish failed", failure);
+                    return null;
+                });
+            }
+        );
+        scope.register("bettermodel-reload-listener", () -> {
+            if (betterModelReloadListener != null) betterModelReloadListener.unregister();
+            betterModelReloadListener = null;
+        });
     }
 
     private void shutdownPackRuntime() {
@@ -271,6 +390,10 @@ public final class ResourcePackModule implements PluginModule {
         }
         int sent = 0;
         for (org.bukkit.entity.Player player : plugin.getServer().getOnlinePlayers()) {
+            if (isManualPlayer(player)) {
+                notifyManualUpdate(player);
+                continue;
+            }
             if (service.requestFor(player.getUniqueId())) {
                 sent++;
             }
@@ -290,5 +413,8 @@ public final class ResourcePackModule implements PluginModule {
         settings = null;
         contentPackRoot = null;
         packsRoot = null;
+        betterModelPacks = List.of();
+        betterModelReloadListener = null;
+        suppressBetterModelHook = false;
     }
 }

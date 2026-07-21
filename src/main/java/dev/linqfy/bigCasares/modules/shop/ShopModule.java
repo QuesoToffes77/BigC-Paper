@@ -36,7 +36,7 @@ public final class ShopModule implements PluginModule {
     private ShopGuiController guiController;
     private ShopNpcFactory npcFactory;
     private ShopNpcListener npcListener;
-    private final List<LivingEntity> npcs = new ArrayList<>();
+    private final List<org.bukkit.entity.Entity> npcs = new ArrayList<>();
     private ClientPlatformGateway platformGateway = ignored -> ClientPlatform.JAVA;
     private BedrockFormSender bedrockFormSender;
     private final ShopFormGeneration formGeneration = new ShopFormGeneration();
@@ -241,6 +241,15 @@ public final class ShopModule implements PluginModule {
     }
 
     private void spawnConfiguredNpcs(YamlConfiguration configuration) {
+        // Purge existing NPCs in worlds to avoid duplicates
+        for (org.bukkit.World world : Bukkit.getWorlds()) {
+            for (org.bukkit.entity.Entity entity : world.getEntities()) {
+                if (npcFactory.isShopNpc(entity)) {
+                    entity.remove();
+                }
+            }
+        }
+
         ConfigurationSection shops = configuration.getConfigurationSection("shops");
         if (shops == null) {
             return;
@@ -267,9 +276,11 @@ public final class ShopModule implements PluginModule {
                 (float) location.getDouble("yaw"), (float) location.getDouble("pitch")
             );
             try {
-                LivingEntity npcEntity = npcFactory.spawn(spawn, definition);
-                npcs.add(npcEntity);
-                registrations.ownCleanup(nextResourceId("shop-npc"), () -> removeNpc(npcEntity));
+                java.util.List<org.bukkit.entity.Entity> spawnedEntities = npcFactory.spawn(spawn, definition);
+                for (org.bukkit.entity.Entity e : spawnedEntities) {
+                    npcs.add(e);
+                    registrations.ownCleanup(nextResourceId("shop-npc"), () -> removeNpc(e));
+                }
             } catch (IllegalArgumentException | IllegalStateException ex) {
                 plugin.getLogger().warning("No se pudo crear el NPC de shop " + shopId + ": " + ex.getMessage());
             }
@@ -310,7 +321,7 @@ public final class ShopModule implements PluginModule {
         npcs.clear();
     }
 
-    private void removeNpc(LivingEntity entity) {
+    private void removeNpc(org.bukkit.entity.Entity entity) {
         if (entity != null) {
             ClientEntityPresentationRegistry.unregister(entity.getUniqueId());
         }

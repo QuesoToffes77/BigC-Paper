@@ -78,6 +78,15 @@ public final class CopperAppleCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args.length >= 2 && "reroll".equalsIgnoreCase(args[1])) {
+            if (!sender.hasPermission("bigcasares.missions.open")) {
+                sender.sendMessage(ChatColor.RED + "No tenes permiso para usar misiones.");
+                return true;
+            }
+            missionModule.rerollDaily(player);
+            return true;
+        }
+
         if (args.length >= 2 && "admin".equalsIgnoreCase(args[1])) {
             if (!sender.hasPermission("bigcasares.missions.admin")) {
                 sender.sendMessage(ChatColor.RED + "No tenes permiso para administrar misiones.");
@@ -283,7 +292,7 @@ public final class CopperAppleCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2 && "misiones".equalsIgnoreCase(args[0])) {
-            return List.of("diarias", "semanales", "reclamar", "admin").stream()
+            return List.of("diarias", "semanales", "reclamar", "admin", "reroll").stream()
                 .filter(option -> option.startsWith(args[1].toLowerCase()))
                 .collect(Collectors.toList());
         }

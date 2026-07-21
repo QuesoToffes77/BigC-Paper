@@ -29,9 +29,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public final class SmokeBombProjectileListener implements Listener {
 
-    private static final int SQUID_INK_COUNT = 5000;
-    private static final int SMOKE_BURST_COUNT = 10000;
-
     private final BigCasares plugin;
     private final SmokeBombItem smokeBombItem;
     private final SmokeBombSettings settings;
@@ -128,12 +125,19 @@ public final class SmokeBombProjectileListener implements Listener {
         long currentTick = tickCounter.incrementAndGet();
         activeClouds.entrySet().removeIf(entry -> currentTick >= entry.getValue().expiresAtTick());
 
-        Set<UUID> occupants = new LinkedHashSet<>();
         for (ActiveSmokeCloud cloud : activeClouds.values()) {
             if (shouldEmitBurst(cloud, currentTick)) {
                 emitSustainedSmoke(cloud.center());
                 cloud.lastBurstTick = currentTick;
             }
+        }
+
+        if (currentTick % settings.occupancyIntervalTicks() != 0L) {
+            return;
+        }
+
+        Set<UUID> occupants = new LinkedHashSet<>();
+        for (ActiveSmokeCloud cloud : activeClouds.values()) {
             for (var nearby : cloud.center().getWorld().getNearbyEntities(
                 cloud.center(),
                 settings.halfWidth(),
@@ -171,7 +175,7 @@ public final class SmokeBombProjectileListener implements Listener {
             return;
         }
 
-        world.spawnParticle(Particle.SQUID_INK, location, SQUID_INK_COUNT, 3.0, 2.0, 3.0, 0.0);
+        emitToNearbyPlayers(Particle.SQUID_INK, location, settings.impactParticles());
         world.playSound(location, Sound.ENTITY_GLOW_SQUID_SQUIRT, 1.0f, 0.8f);
         world.playSound(location, Sound.BLOCK_FIRE_EXTINGUISH, 1.2f, 0.6f);
         emitSustainedSmoke(location);
@@ -183,8 +187,21 @@ public final class SmokeBombProjectileListener implements Listener {
             return;
         }
 
-        world.spawnParticle(Particle.CAMPFIRE_SIGNAL_SMOKE, location, SMOKE_BURST_COUNT, 3.0, 2.0, 3.0, 0.0);
+        emitToNearbyPlayers(Particle.CAMPFIRE_SIGNAL_SMOKE, location, settings.cloudParticles());
         world.playSound(location, Sound.BLOCK_CAMPFIRE_CRACKLE, 0.5f, 0.7f);
+    }
+
+    private void emitToNearbyPlayers(Particle particle, Location location, int count) {
+        World world = location.getWorld();
+        if (world == null || count <= 0) {
+            return;
+        }
+        double maximumDistanceSquared = settings.particleViewDistance() * settings.particleViewDistance();
+        for (Player player : world.getPlayers()) {
+            if (player.getLocation().distanceSquared(location) <= maximumDistanceSquared) {
+                player.spawnParticle(particle, location, count, 3.0, 2.0, 3.0, 0.0);
+            }
+        }
     }
 
     private LivingEntity livingEntity(UUID entityId) {

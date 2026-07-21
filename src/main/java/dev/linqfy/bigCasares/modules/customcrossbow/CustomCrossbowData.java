@@ -79,6 +79,28 @@ public final class CustomCrossbowData {
             .orElse(false);
     }
 
+    public void applyNativeAppearance(ItemStack crossbow, CustomCrossbowChargeType chargeType) {
+        if (crossbow == null || crossbow.getType() != Material.CROSSBOW) {
+            return;
+        }
+        ItemMeta meta = crossbow.getItemMeta();
+        if (!meta.getPersistentDataContainer().has(originalItemModelKey, PersistentDataType.STRING)) {
+            String originalModel = meta.hasItemModel() ? meta.getItemModel().toString() : "";
+            meta.getPersistentDataContainer().set(originalItemModelKey, PersistentDataType.STRING, originalModel);
+        }
+        meta.setItemModel(new NamespacedKey("bigcasares", CustomCrossbowRules.loadedCrossbowModelId(chargeType)));
+        crossbow.setItemMeta(meta);
+    }
+
+    public void clearNativeAppearance(ItemStack crossbow) {
+        if (crossbow == null || crossbow.getType() != Material.CROSSBOW || !crossbow.hasItemMeta()) {
+            return;
+        }
+        ItemMeta meta = crossbow.getItemMeta();
+        restoreItemModel(meta);
+        crossbow.setItemMeta(meta);
+    }
+
     public void clearCharge(ItemStack crossbow) {
         if (crossbow == null || crossbow.getType() != Material.CROSSBOW || !crossbow.hasItemMeta()) {
             return;
