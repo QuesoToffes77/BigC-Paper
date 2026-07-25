@@ -51,6 +51,7 @@ public final class EndEventModule implements PluginModule {
         EndEventCommand handler = new EndEventCommand(runtime);
         registrations.bindCommand("end-event-command", command, handler, handler);
         registrations.scheduleRepeating("end-event-heartbeat", runtime::heartbeat, 1L, 20L);
+        registrations.scheduleRepeating("end-event-fast-tick", runtime::fastTick, 1L, 2L);
         scope.register("end-event-runtime", () -> {
             if (runtime != null) {
                 runtime.shutdown();
