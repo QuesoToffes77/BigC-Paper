@@ -1,0 +1,76 @@
+name: Build and Release JAR
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-jar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+
+      - name: Build JAR
+        run: bash gradlew --no-daemon clean jar
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: BigCasares-${{ github.sha }}
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish tagged release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download built JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: BigCasares-${{ github.sha }}
+          path: dist
+
+      - name: Create release and upload JAR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" dist/*.jar --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/*.jar \
+              --generate-notes \
+              --title "${GITHUB_REF_NAME}"
+          fi
