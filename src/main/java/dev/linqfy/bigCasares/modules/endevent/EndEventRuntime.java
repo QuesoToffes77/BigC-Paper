@@ -3,6 +3,7 @@ package dev.linqfy.bigCasares.modules.endevent;
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.FireworkEffect;
@@ -10,6 +11,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.block.Block;
@@ -49,13 +51,18 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.inventory.ItemStack;
@@ -65,6 +72,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -87,6 +96,21 @@ import java.util.UUID;
 
 public final class EndEventRuntime implements Listener {
     private static final String FINAL_REASON = "Gracias por jugar <3";
+    private static final FireworkEffect.Type[] FIREWORK_TYPES = {
+        FireworkEffect.Type.BALL,
+        FireworkEffect.Type.BALL_LARGE,
+        FireworkEffect.Type.STAR,
+        FireworkEffect.Type.BURST,
+        FireworkEffect.Type.CREEPER
+    };
+    private static final Color[][] FIREWORK_PALETTES = {
+        {Color.YELLOW, Color.ORANGE, Color.WHITE},
+        {Color.PURPLE, Color.FUCHSIA, Color.WHITE},
+        {Color.AQUA, Color.BLUE, Color.WHITE},
+        {Color.RED, Color.ORANGE, Color.YELLOW},
+        {Color.GREEN, Color.LIME, Color.AQUA},
+        {Color.FUCHSIA, Color.PURPLE, Color.WHITE},
+    };
 
     private final BigCasares plugin;
     private final EndEventSettings settings;
@@ -107,6 +131,8 @@ public final class EndEventRuntime implements Listener {
     private final Map<UUID, BossBar> personalBars = new LinkedHashMap<>();
     private final Map<UUID, Boolean> originalGlow = new HashMap<>();
     private final Set<UUID> fakeGlowTargets = new HashSet<>();
+    private final Map<UUID, FrozenPlayerState> frozenPlayers = new LinkedHashMap<>();
+    private final NmsEntityGlowSender entityGlowSender;
 
     private EndEventSchedule schedule;
     private LocalDate eventDate;
@@ -120,8 +146,12 @@ public final class EndEventRuntime implements Listener {
     private boolean delayedReveal;
     private boolean portalFailureReported;
     private int missingEggHeartbeats;
+    private int victoryFireworkTick = 0;
     private BossBar globalBar;
     private UUID visualHunter;
+    private Instant hunterDropFreezeReadyAt;
+    private Team frozenGlowTeam;
+    private int fastTickSequence;
 
     public EndEventRuntime(
         BigCasares plugin,
@@ -143,6 +173,7 @@ public final class EndEventRuntime implements Listener {
         this.dropKey = new NamespacedKey(plugin, "end_event_drop");
         this.dropOwnerKey = new NamespacedKey(plugin, "end_event_drop_owner");
         this.fireworkKey = new NamespacedKey(plugin, "end_event_firework");
+        this.entityGlowSender = new NmsEntityGlowSender(plugin);
         restoreRuntime(storage.loadRuntime());
     }
 
@@ -161,6 +192,7 @@ public final class EndEventRuntime implements Listener {
             checkWinner();
         } else if (service.phase() == EndEventPhase.VICTORY) {
             reconcileTrackedDrops();
+            tickVictoryFireworks();
             if (banAt != null && !now.isBefore(banAt)) {
                 finishAndBan();
             }
@@ -168,6 +200,16 @@ public final class EndEventRuntime implements Listener {
             applyFinalLocks();
             reconcileTrackedDrops();
         }
+    }
+
+    public void fastTick() {
+        if (service.phase() != EndEventPhase.HUNT) {
+            clearFakeGlow(null);
+            clearFrozenPlayers();
+            return;
+        }
+        refreshHunterWallhack();
+        tickFrozenPlayers(clock.instant());
     }
 
     public void restoreLiveState() {
@@ -197,6 +239,7 @@ public final class EndEventRuntime implements Listener {
     }
 
     public void shutdown() {
+        clearFrozenPlayers();
         clearPresentation();
         persistRuntime();
     }
@@ -404,21 +447,28 @@ public final class EndEventRuntime implements Listener {
             service.setPhase(EndEventPhase.EGG_AVAILABLE);
             missingEggHeartbeats = 0;
             Bukkit.broadcastMessage("§5El dragón cayó. §d¡Encuentren el huevo!");
-            registrations.scheduleDelayed("end-event-egg-discovery", this::reconcileEgg, 5L);
+            registrations.scheduleDelayed("end-event-egg-discovery", () -> {
+                discoverEggBlock();
+                reconcileEgg();
+            }, 5L);
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onCombat(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Firework firework
             && firework.getPersistentDataContainer().has(fireworkKey, PersistentDataType.BYTE)) {
             event.setCancelled(true);
             return;
         }
+        Player attacker = resolvePlayer(event.getDamager());
+        if (attacker != null && isFrozen(attacker)) {
+            event.setCancelled(true);
+            return;
+        }
         if (service.phase() != EndEventPhase.HUNT || !(event.getEntity() instanceof Player target)) {
             return;
         }
-        Player attacker = resolvePlayer(event.getDamager());
         if (attacker != null && service.isSurvivor(attacker.getUniqueId())
             && service.isSurvivor(target.getUniqueId())) {
             service.recordCombat(attacker.getUniqueId(), target.getUniqueId());
@@ -509,6 +559,10 @@ public final class EndEventRuntime implements Listener {
         if (!(event.getEntity() instanceof Player player)) {
             return;
         }
+        if (isFrozen(player)) {
+            event.setCancelled(true);
+            return;
+        }
         ItemStack item = event.getItem().getItemStack();
         if (potionsLocked() && service.isSurvivor(player.getUniqueId())
             && EndEventPotionPolicy.isForbidden(item.getType())) {
@@ -518,21 +572,34 @@ public final class EndEventRuntime implements Listener {
         if (item.getType() != Material.DRAGON_EGG || !eventActive()) {
             return;
         }
+        if (!isEventEgg(item) && service.phase() == EndEventPhase.EGG_AVAILABLE) {
+            tagEgg(item);
+            tagDrop(item, null);
+        }
         if (!isEventEgg(item)) {
             event.setCancelled(true);
             player.sendMessage("§cEse no es el huevo del evento.");
             return;
         }
-        if (service.phase() == EndEventPhase.EGG_AVAILABLE && !eligible(player)
-            || service.phase() == EndEventPhase.HUNT && !service.isSurvivor(player.getUniqueId())) {
+        if (service.phase() == EndEventPhase.HUNT && !service.isSurvivor(player.getUniqueId())) {
             event.setCancelled(true);
             return;
         }
         registrations.scheduleDelayed("end-event-egg-pickup", this::reconcileEgg, 1L);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent event) {
+        if (isFrozen(event.getPlayer())) {
+            event.setCancelled(true);
+            return;
+        }
+        boolean hunterDroppedEventEgg = service.phase() == EndEventPhase.HUNT
+            && isEventEgg(event.getItemDrop().getItemStack())
+            && service.eggCarrier().equals(Optional.of(event.getPlayer().getUniqueId()));
+        if (hunterDroppedEventEgg) {
+            activateHunterDropFreeze(event.getPlayer());
+        }
         if (service.phase() == EndEventPhase.HUNT && service.isParticipant(event.getPlayer().getUniqueId())) {
             tagDrop(event.getItemDrop().getItemStack(), event.getPlayer().getUniqueId());
         }
@@ -547,8 +614,10 @@ public final class EndEventRuntime implements Listener {
         if (event.getEntity().getItemStack().getType() != Material.DRAGON_EGG || !eventActive()) {
             return;
         }
-        if (isEventEgg(event.getEntity().getItemStack())
-            || eggBlock != null && event.getLocation().distanceSquared(toLocation(eggBlock)) <= 25.0) {
+        if (isEventEgg(event.getEntity().getItemStack())) {
+            return;
+        }
+        if (service.phase() == EndEventPhase.EGG_AVAILABLE) {
             tagEgg(event.getEntity().getItemStack());
             tagDrop(event.getEntity().getItemStack(), null);
             eggBlock = null;
@@ -573,21 +642,30 @@ public final class EndEventRuntime implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEggBlockDrop(BlockDropItemEvent event) {
-        if (!trackedEggBlock(event.getBlockState().getLocation())) {
+        boolean tracked = trackedEggBlock(event.getBlockState().getLocation());
+        if (!tracked && service.phase() != EndEventPhase.EGG_AVAILABLE) {
             return;
         }
         for (Item item : event.getItems()) {
             if (item.getItemStack().getType() == Material.DRAGON_EGG) {
-                tagEgg(item.getItemStack());
-                tagDrop(item.getItemStack(), null);
+                if (tracked || !isEventEggOnGround()) {
+                    tagEgg(item.getItemStack());
+                    tagDrop(item.getItemStack(), null);
+                }
             }
         }
-        eggBlock = null;
-        persistRuntime();
+        if (tracked) {
+            eggBlock = null;
+            persistRuntime();
+        }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEggBreak(BlockBreakEvent event) {
+        if (isFrozen(event.getPlayer())) {
+            event.setCancelled(true);
+            return;
+        }
         if (trackedEggBlock(event.getBlock().getLocation())) {
             registrations.scheduleDelayed("end-event-egg-break", this::reconcileEgg, 1L);
         }
@@ -595,6 +673,10 @@ public final class EndEventRuntime implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEggPlace(BlockPlaceEvent event) {
+        if (isFrozen(event.getPlayer())) {
+            event.setCancelled(true);
+            return;
+        }
         if (event.getBlockPlaced().getType() != Material.DRAGON_EGG || !eventActive()) {
             return;
         }
@@ -646,6 +728,10 @@ public final class EndEventRuntime implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
+        if (isFrozen(player)) {
+            event.setCancelled(true);
+            return;
+        }
         boolean topTarget = event.getRawSlot() >= 0
             && event.getRawSlot() < event.getView().getTopInventory().getSize();
         boolean externalTop = event.getView().getTopInventory().getType()
@@ -666,6 +752,10 @@ public final class EndEventRuntime implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onInventoryDrag(InventoryDragEvent event) {
+        if (event.getWhoClicked() instanceof Player player && isFrozen(player)) {
+            event.setCancelled(true);
+            return;
+        }
         if (isEventEgg(event.getOldCursor()) && event.getRawSlots().stream()
             .anyMatch(slot -> slot < event.getView().getTopInventory().getSize())) {
             event.setCancelled(true);
@@ -686,6 +776,10 @@ public final class EndEventRuntime implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onConsume(PlayerItemConsumeEvent event) {
+        if (isFrozen(event.getPlayer())) {
+            event.setCancelled(true);
+            return;
+        }
         if (potionsLocked() && service.isSurvivor(event.getPlayer().getUniqueId())
             && EndEventPotionPolicy.isForbidden(event.getItem().getType())) {
             event.setCancelled(true);
@@ -694,10 +788,75 @@ public final class EndEventRuntime implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent event) {
+        if (isFrozen(event.getPlayer())) {
+            event.setCancelled(true);
+            return;
+        }
         if (potionsLocked() && service.isSurvivor(event.getPlayer().getUniqueId())
             && event.getItem() != null && EndEventPotionPolicy.isForbidden(event.getItem().getType())) {
             event.setCancelled(true);
         }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onInteractEntity(PlayerInteractEntityEvent event) {
+        if (isFrozen(event.getPlayer())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onSwapHands(PlayerSwapHandItemsEvent event) {
+        if (isFrozen(event.getPlayer())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCommand(PlayerCommandPreprocessEvent event) {
+        if (isFrozen(event.getPlayer())) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§bEstás congelado y no podés actuar.");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent event) {
+        FrozenPlayerState state = frozenPlayers.get(event.getPlayer().getUniqueId());
+        if (state == null || event.getTo() == null) {
+            return;
+        }
+        Location locked = state.location();
+        Location destination = event.getTo();
+        if (!destination.getWorld().equals(locked.getWorld())
+            || destination.getX() != locked.getX()
+            || destination.getY() != locked.getY()
+            || destination.getZ() != locked.getZ()
+            || destination.getYaw() != locked.getYaw()
+            || destination.getPitch() != locked.getPitch()) {
+            event.setTo(locked.clone());
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSneak(PlayerToggleSneakEvent event) {
+        if (service.phase() != EndEventPhase.HUNT) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (!service.eggCarrier().equals(Optional.of(player.getUniqueId()))) {
+            return;
+        }
+        if (!event.isSneaking()) {
+            clearFakeGlow(player);
+            return;
+        }
+        List<Player> targets = service.survivors().stream()
+            .filter(id -> !id.equals(player.getUniqueId()))
+            .map(Bukkit::getPlayer)
+            .filter(java.util.Objects::nonNull)
+            .toList();
+        applyFakeGlow(player, targets);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -712,8 +871,14 @@ public final class EndEventRuntime implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onProjectile(ProjectileLaunchEvent event) {
-        if (!(event.getEntity().getShooter() instanceof Player player)
-            || !potionsLocked() || !service.isSurvivor(player.getUniqueId())) {
+        if (!(event.getEntity().getShooter() instanceof Player player)) {
+            return;
+        }
+        if (isFrozen(player)) {
+            event.setCancelled(true);
+            return;
+        }
+        if (!potionsLocked() || !service.isSurvivor(player.getUniqueId())) {
             return;
         }
         if (event.getEntity() instanceof ThrownPotion
@@ -811,6 +976,21 @@ public final class EndEventRuntime implements Listener {
         persistRuntime();
     }
 
+    private void discoverEggBlock() {
+        if (service.phase() != EndEventPhase.EGG_AVAILABLE || eggBlock != null) {
+            return;
+        }
+        Location vanilla = findVanillaEggBlock();
+        if (vanilla != null) {
+            eggBlock = from(vanilla);
+            persistRuntime();
+        }
+    }
+
+    private boolean isEventEggOnGround() {
+        return findGroundEgg().isPresent();
+    }
+
     private void reconcileEgg() {
         Optional<Player> carrier = findEggCarrier();
         if (carrier.isPresent()) {
@@ -849,6 +1029,17 @@ public final class EndEventRuntime implements Listener {
                 return;
             }
             eggBlock = null;
+        }
+        if (service.phase() == EndEventPhase.EGG_AVAILABLE) {
+            Optional<Item> untagged = findUntaggedDragonEgg();
+            if (untagged.isPresent()) {
+                Item egg = untagged.orElseThrow();
+                tagEgg(egg.getItemStack());
+                tagDrop(egg.getItemStack(), null);
+                missingEggHeartbeats = 0;
+                persistRuntime();
+                return;
+            }
         }
         Location vanilla = findVanillaEggBlock();
         if (vanilla != null) {
@@ -1006,32 +1197,193 @@ public final class EndEventRuntime implements Listener {
         }
     }
 
+    private void refreshHunterWallhack() {
+        Player hunter = service.eggCarrier().map(Bukkit::getPlayer).orElse(null);
+        if (hunter == null || !hunter.isSneaking()) {
+            clearFakeGlow(hunter);
+            return;
+        }
+        List<Player> targets = service.survivors().stream()
+            .filter(id -> !id.equals(hunter.getUniqueId()))
+            .map(Bukkit::getPlayer)
+            .filter(java.util.Objects::nonNull)
+            .toList();
+        applyFakeGlow(hunter, targets);
+    }
+
     private void applyFakeGlow(Player hunter, List<Player> targets) {
         Set<UUID> next = targets.stream().map(Player::getUniqueId).collect(java.util.stream.Collectors.toSet());
         for (UUID old : new HashSet<>(fakeGlowTargets)) {
             if (!next.contains(old)) {
                 Player target = Bukkit.getPlayer(old);
                 if (target != null) {
-                    hunter.sendPotionEffectChangeRemove(target, PotionEffectType.GLOWING);
+                    entityGlowSender.send(hunter, target, target.isGlowing());
                 }
                 fakeGlowTargets.remove(old);
             }
         }
         for (Player target : targets) {
-            hunter.sendPotionEffectChange(target,
-                new PotionEffect(PotionEffectType.GLOWING, 40, 0, false, false, false));
+            entityGlowSender.send(hunter, target, true);
             fakeGlowTargets.add(target.getUniqueId());
         }
     }
 
     private void clearFakeGlow(Player hunter) {
+        Player viewer = hunter;
+        if (viewer == null && visualHunter != null) {
+            viewer = Bukkit.getPlayer(visualHunter);
+        }
         for (UUID id : new HashSet<>(fakeGlowTargets)) {
             Player target = Bukkit.getPlayer(id);
-            if (target != null) {
-                hunter.sendPotionEffectChangeRemove(target, PotionEffectType.GLOWING);
+            if (viewer != null && target != null) {
+                entityGlowSender.send(viewer, target, target.isGlowing());
             }
         }
         fakeGlowTargets.clear();
+    }
+
+    private void activateHunterDropFreeze(Player hunter) {
+        Instant now = clock.instant();
+        if (!HunterDropFreezePolicy.isReady(hunterDropFreezeReadyAt, now)) {
+            hunter.sendMessage("§cCongelación en cooldown: §f"
+                + HunterDropFreezePolicy.remainingSeconds(hunterDropFreezeReadyAt, now) + "s");
+            return;
+        }
+        List<Player> targets = service.survivors().stream()
+            .filter(id -> !id.equals(hunter.getUniqueId()))
+            .map(Bukkit::getPlayer)
+            .filter(java.util.Objects::nonNull)
+            .filter(target -> target.getWorld().equals(hunter.getWorld()))
+            .filter(target -> HunterDropFreezePolicy.isInRangeSquared(
+                target.getLocation().distanceSquared(hunter.getLocation())
+            ))
+            .toList();
+        if (targets.isEmpty()) {
+            hunter.sendMessage("§7No había supervivientes a 25 bloques para congelar.");
+            return;
+        }
+
+        hunterDropFreezeReadyAt = HunterDropFreezePolicy.nextUseAt(now);
+        Instant expiresAt = now.plus(HunterDropFreezePolicy.FREEZE_DURATION);
+        for (Player target : targets) {
+            freezePlayer(target, expiresAt);
+        }
+        hunter.sendMessage("§bCongelaste a §f" + targets.size()
+            + " §bjugador(es) durante 5s. Cooldown: 65s.");
+    }
+
+    private void freezePlayer(Player player, Instant expiresAt) {
+        FrozenPlayerState existing = frozenPlayers.get(player.getUniqueId());
+        if (existing != null) {
+            frozenPlayers.put(player.getUniqueId(), existing.withExpiresAt(expiresAt));
+            return;
+        }
+
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        Team previousTeam = scoreboard.getEntryTeam(player.getName());
+        Team freezeTeam = ensureFrozenGlowTeam(scoreboard);
+        FrozenPlayerState state = new FrozenPlayerState(
+            player.getName(),
+            player.getLocation().clone(),
+            expiresAt,
+            player.isGlowing(),
+            previousTeam == null ? null : previousTeam.getName(),
+            player.getPotionEffect(PotionEffectType.BLINDNESS)
+        );
+        frozenPlayers.put(player.getUniqueId(), state);
+        freezeTeam.addEntry(player.getName());
+        player.setGlowing(true);
+        player.addPotionEffect(new PotionEffect(
+            PotionEffectType.BLINDNESS,
+            (int) HunterDropFreezePolicy.FREEZE_DURATION.toSeconds() * 20 + 5,
+            0,
+            false,
+            false,
+            false
+        ));
+        player.sendMessage("§bEl huevo te congeló durante 5 segundos.");
+    }
+
+    private Team ensureFrozenGlowTeam(Scoreboard scoreboard) {
+        if (frozenGlowTeam == null) {
+            frozenGlowTeam = scoreboard.getTeam("bc_end_frozen");
+            if (frozenGlowTeam == null) {
+                frozenGlowTeam = scoreboard.registerNewTeam("bc_end_frozen");
+            }
+            frozenGlowTeam.color(NamedTextColor.AQUA);
+        }
+        return frozenGlowTeam;
+    }
+
+    private void tickFrozenPlayers(Instant now) {
+        fastTickSequence++;
+        for (Map.Entry<UUID, FrozenPlayerState> entry
+            : new ArrayList<>(frozenPlayers.entrySet())) {
+            if (!now.isBefore(entry.getValue().expiresAt())) {
+                thawPlayer(entry.getKey(), entry.getValue());
+                continue;
+            }
+            Player player = Bukkit.getPlayer(entry.getKey());
+            if (player != null && player.isOnline() && fastTickSequence % 2 == 0) {
+                spawnFreezeParticles(player);
+            }
+        }
+    }
+
+    private void spawnFreezeParticles(Player player) {
+        Location center = player.getLocation().clone().add(0.0, 1.0, 0.0);
+        Particle.DustOptions blue = new Particle.DustOptions(Color.AQUA, 1.2f);
+        for (int index = 0; index < 12; index++) {
+            double angle = index * Math.PI * 2.0 / 12.0 + fastTickSequence * 0.12;
+            Location particle = center.clone().add(
+                Math.cos(angle) * 0.9,
+                (index % 4) * 0.45 - 0.6,
+                Math.sin(angle) * 0.9
+            );
+            player.getWorld().spawnParticle(Particle.DUST, particle, 1, blue);
+        }
+    }
+
+    private void thawPlayer(UUID playerId, FrozenPlayerState state) {
+        frozenPlayers.remove(playerId);
+        Player player = Bukkit.getPlayer(playerId);
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        if (frozenGlowTeam != null) {
+            frozenGlowTeam.removeEntry(player == null ? state.playerName() : player.getName());
+        }
+        if (state.previousTeamName() != null) {
+            Team previous = scoreboard.getTeam(state.previousTeamName());
+            if (previous != null) {
+                previous.addEntry(player == null ? state.playerName() : player.getName());
+            }
+        }
+        if (player != null) {
+            player.setGlowing(state.originalGlowing());
+            player.removePotionEffect(PotionEffectType.BLINDNESS);
+            if (state.originalBlindness() != null) {
+                player.addPotionEffect(state.originalBlindness());
+            }
+            player.sendMessage("§aYa podés moverte.");
+        }
+        unregisterFrozenTeamIfEmpty();
+    }
+
+    private void clearFrozenPlayers() {
+        for (Map.Entry<UUID, FrozenPlayerState> entry
+            : new ArrayList<>(frozenPlayers.entrySet())) {
+            thawPlayer(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private void unregisterFrozenTeamIfEmpty() {
+        if (frozenGlowTeam != null && frozenPlayers.isEmpty()) {
+            frozenGlowTeam.unregister();
+            frozenGlowTeam = null;
+        }
+    }
+
+    private boolean isFrozen(Player player) {
+        return frozenPlayers.containsKey(player.getUniqueId());
     }
 
     private void checkWinner() {
@@ -1051,6 +1403,7 @@ public final class EndEventRuntime implements Listener {
         }
         winner = player.getUniqueId();
         banAt = clock.instant().plusSeconds(settings.finalBanDelaySeconds());
+        victoryFireworkTick = 0;
         service.setPhase(EndEventPhase.VICTORY);
         clearPresentation();
         setBorderFinal();
@@ -1063,30 +1416,40 @@ public final class EndEventRuntime implements Listener {
         for (Player viewer : Bukkit.getOnlinePlayers()) {
             viewer.sendTitle("§6¡Felicitaciones, " + player.getName() + "!", "§eÚltimo superviviente", 10, 120, 20);
         }
-        for (int index = 0; index < 8; index++) {
-            int step = index;
-            registrations.scheduleDelayed("end-event-firework-" + index,
-                () -> spawnFirework(player, step), index * 10L);
+    }
+
+    private void tickVictoryFireworks() {
+        if (winner == null) {
+            return;
+        }
+        Player player = Bukkit.getPlayer(winner);
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+        int tick = victoryFireworkTick++;
+        for (int i = 0; i < 3; i++) {
+            double angle = tick * 0.4 + i * (Math.PI * 2.0 / 3.0);
+            double radius = 3.0 + (tick % 5) * 0.4;
+            Location loc = player.getLocation().clone()
+                .add(Math.cos(angle) * radius, 1.0 + (tick % 3), Math.sin(angle) * radius);
+            spawnVictoryFirework(loc, tick + i);
         }
     }
 
-    private void spawnFirework(Player player, int step) {
-        if (!player.isOnline()) {
-            return;
-        }
-        double angle = step * Math.PI / 4.0;
-        Location location = player.getLocation().clone().add(Math.cos(angle) * 3.0, 1.0, Math.sin(angle) * 3.0);
+    private void spawnVictoryFirework(Location location, int seed) {
         Firework firework = location.getWorld().spawn(location, Firework.class);
         firework.getPersistentDataContainer().set(fireworkKey, PersistentDataType.BYTE, (byte) 1);
+        FireworkEffect.Type type = FIREWORK_TYPES[seed % FIREWORK_TYPES.length];
+        Color[] palette = FIREWORK_PALETTES[seed % FIREWORK_PALETTES.length];
         FireworkMeta meta = firework.getFireworkMeta();
         meta.addEffect(FireworkEffect.builder()
-            .withColor(Color.YELLOW, Color.ORANGE, Color.PURPLE)
-            .withFade(Color.WHITE)
-            .flicker(true)
-            .trail(true)
-            .with(FireworkEffect.Type.BALL_LARGE)
+            .withColor(palette[0], palette[1])
+            .withFade(palette[2])
+            .flicker(seed % 3 == 0)
+            .trail(seed % 2 == 0)
+            .with(type)
             .build());
-        meta.setPower(1);
+        meta.setPower(1 + (seed % 2));
         firework.setFireworkMeta(meta);
     }
 
@@ -1384,6 +1747,18 @@ public final class EndEventRuntime implements Listener {
         return Optional.empty();
     }
 
+    private Optional<Item> findUntaggedDragonEgg() {
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity entity : world.getEntities()) {
+                if (entity instanceof Item item && item.getItemStack().getType() == Material.DRAGON_EGG
+                    && !isEventEgg(item.getItemStack())) {
+                    return Optional.of(item);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     private Location eventEggLocation() {
         Optional<Player> carrier = findEggCarrier();
         if (carrier.isPresent()) {
@@ -1587,7 +1962,7 @@ public final class EndEventRuntime implements Listener {
         personalBars.values().forEach(BossBar::removeAll);
         personalBars.clear();
         updateVisualHunter(null);
-        fakeGlowTargets.clear();
+        clearFakeGlow(null);
     }
 
     private void persistRuntime() {
@@ -1675,5 +2050,25 @@ public final class EndEventRuntime implements Listener {
     private void notifyOperators(String message) {
         plugin.getLogger().warning(org.bukkit.ChatColor.stripColor(message));
         Bukkit.getOnlinePlayers().stream().filter(Player::isOp).forEach(player -> player.sendMessage(message));
+    }
+
+    private record FrozenPlayerState(
+        String playerName,
+        Location location,
+        Instant expiresAt,
+        boolean originalGlowing,
+        String previousTeamName,
+        PotionEffect originalBlindness
+    ) {
+        private FrozenPlayerState withExpiresAt(Instant nextExpiresAt) {
+            return new FrozenPlayerState(
+                playerName,
+                location,
+                nextExpiresAt,
+                originalGlowing,
+                previousTeamName,
+                originalBlindness
+            );
+        }
     }
 }

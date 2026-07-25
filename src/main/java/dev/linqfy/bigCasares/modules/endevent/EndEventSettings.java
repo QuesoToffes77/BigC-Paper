@@ -40,7 +40,7 @@ public record EndEventSettings(
             config.getString(PREFIX + "overworld", "world"),
             config.getInt(PREFIX + "minimum-players", 5),
             config.getInt(PREFIX + "stronghold-search-radius-chunks", 512),
-            config.getInt(PREFIX + "final-ban-delay-seconds", 10)
+            config.getInt(PREFIX + "final-ban-delay-seconds", 60)
         );
     }
 
