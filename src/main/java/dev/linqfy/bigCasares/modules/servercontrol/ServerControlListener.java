@@ -53,7 +53,7 @@ public final class ServerControlListener implements Listener {
         if (event.getTo() == null || event.getTo().getWorld().getEnvironment() != World.Environment.THE_END) {
             return;
         }
-        if (module.service().state().endAccessEnabled() || module.canBypassRestrictions(event.getPlayer())) {
+        if (module.effectiveEndAccess(event.getPlayer())) {
             return;
         }
         event.setCancelled(true);

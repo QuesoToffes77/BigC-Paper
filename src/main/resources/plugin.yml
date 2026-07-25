@@ -85,6 +85,10 @@ commands:
     description: Start a bossbar timer
     usage: /<command> <seconds> [title]
     permission: bigcasares.command.timer
+  endevent:
+    description: Manage and debug the one-shot End event
+    usage: /<command> <status|validate|optin|portal|arm|abort|reset|debug>
+    permission: bigcasares.endevent.admin
   warp:
     description: Opens the warp menu or manages warps
     usage: /<command> [manage]
@@ -120,11 +124,16 @@ permissions:
       bigcasares.boss.spawn: true
       bigcasares.mobscaling.admin: true
       bigcasares.command.timer: true
+      bigcasares.endevent.admin: true
       bigcasares.danger.view: true
       bigcasares.danger.view.others: true
 
   bigcasares.command.timer:
     description: Start a bossbar timer
+    default: op
+
+  bigcasares.endevent.admin:
+    description: Manage and debug the End event
     default: op
 
   bigcasares.warp.use:
