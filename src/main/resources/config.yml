@@ -23,6 +23,8 @@ modules:
     enabled: true
   server-control-system:
     enabled: true
+  end-event-system:
+    enabled: true
   moderation-system:
     enabled: true
   discord-integration:
@@ -32,6 +34,14 @@ server-control-system:
   vanish:
     fake-join-message: "§e%player% se unió al servidor"
     fake-leave-message: "§e%player% salió del servidor"
+
+end-event-system:
+  event-date: "2026-07-25"
+  timezone: "America/Argentina/Buenos_Aires"
+  overworld: "world"
+  minimum-players: 5
+  stronghold-search-radius-chunks: 512
+  final-ban-delay-seconds: 10
 
 moderation-system:
   score-window-seconds: 60

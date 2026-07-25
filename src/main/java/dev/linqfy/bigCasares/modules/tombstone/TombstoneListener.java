@@ -14,19 +14,29 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 public final class TombstoneListener implements Listener {
     private final TombstoneRuntime runtime;
     private final BukkitRuntimeRegistrations registrations;
+    private final Predicate<UUID> deathCaptureEligibility;
 
-    public TombstoneListener(TombstoneRuntime runtime, BukkitRuntimeRegistrations registrations) {
+    public TombstoneListener(
+        TombstoneRuntime runtime,
+        BukkitRuntimeRegistrations registrations,
+        Predicate<UUID> deathCaptureEligibility
+    ) {
         this.runtime = runtime;
         this.registrations = registrations;
+        this.deathCaptureEligibility = deathCaptureEligibility;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
+        if (!deathCaptureEligibility.test(player.getUniqueId())) {
+            return;
+        }
         List<ItemStack> items = snapshot(player);
         
         StringBuilder logMessage = new StringBuilder("Inventario de " + player.getName() + " antes de morir:\n");

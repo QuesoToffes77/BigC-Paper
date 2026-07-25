@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -42,6 +43,7 @@ public final class ServerControlModule implements PluginModule {
     private BukkitRuntimeRegistrations registrations;
     private RuntimeRegistrationScope compatibilityScope;
     private boolean resistanceStopped;
+    private Optional<Boolean> eventEndAccessOverride = Optional.empty();
 
     public ServerControlModule(BigCasares plugin, AuditSink audit, Consumer<AbuseSignal> signalConsumer) {
         this(plugin, audit, signalConsumer, null);
@@ -148,6 +150,20 @@ public final class ServerControlModule implements PluginModule {
 
     public boolean canBypassRestrictions(Player player) {
         return player.isOp() && vanish.isVanished(player);
+    }
+
+    public boolean effectiveEndAccess(Player player) {
+        if (eventEndAccessOverride.isPresent() && player.isOp()) {
+            return true;
+        }
+        if (canBypassRestrictions(player)) {
+            return true;
+        }
+        return eventEndAccessOverride.orElseGet(() -> service.state().endAccessEnabled());
+    }
+
+    public void setEventEndAccessOverride(Optional<Boolean> override) {
+        this.eventEndAccessOverride = override == null ? Optional.empty() : override;
     }
 
     public void setTimedPvp(Player actor, boolean enabled, Duration duration) {
@@ -349,6 +365,7 @@ public final class ServerControlModule implements PluginModule {
         resistanceStopped = true;
         vanish = null;
         service = null;
+        eventEndAccessOverride = Optional.empty();
         resetExternalCallbacks();
     }
 

@@ -7,12 +7,15 @@ import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.UUID;
+import java.util.function.Predicate;
 import org.bukkit.entity.Player;
 
 public final class TombstoneModule implements PluginModule {
     private final BigCasares plugin;
     private TombstoneRuntime runtime;
     private RuntimeRegistrationScope compatibilityScope;
+    private Predicate<UUID> deathCaptureEligibility = ignored -> true;
 
     public TombstoneModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -36,7 +39,8 @@ public final class TombstoneModule implements PluginModule {
             new YamlTombstoneStorage(plugin.getDataFolder().toPath().resolve("data/tombstones/tombstones.yml")),
             Clock.systemUTC(), Duration.ofSeconds(lifetimeSeconds), registrations
         );
-        registrations.registerListener("tombstone-listener", new TombstoneListener(runtime, registrations));
+        registrations.registerListener("tombstone-listener",
+            new TombstoneListener(runtime, registrations, this::shouldCaptureDeath));
         runtime.load();
         scope.register("tombstone-runtime", () -> {
             if (runtime != null) runtime.shutdown();
@@ -54,5 +58,13 @@ public final class TombstoneModule implements PluginModule {
     public boolean openNearby(Player player, double radius) {
         TombstoneRuntime current = runtime;
         return current != null && current.openNearby(player, radius);
+    }
+
+    public void setDeathCaptureEligibility(Predicate<UUID> eligibility) {
+        deathCaptureEligibility = eligibility == null ? ignored -> true : eligibility;
+    }
+
+    private boolean shouldCaptureDeath(UUID playerId) {
+        return deathCaptureEligibility.test(playerId);
     }
 }

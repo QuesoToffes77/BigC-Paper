@@ -35,6 +35,7 @@ import dev.linqfy.bigCasares.modules.skillrating.SkillRatingModule;
 import dev.linqfy.bigCasares.modules.smokebomb.SmokeBombModule;
 import dev.linqfy.bigCasares.modules.teams.TeamModule;
 import dev.linqfy.bigCasares.modules.discord.DiscordIntegrationModule;
+import dev.linqfy.bigCasares.modules.endevent.EndEventModule;
 import dev.linqfy.bigCasares.modules.moderation.ModerationModule;
 import dev.linqfy.bigCasares.modules.servercontrol.ServerControlModule;
 import dev.linqfy.bigCasares.modules.servercontrol.VanishSessionRegistry;
@@ -79,6 +80,7 @@ public final class BigCasares extends JavaPlugin {
     private ModerationModule moderationModule;
     private ServerControlModule serverControlModule;
     private DiscordIntegrationModule discordIntegrationModule;
+    private EndEventModule endEventModule;
     private EmojiAliasService emojiAliasService;
     private final VanishSessionRegistry vanishSessionRegistry = new VanishSessionRegistry();
     private final ReloadCoordinator reloadCoordinator = new ReloadCoordinator();
@@ -198,6 +200,10 @@ public final class BigCasares extends JavaPlugin {
         return discordIntegrationModule;
     }
 
+    public EndEventModule getEndEventModule() {
+        return endEventModule;
+    }
+
     public EmojiAliasService getEmojiAliasService() {
         return emojiAliasService;
     }
@@ -315,6 +321,9 @@ public final class BigCasares extends JavaPlugin {
         this.serverControlModule = new ServerControlModule(
             this, moderationModule.audit(), moderationModule::acceptSignal, emojiAliasService
         );
+        this.endEventModule = new EndEventModule(this);
+        this.tombstoneModule.setDeathCaptureEligibility(playerId ->
+            endEventModule == null || !endEventModule.bypassTombstone(playerId));
         this.discordIntegrationModule = new DiscordIntegrationModule(
             this, moderationModule.audit(), serverControlModule, emojiAliasService
         );
@@ -344,6 +353,7 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(geyserIntegrationModule);
         moduleManager.register(moderationModule);
         moduleManager.register(serverControlModule);
+        moduleManager.register(endEventModule);
         moduleManager.register(discordIntegrationModule);
         return moduleManager.enableRegisteredModules(generation);
     }
@@ -479,6 +489,7 @@ public final class BigCasares extends JavaPlugin {
         mobScalingModule = null;
         moderationModule = null;
         serverControlModule = null;
+        endEventModule = null;
         discordIntegrationModule = null;
         emojiAliasService = null;
     }
