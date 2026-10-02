@@ -1,0 +1,24 @@
+id: potassium_nitrate
+mechanic: catalog-material
+material: SUGAR
+item-model: bigcasares:potassium_nitrate
+legacy-custom-model-data: 1009
+display:
+  translation-key: item.bigcasares.potassium_nitrate
+  fallback-name: "Nitrato de Potasio"
+  lore:
+    - "§7Compuesto quimico usado para fabricar polvora."
+    - "§8Item de catalogo sin mecanica propia."
+max-stack-size: 64
+recipe:
+  type: shapeless
+  key: potassium_nitrate_gunpowder_recipe
+  result-amount: 1
+  result-material: GUNPOWDER
+  ingredients:
+    - bigcasares:potassium_nitrate
+    - SUGAR
+    - COAL|CHARCOAL
+appearance:
+  java-item-definition: java/assets/bigcasares/items/potassium_nitrate.json
+  bedrock-texture: bedrock/textures/item/potassium_nitrate.png

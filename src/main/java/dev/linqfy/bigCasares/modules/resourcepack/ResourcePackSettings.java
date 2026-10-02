@@ -28,6 +28,7 @@ public record ResourcePackSettings(
                 ResourcePackPublisher.disabled(), EmbeddedPackHttpSettings.defaults());
         }
         ConfigurationSection publishing = section.getConfigurationSection("publishing");
+        boolean required = section.getBoolean("required", false);
         String mode = publishing == null ? "copy-only" : publishing.getString("mode", "copy-only");
         String publicUrl = publishing == null ? null : publishing.getString(
             "public-base-url", publishing.getString("public-url"));
@@ -35,10 +36,19 @@ public record ResourcePackSettings(
             ? "127.0.0.1" : publishing.getString("bind-address", "127.0.0.1");
         int port = publishing == null ? 8123 : publishing.getInt("port", 8123);
         int workerThreads = publishing == null ? 2 : publishing.getInt("worker-threads", 2);
+        // Older installations kept copy-only while also marking the pack as
+        // required. That combination can never deliver textures to clients,
+        // so preserve automatic delivery with the local embedded publisher.
+        if (required && "copy-only".equalsIgnoreCase(mode)) {
+            mode = "embedded-http";
+            if (publicUrl == null || publicUrl.isBlank()) {
+                publicUrl = "http://127.0.0.1:" + port + "/";
+            }
+        }
         java.net.URI publicBaseUri = publicUrl == null || publicUrl.isBlank()
             ? null : java.net.URI.create(publicUrl.trim());
         return new ResourcePackSettings(
-            section.getBoolean("required", false),
+            required,
             section.getBoolean("resend-on-version-change", true),
             section.getString("prompt-message", "Este servidor utiliza modelos, música e interfaces custom."),
             ResourcePackPublisher.create(mode, publicUrl),

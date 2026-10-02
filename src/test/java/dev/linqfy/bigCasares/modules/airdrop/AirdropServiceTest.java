@@ -23,7 +23,7 @@ class AirdropServiceTest {
 
     @BeforeEach
     void setUp() {
-        AirdropSettings settings = new AirdropSettings(30, RADIUS, DROP_HEIGHT);
+        AirdropSettings settings = new AirdropSettings(true, 30, RADIUS, DROP_HEIGHT);
         groundY = 64;
         gateway = new FakeWorldGateway(groundY, true, true, true);
         storage = new InMemoryAirdropStorage();
@@ -56,7 +56,7 @@ class AirdropServiceTest {
         groundY = 64;
         gateway = new FakeWorldGateway(groundY, false, true, true);
         storage = new InMemoryAirdropStorage();
-        AirdropSettings settings = new AirdropSettings(30, RADIUS, DROP_HEIGHT);
+        AirdropSettings settings = new AirdropSettings(true, 30, RADIUS, DROP_HEIGHT);
         service = new AirdropService(settings, gateway, storage, new Random(2L));
 
         Optional<AirdropData> result = service.spawnAirdrop();
@@ -67,7 +67,7 @@ class AirdropServiceTest {
     void retriesUntilValidLocationFound() {
         gateway = new CountdownGateway(3);
         storage = new InMemoryAirdropStorage();
-        AirdropSettings settings = new AirdropSettings(30, RADIUS, DROP_HEIGHT);
+        AirdropSettings settings = new AirdropSettings(true, 30, RADIUS, DROP_HEIGHT);
         service = new AirdropService(settings, gateway, storage, new Random(3L));
 
         Optional<AirdropData> result = service.spawnAirdrop();
@@ -79,7 +79,7 @@ class AirdropServiceTest {
         groundY = 64;
         gateway = new FakeWorldGateway(groundY, true, false, true);
         storage = new InMemoryAirdropStorage();
-        AirdropSettings settings = new AirdropSettings(30, RADIUS, DROP_HEIGHT);
+        AirdropSettings settings = new AirdropSettings(true, 30, RADIUS, DROP_HEIGHT);
         service = new AirdropService(settings, gateway, storage, new Random(4L));
 
         Optional<AirdropData> result = service.spawnAirdrop();
@@ -91,7 +91,7 @@ class AirdropServiceTest {
         groundY = 64;
         gateway = new FakeWorldGateway(groundY, true, true, false);
         storage = new InMemoryAirdropStorage();
-        AirdropSettings settings = new AirdropSettings(30, RADIUS, DROP_HEIGHT);
+        AirdropSettings settings = new AirdropSettings(true, 30, RADIUS, DROP_HEIGHT);
         service = new AirdropService(settings, gateway, storage, new Random(5L));
 
         Optional<AirdropData> result = service.spawnAirdrop();
@@ -200,7 +200,7 @@ class AirdropServiceTest {
     @Test
     void restoredActiveDropPreventsDuplicateSpawn() {
         storage.stored = new AirdropData(new AirdropPosition(0, 90, 0), AirdropType.HE, AirdropPhase.LANDED);
-        AirdropSettings settings = new AirdropSettings(30, RADIUS, DROP_HEIGHT);
+        AirdropSettings settings = new AirdropSettings(true, 30, RADIUS, DROP_HEIGHT);
         service = new AirdropService(settings, gateway, storage, new Random(6L));
 
         assertTrue(service.spawnAirdrop().isEmpty());
@@ -209,10 +209,40 @@ class AirdropServiceTest {
     @Test
     void restoredClaimedDropAllowsNewSpawn() {
         storage.stored = new AirdropData(new AirdropPosition(0, 90, 0), AirdropType.HE, AirdropPhase.CLAIMED);
-        AirdropSettings settings = new AirdropSettings(30, RADIUS, DROP_HEIGHT);
+        AirdropSettings settings = new AirdropSettings(true, 30, RADIUS, DROP_HEIGHT);
         service = new AirdropService(settings, gateway, storage, new Random(7L));
 
         assertTrue(service.spawnAirdrop().isPresent());
+    }
+
+    @Test
+    void spawnSelectsAndPersistsExactlyOneQualityAndResolvedLoot() {
+        AirdropData data = service.spawnAirdrop().orElseThrow();
+
+        assertNotNull(data.quality());
+        assertTrue(data.lootGenerated());
+        assertFalse(data.rewards().isEmpty());
+        assertEquals(data, storage.lastSaved);
+        assertEquals(data.rewards(), service.getLootForCurrent());
+    }
+
+    @Test
+    void readingLootTwiceDoesNotRegenerateIt() {
+        AirdropData data = service.spawnAirdrop().orElseThrow();
+
+        assertEquals(data.rewards(), service.getLootForCurrent());
+        assertEquals(data.rewards(), service.getLootForCurrent());
+        assertEquals(data, storage.lastSaved);
+    }
+
+    @Test
+    void claimingTwiceCannotDuplicateResolvedLoot() {
+        AirdropData spawned = service.spawnAirdrop().orElseThrow();
+        service.markLanded(new AirdropPosition(spawned.position().x(), groundY + 1, spawned.position().z()));
+
+        assertTrue(service.claim());
+        assertFalse(service.claim());
+        assertTrue(service.getLootForCurrent().isEmpty());
     }
 
     private static final class InMemoryAirdropStorage implements AirdropStorage {

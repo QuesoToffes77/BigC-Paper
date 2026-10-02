@@ -1,3 +1,9 @@
 entity.bigcasares:nexus.name=Nexus
 entity.bigcasares:abyss_guardian.name=Abyss Guardian
 entity.bigcasares:merchant.name=BigCasares Merchant
+item.bigcasares.glider_tier_1=Glider I
+item.bigcasares.glider_tier_2=Glider II
+item.bigcasares.glider_tier_3=Glider III
+item.bigcasares.glider_tier_4=Glider IV
+item.bigcasares.glider_tier_5=Glider V
+item.bigcasares.glider_tier_6=Glider VI

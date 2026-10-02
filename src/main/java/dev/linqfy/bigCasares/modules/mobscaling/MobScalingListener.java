@@ -20,12 +20,14 @@ public class MobScalingListener implements Listener {
     private final JavaPlugin plugin;
     private final MobScalingSettings settings;
     private final NamespacedKey scaledKey;
+    private final NamespacedKey customEntityKey;
     private final MobScalingMutations mutations;
 
     public MobScalingListener(JavaPlugin plugin, MobScalingSettings settings) {
         this.plugin = plugin;
         this.settings = settings;
         this.scaledKey = new NamespacedKey(plugin, "mob_scaled");
+        this.customEntityKey = new NamespacedKey(plugin, "custom_entity");
         this.mutations = new MobScalingMutations(plugin);
     }
 
@@ -36,6 +38,10 @@ public class MobScalingListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onCreatureSpawn(CreatureSpawnEvent event) {
         LivingEntity entity = event.getEntity();
+
+        if ("jeremy".equals(entity.getPersistentDataContainer().get(customEntityKey, PersistentDataType.STRING))) {
+            return;
+        }
 
         // Only scale Monsters and Trojan targets (Pig, Cow, etc.)
         boolean isMonster = entity instanceof Monster || entity instanceof Slime || entity instanceof Ghast || entity instanceof Phantom;

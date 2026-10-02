@@ -37,7 +37,10 @@ public final class CatalogItemStackFactory {
         Objects.requireNonNull(revision, "revision");
         Material material = resolveMaterial(definition.material());
         if (stack.getType() != material) {
-            return false;
+            if (!supportsMaterialMigration(definition.id(), stack.getType(), material)) {
+                return false;
+            }
+            stack.setType(material);
         }
         apply(stack, definition, revision, true);
         return true;
@@ -53,6 +56,7 @@ public final class CatalogItemStackFactory {
             throw new IllegalArgumentException("invalid item model: " + definition.itemModel());
         }
         meta.setItemModel(model);
+        meta.setMaxStackSize(definition.maxStackSize());
         if (!preservePresentation || isDefaultName(meta)) {
             setDisplayName(meta, definition.display());
         }
@@ -78,6 +82,12 @@ public final class CatalogItemStackFactory {
         meta.getPersistentDataContainer().set(defaultLoreKey, PersistentDataType.STRING,
             String.join("\u001f", definition.display().lore()));
         stack.setItemMeta(meta);
+    }
+
+    static boolean supportsMaterialMigration(String itemId, Material previous, Material target) {
+        return "nitric_acid".equals(itemId)
+            && previous == Material.POTION
+            && target == Material.GLASS_BOTTLE;
     }
 
     public NamespacedKey itemIdKey() {

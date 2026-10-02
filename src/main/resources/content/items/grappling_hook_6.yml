@@ -1,0 +1,24 @@
+id: grappling_hook_6
+mechanic: grappling-hook
+material: FISHING_ROD
+item-model: bigcasares:grappling_hook_6
+legacy-custom-model-data: 1017
+display:
+  translation-key: item.bigcasares.grappling_hook_6
+  fallback-name: "Ballesta Ark VI"
+  lore:
+    - "§7Alcance: §a200 bloques"
+    - "§7Cooldown: §a1.25s"
+max-stack-size: 1
+recipe:
+  key: grappling_hook_6_recipe
+  result-amount: 1
+  shape: ["EPE", "PEP", "EDH"]
+  ingredients:
+    E: EMERALD
+    P: DEEPSLATE_DIAMOND_ORE
+    D: DIAMOND
+    H: bigcasares:grappling_hook_5
+appearance:
+  java-item-definition: java/assets/bigcasares/items/grappling_hook_6.json
+  bedrock-texture: bedrock/textures/item/grappling_hook_6.png

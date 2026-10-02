@@ -3,6 +3,9 @@
   "texture_name": "atlas.items",
   "texture_data": {
     "bigcasares.copper_apple": {"textures": "textures/item/copper_apple"},
+    "bigcasares.copper_apple_exposed": {"textures": "textures/item/copper_apple_exposed"},
+    "bigcasares.copper_apple_weathered": {"textures": "textures/item/copper_apple_weathered"},
+    "bigcasares.copper_apple_oxidized": {"textures": "textures/item/copper_apple_oxidized"},
     "bigcasares.smoke_bomb": {"textures": "textures/item/smoke_bomb"},
     "bigcasares.prismarine_arrow": {"textures": "textures/item/prismarine_arrow"},
     "bigcasares.echo_arrow": {"textures": "textures/item/echo_arrow"},
@@ -13,6 +16,21 @@
     "bigcasares.crossbow_echo_shard": {"textures": "textures/item/crossbow_echo_shard"},
     "bigcasares.crossbow_ender_pearl": {"textures": "textures/item/crossbow_ender_pearl"},
     "bigcasares.crossbow_firework_rocket": {"textures": "textures/item/crossbow_firework_rocket"},
-    "bigcasares.sahurs_bat": {"textures": "textures/item/sahurs_bat"}
+    "bigcasares.sahurs_bat": {"textures": "textures/item/sahurs_bat"},
+    "bigcasares.potassium_nitrate": {"textures": "textures/item/potassium_nitrate"},
+    "bigcasares.nitric_acid": {"textures": "textures/item/nitric_acid"},
+    "bigcasares.grappling_hook_1": {"textures": "textures/item/grappling_hook_1"},
+    "bigcasares.grappling_hook_2": {"textures": "textures/item/grappling_hook_2"},
+    "bigcasares.grappling_hook_3": {"textures": "textures/item/grappling_hook_3"},
+    "bigcasares.grappling_hook_4": {"textures": "textures/item/grappling_hook_4"},
+    "bigcasares.grappling_hook_5": {"textures": "textures/item/grappling_hook_5"},
+    "bigcasares.grappling_hook_6": {"textures": "textures/item/grappling_hook_6"},
+    "bigcasares.grappling_hook_crossbow": {"textures": "textures/item/grappling_hook_crossbow"},
+    "bigcasares.glider_tier_1": {"textures": "textures/item/glider_tier_1"},
+    "bigcasares.glider_tier_2": {"textures": "textures/item/glider_tier_2"},
+    "bigcasares.glider_tier_3": {"textures": "textures/item/glider_tier_3"},
+    "bigcasares.glider_tier_4": {"textures": "textures/item/glider_tier_4"},
+    "bigcasares.glider_tier_5": {"textures": "textures/item/glider_tier_5"},
+    "bigcasares.glider_tier_6": {"textures": "textures/item/glider_tier_6"}
   }
 }

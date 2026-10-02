@@ -39,6 +39,25 @@ commands:
     description: Airdrop management command
     usage: /<command> spawn
     permission: bigcasares.airdrop.spawn
+  acidrain:
+    description: Manage the Acid Rain environmental event
+    usage: /<command> <start|stop|reload|info> [acid|toxic|chemical]
+    aliases: [ acid-rain ]
+    permission: bigcasares.acidrain.admin
+  bloodmoon:
+    description: Manage the Blood Moon environmental event
+    usage: /<command> <start|stop|status> [world|all]
+    aliases: [ blood-moon ]
+    permission: bigcasares.bloodmoon.admin
+  jeremy:
+    description: Manage the Jeremy hunter
+    usage: /<command> <status|start [player]|stop|cooldown reset>
+    permission: bigcasares.jeremy.admin
+  glider:
+    description: Give one of the six BigCasares Glider tiers
+    usage: /<command> give <1-6> [player] [amount]
+    aliases: [ planeador ]
+    permission: bigcasares.glider.give
   team:
     description: Create, join and manage BigCasares teams
     usage: /<command> <create|invite|join|leave|kick|dissolve|tag|color|appearance>
@@ -127,6 +146,18 @@ permissions:
       bigcasares.endevent.admin: true
       bigcasares.danger.view: true
       bigcasares.danger.view.others: true
+      bigcasares.acidrain.admin: true
+      bigcasares.acidrain.start: true
+      bigcasares.acidrain.stop: true
+      bigcasares.acidrain.reload: true
+      bigcasares.bloodmoon.admin: true
+      bigcasares.bloodmoon.start: true
+      bigcasares.bloodmoon.stop: true
+      bigcasares.jeremy.admin: true
+      bigcasares.jeremy.start: true
+      bigcasares.jeremy.stop: true
+      bigcasares.glider.admin: true
+      bigcasares.glider.give: true
 
   bigcasares.command.timer:
     description: Start a bossbar timer
@@ -208,6 +239,70 @@ permissions:
   
   bigcasares.airdrop.spawn:
     description: Spawn airdrop manually
+    default: op
+
+  bigcasares.acidrain.admin:
+    description: Full Acid Rain administration
+    default: op
+    children:
+      bigcasares.acidrain.start: true
+      bigcasares.acidrain.stop: true
+      bigcasares.acidrain.reload: true
+
+  bigcasares.acidrain.start:
+    description: Start Acid Rain manually
+    default: op
+
+  bigcasares.acidrain.stop:
+    description: Stop Acid Rain manually
+    default: op
+
+  bigcasares.acidrain.reload:
+    description: Reload Acid Rain configuration
+    default: op
+
+  bigcasares.acidrain.bypass:
+    description: Ignore Acid Rain damage, effects and temporary contamination
+    default: false
+
+  bigcasares.bloodmoon.admin:
+    description: Full Blood Moon administration
+    default: op
+    children:
+      bigcasares.bloodmoon.start: true
+      bigcasares.bloodmoon.stop: true
+
+  bigcasares.bloodmoon.start:
+    description: Start Blood Moon manually
+    default: op
+
+  bigcasares.bloodmoon.stop:
+    description: Stop Blood Moon manually
+    default: op
+
+  bigcasares.jeremy.admin:
+    description: Full Jeremy administration
+    default: op
+    children:
+      bigcasares.jeremy.start: true
+      bigcasares.jeremy.stop: true
+
+  bigcasares.jeremy.start:
+    description: Start a Jeremy hunt manually
+    default: op
+
+  bigcasares.jeremy.stop:
+    description: Stop the active Jeremy hunt
+    default: op
+
+  bigcasares.glider.admin:
+    description: Full Glider administration
+    default: op
+    children:
+      bigcasares.glider.give: true
+
+  bigcasares.glider.give:
+    description: Give BigCasares Gliders to players
     default: op
 
   bigcasares.team.appearance:

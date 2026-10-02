@@ -1,0 +1,23 @@
+id: glider_tier_2
+mechanic: glider
+material: PHANTOM_MEMBRANE
+item-model: bigcasares:glider_tier_2
+legacy-custom-model-data: 1019
+display:
+  translation-key: item.bigcasares.glider_tier_2
+  fallback-name: "Glider II"
+  lore:
+    - "§7Estructura reforzada y mayor control"
+    - "§7Equipar en la mano principal o secundaria"
+max-stack-size: 1
+recipe:
+  key: glider_tier_2_recipe
+  result-amount: 1
+  shape: ["PCP", "CGC", "PCP"]
+  ingredients:
+    P: PHANTOM_MEMBRANE
+    C: COPPER_INGOT
+    G: bigcasares:glider_tier_1
+appearance:
+  java-item-definition: java/assets/bigcasares/items/glider_tier_2.json
+  bedrock-texture: bedrock/textures/item/glider_tier_2.png

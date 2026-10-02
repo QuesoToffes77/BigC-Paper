@@ -24,7 +24,7 @@ public final class CatalogRecipeRuntime {
         allKeys.forEach(gateway::remove);
         try {
             for (ActiveRecipe recipe : desired.values()) {
-                if (!gateway.register(recipe.key(), recipe.result(), recipe.recipe(), candidate.revision())) {
+                if (!gateway.register(recipe.key(), recipe.recipe(), recipe.catalog())) {
                     throw new IllegalStateException("could not register catalog recipe: " + recipe.key());
                 }
             }
@@ -33,7 +33,7 @@ public final class CatalogRecipeRuntime {
             desired.keySet().forEach(gateway::remove);
             try {
                 for (ActiveRecipe recipe : previous.values()) {
-                    if (!gateway.register(recipe.key(), recipe.result(), recipe.recipe(), recipe.catalogRevision())) {
+                    if (!gateway.register(recipe.key(), recipe.recipe(), recipe.catalog())) {
                         throw new IllegalStateException("could not restore catalog recipe: " + recipe.key());
                     }
                 }
@@ -62,7 +62,7 @@ public final class CatalogRecipeRuntime {
         for (CustomItemDefinition definition : catalog.definitions().values()) {
             definition.recipeDefinition().ifPresent(recipe -> {
                 ActiveRecipe prior = recipes.put(recipe.key(), new ActiveRecipe(
-                    recipe.key(), definition, recipe, catalog.revision()
+                    recipe.key(), recipe, catalog
                 ));
                 if (prior != null) {
                     throw new IllegalArgumentException("duplicate catalog recipe key: " + recipe.key());
@@ -74,9 +74,8 @@ public final class CatalogRecipeRuntime {
 
     private record ActiveRecipe(
         String key,
-        CustomItemDefinition result,
         ItemRecipeDefinition recipe,
-        String catalogRevision
+        CustomItemCatalog catalog
     ) {
     }
 }

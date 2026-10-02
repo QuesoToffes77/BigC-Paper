@@ -13,6 +13,7 @@ public final class CopperAppleModule implements PluginModule {
     private final NamespacedKey recipeKey;
 
     private CopperAppleItem copperAppleItem;
+    private CopperAppleOxidationService oxidationService;
     private RuntimeRegistrationScope compatibilityScope;
 
     public CopperAppleModule(BigCasares plugin) {
@@ -36,11 +37,28 @@ public final class CopperAppleModule implements PluginModule {
     @Override
     public void onEnable(RuntimeRegistrationScope scope) {
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
-        this.copperAppleItem = new CopperAppleItem(plugin.getCustomItemRegistry(), itemKey);
+        CopperAppleSettings settings = CopperAppleSettings.load(plugin.getConfig());
+        this.oxidationService = new CopperAppleOxidationService(plugin.getCustomItemRegistry(), settings);
+        this.copperAppleItem = new CopperAppleItem(
+            plugin.getCustomItemRegistry(), itemKey, oxidationService);
         plugin.getCustomItemRegistry().register(copperAppleItem);
         scope.register("custom-item", () -> plugin.getCustomItemRegistry().unregister(CopperAppleItem.ID));
 
         registrations.registerListener("craft-listener", new CopperAppleCraftListener(recipeKey, copperAppleItem));
+        registrations.registerListener(
+            "consume-listener",
+            new CopperAppleConsumeListener(copperAppleItem, settings.consumeCooldownMillis())
+        );
+        registrations.registerListener(
+            "oxidation-listener",
+            new CopperAppleOxidationListener(oxidationService)
+        );
+        registrations.scheduleRepeating(
+            "oxidation-scan",
+            () -> oxidationService.refreshOnlinePlayers(plugin.getServer().getOnlinePlayers()),
+            settings.scanIntervalTicks(),
+            settings.scanIntervalTicks()
+        );
     }
 
     @Override
@@ -51,6 +69,7 @@ public final class CopperAppleModule implements PluginModule {
             scope.close();
         }
         copperAppleItem = null;
+        oxidationService = null;
     }
 
 }

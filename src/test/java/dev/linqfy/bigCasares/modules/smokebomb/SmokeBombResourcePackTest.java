@@ -12,9 +12,9 @@ class SmokeBombResourcePackTest {
 
     @Test
     void resourcePackUsesDedicatedSmokeBombItemModel() throws IOException {
-        Path itemDefinition = Path.of("resourcepack", "assets", "bigcasares", "items", "smoke_bomb.json");
-        Path rawModel = Path.of("resourcepack", "assets", "bigcasares", "models", "item", "smoke_bomb.json");
-        Path texture = Path.of("resourcepack", "assets", "bigcasares", "textures", "item", "smoke_bomb.png");
+        Path itemDefinition = Path.of("resourcepack", "java", "assets", "bigcasares", "items", "smoke_bomb.json");
+        Path rawModel = Path.of("resourcepack", "java", "assets", "bigcasares", "models", "item", "smoke_bomb.json");
+        Path texture = Path.of("resourcepack", "java", "assets", "bigcasares", "textures", "item", "smoke_bomb.png");
 
         assertTrue(Files.exists(itemDefinition), "Missing items/smoke_bomb.json");
         assertTrue(Files.exists(rawModel), "Missing models/item/smoke_bomb.json");

@@ -1,7 +1,9 @@
 package dev.linqfy.bigCasares.items.catalog;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -11,15 +13,20 @@ public record ItemRecipeDefinition(
     RecipeType type,
     List<String> shape,
     Map<Character, String> ingredients,
-    List<String> shapelessIngredients
+    List<String> shapelessIngredients,
+    String resultMaterial
 ) {
 
     public ItemRecipeDefinition(String key, int resultAmount, List<String> shape, Map<Character, String> ingredients) {
-        this(key, resultAmount, RecipeType.SHAPED, shape, ingredients, List.of());
+        this(key, resultAmount, RecipeType.SHAPED, shape, ingredients, List.of(), null);
     }
 
     public static ItemRecipeDefinition shapeless(String key, int resultAmount, List<String> ingredients) {
-        return new ItemRecipeDefinition(key, resultAmount, RecipeType.SHAPELESS, List.of(), Map.of(), ingredients);
+        return new ItemRecipeDefinition(key, resultAmount, RecipeType.SHAPELESS, List.of(), Map.of(), ingredients, null);
+    }
+
+    public static ItemRecipeDefinition shapeless(String key, int resultAmount, List<String> ingredients, String resultMaterial) {
+        return new ItemRecipeDefinition(key, resultAmount, RecipeType.SHAPELESS, List.of(), Map.of(), ingredients, resultMaterial);
     }
 
     public ItemRecipeDefinition {
@@ -30,11 +37,12 @@ public record ItemRecipeDefinition(
         type = Objects.requireNonNull(type, "type");
         shape = List.copyOf(Objects.requireNonNull(shape, "shape"));
         shapelessIngredients = Objects.requireNonNull(shapelessIngredients, "shapelessIngredients").stream()
-            .map(ItemRecipeDefinition::normalizeMaterial).toList();
+            .map(ItemRecipeDefinition::normalizeIngredient).toList();
+        resultMaterial = normalizeResultMaterial(resultMaterial);
         Map<Character, String> normalizedIngredients = new LinkedHashMap<>();
         for (Map.Entry<Character, String> entry : Objects.requireNonNull(ingredients, "ingredients").entrySet()) {
             Character keyCharacter = Objects.requireNonNull(entry.getKey(), "ingredient key");
-            String material = normalizeMaterial(entry.getValue());
+            String material = normalizeIngredient(entry.getValue());
             if (keyCharacter == ' ') {
                 throw new IllegalArgumentException("recipe ingredients must use non-space keys");
             }
@@ -69,15 +77,53 @@ public record ItemRecipeDefinition(
     }
 
     private static String normalizeKey(String value) {
-        String normalized = Objects.requireNonNull(value, "key").trim().toLowerCase(java.util.Locale.ROOT);
+        String normalized = Objects.requireNonNull(value, "key").trim().toLowerCase(Locale.ROOT);
         if (!normalized.matches("[a-z0-9_./-]+")) {
             throw new IllegalArgumentException("recipe key is invalid: " + value);
         }
         return normalized;
     }
 
-    private static String normalizeMaterial(String value) {
-        String normalized = Objects.requireNonNull(value, "ingredient material").trim().toUpperCase(java.util.Locale.ROOT);
+    private static String normalizeResultMaterial(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if (!normalized.matches("[A-Z0-9_]+")) {
+            throw new IllegalArgumentException("recipe result material is invalid: " + value);
+        }
+        return normalized;
+    }
+
+    /**
+     * Normalizes one recipe ingredient. Supported syntax:
+     * <ul>
+     *   <li>a vanilla material: {@code SUGAR}, {@code COAL};</li>
+     *   <li>a choice of vanilla materials separated by {@code |}: {@code COAL|CHARCOAL};</li>
+     *   <li>a BigCasares catalog item reference: {@code bigcasares:potassium_nitrate}.</li>
+     * </ul>
+     */
+    private static String normalizeIngredient(String value) {
+        String trimmed = Objects.requireNonNull(value, "ingredient").trim();
+        if (trimmed.contains("|")) {
+            List<String> parts = new ArrayList<>();
+            for (String rawPart : trimmed.split("\\|")) {
+                String part = rawPart.trim();
+                if (part.isEmpty()) {
+                    throw new IllegalArgumentException("recipe ingredient choice is empty: " + value);
+                }
+                parts.add(normalizeIngredient(part));
+            }
+            return String.join("|", parts);
+        }
+        if (trimmed.contains(":")) {
+            String normalized = trimmed.toLowerCase(Locale.ROOT);
+            if (!normalized.matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) {
+                throw new IllegalArgumentException("custom recipe ingredient is invalid: " + value);
+            }
+            return normalized;
+        }
+        String normalized = trimmed.toUpperCase(Locale.ROOT);
         if (!normalized.matches("[A-Z0-9_]+")) {
             throw new IllegalArgumentException("recipe ingredient material is invalid: " + value);
         }

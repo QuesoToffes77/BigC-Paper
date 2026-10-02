@@ -11,19 +11,57 @@ import java.nio.file.Path;
 import java.util.List;
 
 public final class BetterModelAssetInstaller {
+
     private static final List<String> SAHUR_ASSETS = List.of(
         "boss_sahur.bbmodel",
         "bat_boss.bbmodel",
         "sakur.png"
     );
 
+    private static final List<String> SAHUR_MODEL_KEYS = List.of("boss_sahur", "bat_boss");
+
+    private static final List<String> BALLESTA_ASSETS = List.of(
+        "ballesta_arkbien_animado.bbmodel"
+    );
+
+    private static final List<String> BALLESTA_MODEL_KEYS = List.of("ballesta_arkbien_animado");
+
+    private static final List<String> TOXIC_MOB_ASSETS = List.of(
+        "toxic_mob.bbmodel",
+        "toxic_mob.png",
+        "toxic_brute.bbmodel",
+        "toxic_brute.png",
+        "toxic_spitter.bbmodel",
+        "toxic_spitter.png"
+    );
+
+    private static final List<String> TOXIC_MOB_MODEL_KEYS = List.of(
+        "toxic_mob", "toxic_brute", "toxic_spitter"
+    );
+
     private BetterModelAssetInstaller() { }
 
     public static void installSahurModels(JavaPlugin plugin) {
+        install(plugin, SAHUR_ASSETS, SAHUR_MODEL_KEYS, "Sahur");
+    }
+
+    public static void installBallestaModel(JavaPlugin plugin) {
+        install(plugin, BALLESTA_ASSETS, BALLESTA_MODEL_KEYS, "Ballesta Ark");
+    }
+
+    /**
+     * Installs the three independent BetterModel visuals used by the Acid
+     * Rain crawler, brute and spitter families.
+     */
+    public static void installToxicMobModel(JavaPlugin plugin) {
+        install(plugin, TOXIC_MOB_ASSETS, TOXIC_MOB_MODEL_KEYS, "Toxic Mobs");
+    }
+
+    private static void install(JavaPlugin plugin, List<String> assetNames, List<String> modelKeys, String label) {
         Path models = BetterModel.platform().dataFolder().toPath().resolve("models");
         try {
             Files.createDirectories(models);
-            for (String fileName : SAHUR_ASSETS) {
+            for (String fileName : assetNames) {
                 String resource = "bettermodel/models/" + fileName;
                 byte[] packaged;
                 try (InputStream stream = plugin.getResource(resource)) {
@@ -36,14 +74,16 @@ public final class BetterModelAssetInstaller {
                 }
             }
         } catch (IOException exception) {
-            throw new IllegalStateException("Could not install Sahur BetterModel assets", exception);
+            throw new IllegalStateException("Could not install " + label + " BetterModel assets", exception);
         }
         BetterModelPlatform.ReloadResult result = BetterModel.platform().reload();
         if (result instanceof BetterModelPlatform.ReloadResult.Failure failure) {
-            throw new IllegalStateException("BetterModel could not reload Sahur assets", failure.throwable());
+            throw new IllegalStateException("BetterModel could not reload " + label + " assets", failure.throwable());
         }
-        if (BetterModel.model("boss_sahur").isEmpty() || BetterModel.model("bat_boss").isEmpty()) {
-            throw new IllegalStateException("BetterModel did not load boss_sahur and bat_boss");
+        for (String modelKey : modelKeys) {
+            if (BetterModel.model(modelKey).isEmpty()) {
+                throw new IllegalStateException("BetterModel did not load " + modelKey);
+            }
         }
     }
 }

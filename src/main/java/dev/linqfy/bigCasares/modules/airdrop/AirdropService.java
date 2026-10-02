@@ -12,6 +12,8 @@ public final class AirdropService {
     private final AirdropWorldGateway world;
     private final AirdropStorage storage;
     private final Random random;
+    private final AirdropQualitySelector qualitySelector;
+    private final AirdropLootGenerator lootGenerator;
 
     private Optional<AirdropData> currentDrop;
 
@@ -24,7 +26,9 @@ public final class AirdropService {
         this.world = world;
         this.storage = storage;
         this.random = random;
-        this.currentDrop = storage.load();
+        this.qualitySelector = new AirdropQualitySelector(settings.quality().chances());
+        this.lootGenerator = new AirdropLootGenerator(settings.quality());
+        this.currentDrop = storage.load().map(this::resolveLegacyLoot);
     }
 
     public boolean isActive() {
@@ -42,7 +46,10 @@ public final class AirdropService {
         }
 
         AirdropType type = selectRandomType();
-        AirdropData data = new AirdropData(position.get(), type, AirdropPhase.FALLING);
+        AirdropQuality quality = selectRandomQuality();
+        AirdropData data = new AirdropData(
+            java.util.UUID.randomUUID(), position.get(), type, quality, AirdropPhase.FALLING, true,
+            lootGenerator.generate(type, quality, random));
         currentDrop = Optional.of(data);
         storage.save(data);
         return Optional.of(data);
@@ -74,17 +81,30 @@ public final class AirdropService {
         return currentDrop;
     }
 
-    public List<AirdropLootEntry> getLootForCurrent() {
+    public List<AirdropReward> getLootForCurrent() {
         return currentDrop
                 .filter(AirdropData::isActive)
-                .map(AirdropData::type)
-                .map(AirdropLootTable::forType)
+                .map(AirdropData::rewards)
                 .orElseGet(List::of);
     }
 
     public AirdropType selectRandomType() {
         AirdropType[] values = AirdropType.values();
         return values[random.nextInt(values.length)];
+    }
+
+    public AirdropQuality selectRandomQuality() {
+        return qualitySelector.roll(random);
+    }
+
+    private AirdropData resolveLegacyLoot(AirdropData data) {
+        if (data.lootGenerated() || !data.isActive()) {
+            return data;
+        }
+        AirdropData migrated = data.withGeneratedLoot(
+            lootGenerator.generate(data.type(), data.quality(), random));
+        storage.save(migrated);
+        return migrated;
     }
 
     private Optional<AirdropPosition> generateValidPosition() {
@@ -94,7 +114,9 @@ public final class AirdropService {
             int x, z;
             if (playerPos.isPresent()) {
                 double angle = random.nextDouble() * 2 * Math.PI;
-                int distance = 400 + random.nextInt(201); // 400 to 600 blocks
+                int maxDistance = Math.max(32, settings.radius());
+                int minDistance = Math.max(16, maxDistance / 2);
+                int distance = minDistance + random.nextInt(maxDistance - minDistance + 1);
                 x = playerPos.get().x() + (int) (Math.cos(angle) * distance);
                 z = playerPos.get().z() + (int) (Math.sin(angle) * distance);
             } else {

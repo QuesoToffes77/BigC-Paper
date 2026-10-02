@@ -78,7 +78,7 @@ public final class ResourcePackModule implements PluginModule {
         seedRuntimeContent();
         this.artifactPublisher = new PackArtifactPublisher(packsRoot);
         startHttpServer(scope);
-        ActivePackManifest active = loadOrBuildActivePack();
+        ActivePackManifest active = buildOrReuseActivePack();
         this.betterModelPacks = reloadAndPublishBetterModel();
         this.service = new ResourcePackService(
             settings,
@@ -248,25 +248,12 @@ public final class ResourcePackModule implements PluginModule {
         }
     }
 
-    private ActivePackManifest buildInitialPack() {
+    private ActivePackManifest buildOrReuseActivePack() {
         try (StagedPackCandidate candidate = new StagedPackBuilder(
             contentPackRoot, packsRoot, javaLayers()).build(UUID.randomUUID())) {
             return artifactPublisher.publish(candidate, this::javaArtifactUri).manifest();
         } catch (IOException exception) {
-            throw new IllegalStateException("Could not build initial runtime pack", exception);
-        }
-    }
-
-    private ActivePackManifest loadOrBuildActivePack() {
-        try {
-            Optional<ActivePackManifest> active = artifactPublisher.activeManifest();
-            if (active.isEmpty()) {
-                return buildInitialPack();
-            }
-            artifactPublisher.validateActiveArtifacts(active.orElseThrow());
-            return active.orElseThrow();
-        } catch (IOException exception) {
-            throw new IllegalStateException("Could not read active runtime pack", exception);
+            throw new IllegalStateException("Could not build or reuse runtime pack", exception);
         }
     }
 

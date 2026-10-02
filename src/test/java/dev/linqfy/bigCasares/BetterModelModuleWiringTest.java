@@ -40,6 +40,16 @@ class BetterModelModuleWiringTest {
         }
 
         @Override
+        public boolean animateOnce(JavaModelHandle handle, String animationKey, Runnable onEnd) {
+            throw new UnsupportedOperationException("No model animation is expected in this wiring test");
+        }
+
+        @Override
+        public boolean scale(JavaModelHandle handle, float factor) {
+            throw new UnsupportedOperationException("No model scaling is expected in this wiring test");
+        }
+
+        @Override
         public void close(JavaModelHandle handle) {
             throw new UnsupportedOperationException("No model closure is expected in this wiring test");
         }

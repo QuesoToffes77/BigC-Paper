@@ -1,0 +1,25 @@
+id: grappling_hook_3
+mechanic: grappling-hook
+material: FISHING_ROD
+item-model: bigcasares:grappling_hook_3
+legacy-custom-model-data: 1014
+display:
+  translation-key: item.bigcasares.grappling_hook_3
+  fallback-name: "Ballesta Ark III"
+  lore:
+    - "§7Alcance: §a100 bloques"
+    - "§7Cooldown: §a3.5s"
+max-stack-size: 1
+recipe:
+  key: grappling_hook_3_recipe
+  result-amount: 1
+  shape: ["EDE", "DGD", "ECH"]
+  ingredients:
+    E: EMERALD
+    D: DIAMOND
+    G: GOLD_BLOCK
+    C: IRON_CHAIN
+    H: bigcasares:grappling_hook_2
+appearance:
+  java-item-definition: java/assets/bigcasares/items/grappling_hook_3.json
+  bedrock-texture: bedrock/textures/item/grappling_hook_3.png

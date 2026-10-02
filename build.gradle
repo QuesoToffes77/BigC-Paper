@@ -88,8 +88,16 @@ tasks.withType(JavaCompile).configureEach {
     }
 }
 
+tasks.register("prepareBetterModelTestAssets", Copy) {
+    group = "verification"
+    description = "Copies packaged BetterModel model sources into the local run-server directory used by asset contract tests."
+    from(layout.projectDirectory.dir("src/main/resources/bettermodel/models"))
+    into(layout.buildDirectory.dir("run-server/plugins/BetterModel/models"))
+}
+
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
+    dependsOn(tasks.named("prepareBetterModelTestAssets"))
 }
 
 def generatedResourcePackDirectory = layout.buildDirectory.dir("generated-resourcepacks")

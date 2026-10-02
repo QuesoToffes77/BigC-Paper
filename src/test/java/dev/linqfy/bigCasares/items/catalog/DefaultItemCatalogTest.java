@@ -28,7 +28,21 @@ class DefaultItemCatalogTest {
             "golden_tipped_amethyst_arrow.yml",
             "tracker_compass.yml",
             "nuke_shot.yml",
-            "sahurs_bat.yml"
+            "sahurs_bat.yml",
+            "potassium_nitrate.yml",
+            "nitric_acid.yml",
+            "grappling_hook_1.yml",
+            "grappling_hook_2.yml",
+            "grappling_hook_3.yml",
+            "grappling_hook_4.yml",
+            "grappling_hook_5.yml",
+            "grappling_hook_6.yml",
+            "glider_tier_1.yml",
+            "glider_tier_2.yml",
+            "glider_tier_3.yml",
+            "glider_tier_4.yml",
+            "glider_tier_5.yml",
+            "glider_tier_6.yml"
         );
         ItemCatalogSeeder seeder = new ItemCatalogSeeder(names);
         seeder.seed(name -> resource("content/items/" + name), tempDir.resolve("items"));
@@ -36,7 +50,7 @@ class DefaultItemCatalogTest {
         CustomItemCatalog catalog = new ItemCatalogLoader().load(tempDir.resolve("items"));
         new ItemCatalogValidator().validate(catalog, Path.of("resourcepack"));
 
-        assertEquals(9, catalog.size());
+        assertEquals(23, catalog.size());
         assertTrue(catalog.find("copper_apple").isPresent());
         assertTrue(catalog.find("smoke_bomb").isPresent());
         assertTrue(catalog.find("prismarine_arrow").isPresent());
@@ -46,6 +60,21 @@ class DefaultItemCatalogTest {
         assertTrue(catalog.find("tracker_compass").isPresent());
         assertTrue(catalog.find("nuke_shot").isPresent());
         assertTrue(catalog.find("sahurs_bat").isPresent());
+        assertTrue(catalog.find("potassium_nitrate").isPresent());
+        assertTrue(catalog.find("nitric_acid").isPresent());
+        for (int tier = 1; tier <= 6; tier++) {
+            assertTrue(catalog.find("grappling_hook_" + tier).isPresent(),
+                "grappling_hook_" + tier + " must be seeded with the defaults");
+        }
+        for (int tier = 1; tier <= 6; tier++) {
+            assertTrue(catalog.find("glider_tier_" + tier).isPresent(),
+                "glider_tier_" + tier + " must be seeded with the defaults");
+        }
+        CustomItemDefinition potassium = catalog.require("potassium_nitrate");
+        assertEquals("catalog-material", potassium.mechanic());
+        assertEquals("GUNPOWDER", potassium.recipeDefinition().orElseThrow().resultMaterial());
+        assertEquals(List.of("bigcasares:potassium_nitrate", "SUGAR", "COAL|CHARCOAL"),
+            potassium.recipeDefinition().orElseThrow().shapelessIngredients());
         CustomItemDefinition nukeShot = catalog.require("nuke_shot");
         assertEquals(1, nukeShot.maxStackSize());
         assertEquals("FISHING_ROD", nukeShot.material());

@@ -74,6 +74,16 @@ public final class PveBossModule implements PluginModule {
             }
 
             @Override
+            public boolean animateOnce(JavaModelHandle handle, String animationKey, Runnable onEnd) {
+                throw new IllegalStateException("Java model gateway is required for live boss rendering");
+            }
+
+            @Override
+            public boolean scale(JavaModelHandle handle, float factor) {
+                throw new IllegalStateException("Java model gateway is required for live boss rendering");
+            }
+
+            @Override
             public void close(JavaModelHandle handle) {
                 throw new IllegalStateException("Java model gateway is required for live boss rendering");
             }

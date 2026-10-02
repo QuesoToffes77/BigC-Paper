@@ -1,0 +1,24 @@
+id: glider_tier_6
+mechanic: glider
+material: PHANTOM_MEMBRANE
+item-model: bigcasares:glider_tier_6
+legacy-custom-model-data: 1023
+display:
+  translation-key: item.bigcasares.glider_tier_6
+  fallback-name: "Glider VI"
+  lore:
+    - "§7Planeador Apex de rendimiento máximo"
+    - "§7Aterrizajes correctos anulan el daño de caída"
+max-stack-size: 1
+recipe:
+  key: glider_tier_6_recipe
+  result-amount: 1
+  shape: ["NSN", "EGE", "NSN"]
+  ingredients:
+    E: ECHO_SHARD
+    S: NETHER_STAR
+    N: NETHERITE_INGOT
+    G: bigcasares:glider_tier_5
+appearance:
+  java-item-definition: java/assets/bigcasares/items/glider_tier_6.json
+  bedrock-texture: bedrock/textures/item/glider_tier_6.png

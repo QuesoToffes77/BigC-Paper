@@ -1,0 +1,24 @@
+id: glider_tier_1
+mechanic: glider
+material: PHANTOM_MEMBRANE
+item-model: bigcasares:glider_tier_1
+legacy-custom-model-data: 1018
+display:
+  translation-key: item.bigcasares.glider_tier_1
+  fallback-name: "Glider I"
+  lore:
+    - "§7Planeador básico para cualquier mano"
+    - "§7Mantén agacharse mientras caes"
+max-stack-size: 1
+recipe:
+  key: glider_tier_1_recipe
+  result-amount: 1
+  shape: ["PFP", "SIS", "FSF"]
+  ingredients:
+    P: PHANTOM_MEMBRANE
+    F: FEATHER
+    S: STRING
+    I: IRON_INGOT
+appearance:
+  java-item-definition: java/assets/bigcasares/items/glider_tier_1.json
+  bedrock-texture: bedrock/textures/item/glider_tier_1.png

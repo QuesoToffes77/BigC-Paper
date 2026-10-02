@@ -12,9 +12,9 @@ class PrismarineArrowResourcePackTest {
 
     @Test
     void resourcePackUsesDedicatedPrismarineArrowItemModel() throws IOException {
-        Path itemDefinition = Path.of("resourcepack", "assets", "bigcasares", "items", "prismarine_arrow.json");
-        Path rawModel = Path.of("resourcepack", "assets", "bigcasares", "models", "item", "prismarine_arrow.json");
-        Path texture = Path.of("resourcepack", "assets", "bigcasares", "textures", "item", "prismarine_arrow.png");
+        Path itemDefinition = Path.of("resourcepack", "java", "assets", "bigcasares", "items", "prismarine_arrow.json");
+        Path rawModel = Path.of("resourcepack", "java", "assets", "bigcasares", "models", "item", "prismarine_arrow.json");
+        Path texture = Path.of("resourcepack", "java", "assets", "bigcasares", "textures", "item", "prismarine_arrow.png");
 
         assertTrue(Files.exists(itemDefinition), "Missing items/prismarine_arrow.json");
         assertTrue(Files.exists(rawModel), "Missing models/item/prismarine_arrow.json");
@@ -29,9 +29,9 @@ class PrismarineArrowResourcePackTest {
     void resourcePackHasLoadedCrossbowModelsForSpecialCharges() throws IOException {
         for (CustomCrossbowChargeType chargeType : CustomCrossbowChargeType.values()) {
             String modelId = CustomCrossbowRules.loadedCrossbowModelId(chargeType);
-            Path itemDefinition = Path.of("resourcepack", "assets", "bigcasares", "items", modelId + ".json");
-            Path rawModel = Path.of("resourcepack", "assets", "bigcasares", "models", "item", modelId + ".json");
-            Path texture = Path.of("resourcepack", "assets", "bigcasares", "textures", "item", modelId + ".png");
+            Path itemDefinition = Path.of("resourcepack", "java", "assets", "bigcasares", "items", modelId + ".json");
+            Path rawModel = Path.of("resourcepack", "java", "assets", "bigcasares", "models", "item", modelId + ".json");
+            Path texture = Path.of("resourcepack", "java", "assets", "bigcasares", "textures", "item", modelId + ".png");
 
             assertTrue(Files.exists(itemDefinition), "Missing items/" + modelId + ".json");
             assertTrue(Files.exists(rawModel), "Missing models/item/" + modelId + ".json");

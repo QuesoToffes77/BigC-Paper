@@ -17,14 +17,28 @@ class ResourcePackModuleWiringTest {
     }
 
     @Test
-    void defaultConfigurationPublishesPacksToClients() {
+    void defaultConfigurationPublishesPacksToClientsAutomatically() {
         YamlConfiguration config = YamlConfiguration.loadConfiguration(
             new File("src/main/resources/config.yml")
         );
 
         ResourcePackSettings settings = ResourcePackSettings.load(config);
 
-        assertEquals(ResourcePackPublisher.Mode.COPY_ONLY, settings.publisher().mode());
+        assertEquals(ResourcePackPublisher.Mode.EMBEDDED_HTTP, settings.publisher().mode());
+        assertEquals("http://127.0.0.1:8123/", settings.embeddedHttp().publicBaseUri().toString());
+    }
+
+    @Test
+    void requiredLegacyCopyOnlyConfigurationFallsBackToLocalAutomaticDelivery() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("resource-pack-system.required", true);
+        config.set("resource-pack-system.publishing.mode", "copy-only");
+        config.set("resource-pack-system.publishing.port", 9123);
+
+        ResourcePackSettings settings = ResourcePackSettings.load(config);
+
+        assertEquals(ResourcePackPublisher.Mode.EMBEDDED_HTTP, settings.publisher().mode());
+        assertEquals("http://127.0.0.1:9123/", settings.embeddedHttp().publicBaseUri().toString());
     }
 
     @Test

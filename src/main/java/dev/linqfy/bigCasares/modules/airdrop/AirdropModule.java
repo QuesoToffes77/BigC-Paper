@@ -1,30 +1,42 @@
 package dev.linqfy.bigCasares.modules.airdrop;
 
+import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.function.BooleanSupplier;
 
 public final class AirdropModule implements PluginModule {
 
     private static final String MODULE_ID = "airdrop-system";
 
-    private final JavaPlugin plugin;
+    private static final long CHEST_LOCK_MILLIS = 5L * 60L * 1000L;
+    /** Total landed lifetime, including the five-minute lock. */
+    private static final long CHEST_LIFETIME_MILLIS = 40L * 60L * 1000L;
+
+    private final BigCasares plugin;
 
     private AirdropService service;
+    private YamlAirdropStorage storage;
     private AirdropListener listener;
-    private BukkitTask intervalTask;
+    private AirdropAutoScheduler autoScheduler;
+    private AirdropChestCountdown chestCountdown;
+    private AirdropDefenderMobs defenderMobs;
     private BukkitTask fallingTask;
     private BukkitRuntimeRegistrations registrations;
     private BooleanSupplier generationActive;
@@ -34,7 +46,7 @@ public final class AirdropModule implements PluginModule {
     private long fallingTaskSequence;
     private String fallingTaskOwnershipId;
 
-    public AirdropModule(JavaPlugin plugin) {
+    public AirdropModule(BigCasares plugin) {
         this.plugin = plugin;
     }
 
@@ -57,12 +69,15 @@ public final class AirdropModule implements PluginModule {
         this.generationActive = scope.generation()::isActive;
         AirdropSettings settings = AirdropSettings.fromConfig(plugin.getConfig());
         Map<String, Material> lootMaterials = new AirdropLootMaterialResolver().resolveAll();
+        AirdropCustomItemValidator.validate(plugin.getCustomItemRegistry());
+        AirdropEnchantmentValidator.validate();
 
         Path dataPath = plugin.getDataFolder().toPath()
                 .resolve("data")
                 .resolve("airdrop-system");
 
-        YamlAirdropStorage storage = new YamlAirdropStorage(dataPath, plugin.getLogger());
+        YamlAirdropStorage ownedStorage = new YamlAirdropStorage(dataPath, plugin.getLogger());
+        this.storage = ownedStorage;
 
         World world = Bukkit.getWorld("world");
         if (world == null) {
@@ -70,19 +85,33 @@ public final class AirdropModule implements PluginModule {
         }
 
         BukkitAirdropWorldGateway gateway = new BukkitAirdropWorldGateway(world);
-        service = new AirdropService(settings, gateway, storage);
-        listener = new AirdropListener(service, lootMaterials);
+        service = new AirdropService(settings, gateway, ownedStorage);
+        listener = new AirdropListener(service, lootMaterials, plugin.getCustomItemRegistry());
+        listener.setClaimedCallback(this::onAirdropClaimed);
+        defenderMobs = new AirdropDefenderMobs(plugin);
+        scope.register("airdrop-defender-mobs", defenderMobs::close);
 
         scope.register("module-state", this::clearRuntimeState);
         registrations.registerListener("airdrop-listener", listener);
+        registrations.registerListener("airdrop-defender-listener", defenderMobs);
 
-        long intervalTicks = (long) settings.intervalMinutes() * 60L * 20L;
-        intervalTask = registrations.scheduleRepeating(
-            "airdrop-interval",
-            () -> triggerAirdrop(world),
-            intervalTicks,
-            intervalTicks
-        );
+        if (settings.automatic()) {
+            autoScheduler = new AirdropAutoScheduler(
+                System::currentTimeMillis,
+                (delayTicks, action) -> registrations
+                    .scheduleDelayed("airdrop-interval", action, delayTicks)::cancel,
+                new StorageDeadlineStore(storage),
+                settings.intervalMinutes() * 60_000L,
+                () -> triggerAutomatic(world),
+                delayTicks -> plugin.getLogger().info(
+                    "[AirDrop] Next drop scheduled in " + (delayTicks * 50L / 1000L) + " seconds.")
+            );
+            plugin.getLogger().info("[AirDrop] Automatic system initialized. Interval: "
+                + settings.intervalMinutes() + " minutes.");
+            autoScheduler.start();
+        } else {
+            plugin.getLogger().info("[AirDrop] Automatic system disabled by config (automatic: false).");
+        }
 
         registerCommand(world, registrations);
         enabled = true;
@@ -99,6 +128,8 @@ public final class AirdropModule implements PluginModule {
         enabled = false;
         cancelIntervalTask();
         cancelFallingTask();
+        stopChestCountdown();
+        cleanupDefenders();
         if (listener != null) {
             listener.clearChestPosition();
         }
@@ -119,8 +150,24 @@ public final class AirdropModule implements PluginModule {
         result.ifPresent(data -> {
             AirdropPosition pos = data.position();
             plugin.getServer().broadcastMessage(
-                    "Â§6âœˆ Airdrop en camino en X: " + pos.x() + " Z: " + pos.z()
+                    "§6✈ §lAIRDROP §r" + data.type().color() + data.type().displayName()
+                        + " §7[" + data.quality().color() + data.quality().displayName() + "§7]"
+                        + " §7en camino en X: " + pos.x() + " Z: " + pos.z()
             );
+            for (Player player : world.getPlayers()) {
+                player.sendTitle("§6✈ §lAIRDROP", data.quality().color() + data.quality().displayName()
+                    + " §7- " + data.type().displayName(), 10, 45, 10);
+                player.playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.8f, 0.9f);
+            }
+            if (service.getSettings().quality().debug()) {
+                plugin.getLogger().info("[AirDrop Debug] generated id=" + data.id()
+                    + " type=" + data.type() + " quality=" + data.quality());
+                for (AirdropReward reward : data.rewards()) {
+                    plugin.getLogger().info("[AirDrop Debug] loot quality=" + reward.quality()
+                        + " kind=" + reward.kind() + " item=" + reward.itemId()
+                        + " amount=" + reward.amount());
+                }
+            }
             startFallingTask(world, pos);
         });
         return result;
@@ -132,14 +179,14 @@ public final class AirdropModule implements PluginModule {
         registrations.bindCommand("airdrop-command", cmd, (CommandSender sender, Command command, String label, String[] args) -> {
             if (args.length < 1 || !args[0].equalsIgnoreCase("spawn")) return false;
             if (!sender.hasPermission("bigcasares.airdrop.spawn")) {
-                sender.sendMessage("Â§cNo tienes permiso.");
+                sender.sendMessage("§cNo tienes permiso.");
                 return true;
             }
             Optional<AirdropData> result = triggerAirdrop(world);
             if (result.isPresent()) {
-                sender.sendMessage("Â§aAirdrop forzado.");
+                sender.sendMessage("§aAirdrop forzado.");
             } else {
-                sender.sendMessage("Â§cNo se pudo generar el airdrop.");
+                sender.sendMessage("§cNo se pudo generar el airdrop.");
             }
             return true;
         }, null);
@@ -159,19 +206,37 @@ public final class AirdropModule implements PluginModule {
 
         if (data.phase() == AirdropPhase.LANDED) {
             AirdropPosition chestPosition = data.position();
+            long now = System.currentTimeMillis();
+            OptionalLong persistedUnlock = storage.loadUnlockAtMillis();
+            long unlockAt;
+            long despawnAt;
+            if (persistedUnlock.isEmpty()) {
+                // Migrate landed drops created by the old 15-minute/no-lock format.
+                unlockAt = now + CHEST_LOCK_MILLIS;
+                despawnAt = now + CHEST_LIFETIME_MILLIS;
+                storage.saveUnlockAtMillis(unlockAt);
+                storage.saveDespawnAtMillis(despawnAt);
+            } else {
+                unlockAt = persistedUnlock.getAsLong();
+                despawnAt = storage.loadDespawnAtMillis()
+                    .orElse(now + CHEST_LIFETIME_MILLIS);
+            }
+            if (despawnAt <= System.currentTimeMillis()) {
+                // The chest expired while the server was offline: clean it up.
+                world.getBlockAt(chestPosition.x(), chestPosition.y(), chestPosition.z()).setType(Material.AIR);
+                listener.clearChestPosition();
+                service.claim();
+                removeTaggedDefenders(world);
+                return;
+            }
             world.getBlockAt(chestPosition.x(), chestPosition.y(), chestPosition.z()).setType(Material.CHEST);
-            listener.setChestPosition(chestPosition);
-            
-            registrations.scheduleDelayed("airdrop-despawn-" + chestPosition.hashCode(), () -> {
-                Optional<AirdropData> curr = service.getCurrentDrop();
-                if (curr.isPresent() && curr.get().phase() == AirdropPhase.LANDED &&
-                    curr.get().position().equals(chestPosition)) {
-                    world.getBlockAt(chestPosition.x(), chestPosition.y(), chestPosition.z()).setType(Material.AIR);
-                    listener.clearChestPosition();
-                    service.claim();
-                    plugin.getServer().broadcastMessage("§e✈ El Airdrop ha desaparecido (tiempo agotado).");
-                }
-            }, 20L * 60L * 15L);
+            listener.setChestPosition(chestPosition, unlockAt);
+            // Any defenders from before the restart are gone from memory but may
+            // still exist in the world: clear the tag sweep, then guard anew.
+            removeTaggedDefenders(world);
+            spawnDefenders(world, data);
+            startChestCountdown(world, chestPosition, unlockAt, despawnAt, data.type(), data.quality());
+            scheduleDespawn(world, chestPosition, despawnAt);
         }
     }
 
@@ -194,17 +259,17 @@ public final class AirdropModule implements PluginModule {
         try {
             Optional<AirdropData> landed = service.markLanded(landedPosition);
             if (landed.isPresent()) {
-                listener.setChestPosition(landedPosition);
-                registrations.scheduleDelayed("airdrop-despawn-" + landedPosition.hashCode(), () -> {
-                    Optional<AirdropData> curr = service.getCurrentDrop();
-                    if (curr.isPresent() && curr.get().phase() == AirdropPhase.LANDED &&
-                        curr.get().position().equals(landedPosition)) {
-                        world.getBlockAt(landedPosition.x(), landedPosition.y(), landedPosition.z()).setType(Material.AIR);
-                        listener.clearChestPosition();
-                        service.claim();
-                        plugin.getServer().broadcastMessage("§e✈ El Airdrop ha desaparecido (tiempo agotado).");
-                    }
-                }, 20L * 60L * 15L);
+                long now = System.currentTimeMillis();
+                long unlockAt = now + CHEST_LOCK_MILLIS;
+                long despawnAt = now + CHEST_LIFETIME_MILLIS;
+                storage.saveUnlockAtMillis(unlockAt);
+                storage.saveDespawnAtMillis(despawnAt);
+                listener.setChestPosition(landedPosition, unlockAt);
+                spawnDefenders(world, landed.get());
+                startChestCountdown(world, landedPosition, unlockAt, despawnAt,
+                    landed.get().type(), landed.get().quality());
+                announceLanding(world, landed.get());
+                scheduleDespawn(world, landedPosition, despawnAt);
                 return;
             }
             world.getBlockAt(landedPosition.x(), landedPosition.y(), landedPosition.z()).setType(Material.AIR);
@@ -213,12 +278,130 @@ public final class AirdropModule implements PluginModule {
         }
     }
 
-    private void cancelIntervalTask() {
-        if (intervalTask != null) {
-            if (!intervalTask.isCancelled()) {
-                intervalTask.cancel();
+    /**
+     * Removes the chest when its 40-minute lifetime ends. Uses the persisted
+     * deadline so the remaining time (and the chest countdown) survives a
+     * server restart.
+     */
+    private void scheduleDespawn(World world, AirdropPosition position, long despawnAtMillis) {
+        long remainingTicks = Math.max(1L, (despawnAtMillis - System.currentTimeMillis() + 49L) / 50L);
+        registrations.scheduleDelayed("airdrop-despawn-" + position.hashCode(), () -> {
+            Optional<AirdropData> curr = service.getCurrentDrop();
+            if (curr.isPresent() && curr.get().phase() == AirdropPhase.LANDED &&
+                curr.get().position().equals(position)) {
+                world.getBlockAt(position.x(), position.y(), position.z()).setType(Material.AIR);
+                listener.clearChestPosition();
+                service.claim();
+                stopChestCountdown();
+                cleanupDefenders();
+                plugin.getServer().broadcastMessage("§e✈ El Airdrop ha desaparecido (tiempo agotado).");
             }
-            intervalTask = null;
+        }, remainingTicks);
+    }
+
+    /** Starts the floating countdown above the chest; any previous one is replaced. */
+    private void startChestCountdown(
+        World world,
+        AirdropPosition position,
+        long unlockAtMillis,
+        long despawnAtMillis,
+        AirdropType type,
+        AirdropQuality quality
+    ) {
+        stopChestCountdown();
+        chestCountdown = new AirdropChestCountdown(
+            plugin, world, position, type, quality, unlockAtMillis, despawnAtMillis);
+        chestCountdown.start();
+    }
+
+    private void announceLanding(World world, AirdropData data) {
+        Location center = new Location(
+            world, data.position().x() + 0.5, data.position().y() + 0.8, data.position().z() + 0.5
+        );
+        world.spawnParticle(Particle.END_ROD, center, 32, 1.2, 1.1, 1.2, 0.04);
+        world.spawnParticle(Particle.CLOUD, center, 24, 0.8, 0.2, 0.8, 0.03);
+        world.playSound(center, Sound.BLOCK_CHEST_OPEN, 1.25f, 0.75f);
+        String message = "§a✦ " + data.type().color() + data.type().displayName()
+            + " §7[" + data.quality().color() + data.quality().displayName() + "§7]"
+            + " §7ha aterrizado. Buscá el cofre antes de que desaparezca.";
+        if (service.getSettings().quality().profile(data.quality()).announceGlobally()) {
+            plugin.getServer().broadcastMessage(message);
+        } else {
+            for (Player player : world.getPlayers()) {
+                player.sendMessage(message);
+            }
+        }
+    }
+
+    /** Removes the floating countdown; idempotent. */
+    private void stopChestCountdown() {
+        if (chestCountdown != null) {
+            chestCountdown.stop();
+            chestCountdown = null;
+        }
+    }
+
+    /** Called when a player claims the chest: drop its visuals and its guards. */
+    private void onAirdropClaimed() {
+        stopChestCountdown();
+        cleanupDefenders();
+    }
+
+    /** Spawns the zombie defenders around a landed chest (no-op when disabled). */
+    private void spawnDefenders(World world, AirdropData data) {
+        if (defenderMobs == null || service == null) {
+            return;
+        }
+        AirdropMobSettings mobs = service.getSettings().mobs();
+        if (!mobs.enabled()) {
+            cleanupDefenders();
+            return;
+        }
+        AirdropQualityProfile profile = service.getSettings().quality().profile(data.quality());
+        defenderMobs.spawnAround(world, data.position(), mobs, data.quality(), profile, data.id());
+        if (service.getSettings().quality().debug()) {
+            plugin.getLogger().info("[AirDrop Debug] type=" + data.type()
+                + " quality=" + data.quality()
+                + " guards=" + Math.min(mobs.maxTotal(), profile.guardCount())
+                + " equipment=" + profile.equipmentLevel()
+                + " loot-rolls=" + data.rewards().size());
+        }
+    }
+
+    /** Removes every defender mob belonging to the current drop; idempotent. */
+    private void cleanupDefenders() {
+        if (defenderMobs != null) {
+            defenderMobs.cleanup();
+        }
+    }
+
+    /** Removes tagged defenders left over from a previous session. */
+    private void removeTaggedDefenders(World world) {
+        if (defenderMobs != null) {
+            defenderMobs.removeTagged(world);
+        }
+    }
+
+    private void cancelIntervalTask() {
+        if (autoScheduler != null) {
+            autoScheduler.stop();
+        }
+    }
+
+    /**
+     * Automatic cadence trigger: uses the exact same spawn path as the manual
+     * {@code /airdrop spawn} command and logs the outcome once per interval.
+     */
+    private void triggerAutomatic(World world) {
+        Optional<AirdropData> result = triggerAirdrop(world);
+        if (result.isPresent()) {
+            AirdropPosition pos = result.get().position();
+            plugin.getLogger().info(
+                "[AirDrop] Automatic drop triggered: spawned at X=" + pos.x() + " Z=" + pos.z());
+        } else if (service != null && service.isActive()) {
+            plugin.getLogger().info("[AirDrop] Automatic drop skipped: a drop is still active.");
+        } else {
+            plugin.getLogger().warning("[AirDrop] Automatic drop failed: no valid landing position found.");
         }
     }
 
@@ -244,13 +427,37 @@ public final class AirdropModule implements PluginModule {
         enabled = false;
         cancelIntervalTask();
         cancelFallingTask();
+        stopChestCountdown();
+        cleanupDefenders();
         if (listener != null) {
             listener.clearChestPosition();
         }
+        defenderMobs = null;
         listener = null;
         service = null;
+        storage = null;
         registrations = null;
         generationActive = null;
         runtimeScope = null;
+        autoScheduler = null;
+    }
+
+    private static final class StorageDeadlineStore implements AirdropAutoScheduler.DeadlineStore {
+
+        private final YamlAirdropStorage storage;
+
+        private StorageDeadlineStore(YamlAirdropStorage storage) {
+            this.storage = storage;
+        }
+
+        @Override
+        public OptionalLong nextDropAtMillis() {
+            return storage.loadNextDropAtMillis();
+        }
+
+        @Override
+        public void nextDropAtMillis(long epochMillis) {
+            storage.saveNextDropAtMillis(epochMillis);
+        }
     }
 }

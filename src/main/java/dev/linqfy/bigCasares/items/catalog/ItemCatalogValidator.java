@@ -13,16 +13,30 @@ import java.util.Set;
 
 public final class ItemCatalogValidator {
 
-    private static final Map<String, String> EXPECTED_MECHANICS = Map.of(
-        "copper_apple", "copper-apple",
-        "smoke_bomb", "smoke-bomb",
-        "prismarine_arrow", "prismarine-arrow",
-        "nexus", "nexus",
-        "echo_arrow", "echo-arrow",
-        "golden_tipped_amethyst_arrow", "golden-amethyst-arrow",
-        "tracker_compass", "tracker-compass",
-        "nuke_shot", "nuke-shot",
-        "sahurs_bat", "sahurs-bat"
+    private static final Map<String, String> EXPECTED_MECHANICS = Map.ofEntries(
+        Map.entry("copper_apple", "copper-apple"),
+        Map.entry("smoke_bomb", "smoke-bomb"),
+        Map.entry("prismarine_arrow", "prismarine-arrow"),
+        Map.entry("nexus", "nexus"),
+        Map.entry("echo_arrow", "echo-arrow"),
+        Map.entry("golden_tipped_amethyst_arrow", "golden-amethyst-arrow"),
+        Map.entry("tracker_compass", "tracker-compass"),
+        Map.entry("nuke_shot", "nuke-shot"),
+        Map.entry("sahurs_bat", "sahurs-bat"),
+        Map.entry("potassium_nitrate", "catalog-material"),
+        Map.entry("nitric_acid", "catalog-material"),
+        Map.entry("grappling_hook_1", "grappling-hook"),
+        Map.entry("grappling_hook_2", "grappling-hook"),
+        Map.entry("grappling_hook_3", "grappling-hook"),
+        Map.entry("grappling_hook_4", "grappling-hook"),
+        Map.entry("grappling_hook_5", "grappling-hook"),
+        Map.entry("grappling_hook_6", "grappling-hook"),
+        Map.entry("glider_tier_1", "glider"),
+        Map.entry("glider_tier_2", "glider"),
+        Map.entry("glider_tier_3", "glider"),
+        Map.entry("glider_tier_4", "glider"),
+        Map.entry("glider_tier_5", "glider"),
+        Map.entry("glider_tier_6", "glider")
     );
 
     private final ItemMaterialValidator materials;
@@ -63,13 +77,34 @@ public final class ItemCatalogValidator {
                 if (!recipeKeys.add(recipe.key())) {
                     throw new IllegalArgumentException("duplicate item recipe key: " + recipe.key());
                 }
+                if (recipe.resultMaterial() != null && !materials.isItem(recipe.resultMaterial())) {
+                    throw new IllegalArgumentException(
+                        "recipe result material is not available: " + recipe.resultMaterial());
+                }
                 for (String material : recipe.ingredients().values()) {
-                    if (!materials.isItem(material)) {
-                        throw new IllegalArgumentException("recipe material is not available: " + material);
-                    }
+                    validateIngredient(material, catalog);
+                }
+                for (String material : recipe.shapelessIngredients()) {
+                    validateIngredient(material, catalog);
                 }
             });
             validateAppearance(packRoot, definition.appearance());
+        }
+    }
+
+    private void validateIngredient(String value, CustomItemCatalog catalog) {
+        for (String part : value.split("\\|")) {
+            if (part.contains(":")) {
+                // Custom catalog item reference: must resolve inside the same catalog.
+                String itemId = part.substring(part.indexOf(':') + 1);
+                if (catalog.find(itemId).isEmpty()) {
+                    throw new IllegalArgumentException("recipe ingredient references unknown catalog item: " + part);
+                }
+                continue;
+            }
+            if (!materials.isItem(part)) {
+                throw new IllegalArgumentException("recipe material is not available: " + part);
+            }
         }
     }
 

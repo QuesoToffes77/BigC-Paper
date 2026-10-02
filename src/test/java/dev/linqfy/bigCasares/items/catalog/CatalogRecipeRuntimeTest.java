@@ -64,18 +64,13 @@ class CatalogRecipeRuntimeTest {
             recipes.remove(recipeKey);
         }
 
-        @Override
-        public boolean register(
-            String recipeKey,
-            CustomItemDefinition result,
-            ItemRecipeDefinition recipe,
-            String catalogRevision
-        ) {
-            if (failOnMaterial != null && recipe.ingredients().containsValue(failOnMaterial)) {
-                return false;
-            }
-            recipes.put(recipeKey, recipe);
-            return true;
+    @Override
+    public boolean register(String recipeKey, ItemRecipeDefinition recipe, CustomItemCatalog catalog) {
+        if (failOnMaterial != null && recipe.ingredients().containsValue(failOnMaterial)) {
+            return false;
         }
+        recipes.put(recipeKey, recipe);
+        return true;
+    }
     }
 }
