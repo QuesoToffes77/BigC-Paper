@@ -747,12 +747,12 @@ grappling-hook:
   # atraída hacia el jugador (máx 1.4 bloques/tick). La velocidad final se
   # limita siempre a 4.5 bloques/tick (techo de seguridad duro).
   tiers:
-    i:   { range: 10.0,  cooldown-seconds: 5.0,  impulse-power: 2.0, upward-bias: 0.25 }
-    ii:  { range: 35.0,  cooldown-seconds: 4.25, impulse-power: 2.4, upward-bias: 0.28 }
-    iii: { range: 500.0, cooldown-seconds: 3.5,  impulse-power: 2.8, upward-bias: 0.31 }
-    iv:  { range: 100.0, cooldown-seconds: 2.75, impulse-power: 3.3, upward-bias: 0.35 }
-    v:   { range: 125.0, cooldown-seconds: 2.0,  impulse-power: 3.8, upward-bias: 0.40 }
-    vi:  { range: 150.0, cooldown-seconds: 1.25, impulse-power: 4.2, upward-bias: 0.45 }
+    i:   { range: 50.0,  cooldown-seconds: 5.0,  impulse-power: 2.0, upward-bias: 0.25 }
+    ii:  { range: 75.0,  cooldown-seconds: 4.25, impulse-power: 2.4, upward-bias: 0.28 }
+    iii: { range: 100.0, cooldown-seconds: 3.5,  impulse-power: 2.8, upward-bias: 0.31 }
+    iv:  { range: 125.0, cooldown-seconds: 2.75, impulse-power: 3.3, upward-bias: 0.35 }
+    v:   { range: 150.0, cooldown-seconds: 2.0,  impulse-power: 3.8, upward-bias: 0.40 }
+    vi:  { range: 200.0, cooldown-seconds: 1.25, impulse-power: 4.2, upward-bias: 0.45 }
 
 mission-system:
   daily:
