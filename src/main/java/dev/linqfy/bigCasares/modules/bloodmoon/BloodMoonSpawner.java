@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.bloodmoon;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;
 import org.bukkit.GameMode;
 import org.bukkit.GameRules;
@@ -129,12 +130,30 @@ final class BloodMoonSpawner {
     void clearWorld(String worldName) {
         BloodMoonSpawnLedger ledger = ledgers.remove(worldName);
         if (ledger != null) {
+            // We must despawn event mobs before wiping the tracking data.
+            World world = plugin.getServer().getWorld(worldName);
+            for (String rawId : ledger.mobIds()) {
+                try {
+                    UUID uuid = UUID.fromString(rawId);
+                    Entity entity = world != null ? world.getEntity(uuid) : null;
+                    if (entity == null) {
+                        entity = Bukkit.getEntity(uuid);
+                    }
+                    if (entity != null && !entity.isDead()) {
+                        entity.remove();
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    // Ignore malformed UUID
+                }
+            }
             ledger.clear();
         }
     }
 
     void clear() {
-        ledgers.values().forEach(BloodMoonSpawnLedger::clear);
+        for (String worldName : List.copyOf(ledgers.keySet())) {
+            clearWorld(worldName);
+        }
         ledgers.clear();
     }
 
