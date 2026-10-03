@@ -237,63 +237,56 @@ acid-rain:
       - world
     excluded: []
   duration:
-    minimum-seconds: 300
-    maximum-seconds: 900
-    ending-seconds: 20
+    minimum-seconds: 180
+    maximum-seconds: 240
+    ending-seconds: 15
   warning:
-    duration-seconds: 60
-    message-interval-seconds: 20
+    duration-seconds: 30
+    message-interval-seconds: 35
     bossbar: true
     messages:
-      - "&e&lALERTA AMBIENTAL"
-      - "&7Se detecto contaminacion atmosferica."
-      - "&cLa lluvia acida comenzara pronto."
+      - "&a&l[LLUVIA ÁCIDA] &eSe detectaron nubes tóxicas en la atmósfera."
+      - "&7Busca refugio bajo techo o equipamiento adecuado."
   automatic:
-    # Disabled by default - enable after playtesting with real players and builds
-    enabled: false
-    chance: 10
-    minimum-interval-minutes: 60
-    maximum-interval-minutes: 180
+    enabled: true
+    chance: 100
+    minimum-interval-minutes: 90
+    maximum-interval-minutes: 150
   damage:
     enabled: true
   levels:
     acid:
-      damage: 1.0
+      damage: 0.5
       interval-seconds: 5
       contamination-intensity: 1.0
       effects: []
       destruction:
         interval-ticks: 40
-        candidates-per-cycle: 30
+        candidates-per-cycle: 10
     toxic:
-      damage: 2.0
-      interval-seconds: 3
+      damage: 1.0
+      interval-seconds: 4
       contamination-intensity: 2.0
-      effects:
-        - poison
+      effects: []
       destruction:
         interval-ticks: 20
-        candidates-per-cycle: 60
+        candidates-per-cycle: 20
     chemical:
-      damage: 3.0
-      interval-seconds: 2
+      damage: 1.5
+      interval-seconds: 3
       contamination-intensity: 3.0
-      effects:
-        - poison
-        - weakness
+      effects: []
       destruction:
         interval-ticks: 10
-        candidates-per-cycle: 90
+        candidates-per-cycle: 30
   escalation:
     enabled: true
     steps:
       - level: TOXIC
-        after-seconds: 180
-      - level: CHEMICAL
-        after-seconds: 420
+        after-seconds: 120
   protective-items:
     basic:
-      protection: 15
+      protection: 25
       required-armor:
         - LEATHER_HELMET
         - LEATHER_CHESTPLATE
@@ -301,15 +294,23 @@ acid-rain:
         - LEATHER_BOOTS
       carried-materials: []
     advanced:
-      protection: 20
+      protection: 50
       required-armor:
         - IRON_HELMET
         - IRON_CHESTPLATE
         - IRON_LEGGINGS
         - IRON_BOOTS
       carried-materials: []
+    diamond:
+      protection: 70
+      required-armor:
+        - DIAMOND_HELMET
+        - DIAMOND_CHESTPLATE
+        - DIAMOND_LEGGINGS
+        - DIAMOND_BOOTS
+      carried-materials: []
     chemical:
-      protection: 60
+      protection: 85
       required-armor:
         - NETHERITE_HELMET
         - NETHERITE_CHESTPLATE
@@ -320,141 +321,32 @@ acid-rain:
     destruction:
       # Disabled by default - enable after playtesting with real players and builds
       enabled: false
-      radius: 18
-      max-blocks-per-event: 6000
-      max-blocks-per-second: 90
-      candidates-per-cycle: 90
-      vertical-scan-depth: 16
+      radius: 12
+      max-blocks-per-event: 0
+      max-blocks-per-second: 0
+      candidates-per-cycle: 0
+      vertical-scan-depth: 8
       crops:
         enabled: false
-      whitelist:
-        - STONE
-        - COBBLESTONE
-        - STONE_BRICKS
-        - CRACKED_STONE_BRICKS
-        - MOSSY_STONE_BRICKS
-        - CHISELED_STONE_BRICKS
-        - DEEPSLATE
-        - COBBLED_DEEPSLATE
-        - DEEPSLATE_BRICKS
-        - CRACKED_DEEPSLATE_BRICKS
-        - DEEPSLATE_TILES
-        - CRACKED_DEEPSLATE_TILES
-        - TUFF
-        - TUFF_BRICKS
-        - CALCITE
-        - DRIPSTONE_BLOCK
-        - NETHERRACK
-        - NETHER_BRICKS
-        - RED_NETHER_BRICKS
-        - SOUL_SAND
-        - SOUL_SOIL
-        - BASALT
-        - BLACKSTONE
-        - POLISHED_BLACKSTONE
-        - POLISHED_BLACKSTONE_BRICKS
-        - OAK_LOG
-        - SPRUCE_LOG
-        - BIRCH_LOG
-        - JUNGLE_LOG
-        - ACACIA_LOG
-        - DARK_OAK_LOG
-        - MANGROVE_LOG
-        - CHERRY_LOG
-        - PALE_OAK_LOG
-        - STRIPPED_OAK_LOG
-        - STRIPPED_SPRUCE_LOG
-        - STRIPPED_BIRCH_LOG
-        - STRIPPED_JUNGLE_LOG
-        - STRIPPED_ACACIA_LOG
-        - STRIPPED_DARK_OAK_LOG
-        - STRIPPED_MANGROVE_LOG
-        - STRIPPED_CHERRY_LOG
-        - STRIPPED_PALE_OAK_LOG
-        - OAK_PLANKS
-        - SPRUCE_PLANKS
-        - BIRCH_PLANKS
-        - JUNGLE_PLANKS
-        - ACACIA_PLANKS
-        - DARK_OAK_PLANKS
-        - MANGROVE_PLANKS
-        - CHERRY_PLANKS
-        - PALE_OAK_PLANKS
-        - OAK_WOOD
-        - SPRUCE_WOOD
-        - BIRCH_WOOD
-        - JUNGLE_WOOD
-        - ACACIA_WOOD
-        - DARK_OAK_WOOD
-        - MANGROVE_WOOD
-        - CHERRY_WOOD
-        - PALE_OAK_WOOD
-        - BRICKS
-        - MUD_BRICKS
-        - SANDSTONE
-        - CUT_SANDSTONE
-        - RED_SANDSTONE
-        - CUT_RED_SANDSTONE
-        - QUARTZ_BLOCK
-        - SMOOTH_QUARTZ
-        - PURPUR_BLOCK
-        - END_STONE
-        - END_STONE_BRICKS
-        - IRON_BLOCK
-        - COPPER_BLOCK
-        - EXPOSED_COPPER
-        - WEATHERED_COPPER
-        - OXIDIZED_COPPER
-        - WAXED_COPPER_BLOCK
-        - WAXED_EXPOSED_COPPER
-        - WAXED_WEATHERED_COPPER
-        - WAXED_OXIDIZED_COPPER
-        - GLASS
-        - GLASS_PANE
-        - TERRACOTTA
-        - WHITE_TERRACOTTA
-        - ORANGE_TERRACOTTA
-        - MAGENTA_TERRACOTTA
-        - LIGHT_BLUE_TERRACOTTA
-        - YELLOW_TERRACOTTA
-        - LIME_TERRACOTTA
-        - PINK_TERRACOTTA
-        - GRAY_TERRACOTTA
-        - LIGHT_GRAY_TERRACOTTA
-        - CYAN_TERRACOTTA
-        - PURPLE_TERRACOTTA
-        - BLUE_TERRACOTTA
-        - BROWN_TERRACOTTA
-        - GREEN_TERRACOTTA
-        - RED_TERRACOTTA
-        - BLACK_TERRACOTTA
-        - OAK_SAPLING
-        - SPRUCE_SAPLING
-        - BIRCH_SAPLING
-        - JUNGLE_SAPLING
-        - ACACIA_SAPLING
-        - DARK_OAK_SAPLING
-        - MANGROVE_PROPAGULE
-        - CHERRY_SAPLING
-        - PALE_OAK_SAPLING
+      whitelist: []
   mobs:
     enabled: true
     spawn:
-      interval-ticks: 60
-      attempts-per-cycle: 2
-      max-active: 20
-      radius: 24
+      interval-ticks: 140
+      attempts-per-cycle: 1
+      max-active: 5
+      radius: 20
     spawn-effect:
       enabled: true
-      particles: 8
+      particles: 6
       sound:
         enabled: true
         sound: ENTITY_WITCH_AMBIENT
-        volume: 0.7
-        pitch: 0.9
+        volume: 0.5
+        pitch: 1.0
     ambient-particles:
       enabled: true
-      interval-ticks: 20
+      interval-ticks: 30
       count: 2
       particle: SPORE_BLOSSOM_AIR
     # Loot: toxic mobs drop the catalog item 'nitric_acid' (no crafting
@@ -479,23 +371,23 @@ acid-rain:
       active: RED
       ending: GREEN
   actionbar:
-    enabled: true
+    enabled: false
     interval-ticks: 20
   sounds:
     warning:
       enabled: true
       sound: BLOCK_NOTE_BLOCK_BELL
-      volume: 1.0
+      volume: 0.8
       pitch: 1.0
     start:
       enabled: true
       sound: ENTITY_LIGHTNING_BOLT_THUNDER
-      volume: 1.0
+      volume: 0.8
       pitch: 1.0
     stop:
       enabled: true
       sound: BLOCK_BEACON_DEACTIVATE
-      volume: 0.7
+      volume: 0.6
       pitch: 1.2
   particles:
     enabled: true
@@ -513,14 +405,14 @@ acid-rain:
         particle: DRAGON_BREATH
         count: 16
   impacts:
-    enabled: true
-    count: 3
+    enabled: false
+    count: 0
   visuals:
     enabled: true
     quality: MEDIUM
-    horizontal-radius: 14.0
-    vertical-radius: 8.0
-    interval-ticks: 10
+    horizontal-radius: 12.0
+    vertical-radius: 6.0
+    interval-ticks: 12
 
 blood-moon:
   enabled: true
