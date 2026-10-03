@@ -21,10 +21,6 @@ class SpecialItemsResourcePackTest {
             "minecraft:block/tnt");
         assertContains(PACK.resolve("java/assets/bigcasares/models/item/tracker_compass.json"),
             "minecraft:item/compass");
-        assertContains(PACK.resolve("assets/bigcasares/models/item/nuke_shot.json"),
-            "minecraft:block/tnt");
-        assertContains(PACK.resolve("assets/bigcasares/models/item/tracker_compass.json"),
-            "minecraft:item/compass");
         assertContains(PACK.resolve("shared/registry.yml"),
             "java-model: bigcasares:item/nuke_shot", "texture: minecraft:blocks/tnt_side",
             "java-model: bigcasares:item/tracker_compass", "texture: minecraft:items/compass_item");

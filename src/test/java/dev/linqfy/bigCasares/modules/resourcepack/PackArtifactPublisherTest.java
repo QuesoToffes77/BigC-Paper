@@ -80,4 +80,29 @@ class PackArtifactPublisherTest {
                 () -> publisher.prepare(candidate, ignored -> null));
         }
     }
+
+    @Test
+    void changedRuntimeContentReplacesAStaleActivePack() throws Exception {
+        ResourcePackFixture fixture = ResourcePackFixture.create(tempDir.resolve("fixture"), true);
+        Path packsRoot = tempDir.resolve("packs");
+        PackArtifactPublisher publisher = new PackArtifactPublisher(packsRoot);
+        ActivePackManifest oldManifest;
+        try (StagedPackCandidate candidate = new StagedPackBuilder(
+            fixture.sourceRoot(), packsRoot, List.of()).build(UUID.randomUUID())) {
+            oldManifest = publisher.publish(candidate, ignored -> null).manifest();
+        }
+
+        Files.writeString(fixture.javaRoot().resolve("pack.mcmeta"), """
+            {"pack":{"pack_format":88,"description":"updated runtime content"}}
+            """);
+
+        try (StagedPackCandidate updated = new StagedPackBuilder(
+            fixture.sourceRoot(), packsRoot, List.of()).build(UUID.randomUUID())) {
+            PackPublication publication = publisher.publish(updated, ignored -> null);
+
+            assertTrue(publication.changed());
+            assertFalse(oldManifest.javaSha256().equals(publication.manifest().javaSha256()));
+            assertEquals(publication.manifest(), publisher.activeManifest().orElseThrow());
+        }
+    }
 }

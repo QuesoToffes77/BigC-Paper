@@ -9,5 +9,21 @@
   "item.bigcasares.golden_tipped_amethyst_arrow": "Flecha de Amatista con Punta de Oro",
   "item.bigcasares.tracker_compass": "Brújula Rastreadora",
   "item.bigcasares.nuke_shot": "Nuke Shot",
-  "item.bigcasares.sahurs_bat": "Bate de Sahur"
+  "item.bigcasares.sahurs_bat": "Bate de Sahur",
+  "item.bigcasares.potassium_nitrate": "Nitrato de Potasio",
+  "item.bigcasares.potassium_nitrate.tooltip": "Compuesto quimico usado para fabricar polvora.",
+  "item.bigcasares.nitric_acid": "Ácido Nítrico",
+  "item.bigcasares.nitric_acid.tooltip": "Liquido corrosivo de alta pureza.",
+  "item.bigcasares.grappling_hook_1": "Ballesta Ark I",
+  "item.bigcasares.grappling_hook_2": "Ballesta Ark II",
+  "item.bigcasares.grappling_hook_3": "Ballesta Ark III",
+  "item.bigcasares.grappling_hook_4": "Ballesta Ark IV",
+  "item.bigcasares.grappling_hook_5": "Ballesta Ark V",
+  "item.bigcasares.grappling_hook_6": "Ballesta Ark VI",
+  "item.bigcasares.glider_tier_1": "Glider I",
+  "item.bigcasares.glider_tier_2": "Glider II",
+  "item.bigcasares.glider_tier_3": "Glider III",
+  "item.bigcasares.glider_tier_4": "Glider IV",
+  "item.bigcasares.glider_tier_5": "Glider V",
+  "item.bigcasares.glider_tier_6": "Glider VI"
 }

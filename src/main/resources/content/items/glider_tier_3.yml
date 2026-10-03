@@ -1,0 +1,23 @@
+id: glider_tier_3
+mechanic: glider
+material: PHANTOM_MEMBRANE
+item-model: bigcasares:glider_tier_3
+legacy-custom-model-data: 1020
+display:
+  translation-key: item.bigcasares.glider_tier_3
+  fallback-name: "Glider III"
+  lore:
+    - "§7Planeo avanzado con propulsión"
+    - "§7Clic derecho durante el planeo para impulsar"
+max-stack-size: 1
+recipe:
+  key: glider_tier_3_recipe
+  result-amount: 1
+  shape: ["PDP", "DGD", "PDP"]
+  ingredients:
+    P: PHANTOM_MEMBRANE
+    D: DIAMOND
+    G: bigcasares:glider_tier_2
+appearance:
+  java-item-definition: java/assets/bigcasares/items/glider_tier_3.json
+  bedrock-texture: bedrock/textures/item/glider_tier_3.png

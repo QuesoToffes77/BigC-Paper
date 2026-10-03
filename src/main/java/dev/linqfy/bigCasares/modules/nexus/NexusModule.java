@@ -94,6 +94,16 @@ public final class NexusModule implements PluginModule {
             }
 
             @Override
+            public boolean animateOnce(JavaModelHandle handle, String animationKey, Runnable onEnd) {
+                throw new IllegalStateException("Java model gateway is required for live Nexus rendering");
+            }
+
+            @Override
+            public boolean scale(JavaModelHandle handle, float factor) {
+                throw new IllegalStateException("Java model gateway is required for live Nexus rendering");
+            }
+
+            @Override
             public void close(JavaModelHandle handle) {
                 throw new IllegalStateException("Java model gateway is required for live Nexus rendering");
             }

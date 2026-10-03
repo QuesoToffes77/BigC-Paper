@@ -24,7 +24,12 @@ import dev.linqfy.bigCasares.modules.warp.WarpModule;
 
 import dev.linqfy.bigCasares.modules.missions.MissionModule;
 import dev.linqfy.bigCasares.modules.airdrop.AirdropModule;
+import dev.linqfy.bigCasares.modules.acidrain.AcidRainModule;
+import dev.linqfy.bigCasares.modules.bloodmoon.BloodMoonModule;
+import dev.linqfy.bigCasares.modules.jeremy.JeremyModule;
 import dev.linqfy.bigCasares.modules.mobscaling.MobScalingModule;
+import dev.linqfy.bigCasares.modules.grapplinghook.GrapplingHookModule;
+import dev.linqfy.bigCasares.modules.glider.GliderModule;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelGatewayFactory;
 import dev.linqfy.bigCasares.modules.nexus.NexusModule;
@@ -76,6 +81,11 @@ public final class BigCasares extends JavaPlugin {
     private PveBossModule pveBossModule;
     private GeyserIntegrationModule geyserIntegrationModule;
     private AirdropModule airdropModule;
+    private AcidRainModule acidRainModule;
+    private BloodMoonModule bloodMoonModule;
+    private JeremyModule jeremyModule;
+    private GrapplingHookModule grapplingHookModule;
+    private GliderModule gliderModule;
     private MobScalingModule mobScalingModule;
     private ModerationModule moderationModule;
     private ServerControlModule serverControlModule;
@@ -182,6 +192,18 @@ public final class BigCasares extends JavaPlugin {
 
     public AirdropModule getAirdropModule() {
         return airdropModule;
+    }
+
+    public AcidRainModule getAcidRainModule() {
+        return acidRainModule;
+    }
+
+    public BloodMoonModule getBloodMoonModule() {
+        return bloodMoonModule;
+    }
+
+    public JeremyModule getJeremyModule() {
+        return jeremyModule;
     }
 
     public MobScalingModule getMobScalingModule() {
@@ -300,11 +322,16 @@ public final class BigCasares extends JavaPlugin {
         this.warpModule = new WarpModule(this);
         this.geyserIntegrationModule = new GeyserIntegrationModule(this);
         this.airdropModule = new AirdropModule(this);
+        JavaModelGateway javaModels = JavaModelGatewayFactory.create(this);
+        this.acidRainModule = new AcidRainModule(this, javaModels);
+        this.bloodMoonModule = new BloodMoonModule(this, this::acidRainEventActive);
+        this.jeremyModule = new JeremyModule(this);
+        this.grapplingHookModule = new GrapplingHookModule(this, javaModels);
+        this.gliderModule = new GliderModule(this);
         this.mobScalingModule = new MobScalingModule(this);
         this.resourcePackModule = new ResourcePackModule(this, this::resolveClientPlatform);
         this.itemCatalogModule = new ItemCatalogModule(this, customItemRegistry);
         this.teamModule = new TeamModule(this);
-        JavaModelGateway javaModels = JavaModelGatewayFactory.create(this);
         this.nexusModule = new NexusModule(this, playerId ->
             teamModule.service().flatMap(service -> service.findByMember(playerId)).map(team -> team.id()),
             teamId -> teamModule.service().flatMap(service -> service.findById(teamId))
@@ -344,10 +371,15 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(warpModule);
 
         moduleManager.register(airdropModule);
+        moduleManager.register(grapplingHookModule);
+        moduleManager.register(gliderModule);
         moduleManager.register(mobScalingModule);
 
         moduleManager.register(teamModule);
         moduleManager.register(nexusModule);
+        moduleManager.register(acidRainModule);
+        moduleManager.register(bloodMoonModule);
+        moduleManager.register(jeremyModule);
         moduleManager.register(shopModule);
         moduleManager.register(pveBossModule);
         moduleManager.register(geyserIntegrationModule);
@@ -356,6 +388,14 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(endEventModule);
         moduleManager.register(discordIntegrationModule);
         return moduleManager.enableRegisteredModules(generation);
+    }
+
+    private boolean acidRainEventActive() {
+        try {
+            return acidRainModule != null && acidRainModule.isEventRunning();
+        } catch (IllegalStateException unavailable) {
+            return false;
+        }
     }
 
     public ClientPlatform resolvePlayerPlatform(UUID playerId) {
@@ -486,6 +526,8 @@ public final class BigCasares extends JavaPlugin {
         pveBossModule = null;
         geyserIntegrationModule = null;
         airdropModule = null;
+        acidRainModule = null;
+        grapplingHookModule = null;
         mobScalingModule = null;
         moderationModule = null;
         serverControlModule = null;

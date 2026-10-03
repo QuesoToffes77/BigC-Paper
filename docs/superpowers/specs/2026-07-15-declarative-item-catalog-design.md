@@ -170,6 +170,45 @@ custom-item-catalog:
 `plugin.yml` gains `bigcasares.items.reload` and `bigcasares.items.info` permissions.
 The legacy `bigcasares.shop.reload` permission temporarily grants item reload access.
 
+## Recipe extensions (catalog items as ingredients, vanilla results)
+
+Catalog recipes support two extra capabilities used by the gunpowder recipe:
+
+- **Custom item ingredients.** An ingredient value like `bigcasares:potassium_nitrate`
+  references another catalog item. The Bukkit gateway registers it as a real
+  `RecipeChoice.ExactChoice` over the catalog stack, so identity is the
+  persistent-data catalog id: a vanilla item that only shares the material or
+  a similar-looking item is never accepted. Vanilla material choices are
+  expressed as `COAL|CHARCOAL` and become a `RecipeChoice.MaterialChoice`.
+- **Vanilla results.** `result-material: GUNPOWDER` makes the recipe produce a
+  vanilla item; the owning definition only hosts the recipe. Without
+  `result-material`, the result is the owning custom item as before.
+
+Both are real Bukkit/Paper recipes (`ShapelessRecipe`/`ShapedRecipe` registered
+with `Bukkit.addRecipe`), removed and re-registered atomically on
+`/bigcasares reload items`, and re-registered on server restart. Ingredients are
+consumed by the vanilla crafting flow, so there is no duplication.
+
+## New catalog-only items
+
+The catalog adds two definitions that have no gameplay mechanic module yet and
+are reachable through the existing item delivery commands (`/bigcasares give
+<id>`, tab completion and `getAllItems()` now resolve catalog-only items through
+`CustomItemRegistry`):
+
+- `potassium_nitrate` — Nitrato de Potasio (base `SUGAR`, own model, legacy
+  model data 1009). Hosts the shapeless gunpowder recipe
+  `potassium_nitrate_gunpowder_recipe`.
+- `nitric_acid` — Ácido Nítrico (base `POTION`, own model, legacy model data
+  1011). Fully integrated into the catalog and resource pack and documented as
+  prepared for future mechanics; it is deliberately not wired into Acid Rain or
+  any other gameplay system yet.
+
+Both use the `catalog-material` mechanic allow-listed in `ItemCatalogValidator`
+and are wired into the Java/Bedrock resource packs through `shared/registry.yml`
+(Java item definitions and models, shared textures, bedrock
+`item_texture.json`, and lang entries in `es_es.json`/`en_us.json`).
+
 ## Boundaries
 
 - Do not copy Oraxen source, assets, configuration text, API names, or implementation.

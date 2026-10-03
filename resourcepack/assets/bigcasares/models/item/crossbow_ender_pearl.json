@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:item/crossbow_arrow",
-  "textures": {
-    "layer0": "bigcasares:item/crossbow_ender_pearl"
-  }
-}

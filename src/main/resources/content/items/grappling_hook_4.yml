@@ -1,0 +1,26 @@
+id: grappling_hook_4
+mechanic: grappling-hook
+material: FISHING_ROD
+item-model: bigcasares:grappling_hook_4
+legacy-custom-model-data: 1015
+display:
+  translation-key: item.bigcasares.grappling_hook_4
+  fallback-name: "Ballesta Ark IV"
+  lore:
+    - "§7Alcance: §a125 bloques"
+    - "§7Cooldown: §a2.75s"
+max-stack-size: 1
+recipe:
+  key: grappling_hook_4_recipe
+  result-amount: 1
+  shape: ["EPE", "GEG", "DCH"]
+  ingredients:
+    E: EMERALD
+    P: DEEPSLATE_DIAMOND_ORE
+    G: GOLD_INGOT
+    D: DIAMOND
+    C: IRON_CHAIN
+    H: bigcasares:grappling_hook_3
+appearance:
+  java-item-definition: java/assets/bigcasares/items/grappling_hook_4.json
+  bedrock-texture: bedrock/textures/item/grappling_hook_4.png

@@ -54,6 +54,61 @@ class BetterModelJavaModelGatewayTest {
     }
 
     @Test
+    void animateOnceForwardsOneShotWithEndCallback() {
+        var port = new RecordingTrackerPort();
+        JavaModelGateway gateway = new BetterModelJavaModelGateway(port);
+        JavaModelHandle handle = gateway.attach(anchor, JavaModelKeys.NEXUS);
+
+        assertTrue(gateway.animateOnce(handle, "shoot", () -> { }));
+
+        assertEquals(List.of("attach:bigcasares_nexus", "animateOnce:shoot"), port.events());
+    }
+
+    @Test
+    void animateOnceRunsEndCallbackWhenTheOneShotFinishes() {
+        var port = new RecordingTrackerPort();
+        JavaModelGateway gateway = new BetterModelJavaModelGateway(port);
+        JavaModelHandle handle = gateway.attach(anchor, JavaModelKeys.NEXUS);
+        var fired = new boolean[] { false };
+
+        gateway.animateOnce(handle, "reload", () -> fired[0] = true);
+        port.finishAnimation("reload");
+
+        assertTrue(fired[0], "end callback must fire when the one-shot ends");
+    }
+
+    @Test
+    void animateOnceOnUnknownOrClosedHandleReturnsFalse() {
+        var port = new RecordingTrackerPort();
+        JavaModelGateway gateway = new BetterModelJavaModelGateway(port);
+        JavaModelHandle unknown = new JavaModelHandle(UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                JavaModelKeys.NEXUS);
+
+        assertFalse(gateway.animateOnce(unknown, "shoot", () -> { }));
+    }
+
+    @Test
+    void scaleForwardsToTheAttachedTracker() {
+        var port = new RecordingTrackerPort();
+        JavaModelGateway gateway = new BetterModelJavaModelGateway(port);
+        JavaModelHandle handle = gateway.attach(anchor, JavaModelKeys.NEXUS);
+
+        assertTrue(gateway.scale(handle, 0.2f));
+
+        assertEquals(List.of("attach:bigcasares_nexus", "scale:0.2"), port.events());
+    }
+
+    @Test
+    void scaleOnUnknownOrClosedHandleReturnsFalse() {
+        var port = new RecordingTrackerPort();
+        JavaModelGateway gateway = new BetterModelJavaModelGateway(port);
+        JavaModelHandle unknown = new JavaModelHandle(UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                JavaModelKeys.NEXUS);
+
+        assertFalse(gateway.scale(unknown, 0.2f));
+    }
+
+    @Test
     void duplicateAttachReusesOneTrackerSession() {
         var port = new RecordingTrackerPort();
         JavaModelGateway gateway = new BetterModelJavaModelGateway(port);
@@ -107,6 +162,16 @@ class BetterModelJavaModelGatewayTest {
                 }
 
                 @Override
+                public boolean animateOnce(String animationKey, Runnable onEnd) {
+                    return true;
+                }
+
+                @Override
+                public boolean scale(float factor) {
+                    return true;
+                }
+
+                @Override
                 public void close() {
                 }
             };
@@ -152,6 +217,7 @@ class BetterModelJavaModelGatewayTest {
 
     private static final class RecordingTrackerPort implements TrackerPort {
         private final List<String> events = new ArrayList<>();
+        private final java.util.Map<String, List<Runnable>> endCallbacks = new java.util.HashMap<>();
 
         @Override
         public TrackerSession attach(Entity anchor, String modelKey) {
@@ -164,10 +230,32 @@ class BetterModelJavaModelGatewayTest {
                 }
 
                 @Override
+                public boolean animateOnce(String animationKey, Runnable onEnd) {
+                    events.add("animateOnce:" + animationKey);
+                    endCallbacks.computeIfAbsent(animationKey, ignored -> new ArrayList<>()).add(onEnd);
+                    return true;
+                }
+
+                @Override
+                public boolean scale(float factor) {
+                    events.add("scale:" + factor);
+                    return true;
+                }
+
+                @Override
                 public void close() {
                     events.add("close:" + modelKey);
                 }
             };
+        }
+
+        void finishAnimation(String animationKey) {
+            List<Runnable> callbacks = endCallbacks.remove(animationKey);
+            if (callbacks != null) {
+                for (Runnable callback : callbacks) {
+                    callback.run();
+                }
+            }
         }
 
         List<String> events() {

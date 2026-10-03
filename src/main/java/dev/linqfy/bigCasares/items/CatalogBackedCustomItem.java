@@ -40,7 +40,7 @@ public abstract class CatalogBackedCustomItem implements CustomItem {
     }
 
     @Override
-    public final ItemStack createItemStack(int amount) {
+    public ItemStack createItemStack(int amount) {
         return registry.createItemStack(id, amount);
     }
 

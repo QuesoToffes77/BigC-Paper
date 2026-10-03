@@ -36,11 +36,15 @@ public final class ResourcePackStatusListener implements Listener {
             if (!player.isOnline()) {
                 return;
             }
-            if (plugin.getResourcePackModule().isManualPlayer(player)) {
-                plugin.getResourcePackModule().notifyManualUpdate(player);
-                return;
+            // Joining is always an automatic delivery point. Clear stale
+            // manual-mode tags left by an earlier command so the current
+            // pack and its textures are requested again.
+            for (String tag : java.util.Set.copyOf(player.getScoreboardTags())) {
+                if (ManualResourcePackTracker.isManagedTag(tag)) {
+                    player.removeScoreboardTag(tag);
+                }
             }
-            service.requestFor(playerId);
+            service.forceRequestFor(playerId);
 
             if (service.isRequired()) {
                 registrations.scheduleDelayed("required-pack-timeout", () -> {

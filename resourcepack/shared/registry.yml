@@ -32,6 +32,18 @@ assets:
     type: item-model
     java-model: bigcasares:item/copper_apple
     texture: item/copper_apple
+  copper-apple-exposed:
+    type: item-model
+    java-model: bigcasares:item/copper_apple_exposed
+    texture: item/copper_apple_exposed
+  copper-apple-weathered:
+    type: item-model
+    java-model: bigcasares:item/copper_apple_weathered
+    texture: item/copper_apple_weathered
+  copper-apple-oxidized:
+    type: item-model
+    java-model: bigcasares:item/copper_apple_oxidized
+    texture: item/copper_apple_oxidized
   smoke-bomb:
     type: item-model
     java-model: bigcasares:item/smoke_bomb
@@ -76,3 +88,63 @@ assets:
     type: item-model
     java-model: bigcasares:item/sahurs_bat
     texture: item/sahurs_bat
+  potassium-nitrate:
+    type: item-model
+    java-model: bigcasares:item/potassium_nitrate
+    texture: item/potassium_nitrate
+  nitric-acid:
+    type: item-model
+    java-model: bigcasares:item/nitric_acid
+    texture: item/nitric_acid
+  grappling-hook-1:
+    type: item-model
+    java-model: bigcasares:item/grappling_hook_1
+    texture: item/grappling_hook_1
+  grappling-hook-2:
+    type: item-model
+    java-model: bigcasares:item/grappling_hook_2
+    texture: item/grappling_hook_2
+  grappling-hook-3:
+    type: item-model
+    java-model: bigcasares:item/grappling_hook_3
+    texture: item/grappling_hook_3
+  grappling-hook-4:
+    type: item-model
+    java-model: bigcasares:item/grappling_hook_4
+    texture: item/grappling_hook_4
+  grappling-hook-5:
+    type: item-model
+    java-model: bigcasares:item/grappling_hook_5
+    texture: item/grappling_hook_5
+  grappling-hook-6:
+    type: item-model
+    java-model: bigcasares:item/grappling_hook_6
+    texture: item/grappling_hook_6
+  grappling-hook-crossbow:
+    type: item-model
+    java-model: bigcasares:item/grappling_hook_crossbow
+    texture: item/grappling_hook_crossbow
+  glider-tier-1:
+    type: item-model
+    java-model: bigcasares:item/glider_tier_1
+    texture: item/glider_tier_1
+  glider-tier-2:
+    type: item-model
+    java-model: bigcasares:item/glider_tier_2
+    texture: item/glider_tier_2
+  glider-tier-3:
+    type: item-model
+    java-model: bigcasares:item/glider_tier_3
+    texture: item/glider_tier_3
+  glider-tier-4:
+    type: item-model
+    java-model: bigcasares:item/glider_tier_4
+    texture: item/glider_tier_4
+  glider-tier-5:
+    type: item-model
+    java-model: bigcasares:item/glider_tier_5
+    texture: item/glider_tier_5
+  glider-tier-6:
+    type: item-model
+    java-model: bigcasares:item/glider_tier_6
+    texture: item/glider_tier_6

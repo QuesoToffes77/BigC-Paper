@@ -1,0 +1,15 @@
+id: nitric_acid
+mechanic: catalog-material
+material: GLASS_BOTTLE
+item-model: bigcasares:nitric_acid
+legacy-custom-model-data: 1011
+display:
+  translation-key: item.bigcasares.nitric_acid
+  fallback-name: "Ácido Nítrico"
+  lore:
+    - "§7Liquido corrosivo de alta pureza."
+    - "§8Preparado para futuras mecanicas."
+max-stack-size: 64
+appearance:
+  java-item-definition: java/assets/bigcasares/items/nitric_acid.json
+  bedrock-texture: bedrock/textures/item/nitric_acid.png

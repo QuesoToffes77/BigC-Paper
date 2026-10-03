@@ -34,7 +34,21 @@ public final class ItemCatalogModule implements PluginModule {
         "golden_tipped_amethyst_arrow.yml",
         "tracker_compass.yml",
         "nuke_shot.yml",
-        "sahurs_bat.yml"
+        "sahurs_bat.yml",
+        "potassium_nitrate.yml",
+        "nitric_acid.yml",
+        "grappling_hook_1.yml",
+        "grappling_hook_2.yml",
+        "grappling_hook_3.yml",
+        "grappling_hook_4.yml",
+        "grappling_hook_5.yml",
+        "grappling_hook_6.yml",
+        "glider_tier_1.yml",
+        "glider_tier_2.yml",
+        "glider_tier_3.yml",
+        "glider_tier_4.yml",
+        "glider_tier_5.yml",
+        "glider_tier_6.yml"
     );
 
     private final BigCasares plugin;

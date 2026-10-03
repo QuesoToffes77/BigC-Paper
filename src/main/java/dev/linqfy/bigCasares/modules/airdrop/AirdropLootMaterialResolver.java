@@ -10,10 +10,14 @@ public final class AirdropLootMaterialResolver {
     public Map<String, Material> resolveAll() {
         LinkedHashMap<String, Material> resolved = new LinkedHashMap<>();
         for (AirdropType type : AirdropType.values()) {
-            for (AirdropLootEntry entry : AirdropLootTable.forType(type)) {
-                resolved.computeIfAbsent(entry.materialName(), this::resolveOrThrow);
+            for (AirdropQuality quality : AirdropQuality.values()) {
+                for (AirdropLootDefinition entry : AirdropLootTable.materials(type, quality)) {
+                    Material material = resolved.computeIfAbsent(entry.itemId(), this::resolveOrThrow);
+                    resolved.putIfAbsent(material.name(), material);
+                }
             }
         }
+        resolved.put("enchanted_book", Material.ENCHANTED_BOOK);
         return Map.copyOf(resolved);
     }
 

@@ -3,6 +3,7 @@ package dev.linqfy.bigCasares.items;
 import dev.linqfy.bigCasares.items.catalog.CatalogItemStackFactory;
 import dev.linqfy.bigCasares.items.catalog.CustomItemCatalog;
 import dev.linqfy.bigCasares.items.catalog.CustomItemDefinition;
+import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -56,7 +57,12 @@ public final class CustomItemRegistry {
     }
 
     public Optional<CustomItem> findById(String itemId) {
-        return Optional.ofNullable(itemsById.get(normalizeId(itemId)));
+        String normalized = normalizeId(itemId);
+        CustomItem registered = itemsById.get(normalized);
+        if (registered != null) {
+            return Optional.of(registered);
+        }
+        return catalogHandle(normalized);
     }
 
     public Optional<CustomItem> findByItemStack(ItemStack itemStack) {
@@ -73,7 +79,12 @@ public final class CustomItemRegistry {
     }
 
     public Collection<CustomItem> getAllItems() {
-        return Collections.unmodifiableCollection(itemsById.values());
+        LinkedHashMap<String, CustomItem> all = new LinkedHashMap<>();
+        all.putAll(itemsById);
+        for (CustomItem item : catalogHandles()) {
+            all.putIfAbsent(item.getId(), item);
+        }
+        return Collections.unmodifiableCollection(all.values());
     }
 
     public int getRegisteredItemCount() {
@@ -139,7 +150,72 @@ public final class CustomItemRegistry {
         return Optional.of(candidate);
     }
 
+    private Optional<CustomItem> catalogHandle(String id) {
+        CustomItemCatalog activeCatalog = catalog;
+        if (activeCatalog == null) {
+            return Optional.empty();
+        }
+        return activeCatalog.find(id).map(definition -> new CatalogHandle(this, definition));
+    }
+
+    private java.util.List<CustomItem> catalogHandles() {
+        CustomItemCatalog activeCatalog = catalog;
+        if (activeCatalog == null) {
+            return java.util.List.of();
+        }
+        return activeCatalog.definitions().values().stream()
+            .map(definition -> (CustomItem) new CatalogHandle(this, definition))
+            .toList();
+    }
+
     private String normalizeId(String itemId) {
         return itemId.toLowerCase(Locale.ROOT).trim();
+    }
+
+    /**
+     * Lightweight {@link CustomItem} view over a catalog definition that has no
+     * dedicated gameplay mechanic module. Identity is the catalog persistent-data
+     * id, so catalog-only items are reachable through {@link #findById} and
+     * {@link #getAllItems} (for example {@code /bigcasares give potassium_nitrate}).
+     */
+    private static final class CatalogHandle implements CustomItem {
+
+        private final CustomItemRegistry registry;
+        private final CustomItemDefinition definition;
+
+        private CatalogHandle(CustomItemRegistry registry, CustomItemDefinition definition) {
+            this.registry = registry;
+            this.definition = definition;
+        }
+
+        @Override
+        public String getId() {
+            return definition.id();
+        }
+
+        @Override
+        public int getCustomModelData() {
+            return definition.legacyCustomModelData().orElse(0);
+        }
+
+        @Override
+        public NamespacedKey getItemKey() {
+            return registry.stackFactory().itemIdKey();
+        }
+
+        @Override
+        public ItemStack createItemStack(int amount) {
+            return registry.createItemStack(getId(), amount);
+        }
+
+        @Override
+        public void onConsume(org.bukkit.entity.Player player, ItemStack consumedItem) {
+            // Catalog-only items have no gameplay mechanic yet.
+        }
+
+        @Override
+        public boolean matches(ItemStack item) {
+            return registry.resolveItemId(item).map(getId()::equals).orElse(false);
+        }
     }
 }

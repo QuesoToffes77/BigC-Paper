@@ -106,13 +106,14 @@ public final class ItemCatalogLoader {
         if (!recipe.isInt("result-amount")) {
             throw new IllegalArgumentException("recipe result-amount is required in " + source);
         }
+        String resultMaterial = recipe.getString("result-material");
         String type = recipe.getString("type", "shaped").trim().toUpperCase(java.util.Locale.ROOT);
         if (type.equals("SHAPELESS")) {
             List<String> ingredients = recipe.getStringList("ingredients");
             if (ingredients.isEmpty()) {
                 throw new IllegalArgumentException("shapeless recipe ingredients are required in " + source);
             }
-            return ItemRecipeDefinition.shapeless(key, recipe.getInt("result-amount"), ingredients);
+            return ItemRecipeDefinition.shapeless(key, recipe.getInt("result-amount"), ingredients, resultMaterial);
         }
         if (!type.equals("SHAPED")) {
             throw new IllegalArgumentException("unknown recipe type in " + source + ": " + type);
@@ -126,7 +127,8 @@ public final class ItemCatalogLoader {
             }
             values.put(ingredientKey.charAt(0), requiredString(ingredients, ingredientKey, source));
         }
-        return new ItemRecipeDefinition(key, recipe.getInt("result-amount"), shape, values);
+        return new ItemRecipeDefinition(key, recipe.getInt("result-amount"), type.equals("SHAPELESS")
+            ? RecipeType.SHAPELESS : RecipeType.SHAPED, shape, values, List.of(), resultMaterial);
     }
 
     private static ConfigurationSection requiredSection(

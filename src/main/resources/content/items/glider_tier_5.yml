@@ -1,0 +1,24 @@
+id: glider_tier_5
+mechanic: glider
+material: PHANTOM_MEMBRANE
+item-model: bigcasares:glider_tier_5
+legacy-custom-model-data: 1022
+display:
+  translation-key: item.bigcasares.glider_tier_5
+  fallback-name: "Glider V"
+  lore:
+    - "§7Tecnología avanzada de planeo"
+    - "§7Propulsión de recuperación rápida"
+max-stack-size: 1
+recipe:
+  key: glider_tier_5_recipe
+  result-amount: 1
+  shape: ["ENE", "YGY", "ENE"]
+  ingredients:
+    E: ECHO_SHARD
+    Y: ENDER_EYE
+    N: NETHERITE_INGOT
+    G: bigcasares:glider_tier_4
+appearance:
+  java-item-definition: java/assets/bigcasares/items/glider_tier_5.json
+  bedrock-texture: bedrock/textures/item/glider_tier_5.png
