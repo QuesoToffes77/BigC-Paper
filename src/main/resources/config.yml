@@ -249,7 +249,8 @@ acid-rain:
       - "&7Se detecto contaminacion atmosferica."
       - "&cLa lluvia acida comenzara pronto."
   automatic:
-    enabled: true
+    # Disabled by default - enable after playtesting with real players and builds
+    enabled: false
     chance: 10
     minimum-interval-minutes: 60
     maximum-interval-minutes: 180
@@ -317,7 +318,8 @@ acid-rain:
       carried-materials: []
   environment:
     destruction:
-      enabled: true
+      # Disabled by default - enable after playtesting with real players and builds
+      enabled: false
       radius: 18
       max-blocks-per-event: 6000
       max-blocks-per-second: 90
@@ -524,7 +526,8 @@ blood-moon:
   enabled: true
   scheduling:
     mode: CHANCE
-    chance-per-night: 0.12
+    # Disabled by default - enable after playtesting with real players and builds
+    chance-per-night: 0.0
     minimum-normal-nights-between-events: 2
     every-nights: 5
   worlds:
