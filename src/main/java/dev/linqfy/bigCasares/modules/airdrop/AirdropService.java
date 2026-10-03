@@ -124,6 +124,12 @@ public final class AirdropService {
                 z = random.nextInt(settings.radius() * 2 + 1) - settings.radius();
             }
 
+            // Chunk loading budget policy: Skip candidate positions in unloaded chunks
+            // to avoid triggering synchronous chunk loading or generation during search.
+            if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+                continue;
+            }
+
             int groundY = world.getHighestBlockY(x, z);
             int chestY = groundY + 1;
 

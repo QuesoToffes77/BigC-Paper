@@ -26,6 +26,9 @@ public final class BukkitAirdropWorldGateway implements AirdropWorldGateway {
 
     @Override
     public int getHighestBlockY(int x, int z) {
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+            return world.getMinHeight();
+        }
         int y = world.getHighestBlockYAt(x, z);
         while (y > world.getMinHeight()) {
             Material type = world.getBlockAt(x, y, z).getType();
@@ -39,6 +42,9 @@ public final class BukkitAirdropWorldGateway implements AirdropWorldGateway {
 
     @Override
     public boolean isSafeLandingBlock(int x, int y, int z) {
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+            return false;
+        }
         Material material = world.getBlockAt(x, y, z).getType();
         if (INVALID_GROUNDS.contains(material)) {
             return false;
@@ -48,12 +54,20 @@ public final class BukkitAirdropWorldGateway implements AirdropWorldGateway {
 
     @Override
     public boolean isSafeOpenSpace(int x, int y, int z) {
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+            return false;
+        }
         Block block = world.getBlockAt(x, y, z);
         Material material = block.getType();
         if (material == Material.LAVA || material == Material.WATER) {
             return false;
         }
         return block.isPassable();
+    }
+
+    @Override
+    public boolean isChunkLoaded(int chunkX, int chunkZ) {
+        return world.isChunkLoaded(chunkX, chunkZ);
     }
 
     @Override

@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 public final class AirdropModule implements PluginModule {
@@ -38,6 +39,7 @@ public final class AirdropModule implements PluginModule {
     private AirdropChestCountdown chestCountdown;
     private AirdropDefenderMobs defenderMobs;
     private BukkitTask fallingTask;
+    private BukkitTask despawnTask;
     private BukkitRuntimeRegistrations registrations;
     private BooleanSupplier generationActive;
     private RuntimeRegistrationScope runtimeScope;
@@ -128,6 +130,7 @@ public final class AirdropModule implements PluginModule {
         enabled = false;
         cancelIntervalTask();
         cancelFallingTask();
+        cancelDespawnTask();
         stopChestCountdown();
         cleanupDefenders();
         if (listener != null) {
@@ -236,7 +239,7 @@ public final class AirdropModule implements PluginModule {
             removeTaggedDefenders(world);
             spawnDefenders(world, data);
             startChestCountdown(world, chestPosition, unlockAt, despawnAt, data.type(), data.quality());
-            scheduleDespawn(world, chestPosition, despawnAt);
+            scheduleDespawn(world, chestPosition, data.id(), despawnAt);
         }
     }
 
@@ -246,13 +249,26 @@ public final class AirdropModule implements PluginModule {
             world,
             position,
             generationActive,
-            landedPosition -> registrations.guard(() -> handleLanding(world, landedPosition)).run()
+            landedPosition -> registrations.guard(() -> handleLanding(world, landedPosition)).run(),
+            () -> registrations.guard(this::handleFallingAbort).run()
         );
         fallingTaskOwnershipId = "airdrop-falling-" + ++fallingTaskSequence;
         fallingTask = registrations.ownTask(
             fallingTaskOwnershipId,
             task.runTaskTimer(plugin, 0L, 1L)
         );
+    }
+
+    private void handleFallingAbort() {
+        try {
+            service.getCurrentDrop().ifPresent(data -> {
+                service.markLanded(data.position());
+                service.claim();
+            });
+            plugin.getLogger().warning("[AirDrop] Falling task aborted: invalid landing ground or obstructed space.");
+        } finally {
+            releaseFallingTaskOwnership();
+        }
     }
 
     private void handleLanding(World world, AirdropPosition landedPosition) {
@@ -269,7 +285,7 @@ public final class AirdropModule implements PluginModule {
                 startChestCountdown(world, landedPosition, unlockAt, despawnAt,
                     landed.get().type(), landed.get().quality());
                 announceLanding(world, landed.get());
-                scheduleDespawn(world, landedPosition, despawnAt);
+                scheduleDespawn(world, landedPosition, landed.get().id(), despawnAt);
                 return;
             }
             world.getBlockAt(landedPosition.x(), landedPosition.y(), landedPosition.z()).setType(Material.AIR);
@@ -283,11 +299,14 @@ public final class AirdropModule implements PluginModule {
      * deadline so the remaining time (and the chest countdown) survives a
      * server restart.
      */
-    private void scheduleDespawn(World world, AirdropPosition position, long despawnAtMillis) {
+    private void scheduleDespawn(World world, AirdropPosition position, UUID dropId, long despawnAtMillis) {
+        cancelDespawnTask();
         long remainingTicks = Math.max(1L, (despawnAtMillis - System.currentTimeMillis() + 49L) / 50L);
-        registrations.scheduleDelayed("airdrop-despawn-" + position.hashCode(), () -> {
+        despawnTask = registrations.scheduleDelayed("airdrop-despawn-" + position.hashCode(), () -> {
+            despawnTask = null;
             Optional<AirdropData> curr = service.getCurrentDrop();
             if (curr.isPresent() && curr.get().phase() == AirdropPhase.LANDED &&
+                curr.get().id().equals(dropId) &&
                 curr.get().position().equals(position)) {
                 world.getBlockAt(position.x(), position.y(), position.z()).setType(Material.AIR);
                 listener.clearChestPosition();
@@ -297,6 +316,15 @@ public final class AirdropModule implements PluginModule {
                 plugin.getServer().broadcastMessage("§e✈ El Airdrop ha desaparecido (tiempo agotado).");
             }
         }, remainingTicks);
+    }
+
+    private void cancelDespawnTask() {
+        if (despawnTask != null) {
+            if (!despawnTask.isCancelled()) {
+                despawnTask.cancel();
+            }
+            despawnTask = null;
+        }
     }
 
     /** Starts the floating countdown above the chest; any previous one is replaced. */
@@ -343,6 +371,7 @@ public final class AirdropModule implements PluginModule {
 
     /** Called when a player claims the chest: drop its visuals and its guards. */
     private void onAirdropClaimed() {
+        cancelDespawnTask();
         stopChestCountdown();
         cleanupDefenders();
     }
@@ -427,6 +456,7 @@ public final class AirdropModule implements PluginModule {
         enabled = false;
         cancelIntervalTask();
         cancelFallingTask();
+        cancelDespawnTask();
         stopChestCountdown();
         cleanupDefenders();
         if (listener != null) {
