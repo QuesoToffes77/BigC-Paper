@@ -3,6 +3,8 @@ package dev.linqfy.bigCasares.modules.acidrain;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
+import org.joml.Quaterniond;
+import org.joml.Vector3d;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -105,10 +107,126 @@ class AcidMobVisualDesignTest {
     }
 
     @Test
+    void crawlerLegSegmentsReachTheirJointsWithBetterModelRotationOrder() throws Exception {
+        JsonObject m = model("toxic_mob");
+        for (int leg = 1; leg <= 4; leg++) {
+            for (String side : Set.of("Left", "Right")) {
+                String name = "Leg" + leg;
+                Vector3d hip = null;
+                for (var bone : m.getAsJsonArray("groups")) {
+                    JsonObject b = bone.getAsJsonObject();
+                    if (b.get("name").getAsString().equals(name + side)) hip = vector(b, "origin");
+                }
+                assertNotNull(hip);
+                JsonObject joint = cube(m, name + "Joint" + side);
+                Vector3d knee = vector(joint, "from").add(vector(joint, "to")).mul(0.5);
+                assertEndpoint(cube(m, name + "Upper" + side), hip);
+                assertEndpoint(cube(m, name + "Upper" + side), knee);
+                assertEndpoint(cube(m, name + "Lower" + side), knee);
+            }
+        }
+    }
+
+    @Test
+    void bowStringReachesBothLimbTips() throws Exception {
+        JsonObject m = model("toxic_spitter");
+        JsonObject string = cube(m, "BowString");
+        for (Vector3d tip : new Vector3d[]{new Vector3d(8, 17, -2), new Vector3d(8, 4, -2)}) {
+            assertEndpoint(string, tip);
+        }
+    }
+
+    @Test
+    void crawlerFangsRemainConnectedAfterExportRotation() throws Exception {
+        JsonObject m = model("toxic_mob");
+        for (String side : Set.of("Left", "Right")) {
+            int sign = side.equals("Left") ? -1 : 1;
+            Vector3d joint = new Vector3d(sign * 3.6, 2.7, -12);
+            assertEndpoint(cube(m, "FrontClaw" + side), joint);
+            assertEndpoint(cube(m, "FangTip" + side), joint);
+        }
+    }
+
+    @Test
+    void bowStaysUprightWhileArmRaisesToAim() throws Exception {
+        JsonObject m = model("toxic_spitter");
+        for (var animation : m.getAsJsonArray("animations")) {
+            JsonObject a = animation.getAsJsonObject();
+            if (!a.get("name").getAsString().equals("attack")) continue;
+            for (double time : new double[]{0.2, 0.4}) {
+                Quaterniond arm = keyframeRotation(a, "ArmRight", time);
+                Quaterniond bow = keyframeRotation(a, "AcidBow", time);
+                Vector3d up = new Vector3d(0, 1, 0).rotate(arm.mul(bow));
+                assertTrue(up.y > 0.99, "bow must not turn sideways when aiming");
+            }
+            return;
+        }
+        fail("missing attack animation");
+    }
+
+    private static Quaterniond keyframeRotation(JsonObject animation, String bone, double time) {
+        for (var value : animation.getAsJsonObject("animators").entrySet()) {
+            JsonObject animator = value.getValue().getAsJsonObject();
+            if (!animator.get("name").getAsString().equals(bone)) continue;
+            for (var frame : animator.getAsJsonArray("keyframes")) {
+                JsonObject f = frame.getAsJsonObject();
+                if (!f.get("channel").getAsString().equals("rotation")
+                    || Math.abs(f.get("time").getAsDouble() - time) > 0.0001) continue;
+                JsonObject r = f.getAsJsonArray("data_points").get(0).getAsJsonObject();
+                return new Quaterniond().rotationZYX(Math.toRadians(r.get("z").getAsDouble()),
+                    Math.toRadians(r.get("y").getAsDouble()), Math.toRadians(r.get("x").getAsDouble()));
+            }
+        }
+        throw new AssertionError("missing rotation: " + bone + " at " + time);
+    }
+
+    @Test
+    void everyVisibleCubeHasSixTexturedFacesAndPositiveVolume() throws Exception {
+        for (String name : Set.of("toxic_mob", "toxic_brute", "toxic_spitter")) {
+            for (var element : model(name).getAsJsonArray("elements")) {
+                JsonObject c = element.getAsJsonObject();
+                assertEquals(Set.of("north", "south", "east", "west", "up", "down"),
+                    c.getAsJsonObject("faces").keySet());
+                Vector3d size = vector(c, "to").sub(vector(c, "from"));
+                assertTrue(size.x > 0 && size.y > 0 && size.z > 0);
+                for (var face : c.getAsJsonObject("faces").entrySet()) {
+                    var uv = face.getValue().getAsJsonObject().getAsJsonArray("uv");
+                    assertTrue(uv.get(2).getAsDouble() > uv.get(0).getAsDouble());
+                    assertTrue(uv.get(3).getAsDouble() > uv.get(1).getAsDouble());
+                }
+            }
+        }
+    }
+
+    private static JsonObject cube(JsonObject model, String name) {
+        for (var e : model.getAsJsonArray("elements")) {
+            if (e.getAsJsonObject().get("name").getAsString().equals(name)) return e.getAsJsonObject();
+        }
+        throw new AssertionError("Missing cube " + name);
+    }
+
+    private static Vector3d vector(JsonObject object, String field) {
+        var a = object.getAsJsonArray(field);
+        return new Vector3d(a.get(0).getAsDouble(), a.get(1).getAsDouble(), a.get(2).getAsDouble());
+    }
+
+    private static void assertEndpoint(JsonObject cube, Vector3d expected) {
+        Vector3d from = vector(cube, "from"), to = vector(cube, "to");
+        Vector3d origin = vector(cube, "origin");
+        Vector3d rotation = cube.has("rotation") ? vector(cube, "rotation") : new Vector3d();
+        Quaterniond q = new Quaterniond().rotationZYX(Math.toRadians(rotation.z),
+            Math.toRadians(rotation.y), Math.toRadians(rotation.x));
+        Vector3d start = new Vector3d((from.x + to.x)/2, from.y, (from.z + to.z)/2).sub(origin).rotate(q).add(origin);
+        Vector3d end = new Vector3d((from.x + to.x)/2, to.y, (from.z + to.z)/2).sub(origin).rotate(q).add(origin);
+        assertTrue(Math.min(start.distance(expected), end.distance(expected)) < 0.0001,
+            cube.get("name").getAsString() + " is detached from joint " + expected);
+    }
+
+    @Test
     void creatureMeshesStayInsideTheirVisualBudget() throws Exception {
         for (String name : Set.of("toxic_mob", "toxic_brute", "toxic_spitter")) {
             JsonObject model = model(name);
-            assertTrue(model.getAsJsonArray("elements").size() <= 96);
+            assertTrue(model.getAsJsonArray("elements").size() <= 128);
             assertTrue(model.getAsJsonArray("groups").size() <= 16);
         }
     }

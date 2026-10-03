@@ -406,3 +406,46 @@ The existing four animation IDs and three model keys are unchanged.
 - Live Minecraft rendering remains unverified; previews are asset renders,
   not screenshots from Minecraft or proof of shader emission. Golden acid is
   colored geometry, not a promised shader-dependent glow effect.
+
+## Missing Anatomy and Disconnected Mesh Repair - 2026-10-02
+
+Two geometric failures were reproduced before the repair: the crawler's rod
+endpoints did not meet its joints under BetterModel's ZYX cube rotation, and
+the bow string stopped short of both limb tips. The old preview applied a
+different Euler order, concealing the first defect. Its camera culling sign
+and face-average sorting could also hide otherwise present surfaces.
+
+The generator now derives rod angles for `Rz * Ry * Rx`, matching
+BetterModel 3.3.0 `Float3.toQuaternionZYX`. Eight legs and both articulated
+fangs meet their endpoints. The string reaches both bow tips, and a child
+counter-rotation keeps the bow upright during the aiming pose.
+
+- Crawler: completed skull nose bridge, jaw teeth, eight hip sockets and feet.
+- Zombie: completed shoulder connections, thumbs/fingers, teeth, temple rim,
+  and exposed back spine between torn shirt panels; leg pivots match hips.
+- Skeleton: completed rear rib connections, clavicles, neck vertebrae, temple
+  rim, teeth and fingers. The rib cage is connected rather than floating bars.
+- Preview: consistent ZYX rotations, correct camera-facing tests, per-pixel
+  depth testing and automatic framing for all seven inspection directions.
+  The preview tool uses Pillow and NumPy; no plugin dependency was added.
+
+### Agent Completion Report - Anatomy Repair
+
+- Modified: `tools/gen_toxic_mob.py`, `tools/preview_acid_mobs.py`, three
+  packaged `.bbmodel` files, `AcidMobVisualDesignTest.java`, and this document.
+  No texture redesign, file deletions, gameplay, configuration, permissions,
+  model keys or animation IDs changed.
+- Geometry: crawler 117 cubes/14 bones, zombie 96/9, skeleton 110/10.
+  The cube ceiling is 128; the bone ceiling remains 16. No new bones/tasks.
+- Five regressions cover legs, fangs, complete textured cube faces, bow
+  string endpoints, and upright attack pose. The original endpoint/string
+  tests failed first; after the fix all tests passed.
+- `gradlew.bat --offline clean build`: SUCCESS. 967 tests passed, zero
+  failures/errors/skipped. JAR: `build/libs/BigCasares-0.0.1.jar`.
+- Deterministic regeneration: all six packaged model/texture SHA256 hashes
+  remain unchanged after rerunning the generator. Existing pack build tasks
+  rebuilt both archives. BetterModel generates the mob portion on restart;
+  the standalone Java pack is not a substitute for that merged server pack.
+- Inspected front/back/left/right/top/bottom/three-quarter and attack/walk
+  asset renders. These are not Minecraft screenshots. Live client rendering
+  is NOT verified; the running user's server was not restarted or interrupted.

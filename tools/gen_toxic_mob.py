@@ -66,9 +66,9 @@ class Model:
         delta = [end[i] - start[i] for i in range(3)]
         length = math.sqrt(sum(value * value for value in delta))
         center = [(start[i] + end[i]) / 2 for i in range(3)]
-        # Rotate local Y toward the endpoint in the Blockbench free format.
-        x = math.degrees(math.atan2(delta[2], delta[1]))
-        z = math.degrees(math.atan2(-delta[0], math.hypot(delta[1], delta[2])))
+        # BetterModel uses Rz * Ry * Rx; rotate local Y to the exact endpoint.
+        x = math.degrees(math.atan2(delta[2], math.hypot(delta[0], delta[1])))
+        z = math.degrees(math.atan2(-delta[0], delta[1]))
         self.cube(name, [center[0] - width / 2, center[1] - length / 2, center[2] - width / 2],
             [center[0] + width / 2, center[1] + length / 2, center[2] + width / 2],
             material, bone, [x, 0, z], center)
@@ -144,7 +144,9 @@ def humanoid_animations(m, skeleton=False):
                                   (0.4, [65, 0, 10] if skeleton else [80, 0, 4]), (0.65, [0, 0, 0])]},
         "ArmRight": {"rotation": [(0, [0, 0, 0]), (0.2, [85, 0, -5] if skeleton else [72, 0, 8]),
                                    (0.4, [85, 0, -5] if skeleton else [84, 0, -4]), (0.65, [0, 0, 0])]},
-        "Jaw": {"rotation": [(0, [0, 0, 0]), (0.2, [-18, 0, 0]), (0.4, [-7, 0, 0]), (0.65, [0, 0, 0])]}})
+        "Jaw": {"rotation": [(0, [0, 0, 0]), (0.2, [-18, 0, 0]), (0.4, [-7, 0, 0]), (0.65, [0, 0, 0])]},
+        **({"AcidBow": {"rotation": [(0, [0,0,0]), (0.2, [-85,0,0]),
+                                      (0.4, [-85,0,0]), (0.65, [0,0,0])]}} if skeleton else {})})
     m.animation("hurt", 0.35, "once", {
         body: {"rotation": [(0, [0, 0, 0]), (0.1, [-8, 0, -4]), (0.22, [3, 0, 2]), (0.35, [0, 0, 0])]},
         "Head": {"rotation": [(0, [0, 0, 0]), (0.1, [-12, 0, 3]), (0.35, [0, 0, 0])]}})
@@ -166,14 +168,17 @@ def brute():
     m = Model("toxic_brute", "ToxicBrute", [0, 12, 0])
     for name, parent, origin in (("Torso", "ToxicBrute", [0,13,0]), ("Head", "Torso", [0,24,0]),
         ("Jaw", "Head", [0,25,-0.5]), ("ArmLeft", "Torso", [-6,23,0]),
-        ("ArmRight", "Torso", [6,23,0]), ("LegLeft", "ToxicBrute", [-2.8,12,0]),
-        ("LegRight", "ToxicBrute", [2.8,12,0])):
+        ("ArmRight", "Torso", [6,23,0]), ("LegLeft", "ToxicBrute", [-2.1,12,0]),
+        ("LegRight", "ToxicBrute", [2.1,12,0])):
         m.bone(name, parent, origin)
     for args in (
         ("MutatedTorso", [-4,13,-2.7], [4,24,2.7], "sinew", "Torso"),
         ("ShirtLeft", [-4.2,14,-3], [-1.4,24,3], "shirt", "Torso"),
         ("ShirtRight", [2.1,17,-3], [4.2,24,3], "shirt", "Torso"),
-        ("ShirtBack", [-3.9,14,2.7], [4,24,3.1], "shirt", "Torso"),
+        ("ShirtBackLeft", [-3.9,14,2.7], [-1.2,24,3.1], "shirt", "Torso"),
+        ("ShirtBackRight", [1.2,14,2.7], [4,24,3.1], "shirt", "Torso"),
+        ("ShirtBackCollar", [-1.2,22,2.7], [1.2,24,3.1], "shirt", "Torso"),
+        ("ExposedBackSpine", [-0.55,15,2.7], [0.55,22,3.05], "bone", "Torso"),
         ("TornHem", [-1.6,12.7,-3], [0.1,15,-2.3], "shirt", "Torso"),
         ("ChestCavity", [-1.4,16,-3.1], [2.2,23,-2.8], "mouth", "Torso"),
         ("ExposedNeck", [-1.7,23,-1.8], [1.7,26,1.8], "sinew", "Head"),
@@ -183,6 +188,7 @@ def brute():
         ("SkullWound", [2.1,26.8,-3.5], [4.1,31,-2.6], "mouth", "Head"),
         ("SkullTopWound", [0.3,31.9,-1.8], [3.4,32.3,2.9], "sinew", "Head"),
         ("SkullSideBone", [3.9,27.5,-2.4], [4.2,30,1.2], "bone", "Head"),
+        ("BrokenTempleRim", [3.55,26.5,-3.8], [4.1,31.3,-2.6], "bone", "Head"),
         ("EyeSocketLeft", [-3.3,28.2,-4.2], [-1.2,29.7,-3.9], "mouth", "Head"),
         ("EyeSocketRight", [0.3,28,-4.25], [2.2,30,-3.9], "mouth", "Head"),
         ("HeavyJaw", [-3.6,23.8,-3.9], [3.6,26,2.5], "skin", "Jaw"),
@@ -191,13 +197,22 @@ def brute():
         m.cube(*args)
     for rib in range(3):
         m.cube(f"ExposedChestRib{rib}", [-1.2,18+rib*1.8,-3.55], [2.2,18.8+rib*1.8,-3.05], "bone", "Torso")
+    for tooth in range(4):
+        x = -1.7 + tooth*1.1
+        m.cube(f"JawTooth{tooth}", [x,24.6,-4.25], [x+0.65,25.25,-3.8], "tooth", "Jaw")
     for sign, side in ((-1,"Left"), (1,"Right")):
         x, arm = sign*6, "Arm"+side
+        a,b = sorted((sign*3.5,sign*6))
+        m.cube("ShoulderConnection"+side, [a,21.5,-1.7], [b,23.8,1.7], "sinew", "Torso")
         m.cube("UpperArm"+side, [x-1.8,17,-2], [x+1.8,24,2], "shirt", arm)
         m.cube("ElbowWound"+side, [x-1.65,14,-1.9], [x+1.65,18,1.9], "sinew", arm)
         m.cube("Forearm"+side, [x-1.65,9,-2], [x+1.65,15.5,2], "skin", arm)
         m.cube("ArmBone"+side, [x+0.2,11.5,-2.2], [x+1.2,17,-1.85], "bone", arm)
         m.cube("Hand"+side, [x-1.8,7.5,-2.3], [x+1.8,10.3,2], "skin", arm)
+        m.cube("Thumb"+side, [x-sign*1.7-0.55,7.8,-2.8], [x-sign*1.7+0.55,10.1,-1.2], "skin", arm)
+        for finger in range(3):
+            fx = x-1.4+finger*1.05
+            m.cube(f"Finger{side}{finger}", [fx,6.9,-2.4], [fx+0.7,8.5,-1], "skin", arm)
         x, leg = sign*2.1, "Leg"+side
         m.cube("Trousers"+side, [x-1.8,6.5,-2.2], [x+1.8,13,2.2], "pants", leg)
         m.cube("ShinWound"+side, [x-1.6,2,-1.9], [x+1.6,7.5,1.9], "sinew", leg)
@@ -225,6 +240,7 @@ def spitter():
         m.bone("Arm"+side, "Torso", [sign*5.5,23,0])
         m.bone("Leg"+side, "ToxicSpitter", [sign*2.2,12,0])
     m.cube("Spine", [-0.8,11,0], [0.8,25,1.5], "bone", "Torso")
+    m.cube("NeckVertebrae", [-0.9,23.5,-0.7], [0.9,26.2,1.3], "bone", "Head")
     for level in range(4):
         y, width = 14+level*2.5, 3.8+level*0.35
         for sign, side in ((-1,"Left"), (1,"Right")):
@@ -232,6 +248,7 @@ def spitter():
             m.cube(f"Rib{side}{level}", [x0,y,-1.8], [x1,y+1,-0.8], "bone", "Torso")
             x = sign*width
             m.cube(f"RibSide{side}{level}", [x-0.5,y,-1.3], [x+0.5,y+1,1.5], "bone", "Torso")
+            m.cube(f"RibBack{side}{level}", [min(x,0),y,0.7], [max(x,0),y+1,1.5], "bone", "Torso")
     for args in (
         ("Sternum", [-0.65,15,-2], [0.65,23.5,-1], "bone", "Torso"),
         ("AcidHeart", [-1.3,17,-0.9], [1.3,20,1], "acid", "Torso"),
@@ -241,6 +258,7 @@ def spitter():
         ("SkullCrown", [0,30.8,-3.7], [4,32,-1.8], "bone", "Head"),
         ("SkullCheek", [0,25,-3.7], [4,27,-1.8], "bone", "Head"),
         ("SkullFracture", [0.2,27.1,-2.5], [4.15,30.6,-1.7], "mouth", "Head"),
+        ("SkullTempleRim", [3.5,26.5,-3.7], [4.15,31.3,-1.7], "bone", "Head"),
         ("SkullAcid", [1.7,27.5,-2.8], [4.25,30,-2.4], "acid", "Head"),
         ("Jaw", [-3.6,23.6,-3.8], [3.6,25.3,1.6], "bone", "Jaw"),
         ("Mouth", [-2.8,25,-4], [2.8,26.7,-3.65], "mouth", "Head"),
@@ -253,18 +271,27 @@ def spitter():
             m.cube("EyeSocket"+side, [x-1.25,28,-3.98], [x+1.25,30.6,-3.68], "mouth", "Head")
             m.cube("Eye"+side, [x-0.5,28.7,-4.08], [x+0.5,29.7,-3.97], "eye", "Head")
         x,arm = sign*5.5,"Arm"+side
+        a,b = sorted((0,sign*5.5))
+        m.cube("Clavicle"+side, [a,23,-0.8], [b,24,0.8], "bone", "Torso")
         m.cube("Shoulder"+side, [x-1.1,22,-1.2], [x+1.1,24.5,1.2], "bone", arm)
         m.cube("UpperArm"+side, [x-0.9,15.5,-0.9], [x+0.9,23,0.9], "bone", arm)
         m.cube("Forearm"+side, [x-0.9,9.5,-0.9], [x+0.9,16,0.9], "bone", arm)
         m.cube("Hand"+side, [x-1.2,8.4,-1.2], [x+1.2,11,1.2], "bone", arm)
+        m.cube("Thumb"+side, [x-sign*1.2-0.35,8.4,-1.5], [x-sign*1.2+0.35,10.2,-0.2], "bone", arm)
+        for finger in range(3):
+            fx=x-0.95+finger*0.75
+            m.cube(f"Finger{side}{finger}", [fx,7.8,-1.3], [fx+0.5,9.2,-0.3], "bone", arm)
         x,leg=sign*2.2,"Leg"+side
         m.cube(leg, [x-1,1.5,-1], [x+1,12,1], "bone", leg)
         m.cube("Knee"+side, [x-1.2,5.4,-1.3], [x+1.2,7.2,1.1], "bone", leg)
         m.cube("Foot"+side, [x-1.2,0,-2.8], [x+1.2,2,1.2], "bone", leg)
+    for tooth in range(4):
+        x=-2.2+tooth*1.2
+        m.cube(f"JawTooth{tooth}", [x,25,-3.95], [x+0.7,25.65,-3.5], "tooth", "Jaw")
     m.bone("AcidBow", "ArmRight", [6,10,-1.5])
     m.rod("BowUpperLimb", [6.3,10.5,-2], [8,17,-2], 1, "iron", "AcidBow")
     m.rod("BowLowerLimb", [6.3,10.5,-2], [8,4,-2], 1, "iron", "AcidBow")
-    m.rod("BowString", [8,5.2,-2], [8,15.8,-2], 0.25, "sinew", "AcidBow")
+    m.rod("BowString", [8,4,-2], [8,17,-2], 0.25, "sinew", "AcidBow")
     m.cube("BowGrip", [5.5,9,-2.8], [6.9,12,-1.2], "leather", "AcidBow")
     for i,(bone,point,length) in enumerate((
         ("Head",[3.8,27.8,-3],3.5), ("Head",[2.2,28,-3],4.3),
@@ -292,7 +319,8 @@ def crawler():
         ("SkullFace", [-3.8,8.8,-10.4], [3.8,11,-8.5], "bone", "Head"),
         ("SkullCheekLeft", [-3.8,5.2,-10.4], [-1.8,9,-8.5], "bone", "Head"),
         ("SkullCheekRight", [1.8,5.2,-10.4], [3.8,9,-8.5], "bone", "Head"),
-        ("NasalCavity", [-0.6,6.4,-10.25], [0.6,7.8,-9.9], "mouth", "Head"),
+        ("SkullNoseBridge", [-0.65,6,-10.4], [0.65,9.3,-8.5], "bone", "Head"),
+        ("NasalCavity", [-0.6,6.4,-10.55], [0.6,7.8,-10.35], "mouth", "Head"),
         ("Jaw", [-2.9,3.4,-10.4], [2.9,5.5,-6.5], "bone", "Jaw"),
         ("AcidSacCenter", [-5.9,6,8.4], [-5.2,10.2,11.9], "acid", "Abdomen"),
         ("DorsalSpikeCenter", [3.4,10.8,7.7], [5.6,12.4,10.7], "bone", "Abdomen"),
@@ -300,6 +328,9 @@ def crawler():
         m.cube(*args)
     for rib in range(3):
         m.cube(f"ExposedAbdomenRib{rib}", [-3.2,4.1,4+rib*2.3], [3.2,4.9,5+rib*2.3], "bone", "Abdomen")
+    for tooth in range(4):
+        x=-2.2+tooth*1.2
+        m.cube(f"JawTooth{tooth}", [x,5,-10.5], [x+0.7,6,-9.3], "tooth", "Jaw")
     for sign,side in ((-1,"Left"),(1,"Right")):
         x = sign*1.25
         m.cube("Eye"+side,[x-0.8,7.8,-10.55],[x+0.8,9,-10.35],"mouth","Head")
@@ -313,6 +344,8 @@ def crawler():
             knee=[sign*9.5,9.1,z+spread]
             foot=[sign*14,0.6,z+spread*1.35]
             m.bone(name,"ToxicMutant",hip)
+            m.cube(f"Leg{leg}Socket{side}", [hip[0]-0.95,hip[1]-0.95,hip[2]-0.95],
+                [hip[0]+0.95,hip[1]+0.95,hip[2]+0.95], "sinew", name)
             m.rod(f"Leg{leg}Upper{side}",hip,knee,1.7,"chitin",name)
             m.rod(f"Leg{leg}Lower{side}",knee,foot,1.3,"bone",name)
             if leg in (1,4):
@@ -321,6 +354,8 @@ def crawler():
                 m.rod(f"Leg{leg}Flesh{side}",exposed_start,exposed_end,1.5,"sinew",name)
             m.cube(f"Leg{leg}Joint{side}",[knee[0]-0.9,knee[1]-0.9,knee[2]-0.9],
                 [knee[0]+0.9,knee[1]+0.9,knee[2]+0.9],"bone",name)
+            m.cube(f"Leg{leg}Foot{side}", [foot[0]-0.8,0,foot[2]-1],
+                [foot[0]+0.8,1.2,foot[2]+1], "tooth", name)
             acid_drip(m,f"Leg{leg}{side}",[foot[0],2.5,foot[2]],1.8,name)
     for i,(bone,point,length) in enumerate((
         ("Head",[-3.1,6,-10.5],3), ("Head",[3,7,-10.5],4),

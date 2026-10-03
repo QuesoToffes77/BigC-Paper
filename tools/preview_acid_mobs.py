@@ -4,7 +4,8 @@ import argparse
 import json
 import math
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageEnhance
+import numpy as np
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 MODELS = ROOT / "src/main/resources/bettermodel/models"
@@ -18,9 +19,9 @@ FACES = {
 def rotate(point, angles, origin):
     x, y, z = [point[i] - origin[i] for i in range(3)]
     rx, ry, rz = map(math.radians, angles)
-    x, y = x * math.cos(rz) - y * math.sin(rz), x * math.sin(rz) + y * math.cos(rz)
-    x, z = x * math.cos(ry) + z * math.sin(ry), -x * math.sin(ry) + z * math.cos(ry)
     y, z = y * math.cos(rx) - z * math.sin(rx), y * math.sin(rx) + z * math.cos(rx)
+    x, z = x * math.cos(ry) + z * math.sin(ry), -x * math.sin(ry) + z * math.cos(ry)
+    x, y = x * math.cos(rz) - y * math.sin(rz), x * math.sin(rz) + y * math.cos(rz)
     return [x + origin[0], y + origin[1], z + origin[2]]
 
 
@@ -54,7 +55,7 @@ def render(name, animation, time, view="threequarter"):
         "threequarter": (-22,16), "front": (0,0), "back": (180,0),
         "left": (-90,0), "right": (90,0), "top": (0,70), "bottom": (0,-60)
     }[view])
-    camera = [-math.sin(yaw)*math.cos(pitch), math.sin(pitch), -math.cos(yaw)*math.cos(pitch)]
+    camera = [math.sin(yaw)*math.cos(pitch), math.sin(pitch), -math.cos(yaw)*math.cos(pitch)]
 
     def project(p):
         x, y, z = p
@@ -91,23 +92,41 @@ def render(name, animation, time, view="threequarter"):
             shade = 0.72 + 0.28*max(0, sum(normal[i]*(-0.3,0.7,-0.65)[i] for i in range(3)))
             quads.append((sum(p[2] for p in projected)/4, projected, cube["faces"][face]["uv"], shade))
     panel = Image.new("RGBA", (420,500), (30,34,38,255))
-    scale, cx, ground = 10.5, 210, 445
+    all_points = [p for _, quad, _, _ in quads for p in quad]
+    xmin, xmax = min(p[0] for p in all_points), max(p[0] for p in all_points)
+    ymin, ymax = min(p[1] for p in all_points), max(p[1] for p in all_points)
+    scale = min(10.5, 370 / (xmax-xmin), 370 / (ymax-ymin))
+    cx, ground = 210 - (xmin+xmax)*scale/2, 270 + (ymin+ymax)*scale/2
     ImageDraw.Draw(panel).ellipse((cx-145,ground-14,cx+145,ground+14), fill=(21,24,27))
-    for _, points, uv, shade in sorted(quads, reverse=True, key=lambda q: q[0]):
+    pixels = np.array(panel)
+    texels = np.array(texture)
+    depth_buffer = np.full((panel.height, panel.width), np.inf)
+    for _, points, uv, shade in quads:
         quad = [(cx+p[0]*scale, ground-p[1]*scale) for p in points]
         p, u, v = quad[0], (quad[1][0]-quad[0][0], quad[1][1]-quad[0][1]), (quad[3][0]-quad[0][0], quad[3][1]-quad[0][1])
         determinant = u[0]*v[1]-u[1]*v[0]
         if abs(determinant) < 1e-7:
             continue
-        width, height = uv[2]-uv[0], uv[3]-uv[1]
-        a,b = width*v[1]/determinant, -width*v[0]/determinant
-        d,e = -height*u[1]/determinant, height*u[0]/determinant
-        transform = (a,b,uv[0]-a*p[0]-b*p[1],d,e,uv[1]-d*p[0]-e*p[1])
-        layer = texture.transform(panel.size, Image.Transform.AFFINE, transform, resample=Image.Resampling.NEAREST)
-        layer = ImageEnhance.Brightness(layer).enhance(shade)
-        mask = Image.new("L", panel.size)
-        ImageDraw.Draw(mask).polygon(quad, fill=255)
-        panel.paste(layer, (0,0), mask)
+        x0 = max(0, math.floor(min(q[0] for q in quad)))
+        x1 = min(panel.width, math.ceil(max(q[0] for q in quad)))
+        y0 = max(0, math.floor(min(q[1] for q in quad)))
+        y1 = min(panel.height, math.ceil(max(q[1] for q in quad)))
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        dx, dy = xx+0.5-p[0], yy+0.5-p[1]
+        s = (dx*v[1]-dy*v[0])/determinant
+        t = (dy*u[0]-dx*u[1])/determinant
+        depth = points[0][2] + s*(points[1][2]-points[0][2]) + t*(points[3][2]-points[0][2])
+        inside = (s >= 0) & (s <= 1) & (t >= 0) & (t <= 1)
+        tx = np.clip((uv[0]+s*(uv[2]-uv[0])).astype(int), 0, texture.width-1)
+        ty = np.clip((uv[1]+t*(uv[3]-uv[1])).astype(int), 0, texture.height-1)
+        sample = texels[ty,tx].copy()
+        sample[:,:,:3] = (sample[:,:,:3]*shade).astype(np.uint8)
+        # Per-pixel depth avoids hiding faces where adjacent body cubes intersect.
+        target_depth = depth_buffer[y0:y1,x0:x1]
+        visible = inside & (depth < target_depth) & (sample[:,:,3] > 0)
+        pixels[y0:y1,x0:x1][visible] = sample[visible]
+        target_depth[visible] = depth[visible]
+    panel = Image.fromarray(pixels)
     label = {"toxic_mob":"TOXIC CRAWLER", "toxic_brute":"ACID BRUTE", "toxic_spitter":"CHEMICAL SPITTER"}[name]
     draw = ImageDraw.Draw(panel)
     draw.text((25,25), label, fill=(225,230,220))
