@@ -28,10 +28,13 @@ public final class AcidRainSettingsLoader {
     }
 
     public static AcidRainConfigLoadResult load(ConfigurationSection config) {
+        return loadSection(resolveAcidRainSection(config));
+    }
+
+    public static AcidRainConfigLoadResult loadSection(ConfigurationSection root) {
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         AcidRainSettings defaults = AcidRainSettings.safeDefaults();
-        ConfigurationSection root = config == null ? null : config.getConfigurationSection("acid-rain");
         if (root == null) {
             return new AcidRainConfigLoadResult(defaults, List.of(), List.of("acid-rain section missing; defaults used"));
         }
@@ -402,6 +405,22 @@ public final class AcidRainSettingsLoader {
         } catch (RuntimeException failure) {
             return fallback;
         }
+    }
+
+    private static ConfigurationSection resolveAcidRainSection(ConfigurationSection config) {
+        if (config == null) {
+            return null;
+        }
+        if (config.isConfigurationSection("acid-rain")) {
+            return config.getConfigurationSection("acid-rain");
+        }
+        if ("acid-rain".equalsIgnoreCase(config.getName())
+            || config.contains("default-level")
+            || config.contains("levels")
+            || config.contains("duration")) {
+            return config;
+        }
+        return config.getConfigurationSection("acid-rain");
     }
 }
 
