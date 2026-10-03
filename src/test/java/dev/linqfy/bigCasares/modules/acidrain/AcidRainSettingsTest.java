@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.acidrain;
 
 import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -170,5 +171,34 @@ class AcidRainSettingsTest {
 
         assertFalse(result.valid());
         assertFalse(result.settings().environment().destruction().enabled());
+    }
+
+    @Test
+    void loadsDirectlyFromExtractedAcidRainSection() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        ConfigurationSection section = yaml.createSection("acid-rain");
+        section.set("duration.minimum-seconds", 400);
+        section.set("duration.maximum-seconds", 800);
+        section.set("default-level", "chemical");
+
+        AcidRainConfigLoadResult loadResult = AcidRainSettingsLoader.load(section);
+        assertTrue(loadResult.valid());
+        assertEquals(400, loadResult.settings().duration().minimumSeconds());
+        assertEquals(800, loadResult.settings().duration().maximumSeconds());
+        assertEquals(AcidRainLevel.CHEMICAL, loadResult.settings().defaultLevel());
+
+        AcidRainConfigLoadResult sectionResult = AcidRainSettingsLoader.loadSection(section);
+        assertTrue(sectionResult.valid());
+        assertEquals(400, sectionResult.settings().duration().minimumSeconds());
+        assertEquals(800, sectionResult.settings().duration().maximumSeconds());
+        assertEquals(AcidRainLevel.CHEMICAL, sectionResult.settings().defaultLevel());
+    }
+
+    @Test
+    void loadSectionWithNullReturnsDefaultsAndWarning() {
+        AcidRainConfigLoadResult result = AcidRainSettingsLoader.loadSection(null);
+        assertTrue(result.valid());
+        assertEquals(AcidRainSettings.safeDefaults().defaultLevel(), result.settings().defaultLevel());
+        assertTrue(result.warnings().contains("acid-rain section missing; defaults used"));
     }
 }

@@ -200,26 +200,27 @@ final class AirdropDefenderMobs implements Listener, AutoCloseable {
         wave = newWave;
     }
 
-    /** Removes every entity of the current wave. Idempotent; skips dead/missing entities. */
+    /**
+     * Removes every entity of the current wave in loaded chunks. Idempotent; skips dead/missing entities.
+     * Chunk loading budget policy: Only process entities in currently loaded chunks.
+     * We avoid force-loading chunks via getChunkAt() to prevent lag spikes and respect chunk loading budgets.
+     * Any defenders remaining in unloaded chunks are tagged with PersistentDataContainer and will be purged
+     * via removeTagged() when chunks are active or during drop restoration.
+     */
     void cleanup() {
         if (wave == null) {
             return;
         }
         for (UUID entityId : wave.entityIds()) {
-            Entity entity = Bukkit.getEntity(entityId);
-            if (entity == null || !entity.isValid()) {
-                Location location = wave.positionOf(entityId);
-                if (location != null && location.getWorld() != null) {
-                    try {
-                        // The entity may live in an unloaded chunk: load it so the
-                        // removal below can find it. One-time cost per cleanup.
-                        location.getWorld().getChunkAt(location);
-                        entity = Bukkit.getEntity(entityId);
-                    } catch (RuntimeException ignored) {
-                        // World may be shutting down; nothing else to do.
-                    }
+            Location location = wave.positionOf(entityId);
+            // Chunk loading budget policy: Only process entities in loaded chunks.
+            // Do not force-load chunks via getChunkAt().
+            if (location != null && location.getWorld() != null) {
+                if (!location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
+                    continue;
                 }
             }
+            Entity entity = Bukkit.getEntity(entityId);
             if (entity != null && entity.isValid()) {
                 entity.remove();
             }

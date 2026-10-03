@@ -99,6 +99,18 @@ class AirdropServiceTest {
     }
 
     @Test
+    void skipsUnloadedChunksDuringPositionSearch() {
+        groundY = 64;
+        gateway = new FakeWorldGateway(groundY, true, true, true, false);
+        storage = new InMemoryAirdropStorage();
+        AirdropSettings settings = new AirdropSettings(true, 30, RADIUS, DROP_HEIGHT);
+        service = new AirdropService(settings, gateway, storage, new Random(5L));
+
+        Optional<AirdropData> result = service.spawnAirdrop();
+        assertTrue(result.isEmpty(), "Should fail when all tested candidate positions are in unloaded chunks");
+    }
+
+    @Test
     void selectsRandomDropType() {
         boolean foundHE = false;
         boolean foundLuxury = false;
@@ -272,12 +284,23 @@ class AirdropServiceTest {
         private final boolean safeGround;
         private final boolean safeChestSpace;
         private final boolean safeHeadSpace;
+        private final boolean chunkLoaded;
 
         private FakeWorldGateway(int groundY, boolean safeGround, boolean safeChestSpace, boolean safeHeadSpace) {
+            this(groundY, safeGround, safeChestSpace, safeHeadSpace, true);
+        }
+
+        private FakeWorldGateway(int groundY, boolean safeGround, boolean safeChestSpace, boolean safeHeadSpace, boolean chunkLoaded) {
             this.groundY = groundY;
             this.safeGround = safeGround;
             this.safeChestSpace = safeChestSpace;
             this.safeHeadSpace = safeHeadSpace;
+            this.chunkLoaded = chunkLoaded;
+        }
+
+        @Override
+        public boolean isChunkLoaded(int chunkX, int chunkZ) {
+            return chunkLoaded;
         }
 
         @Override

@@ -36,7 +36,7 @@ jobs:
           cache: gradle
 
       - name: Build JAR
-        run: bash gradlew --no-daemon clean jar
+        run: bash gradlew --no-daemon clean build
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
@@ -45,6 +45,14 @@ jobs:
           path: build/libs/*.jar
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.sha }}
+          path: build/reports/tests/
+          retention-days: 7
 
   release:
     name: Publish tagged release

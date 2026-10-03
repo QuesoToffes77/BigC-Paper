@@ -8,8 +8,11 @@ import dev.linqfy.bigCasares.modules.model.BetterModelAssetInstaller;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelHandle;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.File;
 import java.time.Clock;
 import java.util.logging.Level;
 
@@ -142,8 +145,10 @@ public final class AcidRainModule implements PluginModule {
 
     public AcidRainConfigLoadResult reloadSettings() {
         requireRuntime();
-        plugin.reloadConfig();
-        AcidRainConfigLoadResult loaded = AcidRainSettingsLoader.load(plugin.getConfig());
+        File configFile = new File(plugin.getDataFolder(), "config.yml");
+        YamlConfiguration configuration = YamlConfiguration.loadConfiguration(configFile);
+        ConfigurationSection section = configuration.getConfigurationSection("acid-rain");
+        AcidRainConfigLoadResult loaded = AcidRainSettingsLoader.loadSection(section);
         logLoadResult(loaded);
         if (loaded.valid()) {
             runtime.updateSettings(loaded.settings(), loaded);
