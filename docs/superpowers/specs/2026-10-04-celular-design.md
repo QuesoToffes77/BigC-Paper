@@ -19,7 +19,8 @@ In scope:
 Out of scope:
 - Sound for the videos and per-player playback control (see Limits).
 - Player-uploaded videos.
-- Bedrock visuals (Bedrock players see a clock).
+- Bedrock visuals (Bedrock players see a clock: Java item models and animated item textures do not exist on Bedrock;
+  they still get the controls and the action-bar title).
 - Changing BigCasares core dependency versions, other modules or the resource-pack / Geyser module code.
 
 ## Confirmed rules
@@ -29,8 +30,12 @@ Out of scope:
   phone (`minecraft:select` on `display_context`).
 - F (swap hands) with the phone in the main hand cancels the swap and moves to the next video; Shift + F moves to the
   previous one. Both wrap around. The item definitions set `hand_animation_on_swap: false`, so the phone does not bob.
-- Q is not used: the client removes the item from the hand before the server answers, which plays the re-equip
-  animation. Keys such as I, O or G are never sent to the server.
+- Q is not used on Java: the client removes the item from the hand before the server answers, which plays the
+  re-equip animation. Keys such as I, O or G are never sent to the server.
+- Bedrock (resolved through `BigCasares#resolvePlayerPlatform`): D-pad down on a controller (drop item) goes to the
+  next video, and the emote button (D-pad left) goes to the previous one. Bedrock has no swap-hands key, so the emote
+  only reaches the server as a swap when Geyser has the EmoteOffhand extension installed. D-pad up (toggle
+  perspective) is client-only and never reaches the server. Sneaking + drop still drops the phone.
 - Left-hand display transforms equal the right-hand ones: Minecraft mirrors the left hand itself.
 - Every phone remembers its video index in its persistent data; new phones start at the first video.
 - Village chests are those whose loot table is `minecraft:chests/village/*`. The first one generated inside a village

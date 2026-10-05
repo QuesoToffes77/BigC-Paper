@@ -4,6 +4,7 @@ import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.platform.ClientPlatform;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.PluginCommand;
@@ -65,7 +66,8 @@ public final class CelularModule implements PluginModule {
             }
         }
         registrations.registerListener("celular-listener",
-            new CelularListener(service, items, new CelularVillages(plugin), recipeKey));
+            new CelularListener(service, items, new CelularVillages(plugin), recipeKey,
+                playerId -> plugin.resolvePlayerPlatform(playerId) == ClientPlatform.BEDROCK));
 
         PluginCommand pluginCommand = plugin.getCommand("celular");
         if (pluginCommand == null) {

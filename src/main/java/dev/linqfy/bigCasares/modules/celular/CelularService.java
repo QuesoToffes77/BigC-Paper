@@ -48,6 +48,23 @@ public final class CelularService {
         return sneaking ? previous(index) : next(index);
     }
 
+    /**
+     * Swap hands: F on Java (Shift + F goes back). Bedrock has no swap key; Geyser's EmoteOffhand extension turns
+     * the emote (D-pad left on a controller) into a swap, and there it goes back because D-pad down goes forward.
+     */
+    public int onSwapHands(int index, boolean sneaking, boolean bedrock) {
+        return bedrock ? previous(index) : navigate(index, sneaking);
+    }
+
+    /** Drop is D-pad down on a Bedrock controller. Java keeps Q as a normal drop (its client predicts the drop). */
+    public boolean dropChangesVideo(boolean bedrock, boolean sneaking) {
+        return bedrock && !sneaking;
+    }
+
+    public String hint(boolean bedrock) {
+        return bedrock ? "  ·  Abajo siguiente, emote anterior" : "  ·  F siguiente, Shift+F anterior";
+    }
+
     /** An index saved in an old phone can fall out of range when videos are removed. */
     public int clamp(int index) {
         return index < 0 || index >= videos.size() ? 0 : index;
