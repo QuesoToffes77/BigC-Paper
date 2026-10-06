@@ -39,28 +39,13 @@ class CelularServiceTest {
     }
 
     @Test
-    void javaSwapUsesShiftForBackAndBedrockEmoteAlwaysGoesBack() {
-        CelularService service = service(true);
-        assertEquals(1, service.onSwapHands(0, false, false));
-        assertEquals(2, service.onSwapHands(0, true, false));
-        assertEquals(2, service.onSwapHands(0, false, true));
-        assertEquals(1, service.onSwapHands(2, true, true));
-    }
-
-    @Test
-    void onlyBedrockDropChangesTheVideoAndSneakingStillDrops() {
-        CelularService service = service(true);
-        assertTrue(service.dropChangesVideo(true, false));
-        assertFalse(service.dropChangesVideo(true, true));
-        assertFalse(service.dropChangesVideo(false, false));
-        assertFalse(service.dropChangesVideo(false, true));
-    }
-
-    @Test
-    void hintMatchesThePlayersControls() {
-        CelularService service = service(true);
-        assertTrue(service.hint(false).contains("F siguiente"));
-        assertTrue(service.hint(true).contains("Abajo siguiente"));
+    void onBedrockThePhoneIsJustAClock() {
+        assertTrue(CelularService.worksFor(false));
+        assertFalse(CelularService.worksFor(true));
+        assertTrue(CelularService.craftsPlainClock(true));
+        assertFalse(CelularService.craftsPlainClock(false));
+        assertEquals("Dale bobi, no tenes java?, bancatela pibe", CelularService.BEDROCK_CRAFT_MESSAGE);
+        assertTrue(CelularService.HINT.contains("F siguiente"));
     }
 
     @Test

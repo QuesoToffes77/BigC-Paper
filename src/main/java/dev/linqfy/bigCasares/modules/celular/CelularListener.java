@@ -2,24 +2,24 @@ package dev.linqfy.bigCasares.modules.celular;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
+import org.bukkit.Keyed;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.world.LootGenerateEvent;
 import org.bukkit.generator.structure.GeneratedStructure;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -27,7 +27,7 @@ import java.util.function.Predicate;
 /**
  * F changes the video because the Java client waits for the server before swapping hands, so the phone does not bob.
  * Java's drop (Q) is predicted client-side and would play the re-equip animation; other keys never reach the server.
- * Bedrock controllers use D-pad down (drop) and the emote button (a swap through Geyser's EmoteOffhand extension).
+ * Bedrock cannot render the phone: for Bedrock players it is a plain clock and does nothing.
  */
 final class CelularListener implements Listener {
 
@@ -36,7 +36,6 @@ final class CelularListener implements Listener {
     private final CelularVillages villages;
     private final NamespacedKey recipeKey;
     private final Predicate<UUID> bedrock;
-    private final Map<UUID, Integer> lastInventoryClick = new HashMap<>();
 
     CelularListener(CelularService service, CelularItems items, CelularVillages villages, NamespacedKey recipeKey,
                     Predicate<UUID> bedrock) {
@@ -54,45 +53,17 @@ final class CelularListener implements Listener {
         }
     }
 
-    @EventHandler
-    public void onQuit(PlayerQuitEvent event) {
-        lastInventoryClick.remove(event.getPlayer().getUniqueId());
-    }
-
     @EventHandler(ignoreCancelled = true)
     public void onSwap(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
         ItemStack phone = player.getInventory().getItemInMainHand();
-        if (!items.isCelular(phone)) {
+        if (!items.isCelular(phone) || !CelularService.worksFor(isBedrock(player))) {
             return;
         }
         event.setCancelled(true);
-        int index = service.onSwapHands(items.video(phone), player.isSneaking(), isBedrock(player));
+        int index = service.navigate(items.video(phone), player.isSneaking());
         items.setVideo(phone, index);
         player.getInventory().setItemInMainHand(phone);
-        showVideo(player, index, "");
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onInventoryClick(InventoryClickEvent event) {
-        lastInventoryClick.put(event.getWhoClicked().getUniqueId(), Bukkit.getCurrentTick());
-    }
-
-    @EventHandler(ignoreCancelled = true)
-    public void onDrop(PlayerDropItemEvent event) {
-        Player player = event.getPlayer();
-        ItemStack phone = event.getItemDrop().getItemStack();
-        if (!items.isCelular(phone) || !service.dropChangesVideo(isBedrock(player), player.isSneaking())) {
-            return;
-        }
-        Integer click = lastInventoryClick.get(player.getUniqueId());
-        if (click != null && click == Bukkit.getCurrentTick()) {
-            return;
-        }
-        event.setCancelled(true);
-        int index = service.next(items.video(phone));
-        items.setVideo(phone, index);
-        event.getItemDrop().setItemStack(phone);
         showVideo(player, index, "");
     }
 
@@ -100,9 +71,26 @@ final class CelularListener implements Listener {
     public void onHold(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
         ItemStack held = player.getInventory().getItem(event.getNewSlot());
-        if (items.isCelular(held)) {
-            showVideo(player, items.video(held), service.hint(isBedrock(player)));
+        if (items.isCelular(held) && CelularService.worksFor(isBedrock(player))) {
+            showVideo(player, items.video(held), CelularService.HINT);
         }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPrepareCraft(PrepareItemCraftEvent event) {
+        if (isPhoneRecipe(event.getRecipe()) && CelularService.craftsPlainClock(isBedrock(event.getView().getPlayer()))) {
+            event.getInventory().setResult(new ItemStack(Material.CLOCK));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onCraft(CraftItemEvent event) {
+        HumanEntity crafter = event.getWhoClicked();
+        if (!isPhoneRecipe(event.getRecipe()) || !CelularService.craftsPlainClock(isBedrock(crafter))) {
+            return;
+        }
+        event.setCurrentItem(new ItemStack(Material.CLOCK));
+        crafter.sendMessage(Component.text(CelularService.BEDROCK_CRAFT_MESSAGE, NamedTextColor.YELLOW));
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -118,7 +106,11 @@ final class CelularListener implements Listener {
         }
     }
 
-    private boolean isBedrock(Player player) {
+    private boolean isPhoneRecipe(Recipe recipe) {
+        return recipeKey != null && recipe instanceof Keyed keyed && recipeKey.equals(keyed.getKey());
+    }
+
+    private boolean isBedrock(HumanEntity player) {
         return bedrock.test(player.getUniqueId());
     }
 
