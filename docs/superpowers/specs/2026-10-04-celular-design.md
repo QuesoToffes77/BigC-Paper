@@ -21,7 +21,8 @@ Out of scope:
 - Sound for the videos and per-player playback control (see Limits).
 - Player-uploaded videos.
 - Videos and controls on Bedrock (animated item textures do not exist there; the screen shows "Pobre" by design).
-- Changing BigCasares core dependency versions, other modules or the resource-pack / Geyser module code.
+- Changing BigCasares core dependency versions or the resource-pack module code. The only change outside the module
+  is the phone's item list in `geyser-integration` (see Confirmed rules).
 
 ## Confirmed rules
 
@@ -48,8 +49,10 @@ Out of scope:
 
 ```
 modules/celular/
-  CelularModule          PluginModule: settings, videos, recipe, listener and command through BukkitRuntimeRegistrations
-  CelularService         navigation (next/previous/clamp), action-bar text and village loot rules; no Bukkit
+  CelularModule          PluginModule: settings, videos, recipe, listener and command through BukkitRuntimeRegistrations;
+                         itemModels() gives geyser-integration the phone's Java item models
+  CelularService         navigation (next/previous/clamp), action-bar text, village loot rules, the Bedrock rule and
+                         message, and the list of item models; no Bukkit
   CelularSettings        record: recipe.enabled, village-loot.enabled
   CelularSettingsLoader  reads the `celular:` section of config.yml with defaults
   CelularVideo           record: id, title, frames (+ seconds at 10 fps)
@@ -57,12 +60,17 @@ modules/celular/
   CelularRecipe          recipe shape and ingredients as constants
   CelularItems           builds the phone (Paper data components) and reads/writes its video index
   CelularVillages        finds the village around a chest and stores the "already gave" flag
-  CelularListener        swap / held / join / loot events, delegates to the service
+  CelularListener        swap / held / join / craft / loot events, delegates to the service
   CelularCommand         /celular give [jugador]
 ```
 
-Assets ride the BigCasares Java pack under `resourcepack/java/assets/celular/` (namespace `celular`), like Don Pollos
-does with `donpollos`; no extra HTTP server and no `registry.yml` entries (those are for `bigcasares` assets).
+Assets ride the BigCasares packs, with no extra HTTP server: the Java ones under `resourcepack/java/assets/celular/`
+(namespace `celular`, like Don Pollos does with `donpollos`) and the Bedrock ones under `resourcepack/bedrock/`. The
+only `registry.yml` entry is `celular`, for the Bedrock inventory icon (it generates the `bigcasares.celular` key of
+`item_texture.json`).
+
+Changed outside the module: `GeyserIntegrationModule` adds `celularItemDefinitions()` to the custom items it
+registers, reading `plugin.getCelularModule().itemModels()`.
 
 - `textures/item/celular.png`: 64x64 atlas for the phone. `models/item/celular.json`: 8 cuboids (body, camera module,
   2 lenses, flash, 3 buttons) with display transforms.
@@ -95,3 +103,5 @@ celular:
   10 fps and capped at 60 seconds.
 - The Java pack grows by ~28 MB.
 - Villages looted before the module was installed already generated their loot and get no phone.
+- The Bedrock model, its hand positions and the Geyser mapping were converted with the java2bedrock rules and never
+  checked with a Bedrock client: the phone could look mirrored or badly placed in the hand.
