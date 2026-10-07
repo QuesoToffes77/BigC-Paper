@@ -3,7 +3,6 @@ package dev.linqfy.bigCasares.modules.celular;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Keyed;
-import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
@@ -11,7 +10,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.CraftItemEvent;
-import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
@@ -27,7 +25,7 @@ import java.util.function.Predicate;
 /**
  * F changes the video because the Java client waits for the server before swapping hands, so the phone does not bob.
  * Java's drop (Q) is predicted client-side and would play the re-equip animation; other keys never reach the server.
- * Bedrock cannot render the phone: for Bedrock players it is a plain clock and does nothing.
+ * Bedrock players see the phone through Geyser with "Pobre" on the screen; it does nothing for them.
  */
 final class CelularListener implements Listener {
 
@@ -76,21 +74,12 @@ final class CelularListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onPrepareCraft(PrepareItemCraftEvent event) {
-        if (isPhoneRecipe(event.getRecipe()) && CelularService.craftsPlainClock(isBedrock(event.getView().getPlayer()))) {
-            event.getInventory().setResult(new ItemStack(Material.CLOCK));
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCraft(CraftItemEvent event) {
         HumanEntity crafter = event.getWhoClicked();
-        if (!isPhoneRecipe(event.getRecipe()) || !CelularService.craftsPlainClock(isBedrock(crafter))) {
-            return;
+        if (isPhoneRecipe(event.getRecipe()) && !CelularService.worksFor(isBedrock(crafter))) {
+            crafter.sendMessage(Component.text(CelularService.BEDROCK_CRAFT_MESSAGE, NamedTextColor.YELLOW));
         }
-        event.setCurrentItem(new ItemStack(Material.CLOCK));
-        crafter.sendMessage(Component.text(CelularService.BEDROCK_CRAFT_MESSAGE, NamedTextColor.YELLOW));
     }
 
     @EventHandler(ignoreCancelled = true)

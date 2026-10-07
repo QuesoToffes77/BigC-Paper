@@ -48,17 +48,22 @@ public final class CelularService {
         return sneaking ? previous(index) : next(index);
     }
 
+    public static final String NAMESPACE = "celular";
+    public static final String STILL_MODEL = "celular";
     public static final String HINT = "  ·  F siguiente, Shift+F anterior";
     public static final String BEDROCK_CRAFT_MESSAGE = "Dale bobi, no tenes java?, bancatela pibe";
 
-    /** Bedrock cannot render the phone, so for Bedrock players it is just a clock: no videos, no controls. */
+    /** Bedrock shows the phone (through Geyser) with "Pobre" on the screen: no videos, no controls. */
     public static boolean worksFor(boolean bedrock) {
         return !bedrock;
     }
 
-    /** Crafting the phone on Bedrock hands out a plain clock instead. */
-    public static boolean craftsPlainClock(boolean bedrock) {
-        return bedrock;
+    /** Java item models of the phone; Geyser maps each one to a Bedrock item with the same identifier. */
+    public List<String> itemModels() {
+        List<String> models = new java.util.ArrayList<>();
+        models.add(NAMESPACE + ":" + STILL_MODEL);
+        videos.forEach(video -> models.add(NAMESPACE + ":" + video.id()));
+        return List.copyOf(models);
     }
 
     /** An index saved in an old phone can fall out of range when videos are removed. */

@@ -21,6 +21,9 @@ import java.util.Map;
 public final class CelularModule implements PluginModule {
 
     public static final String MODULE_ID = "celular";
+    /** Bedrock icon key, generated from the "celular" entry of resourcepack/shared/registry.yml. */
+    public static final String BEDROCK_ICON = "bigcasares.celular";
+    public static final String DISPLAY_NAME = "Celular";
 
     private final BigCasares plugin;
     private RuntimeRegistrationScope compatibilityScope;
@@ -86,6 +89,19 @@ public final class CelularModule implements PluginModule {
             scope.close();
         }
         service = null;
+    }
+
+    /** Java item models of the phone, for the Geyser mappings. Read from the jar, so it works before onEnable. */
+    public List<String> itemModels() {
+        if (plugin == null) {
+            return List.of();
+        }
+        try {
+            return new CelularService(loadVideos(), CelularSettings.defaults()).itemModels();
+        } catch (IllegalStateException | IllegalArgumentException unavailable) {
+            plugin.getLogger().warning("[Celular] No Bedrock items: " + unavailable.getMessage());
+            return List.of();
+        }
     }
 
     public int videoCount() {

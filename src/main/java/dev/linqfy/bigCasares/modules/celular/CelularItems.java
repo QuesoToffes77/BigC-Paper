@@ -19,7 +19,6 @@ import java.util.List;
  */
 final class CelularItems {
 
-    static final String NAMESPACE = "celular";
     static final String ITEM_ID = "celular";
 
     private final NamespacedKey idKey;
@@ -60,7 +59,7 @@ final class CelularItems {
 
     void setVideo(ItemStack stack, int index) {
         int clamped = service.clamp(index);
-        stack.setData(DataComponentTypes.ITEM_MODEL, Key.key(NAMESPACE, service.video(clamped).id()));
+        stack.setData(DataComponentTypes.ITEM_MODEL, Key.key(CelularService.NAMESPACE, service.video(clamped).id()));
         stack.editMeta(meta -> meta.getPersistentDataContainer().set(videoKey, PersistentDataType.INTEGER, clamped));
     }
 

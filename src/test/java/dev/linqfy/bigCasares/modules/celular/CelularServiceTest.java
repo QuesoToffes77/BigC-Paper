@@ -39,13 +39,17 @@ class CelularServiceTest {
     }
 
     @Test
-    void onBedrockThePhoneIsJustAClock() {
+    void onBedrockThePhoneDoesNothingAndCraftingSaysTheMessage() {
         assertTrue(CelularService.worksFor(false));
         assertFalse(CelularService.worksFor(true));
-        assertTrue(CelularService.craftsPlainClock(true));
-        assertFalse(CelularService.craftsPlainClock(false));
         assertEquals("Dale bobi, no tenes java?, bancatela pibe", CelularService.BEDROCK_CRAFT_MESSAGE);
         assertTrue(CelularService.HINT.contains("F siguiente"));
+    }
+
+    @Test
+    void geyserGetsTheStillModelAndOneModelPerVideo() {
+        assertEquals(List.of("celular:celular", "celular:video_1", "celular:video_2", "celular:video_3"),
+            service(true).itemModels());
     }
 
     @Test
