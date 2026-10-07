@@ -82,7 +82,7 @@ Modified:
 - Docs: design spec, this plan, `docs/don-pollos/README.md` (usage guide in Spanish),
   `docs/don-pollos/compatibilidad-bedrock.md`, and a Don Pollos section in the root `README.md`.
 - `build.gradle`: `runServer` downloads the server plugins needed on Java and Bedrock (BetterModel 3.5.0,
-  Geyser, Floodgate, GeyserUtils, GeyserModelEngine). A new `downloadGeyserExtensions` task installs the Geyser
+  Geyser, Floodgate, packetevents, GeyserUtils, GeyserModelEngine). A new `downloadGeyserExtensions` task installs the Geyser
   extensions. Compile dependencies are unchanged.
 
 ### Tests written

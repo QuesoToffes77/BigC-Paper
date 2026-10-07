@@ -70,6 +70,8 @@ def serverPlugins = [
     [modrinth: "geyser", version: "sT6fWVgD"],                                        // 2.11.3-b1249 (26.2)
     [url: "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot"],
     // GeyserUtils (lado servidor) y GeyserModelEngine: modelos 3D para Bedrock.
+    // packetevents: GeyserModelEngine no carga sin el.
+    [modrinth: "packetevents", version: "m78nFxYg"],                                  // 2.14.0 (26.2)
     [github: "GeyserExtensionists/GeyserUtils", tag: "latest", asset: "geyserutils-spigot-1.0-SNAPSHOT.jar"],
     [github: "GeyserExtensionists/GeyserModelEngine", tag: "latest", asset: "GeyserModelEngine-1.0.9.jar"],
 ]

@@ -12,6 +12,7 @@ Servidor Paper (Geyser en el mismo servidor):
 | **BigCasares** (con el módulo `don-pollos`) | `plugins/` | Todo lo de Don Pollo |
 | **Geyser-Spigot** | `plugins/` | Deja entrar a los de Bedrock |
 | **Floodgate** | `plugins/` | Entran con su cuenta de Bedrock, sin cuenta de Java |
+| **packetevents** | `plugins/` | Lo necesita GeyserModelEngine (sin él no carga) |
 | **GeyserUtils** (versión Spigot) | `plugins/` | Lo necesita GeyserModelEngine |
 | **GeyserModelEngine** | `plugins/` | Muestra los modelos de BetterModel a los de Bedrock |
 | **GeyserModelEngineExtension** | `plugins/Geyser-Spigot/extensions/` | Arma el pack de Bedrock con los modelos |
@@ -26,7 +27,7 @@ Configuración:
 
 Si Geyser corre en un **proxy** (Velocity o BungeeCord):
 - En el proxy van Geyser, Floodgate y `geyserutils-velocity` o `geyserutils-bungeecord`.
-- En el servidor Paper van BetterModel, DonPollos, Floodgate, GeyserUtils y GeyserModelEngine.
+- En el servidor Paper van BetterModel, DonPollos, Floodgate, packetevents, GeyserUtils y GeyserModelEngine.
 - Las extensiones van en la carpeta de Geyser del proxy.
 - Los archivos de `plugins/BigCasares/don-pollos/bedrock/` se copian a mano:
   - `DonPollos-bedrock.mcpack` a `packs/`;
@@ -129,6 +130,7 @@ muy difícil, y en la práctica la pelea queda injugable.
 **Arreglo:** instalar **GeyserModelEngine**, que "convierte modelos de ModelEngine/BetterModel para jugadores de
 Bedrock". Necesita:
 - el plugin GeyserModelEngine;
+- packetevents;
 - GeyserUtils;
 - GeyserModelEngineExtension y geyserutils-geyser en las extensiones de Geyser;
 - Floodgate con `send-floodgate-data: true`.

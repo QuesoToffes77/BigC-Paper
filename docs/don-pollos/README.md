@@ -31,8 +31,8 @@ Necesita **BetterModel** en el servidor; se recomienda la 3.5.0. Sin BetterModel
 .\gradlew.bat runServer
 ```
 
-`runServer` descarga Paper 26.2 y los plugins del servidor: BetterModel 3.5.0, Geyser, Floodgate, GeyserUtils y
-GeyserModelEngine. También pone las extensiones de Geyser en `build/run-server/plugins/Geyser-Spigot/`. La lista está
+`runServer` descarga Paper 26.2 y los plugins del servidor: BetterModel 3.5.0, Geyser, Floodgate, packetevents,
+GeyserUtils y GeyserModelEngine. También pone las extensiones de Geyser en `build/run-server/plugins/Geyser-Spigot/`. La lista está
 en `serverPlugins` y `geyserExtensions` de `build.gradle`. La primera vez hay que aceptar la EULA en
 `build/run-server/eula.txt`.
 
