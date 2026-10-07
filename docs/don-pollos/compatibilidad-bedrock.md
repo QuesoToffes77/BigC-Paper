@@ -18,6 +18,8 @@ Servidor Paper (Geyser en el mismo servidor):
 | **geyserutils-geyser** | `plugins/Geyser-Spigot/extensions/` | La otra mitad de GeyserUtils, del lado de Geyser |
 | **GeyserDisplayEntity** (opcional) | `plugins/Geyser-Spigot/extensions/` | Meteoritos y cara del bloque del secreto (los *item displays*) |
 
+Para probar en local: `gradlew runServer` ya baja todo esto solo. Los plugins están en la lista `serverPlugins` de `build.gradle`; las extensiones y el pack de GeyserDisplayEntity los baja la tarea `downloadGeyserExtensions` a `build/run-server/plugins/Geyser-Spigot/`.
+
 Configuración:
 - **Floodgate:** `send-floodgate-data: true`. Si hay proxy, copiá `key.pem` del proxy a cada servidor.
 - **`don-pollos.yml` (en plugins/BigCasares/):** `bedrock.modelos-3d: auto` (ya viene así): se prende solo al detectar GeyserModelEngine.
