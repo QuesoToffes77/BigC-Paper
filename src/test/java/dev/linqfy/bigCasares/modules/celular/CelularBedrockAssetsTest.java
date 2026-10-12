@@ -56,24 +56,13 @@ class CelularBedrockAssetsTest {
     }
 
     @Test
-    void screenTextureAndInventoryIconExistAndTheIconIsRegistered() throws IOException {
+    void screenTextureAndInventoryIconExist() throws IOException {
         BufferedImage texture = ImageIO.read(BEDROCK.resolve("textures/entity/celular_bedrock.png").toFile());
         assertNotNull(texture);
         assertEquals(64, texture.getWidth());
         assertEquals(64, texture.getHeight());
         assertNotNull(ImageIO.read(Path.of("resourcepack/shared/textures/item/celular_bedrock.png").toFile()));
-        String registry = Files.readString(Path.of("resourcepack/shared/registry.yml"));
-        assertTrue(registry.contains("  celular:"));
-        assertTrue(registry.contains("texture: item/celular_bedrock"));
-        assertEquals("bigcasares.celular", CelularModule.BEDROCK_ICON);
-    }
-
-    @Test
-    void geyserModuleRegistersThePhoneItems() throws IOException {
-        String geyser = Files.readString(
-            Path.of("src/main/java/dev/linqfy/bigCasares/modules/geyser/GeyserIntegrationModule.java"));
-        assertTrue(geyser.contains("celularItemDefinitions().forEach(runtime::registerCustomItem)"));
-        assertTrue(geyser.contains("\"minecraft:clock\""));
+        // the registry entry and the Geyser items are checked in modules.geyser.GeyserCelularItemsTest
     }
 
     private static List<CelularVideo> packagedVideos() throws IOException {

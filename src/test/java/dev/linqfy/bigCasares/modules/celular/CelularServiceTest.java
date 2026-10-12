@@ -84,13 +84,20 @@ class CelularServiceTest {
     @Test
     void onlyTheFirstChestOfEachVillageGetsAPhone() {
         CelularService service = service(true);
-        assertTrue(service.shouldAddVillagePhone("minecraft", "chests/village/village_desert_house", false));
-        assertFalse(service.shouldAddVillagePhone("minecraft", "chests/village/village_desert_house", true));
-        assertFalse(service.shouldAddVillagePhone("minecraft", "chests/simple_dungeon", false));
+        assertTrue(service.shouldAddVillagePhone("minecraft", "chests/village/village_desert_house", true, false));
+        assertFalse(service.shouldAddVillagePhone("minecraft", "chests/village/village_desert_house", true, true));
+        assertFalse(service.shouldAddVillagePhone("minecraft", "chests/simple_dungeon", true, false));
+    }
+
+    @Test
+    void aVillageLootTableOutsideARecognisedVillageNeverGivesAPhone() {
+        CelularService service = service(true);
+        assertFalse(service.shouldAddVillagePhone("minecraft", "chests/village/village_plains_house", false, false));
+        assertFalse(service.shouldAddVillagePhone("minecraft", "chests/village/village_plains_house", false, true));
     }
 
     @Test
     void villageLootCanBeTurnedOff() {
-        assertFalse(service(false).shouldAddVillagePhone("minecraft", "chests/village/village_plains_house", false));
+        assertFalse(service(false).shouldAddVillagePhone("minecraft", "chests/village/village_plains_house", true, false));
     }
 }

@@ -89,9 +89,10 @@ final class CelularListener implements Listener {
             return;
         }
         Optional<GeneratedStructure> village = villages.villageAt(event.getLootContext().getLocation());
-        if (service.shouldAddVillagePhone(table.getNamespace(), table.getKey(), villages.alreadyGave(village))) {
+        boolean alreadyGave = village.map(villages::alreadyGave).orElse(false);
+        if (service.shouldAddVillagePhone(table.getNamespace(), table.getKey(), village.isPresent(), alreadyGave)) {
             event.getLoot().add(items.create());
-            villages.markGave(village);
+            village.ifPresent(villages::markGave);
         }
     }
 

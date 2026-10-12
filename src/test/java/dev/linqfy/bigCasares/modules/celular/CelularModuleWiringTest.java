@@ -1,12 +1,12 @@
 package dev.linqfy.bigCasares.modules.celular;
 
+import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.testsupport.CompiledClass;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,15 +30,20 @@ class CelularModuleWiringTest {
 
     @Test
     void moduleIsRegisteredDeclaredAndEnabledByDefault() throws Exception {
-        String main = Files.readString(Path.of("src/main/java/dev/linqfy/bigCasares/BigCasares.java"));
-        assertTrue(main.contains("new CelularModule(this)"));
-        assertTrue(main.contains("moduleManager.register(celularModule)"));
-        assertTrue(main.contains("public CelularModule getCelularModule()"));
+        CompiledClass main = CompiledClass.of(getClass(), "dev.linqfy.bigCasares.BigCasares");
+        assertTrue(main.calls("dev/linqfy/bigCasares/modules/celular/CelularModule", "<init>"),
+            "BigCasares has to create the module");
+        assertTrue(main.calls("dev/linqfy/bigCasares/module/ModuleManager", "register"));
+        assertEquals(CelularModule.class, BigCasares.class.getMethod("getCelularModule").getReturnType());
 
-        YamlConfiguration plugin = YamlConfiguration.loadConfiguration(new File("src/main/resources/plugin.yml"));
-        assertEquals("bigcasares.celular.admin", plugin.getString("commands.celular.permission"));
-        assertEquals("op", plugin.getString("permissions.bigcasares\\.celular\\.admin.default", "op"));
-        assertTrue(Files.readString(Path.of("src/main/resources/plugin.yml")).contains("      bigcasares.celular.admin: true"),
+        // permission names contain dots, so plugin.yml is read with '/' as the path separator
+        YamlConfiguration plugin = new YamlConfiguration();
+        plugin.options().pathSeparator('/');
+        plugin.load(new File("src/main/resources/plugin.yml"));
+        assertEquals("bigcasares.celular.admin", plugin.getString("commands/celular/permission"));
+        assertEquals("celu", plugin.getStringList("commands/celular/aliases").get(0));
+        assertEquals("op", plugin.getString("permissions/bigcasares.celular.admin/default"));
+        assertTrue(plugin.getBoolean("permissions/bigcasares.*/children/bigcasares.celular.admin"),
             "bigcasares.* has to include the celular admin permission");
 
         YamlConfiguration config = YamlConfiguration.loadConfiguration(new File("src/main/resources/config.yml"));

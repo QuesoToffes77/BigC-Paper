@@ -79,10 +79,16 @@ public final class CelularService {
         return "minecraft".equals(namespace) && path.toLowerCase(Locale.ROOT).startsWith("chests/village/");
     }
 
-    /** Each village hands out a single phone: in the first chest somebody opens. */
-    public boolean shouldAddVillagePhone(String lootNamespace, String lootPath, boolean villageAlreadyGavePhone) {
+    /**
+     * Each village hands out a single phone: in the first chest somebody opens. The chest has to be inside a village
+     * the server recognises, because that is where the "already gave" flag is stored; a village loot table used
+     * anywhere else (a command, a custom structure) would otherwise hand out a phone every time.
+     */
+    public boolean shouldAddVillagePhone(String lootNamespace, String lootPath, boolean insideVillage,
+                                         boolean villageAlreadyGavePhone) {
         return settings.villageLootEnabled()
             && isVillageChest(lootNamespace, lootPath)
+            && insideVillage
             && !villageAlreadyGavePhone;
     }
 }

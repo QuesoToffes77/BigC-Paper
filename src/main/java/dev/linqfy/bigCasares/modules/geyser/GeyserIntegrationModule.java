@@ -163,10 +163,7 @@ public final class GeyserIntegrationModule implements PluginModule {
         if (celular == null) {
             return java.util.List.of();
         }
-        return celular.itemModels().stream()
-            .map(model -> new GeyserCustomItemDefinition(
-                "minecraft:clock", model, model, CelularModule.BEDROCK_ICON, CelularModule.DISPLAY_NAME))
-            .toList();
+        return GeyserCelularItems.definitions(celular.itemModels());
     }
 
     private static GeyserCustomItemDefinition item(String baseItem, String model, String displayName) {

@@ -35,13 +35,11 @@ final class CelularVillages {
             .findFirst();
     }
 
-    boolean alreadyGave(Optional<GeneratedStructure> village) {
-        return village.map(structure -> structure.getPersistentDataContainer().has(gaveKey, PersistentDataType.BYTE))
-            .orElse(false);
+    boolean alreadyGave(GeneratedStructure village) {
+        return village.getPersistentDataContainer().has(gaveKey, PersistentDataType.BYTE);
     }
 
-    void markGave(Optional<GeneratedStructure> village) {
-        village.ifPresent(structure ->
-            structure.getPersistentDataContainer().set(gaveKey, PersistentDataType.BYTE, (byte) 1));
+    void markGave(GeneratedStructure village) {
+        village.getPersistentDataContainer().set(gaveKey, PersistentDataType.BYTE, (byte) 1);
     }
 }
