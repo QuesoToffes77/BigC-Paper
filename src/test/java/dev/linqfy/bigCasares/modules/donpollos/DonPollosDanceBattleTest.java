@@ -54,6 +54,42 @@ class DonPollosDanceBattleTest {
     }
 
     @Test
+    void onlyTheRequestedKeyAloneCountsAsAHit() {
+        // con bound -> 0 el primer paso pedido es siempre JUMP
+        DonPollosDanceBattle alone = new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0);
+        alone.tick(0);
+        assertEquals(DonPollosDanceMove.JUMP, alone.current());
+        assertEquals(DonPollosDanceBattle.Outcome.HIT, alone.input(1, Set.of(DonPollosDanceMove.JUMP)));
+
+        DonPollosDanceBattle wrong = new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0);
+        wrong.tick(0);
+        assertEquals(DonPollosDanceBattle.Outcome.MISS, wrong.input(1, Set.of(DonPollosDanceMove.SNEAK)));
+
+        DonPollosDanceBattle withAnother = new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0);
+        withAnother.tick(0);
+        assertEquals(DonPollosDanceBattle.Outcome.MISS,
+            withAnother.input(1, Set.of(DonPollosDanceMove.JUMP, DonPollosDanceMove.SNEAK)));
+        assertEquals(1, withAnother.lives());
+        assertEquals(3, withAnother.hitsLeft());
+
+        DonPollosDanceBattle everything = new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0);
+        everything.tick(0);
+        assertEquals(DonPollosDanceBattle.Outcome.MISS, everything.input(1, Set.of(DonPollosDanceMove.values())));
+        assertEquals(3, everything.hitsLeft());
+    }
+
+    @Test
+    void mashingEveryKeyNeverWinsTheBattle() {
+        DonPollosDanceBattle battle = new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0);
+        for (long now = 0; !battle.isOver() && now < 10_000; now++) {
+            if (battle.tick(now) == DonPollosDanceBattle.Outcome.PROMPT) {
+                battle.input(now + 1, Set.of(DonPollosDanceMove.values()));
+            }
+        }
+        assertTrue(battle.isLost());
+    }
+
+    @Test
     void inputWithoutAStepPendingIsIgnored() {
         DonPollosDanceBattle battle = new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 100);
 

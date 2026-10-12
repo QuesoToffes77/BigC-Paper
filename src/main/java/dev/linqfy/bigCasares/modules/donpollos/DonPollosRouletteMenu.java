@@ -185,9 +185,12 @@ final class DonPollosRouletteMenu implements Listener {
         wheel.setItem(WHEEL_STATUS, item(Material.CLOCK, "§e§lGirando...", List.of("§7Suerte!")));
 
         Spin spin = new Spin(player.getUniqueId(), bet.clone(), chosen, result, wheel);
+        int steps = DonPollosRoulette.animationSteps(random::nextInt);
+        spin.ball = DonPollosRoulette.startPocket(stop, steps);
+        wheel.setItem(RING[spin.ball], ball(roulette.wheel().get(spin.ball)));
         spins.put(player.getUniqueId(), spin);
         player.openInventory(wheel);
-        step(spin, DonPollosRoulette.stepDelays(stop), 0);
+        step(spin, DonPollosRoulette.stepDelays(steps), 0);
     }
 
     private void step(Spin spin, List<Integer> delays, int index) {
@@ -205,7 +208,8 @@ final class DonPollosRouletteMenu implements Listener {
             spin.inventory().setItem(RING[spin.ball], ball(roulette.wheel().get(spin.ball)));
             Player player = Bukkit.getPlayer(spin.playerId());
             if (player != null) {
-                float pitch = 0.8f + 1.2f * (1f - index / (float) delays.size());
+                // el tono sigue a la velocidad de la bola, no a cuantos pasos faltan (eso delataria el resultado)
+                float pitch = 2.0f - 0.12f * (delays.get(index) - 1);
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.6f, pitch);
             }
             step(spin, delays, index + 1);
@@ -307,14 +311,20 @@ final class DonPollosRouletteMenu implements Listener {
         }
     }
 
-    /** Si el jugador se va en medio del giro, se le devuelve la apuesta. */
+    /**
+     * Si el jugador se va (o se apaga el modulo) en medio del giro, la apuesta se liquida con el resultado que
+     * ya salio: si gano cobra, si perdio no recupera nada. Devolverla dejaria salir justo antes de perder.
+     */
     void playerQuit(Player player) {
         Spin spin = spins.remove(player.getUniqueId());
         if (spin != null) {
             if (spin.task != null) {
                 spin.task.cancel();
             }
-            give(player, spin.bet(), spin.bet().getAmount());
+            int payout = roulette.payout(spin.bet().getAmount(), spin.chosen(), spin.result());
+            if (payout > 0) {
+                give(player, spin.bet(), payout);
+            }
         }
         choices.remove(player.getUniqueId());
     }

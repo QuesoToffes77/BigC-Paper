@@ -53,12 +53,15 @@ public final class DonPollosDanceBattle {
         return Outcome.NONE;
     }
 
-    /** Teclas recien apretadas: si esta la pedida es un acierto; si apretaste otra, error. */
+    /**
+     * Teclas recien apretadas: solo la pedida, sola, es un acierto. Cualquier otra combinacion es un error,
+     * asi apretar todas a la vez (o con una macro) no gana sin leer el paso.
+     */
     public Outcome input(long now, Set<DonPollosDanceMove> pressed) {
         if (isOver() || current == null || pressed.isEmpty()) {
             return Outcome.NONE;
         }
-        if (pressed.contains(current)) {
+        if (pressed.size() == 1 && pressed.contains(current)) {
             current = null;
             hitsLeft--;
             nextPromptAt = now + settings.pauseTicks();

@@ -63,10 +63,38 @@ class DonPollosRouletteTest {
     }
 
     @Test
+    void ballLandsOnTheStopPocketFromWhereverItStarts() {
+        for (int stop = 0; stop < DonPollosRoulette.POCKETS; stop++) {
+            for (int extra = 0; extra < DonPollosRoulette.POCKETS; extra++) {
+                int pick = extra;
+                int steps = DonPollosRoulette.animationSteps(bound -> pick);
+                int start = DonPollosRoulette.startPocket(stop, steps);
+                assertEquals(stop, (start + steps) % DonPollosRoulette.POCKETS);
+            }
+        }
+    }
+
+    @Test
+    void spinLengthDoesNotDependOnTheResult() {
+        // la cantidad de pasos solo sale del azar de la animacion: con el mismo azar, dos resultados distintos
+        // giran igual de largo (cambia donde arranca la bola), asi la duracion y el sonido no delatan donde frena
+        int steps = DonPollosRoulette.animationSteps(bound -> 5);
+        assertEquals(2 * DonPollosRoulette.POCKETS + 5, steps);
+        assertNotEquals(DonPollosRoulette.startPocket(3, steps), DonPollosRoulette.startPocket(16, steps));
+    }
+
+    @Test
+    void quittingMidSpinSettlesWithTheResultInsteadOfRefunding() {
+        // lo que cobra quien se desconecta durante el giro es el pago normal del resultado ya elegido
+        assertEquals(0, roulette.payout(64, DonPollosRouletteColor.RED, DonPollosRouletteColor.BLACK));
+        assertEquals(0, roulette.payout(64, DonPollosRouletteColor.GREEN, DonPollosRouletteColor.RED));
+        assertEquals(128, roulette.payout(64, DonPollosRouletteColor.BLACK, DonPollosRouletteColor.BLACK));
+    }
+
+    @Test
     void ballDoesTwoFullLapsThenStopsAndSlowsDown() {
-        List<Integer> delays = DonPollosRoulette.stepDelays(7);
+        List<Integer> delays = DonPollosRoulette.stepDelays(2 * DonPollosRoulette.POCKETS + 7);
         assertEquals(2 * DonPollosRoulette.POCKETS + 7, delays.size());
-        assertEquals(7, delays.size() % DonPollosRoulette.POCKETS);
         assertEquals(1, delays.getFirst());
         assertTrue(delays.getLast() > 5);
         for (int index = 1; index < delays.size(); index++) {

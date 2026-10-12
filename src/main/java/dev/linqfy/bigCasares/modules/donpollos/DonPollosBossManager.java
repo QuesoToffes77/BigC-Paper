@@ -986,18 +986,26 @@ final class DonPollosBossManager implements Listener {
         boss.cubeViewers.clear();
         boss.cube = null;
         boss.cubeBar = null;
+        // Primero se anota quien esta en cada cubo, despues se rellenan todos (en orden inverso, porque los cubos
+        // vecinos comparten paredes) y recien ahi se sube a los jugadores, con el terreno ya completo.
+        Map<Player, Integer> exitHeights = new java.util.LinkedHashMap<>();
         for (Pit pit : boss.pits) {
-            List<Player> inside = pit.world().getPlayers().stream().filter(p -> pit.contains(p.getLocation())).toList();
-            for (BlockState state : pit.changed()) {
-                state.update(true, false);
+            for (Player p : pit.world().getPlayers()) {
+                if (pit.contains(p.getLocation())) {
+                    exitHeights.putIfAbsent(p, pit.feet());
+                }
             }
-            for (Player p : inside) {
-                Location up = surface(p.getLocation(), pit.feet());
-                p.teleport(up);
-                p.setFallDistance(0);
-                p.getWorld().spawnParticle(Particle.CLOUD, up.clone().add(0, 0.5, 0), 30, 0.5, 0.5, 0.5, 0.05);
-                p.getWorld().playSound(up, Sound.ENTITY_PLAYER_LEVELUP, 1f, 0.8f);
-            }
+        }
+        for (BlockState state : DonPollosPitRestore.restoreOrder(boss.pits.stream().map(Pit::changed).toList())) {
+            state.update(true, false);
+        }
+        for (Map.Entry<Player, Integer> exit : exitHeights.entrySet()) {
+            Player p = exit.getKey();
+            Location up = surface(p.getLocation(), exit.getValue());
+            p.teleport(up);
+            p.setFallDistance(0);
+            p.getWorld().spawnParticle(Particle.CLOUD, up.clone().add(0, 0.5, 0), 30, 0.5, 0.5, 0.5, 0.05);
+            p.getWorld().playSound(up, Sound.ENTITY_PLAYER_LEVELUP, 1f, 0.8f);
         }
         boss.pits.clear();
         if (boss.hoverAt != null) {

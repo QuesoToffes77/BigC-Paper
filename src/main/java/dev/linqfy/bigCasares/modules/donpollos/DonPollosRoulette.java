@@ -97,11 +97,20 @@ public final class DonPollosRoulette {
     }
 
     /**
-     * Demoras (en ticks) de cada paso de la bola: arranca rapido y frena al final.
-     * La bola sale de la casilla 0 y despues de todos los pasos queda en stopPocket.
+     * Cuantos pasos da la bola: dos vueltas y un resto al azar. No depende del resultado, asi la duracion
+     * del giro no lo delata.
      */
-    public static List<Integer> stepDelays(int stopPocket) {
-        int steps = FULL_LAPS * POCKETS + Math.floorMod(stopPocket, POCKETS);
+    public static int animationSteps(IntUnaryOperator randomBelow) {
+        return FULL_LAPS * POCKETS + randomBelow.applyAsInt(POCKETS);
+    }
+
+    /** Casilla donde arranca la bola para que, despues de steps pasos, quede en stopPocket. */
+    public static int startPocket(int stopPocket, int steps) {
+        return Math.floorMod(stopPocket - steps, POCKETS);
+    }
+
+    /** Demoras (en ticks) de cada paso de la bola: arranca rapido y frena al final. */
+    public static List<Integer> stepDelays(int steps) {
         List<Integer> delays = new ArrayList<>(steps);
         for (int step = 0; step < steps; step++) {
             double progress = step / (double) Math.max(1, steps - 1);
