@@ -55,6 +55,10 @@ No hace falta instalar nada a mano: el módulo `geyser-integration` registra en 
 modelo del celu, y el pack de Bedrock de BigC (el que ya les manda Geyser) trae el modelo, la textura y el ícono.
 GeyserModelEngine no hace falta para el celu (es para los modelos de mobs).
 
+Probado en un servidor Paper 26.2 con Geyser 2.11.3 y Floodgate 2.2.5: Geyser registra los 16 ítems del celu sin
+errores (la consola dice `Registered 27 custom items`: 1 de Geyser, 10 de BigC y 16 del celu). Si ves
+`Registered 1 custom items`, el plugin de BigC es una versión vieja, de antes del arreglo para Floodgate.
+
 **No probado con un cliente de Bedrock.** El modelo y su posición en la mano se pasaron de Java a Bedrock con las
 reglas de java2bedrock. Si se ve espejado o mal ubicado, se corrige en `tools/celular/generar_bedrock.py`.
 

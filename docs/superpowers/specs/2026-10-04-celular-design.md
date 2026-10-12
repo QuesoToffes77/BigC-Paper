@@ -69,8 +69,15 @@ Assets ride the BigCasares packs, with no extra HTTP server: the Java ones under
 only `registry.yml` entry is `celular`, for the Bedrock inventory icon (it generates the `bigcasares.celular` key of
 `item_texture.json`).
 
-Changed outside the module: `GeyserIntegrationModule` adds `celularItemDefinitions()` to the custom items it
-registers, reading `plugin.getCelularModule().itemModels()`.
+Changed outside the module:
+- `GeyserIntegrationModule` adds `celularItemDefinitions()` to the custom items it registers, reading
+  `plugin.getCelularModule().itemModels()`.
+- `GeyserRuntimeBridge` subscribes to each Geyser event explicitly (`eventBus().subscribe(this, Event.class, handler)`)
+  instead of registering `@Subscribe` methods. Floodgate ships its own unrelocated copy of `org.geysermc.event`; when
+  BigCasares resolves `@Subscribe` from that copy, Geyser ignores every annotated method, so with Floodgate installed
+  Geyser never got BigCasares' Bedrock pack, custom items or custom entities. Verified on Paper 26.2 + Geyser 2.11.3 +
+  Floodgate 2.2.5: Geyser went from 1 registered custom item to 27 (BigCasares' 10 + the phone's 16) and 5 custom
+  entities.
 
 - `textures/item/celular.png`: 64x64 atlas for the phone. `models/item/celular.json`: 8 cuboids (body, camera module,
   2 lenses, flash, 3 buttons) with display transforms.
