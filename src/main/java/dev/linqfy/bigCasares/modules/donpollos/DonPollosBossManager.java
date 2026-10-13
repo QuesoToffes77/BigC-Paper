@@ -1511,9 +1511,10 @@ final class DonPollosBossManager implements Listener {
             return;
         }
         Player player = event.getPlayer();
-        Player winner = defeat.winner == null ? null : Bukkit.getPlayer(defeat.winner);
-        if (winner != null && !winner.equals(player)) {
-            player.sendMessage(LEGACY.deserialize("§cEl premio es de §f" + winner.getName() + "§c."));
+        if (!DonPollosReward.canClaim(defeat.winner, player.getUniqueId())) {
+            player.sendMessage(LEGACY.deserialize(
+                DonPollosReward.notYoursMessage(Bukkit.getOfflinePlayer(defeat.winner).getName())));
+            player.playSound(boss.ravager.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
             return;
         }
         rewardMenu.open(player, boss.ravager.getUniqueId());
@@ -1525,8 +1526,7 @@ final class DonPollosBossManager implements Listener {
         if (boss == null || boss.defeat == null || boss.defeat.claimed) {
             return false;
         }
-        Player winner = boss.defeat.winner == null ? null : Bukkit.getPlayer(boss.defeat.winner);
-        if (winner != null && !winner.equals(player)) {
+        if (!DonPollosReward.canClaim(boss.defeat.winner, player.getUniqueId())) {
             return false;
         }
         boss.defeat.claimed = true;

@@ -88,4 +88,23 @@ class DonPollosRewardTest {
     void bucketHelmetGivesDepthStriderTwo() {
         assertEquals(2.0 / 3.0, DonPollosKfcBucket.DEPTH_STRIDER_II, 1e-9);
     }
+
+    @Test
+    void onlyTheWinnerCanClaimEvenWhenOffline() {
+        java.util.UUID winner = java.util.UUID.randomUUID();
+        java.util.UUID other = java.util.UUID.randomUUID();
+        // el ganador no tiene que estar conectado: se compara su UUID guardado
+        org.junit.jupiter.api.Assertions.assertTrue(DonPollosReward.canClaim(winner, winner));
+        org.junit.jupiter.api.Assertions.assertFalse(DonPollosReward.canClaim(winner, other));
+        // sin ganador (nadie cerca al vencerlo) lo puede cobrar cualquiera
+        org.junit.jupiter.api.Assertions.assertTrue(DonPollosReward.canClaim(null, other));
+    }
+
+    @Test
+    void othersAreToldTheRewardIsNotTheirs() {
+        org.junit.jupiter.api.Assertions.assertEquals("§cVos no sos §fJuancraftender§c. No hay nada para vos.",
+            DonPollosReward.notYoursMessage("Juancraftender"));
+        org.junit.jupiter.api.Assertions.assertEquals("§cVos no sos §fel que le gano§c. No hay nada para vos.",
+            DonPollosReward.notYoursMessage(null));
+    }
 }

@@ -113,6 +113,21 @@ final class DonPollosReward {
         return Category.VARIOS;
     }
 
+    /**
+     * Si este jugador puede abrir y cobrar el premio del boss. Se compara con el UUID del ganador guardado, no con
+     * si esta conectado: si el ganador se desconecta, el premio sigue siendo solo suyo. Sin ganador (nadie cerca
+     * al vencerlo) cualquiera puede cobrarlo.
+     */
+    static boolean canClaim(java.util.UUID winner, java.util.UUID player) {
+        return winner == null || winner.equals(player);
+    }
+
+    /** Lo que se le dice a quien intenta abrir el premio de otro. */
+    static String notYoursMessage(String winnerName) {
+        String name = winnerName == null || winnerName.isBlank() ? "el que le gano" : winnerName;
+        return "§cVos no sos §f" + name + "§c. No hay nada para vos.";
+    }
+
     static int pageCount(int items, int perPage) {
         return Math.max(1, (items + perPage - 1) / perPage);
     }
