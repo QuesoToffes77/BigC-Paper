@@ -61,16 +61,36 @@ class CelularPackAssetsTest {
             assertEquals(72, animation.get("width").getAsInt());
             assertEquals(128, animation.get("height").getAsInt());
 
-            String n = video.id().substring("video_".length());
-            JsonObject model = json(ASSETS.resolve("models/item/celular_video_" + n + ".json"));
+            assertTrue(video.id().matches("video_[0-9a-f]{10}"),
+                video.id() + ": ids come from the source file name, so they survive adding or reordering videos");
+            JsonObject model = json(ASSETS.resolve("models/item/celular_" + video.id() + ".json"));
             assertEquals("celular:item/" + video.id(), model.getAsJsonObject("textures").get("1").getAsString());
 
             JsonObject item = json(ASSETS.resolve("items/" + video.id() + ".json"));
             assertFalse(item.get("hand_animation_on_swap").getAsBoolean(), "changing videos must not bob the phone");
             String definition = item.toString();
-            assertTrue(definition.contains("celular:item/celular_video_" + n), "hands play the video");
+            assertTrue(definition.contains("celular:item/celular_" + video.id()), "hands play the video");
             assertTrue(definition.contains("\"celular:item/celular\""), "inventory shows the still phone");
         }
+    }
+
+    @Test
+    void thePackHasNoLeftoverFilesFromVideosThatAreNotInTheList() throws IOException {
+        java.util.Set<String> expected = new java.util.HashSet<>();
+        for (CelularVideo video : packagedVideos()) {
+            expected.add("textures/item/" + video.id() + ".png");
+            expected.add("textures/item/" + video.id() + ".png.mcmeta");
+            expected.add("models/item/celular_" + video.id() + ".json");
+            expected.add("items/" + video.id() + ".json");
+        }
+        java.util.Set<String> found = new java.util.HashSet<>();
+        try (var files = Files.walk(ASSETS)) {
+            files.filter(Files::isRegularFile)
+                .map(file -> ASSETS.relativize(file).toString().replace('\\', '/'))
+                .filter(path -> path.matches("(textures/item|items)/video_.*|models/item/celular_video_.*"))
+                .forEach(found::add);
+        }
+        assertEquals(expected, found);
     }
 
     private static List<CelularVideo> packagedVideos() throws IOException {

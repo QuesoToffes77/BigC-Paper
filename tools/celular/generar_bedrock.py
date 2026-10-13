@@ -6,12 +6,12 @@ Escribe en el pack de Bedrock de BigCasares (resourcepack/bedrock/):
   textures/entity/celular_bedrock.png        la textura del celu (la de Java con "Pobre" en la pantalla)
   models/entity/celular.geo.json             el modelo 3D (las mismas piezas que el de Java)
   animations/celular.animation.json          como se ve en la mano, en la cabeza y en tercera persona
-  attachables/celular_<item>.json            uno por cada item de Bedrock (celular y video_1..N)
+  attachables/celular_<item>.json            uno por cada item de Bedrock (celular y cada video_<id>)
 y el icono del inventario en resourcepack/shared/textures/item/celular_bedrock.png (registry.yml: "celular",
   con java-model celular:item/celular y texture item/celular_bedrock).
 
 El modulo geyser-integration registra en Geyser un item de Bedrock por cada modelo de Java del celu
-(celular:celular y celular:video_N); todos se ven igual. En Bedrock no hay videos: la pantalla dice "Pobre".
+(celular:celular y celular:video_<id>); todos se ven igual. En Bedrock no hay videos: la pantalla dice "Pobre".
 
 La conversion del modelo copia la de java2bedrock (la que usan los packs de items 3D para Geyser).
 Sin probar con un cliente de Bedrock: si se ve espejado o mal ubicado en la mano, se corrige aca.
@@ -190,7 +190,7 @@ def attachable(identificador):
 
 
 def items_de_bedrock():
-    """celular:celular y celular:video_N (los mismos identificadores que los modelos de Java)."""
+    """celular:celular y celular:video_<id> (los mismos identificadores que los modelos de Java)."""
     ids = ["celular:celular"]
     for linea in LISTA.read_text(encoding="utf-8").splitlines():
         linea = linea.strip()

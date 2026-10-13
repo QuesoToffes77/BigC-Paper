@@ -4,10 +4,11 @@ Uso:  python tools/celular/convertir_videos.py   (necesita ffmpeg en el PATH y h
 
 Los videos originales no se suben al repo (tools/celular/videos/ esta en .gitignore).
 
-Por cada video escribe en resourcepack/java/assets/celular/:
-  textures/item/video_<n>.png (+ .mcmeta)   todos los cuadros de 72x128 apilados, a 10 por segundo
-  models/item/celular_video_<n>.json         el celu con el video en la pantalla
-  items/video_<n>.json                       en la mano muestra el video; en el inventario, el celu quieto
+Por cada video escribe en resourcepack/java/assets/celular/ (<id> es video_ + 10 letras que salen del nombre del
+archivo, asi que no cambia si se agregan o se reordenan videos; los celus guardan ese id):
+  textures/item/<id>.png (+ .mcmeta)   todos los cuadros de 72x128 apilados, a 10 por segundo
+  models/item/celular_<id>.json        el celu con el video en la pantalla
+  items/<id>.json                      en la mano muestra el video; en el inventario, el celu quieto
 y la lista de videos en src/main/resources/celular/videos.yml (la lee el modulo).
 
 Toma todos los videos de la carpeta, ordenados por cuando se agregaron (los nuevos van al final).
@@ -19,6 +20,7 @@ Para probar con otra carpeta de videos: python tools/celular/convertir_videos.py
 """
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -66,6 +68,11 @@ def videos(carpeta):
     return sorted(lista, key=lambda v: (v.stat().st_mtime, v.name))
 
 
+def identificador(video):
+    """Id estable del video: sale del nombre del archivo, no de su posicion en la lista."""
+    return "video_" + hashlib.sha1(video.stem.encode("utf-8")).hexdigest()[:10]
+
+
 def titulo(video):
     """El nombre del archivo sin el [id] de YouTube, los #hashtags ni los emojis (la fuente de Minecraft no los tiene)."""
     texto = re.sub(r"\[[^\]]*\]", "", video.stem)
@@ -96,9 +103,9 @@ def cuadros(video):
     return (frames // paso * paso + paso // 2).astype(np.uint8)
 
 
-def modelo_video(n):
+def modelo_video(vid):
     modelo = generar_celular.modelo()
-    modelo["textures"]["1"] = f"celular:item/video_{n}"
+    modelo["textures"]["1"] = f"celular:item/{vid}"
     modelo["elements"] += [
         {"name": "pantalla_negra", "from": [PANTALLA_X[0], PANTALLA_Y[0], 8.8], "to": [PANTALLA_X[1], PANTALLA_Y[1], 8.8],
          "shade": False, "light_emission": 15,
@@ -111,12 +118,12 @@ def modelo_video(n):
     return modelo
 
 
-def definicion_item(n):
+def definicion_item(vid):
     # hand_animation_on_swap: al cambiar de video el celu no baja y sube en la mano
     return {"hand_animation_on_swap": False, "model": {
         "type": "minecraft:select",
         "property": "minecraft:display_context",
-        "cases": [{"when": MANOS, "model": {"type": "minecraft:model", "model": f"celular:item/celular_video_{n}"}}],
+        "cases": [{"when": MANOS, "model": {"type": "minecraft:model", "model": f"celular:item/celular_{vid}"}}],
         "fallback": {"type": "minecraft:model", "model": "celular:item/celular"},
     }}
 
@@ -138,35 +145,39 @@ def convertir(todos, destino):
         destino.joinpath(*sub).mkdir(parents=True, exist_ok=True)
     lista = ["# Generado por tools/celular/convertir_videos.py. Orden en el que se ven en el celu.", "videos:"]
     muestras = []
-    for n, video in enumerate(todos, start=1):
+    ids = [identificador(video) for video in todos]
+    if len(set(ids)) != len(ids):
+        raise SystemExit("Dos videos tienen el mismo nombre de archivo (sin la extension). No se toco nada del pack.")
+    for n, (video, vid) in enumerate(zip(todos, ids), start=1):
         nombre = titulo(video)
         frames = cuadros(video)
-        textura = destino / "textures" / "item" / f"video_{n}.png"
+        textura = destino / "textures" / "item" / f"{vid}.png"
         Image.fromarray(frames.reshape(-1, ANCHO, 3), "RGB").save(textura, optimize=True)
         escribir_json(textura.with_name(textura.name + ".mcmeta"),
                       {"animation": {"frametime": 20 // FPS, "width": ANCHO, "height": ALTO, "interpolate": False}})
-        escribir_json(destino / "models" / "item" / f"celular_video_{n}.json", modelo_video(n))
-        escribir_json(destino / "items" / f"video_{n}.json", definicion_item(n))
-        lista += [f"  - id: video_{n}", f"    titulo: \"{nombre}\"", f"    cuadros: {len(frames)}"]
+        escribir_json(destino / "models" / "item" / f"celular_{vid}.json", modelo_video(vid))
+        escribir_json(destino / "items" / f"{vid}.json", definicion_item(vid))
+        lista += [f"  - id: {vid}", f"    titulo: \"{nombre}\"", f"    cuadros: {len(frames)}"]
         muestras.append(Image.fromarray(frames[len(frames) // 3]))
         peso = textura.stat().st_size / 1e6
-        print(f"video_{n}: {nombre:<32} {len(frames):4d} cuadros ({len(frames) / FPS:.1f}s)  {peso:.1f} MB")
+        print(f"{n:2d}. {vid}: {nombre:<32} {len(frames):4d} cuadros ({len(frames) / FPS:.1f}s)  {peso:.1f} MB")
     return "\n".join(lista) + "\n", muestras
 
 
 def validar(destino, cantidad, lista):
     """Que esten los 4 archivos de cada video, que el JSON se lea y que cada tira tenga los cuadros de videos.yml."""
+    ids = re.findall(r"- id: (\S+)", lista)
     cuadros_por_video = [int(x) for x in re.findall(r"cuadros: (\d+)", lista)]
-    if len(cuadros_por_video) != cantidad:
+    if len(cuadros_por_video) != cantidad or len(ids) != cantidad:
         raise SystemExit("videos.yml no tiene un video por cada archivo convertido. No se toco nada del pack.")
-    for n in range(1, cantidad + 1):
-        textura = destino / "textures" / "item" / f"video_{n}.png"
+    for vid, total in zip(ids, cuadros_por_video):
+        textura = destino / "textures" / "item" / f"{vid}.png"
         with Image.open(textura) as img:
-            if img.size != (ANCHO, ALTO * cuadros_por_video[n - 1]):
+            if img.size != (ANCHO, ALTO * total):
                 raise SystemExit(f"{textura.name} salio con un tamano raro {img.size}. No se toco nada del pack.")
         for archivo in (textura.with_name(textura.name + ".mcmeta"),
-                        destino / "models" / "item" / f"celular_video_{n}.json",
-                        destino / "items" / f"video_{n}.json"):
+                        destino / "models" / "item" / f"celular_{vid}.json",
+                        destino / "items" / f"{vid}.json"):
             json.loads(archivo.read_text(encoding="utf-8"))
     if len(generados(destino)) != 4 * cantidad:
         raise SystemExit("Sobran o faltan archivos generados. No se toco nada del pack.")

@@ -53,6 +53,26 @@ class CelularServiceTest {
     }
 
     @Test
+    void phonesFindTheirVideoByIdEvenAfterTheListChanges() {
+        CelularService service = service(true);
+        assertEquals(2, service.resolve("video_3", null));
+        assertEquals(1, service.resolve("video_2", 0), "the id wins over an old stored position");
+        CelularService reordered = new CelularService(List.of(THREE.get(2), THREE.get(0), THREE.get(1)),
+            new CelularSettings(true, true));
+        assertEquals(0, reordered.resolve("video_3", null));
+        assertEquals("Tres", reordered.video(reordered.resolve("video_3", null)).title());
+    }
+
+    @Test
+    void phonesFromBeforeTheIdUseTheirOldPositionAndRemovedVideosFallBack() {
+        CelularService service = service(true);
+        assertEquals(2, service.resolve(null, 2));
+        assertEquals(0, service.resolve(null, 9));
+        assertEquals(0, service.resolve(null, null));
+        assertEquals(0, service.resolve("video_que_ya_no_existe", 2));
+    }
+
+    @Test
     void outOfRangeIndexesFallBackToTheFirstVideo() {
         CelularService service = service(true);
         assertEquals(0, service.clamp(-1));

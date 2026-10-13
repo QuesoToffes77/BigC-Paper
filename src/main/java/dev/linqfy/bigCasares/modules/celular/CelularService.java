@@ -71,6 +71,23 @@ public final class CelularService {
         return index < 0 || index >= videos.size() ? 0 : index;
     }
 
+    /**
+     * Which video a phone shows. Phones store the video id, which comes from the source file and survives adding or
+     * reordering videos. Phones made before that stored a position: it is used only when there is no id. A video that
+     * was removed falls back to the first one.
+     */
+    public int resolve(String videoId, Integer legacyIndex) {
+        if (videoId != null) {
+            for (int i = 0; i < videos.size(); i++) {
+                if (videos.get(i).id().equals(videoId)) {
+                    return i;
+                }
+            }
+            return 0;
+        }
+        return legacyIndex == null ? 0 : clamp(legacyIndex);
+    }
+
     public String actionBar(int index) {
         return "▶ " + (clamp(index) + 1) + "/" + videos.size() + "  " + video(index).title();
     }

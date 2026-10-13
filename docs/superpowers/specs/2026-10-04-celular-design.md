@@ -40,10 +40,15 @@ Out of scope:
   (`celular:celular` and `celular:video_N`, base item `minecraft:clock`, icon `bigcasares.celular`), asking
   `BigCasares#getCelularModule()` for the list. Each Bedrock item has an attachable in BigCasares' Bedrock pack.
 - Left-hand display transforms equal the right-hand ones: Minecraft mirrors the left hand itself.
-- Every phone remembers its video index in its persistent data; new phones start at the first video.
+- Every phone remembers its video **id** in its persistent data (`celular_video_id`); new phones start at the first
+  video. Ids are `video_` plus 10 hex characters of the SHA-1 of the source file name, so adding, removing or
+  reordering videos does not change what an existing phone shows. Phones made before ids stored a position
+  (`celular_video`): it is used only when there is no id, and it is replaced by the id the next time the video
+  changes. A phone whose video was removed shows the first one.
 - Village chests are those whose loot table is `minecraft:chests/village/*`. The first one generated inside a village
   gets a phone added to its normal loot; the village is then flagged in its own `GeneratedStructure` persistent data
-  container, so the flag survives restarts.
+  container, so the flag survives restarts. A village loot table used outside a village the server recognises (a
+  command, a custom structure) never gives a phone, because there is nowhere to store the flag.
 
 ## Architecture
 
@@ -85,8 +90,12 @@ Changed outside the module:
   (the Java cuboids converted like java2bedrock), `animations/celular.animation.json` (hand/head transforms),
   `textures/entity/celular_bedrock.png` (screen says "Pobre"), one `attachables/celular_<item>.json` per Bedrock item,
   and the icon `resourcepack/shared/textures/item/celular_bedrock.png` registered as `celular` in `registry.yml`.
-- Per video N: `textures/item/video_N.png` (+ `.mcmeta`, frametime 2), `models/item/celular_video_N.json` (phone + a
-  black screen plane + the video plane, emissive) and `items/video_N.json`.
+- Per video id: `textures/item/<id>.png` (+ `.mcmeta`, frametime 2), `models/item/celular_<id>.json` (phone + a
+  black screen plane + the video plane, emissive) and `items/<id>.json`.
+- `tools/celular/convertir_videos.py` checks that ffmpeg exists, converts every video into a temporary folder,
+  validates it (four files per video, readable JSON, one 72x128 frame per listed frame) and only then swaps the pack
+  files, putting the old ones back if the swap fails. A missing ffmpeg, a broken video or an empty folder leave the
+  pack untouched.
 
 ## Config shape
 

@@ -17,7 +17,8 @@ y plan con el reporte final en [`docs/superpowers/plans/2026-10-04-celular.md`](
   ```
 
   Da 1 celular (no se apila). La receta aparece sola en el libro de recetas al entrar.
-- **Aldeas:** el **primer cofre que alguien abre en cada aldea** trae un celu, además de su loot normal. La aldea queda
+- **Aldeas:** el **primer cofre que alguien abre en cada aldea** trae un celu, además de su loot normal. Un cofre con
+  la tabla de loot de aldea fuera de una aldea (por ejemplo, puesto con comandos) no da celu. La aldea queda
   marcada dentro del mundo, así que no da otro aunque se reinicie el servidor. Las aldeas que ya se saquearon antes de
   instalar el módulo no tienen.
 - **Comando (OP):** `/celular give [jugador]` (alias `/celu`). Sin jugador, te lo da a vos.
@@ -28,7 +29,9 @@ y plan con el reporte final en [`docs/superpowers/plans/2026-10-04-celular.md`](
 - **F** pasa al siguiente video y **Shift + F** vuelve al anterior. Del último vuelve al primero.
 - Al cambiar de video, el celu no baja ni sube en la mano: solo cambia la pantalla.
 - Abajo de la pantalla aparece el número y el título, por ejemplo `▶ 3/15  Nutella Jar Chocolate`.
-- Cada celu recuerda su video. Los nuevos arrancan en el primero.
+- Cada celu recuerda su video por su nombre (no por su posición en la lista), así que agregar o reordenar videos no
+  le cambia el video a los celus que ya existen. Si se saca un video, los celus que lo tenían pasan al primero.
+  Los nuevos arrancan en el primero.
 - **Q** tira el celu como cualquier ítem.
 
 ¿Por qué F y no otras teclas? Minecraft no le avisa al servidor de teclas sueltas (I, O, G...). F es "cambiar de mano",
@@ -103,7 +106,11 @@ Necesita Python 3 con Pillow y NumPy, y ffmpeg en el PATH.
 3. `.\gradlew.bat clean build` y subí el jar nuevo.
 
 Los videos se ordenan por cuándo se agregaron a la carpeta (los nuevos van al final) y el título sale del nombre del
-archivo, sin el `[id]` de YouTube, los #hashtags ni los emojis. Si no son verticales (por ejemplo 3:4), entran enteros
+archivo, sin el `[id]` de YouTube, los #hashtags ni los emojis. El id de cada video (`video_` + 10 letras) también sale
+del nombre del archivo: si renombrás un archivo, para el celu es un video nuevo.
+
+El script convierte todo primero en una carpeta temporal y recién al final reemplaza los archivos del pack. Si falta
+ffmpeg, si un video está roto o si algo falla en el medio, el pack queda como estaba. Si no son verticales (por ejemplo 3:4), entran enteros
 con barras negras.
 
 ## Archivos

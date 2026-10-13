@@ -23,11 +23,13 @@ final class CelularItems {
 
     private final NamespacedKey idKey;
     private final NamespacedKey videoKey;
+    private final NamespacedKey legacyVideoKey;
     private final CelularService service;
 
     CelularItems(Plugin plugin, CelularService service) {
         this.idKey = new NamespacedKey(plugin, "celular_item");
-        this.videoKey = new NamespacedKey(plugin, "celular_video");
+        this.videoKey = new NamespacedKey(plugin, "celular_video_id");
+        this.legacyVideoKey = new NamespacedKey(plugin, "celular_video");
         this.service = service;
     }
 
@@ -53,14 +55,18 @@ final class CelularItems {
     }
 
     int video(ItemStack stack) {
-        Integer index = stack.getItemMeta().getPersistentDataContainer().get(videoKey, PersistentDataType.INTEGER);
-        return service.clamp(index == null ? 0 : index);
+        var data = stack.getItemMeta().getPersistentDataContainer();
+        return service.resolve(data.get(videoKey, PersistentDataType.STRING),
+            data.get(legacyVideoKey, PersistentDataType.INTEGER));
     }
 
     void setVideo(ItemStack stack, int index) {
-        int clamped = service.clamp(index);
-        stack.setData(DataComponentTypes.ITEM_MODEL, Key.key(CelularService.NAMESPACE, service.video(clamped).id()));
-        stack.editMeta(meta -> meta.getPersistentDataContainer().set(videoKey, PersistentDataType.INTEGER, clamped));
+        CelularVideo video = service.video(index);
+        stack.setData(DataComponentTypes.ITEM_MODEL, Key.key(CelularService.NAMESPACE, video.id()));
+        stack.editMeta(meta -> {
+            meta.getPersistentDataContainer().set(videoKey, PersistentDataType.STRING, video.id());
+            meta.getPersistentDataContainer().remove(legacyVideoKey);
+        });
     }
 
     private static Component line(String text, NamedTextColor color) {
