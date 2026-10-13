@@ -47,13 +47,16 @@ final class DonPollosBattleManager implements Listener {
     private final List<String> dances;
     private final Consumer<Villager> restoreBehaviour;
     private final Consumer<Villager> onWin;
+    private final java.util.function.Predicate<UUID> bedrockPlayer;
     private final Map<UUID, Session> byPlayer = new HashMap<>();
     private final Map<UUID, UUID> bySalsero = new HashMap<>();
     private BukkitTask task;
 
     DonPollosBattleManager(JavaPlugin plugin, DonPollosModelBinder binder, DonPollosBattleSettings settings,
-                           List<String> dances, Consumer<Villager> restoreBehaviour, Consumer<Villager> onWin) {
+                           List<String> dances, Consumer<Villager> restoreBehaviour, Consumer<Villager> onWin,
+                           java.util.function.Predicate<UUID> bedrockPlayer) {
         this.plugin = plugin;
+        this.bedrockPlayer = bedrockPlayer;
         this.binder = binder;
         this.settings = settings;
         this.dances = dances;
@@ -158,6 +161,15 @@ final class DonPollosBattleManager implements Listener {
             if (now % 10 == 0) {
                 face(session.salsero, player);
             }
+            if (session.joystick != null) {
+                Location at = player.getLocation();
+                double dx = at.getX() - session.joystickFrom.getX();
+                double dz = at.getZ() - session.joystickFrom.getZ();
+                if (dx * dx + dz * dz >= DonPollosJoystick.MIN_MOVE * DonPollosJoystick.MIN_MOVE
+                    || now - session.joystickAt >= DonPollosJoystick.WAIT_TICKS) {
+                    resolveJoystick(session, player, now);
+                }
+            }
             handle(session, player, session.battle.tick(now), now);
             actionBar(session, player, now);
         }
@@ -180,7 +192,31 @@ final class DonPollosBattleManager implements Listener {
         if (now.isForward() && (before == null || !before.isForward())) pressed.add(DonPollosDanceMove.FORWARD);
         if (now.isBackward() && (before == null || !before.isBackward())) pressed.add(DonPollosDanceMove.BACKWARD);
         long tick = Bukkit.getCurrentTick();
-        handle(session, event.getPlayer(), session.battle.input(tick, pressed), tick);
+        Player player = event.getPlayer();
+        if (session.joystick != null && !pressed.isEmpty()) {
+            resolveJoystick(session, player, tick);  // llego otra tecla antes de decidir la diagonal anterior
+        }
+        if (bedrockPlayer.test(player.getUniqueId()) && DonPollosJoystick.isDiagonal(pressed)
+            && session.battle.current() != null) {
+            // Bedrock con el joystick en diagonal: se decide en unos ticks, segun para donde se movio de verdad
+            session.joystick = pressed;
+            session.joystickFrom = player.getLocation();
+            session.joystickAt = tick;
+            return;
+        }
+        handle(session, player, session.battle.input(tick, pressed), tick);
+    }
+
+    /** Elige el paso de la diagonal del joystick segun el movimiento real y lo cuenta como respuesta. */
+    private void resolveJoystick(Session session, Player player, long now) {
+        Set<DonPollosDanceMove> diagonal = session.joystick;
+        Location from = session.joystickFrom;
+        session.joystick = null;
+        session.joystickFrom = null;
+        Location at = player.getLocation();
+        double[] local = DonPollosJoystick.local(at.getX() - from.getX(), at.getZ() - from.getZ(), at.getYaw());
+        DonPollosDanceMove move = DonPollosJoystick.dominant(diagonal, local[0], local[1]);
+        handle(session, player, session.battle.input(now, move == null ? diagonal : EnumSet.of(move)), now);
     }
 
     private void handle(Session session, Player player, DonPollosDanceBattle.Outcome outcome, long now) {
@@ -360,6 +396,10 @@ final class DonPollosBattleManager implements Listener {
         private final DonPollosDanceBattle battle;
         private final BossBar bar;
         private Input lastInput;
+        /** Bedrock: diagonal del joystick que espera el movimiento real para decidir el paso. */
+        private Set<DonPollosDanceMove> joystick;
+        private Location joystickFrom;
+        private long joystickAt;
         private String dance;
         private boolean over;
 

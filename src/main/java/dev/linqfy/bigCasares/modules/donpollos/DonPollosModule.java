@@ -125,7 +125,8 @@ public final class DonPollosModule implements PluginModule {
             this::startBattle);
         this.battles = new DonPollosBattleManager(plugin, binder, settings.battle(), settings.salseroDances(),
             villager -> factory.applyBehaviour(villager, settings.variant(DonPolloVariant.SALSERO)),
-            villager -> sounds.play(villager));
+            villager -> sounds.play(villager),
+            bedrock::isBedrock);
 
         registrations.ownCleanup("don-pollos-runtime", this::shutdown);
         registrations.registerListener("don-pollos-listener", new DonPollosListener(this, factory));
