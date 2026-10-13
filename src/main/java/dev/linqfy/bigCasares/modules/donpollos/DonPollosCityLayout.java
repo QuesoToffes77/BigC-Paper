@@ -41,8 +41,17 @@ public final class DonPollosCityLayout {
     private final int minDistanceFromSpawn;
     private final int width;
     private final int length;
+    private final int spawnX;
+    private final int spawnZ;
 
+    /** Con el spawn en 0, 0. */
     public DonPollosCityLayout(long seed, int spacing, double chance, int minDistanceFromSpawn, int width, int length) {
+        this(seed, spacing, chance, minDistanceFromSpawn, width, length, 0, 0);
+    }
+
+    /** minDistanceFromSpawn se mide desde el spawn real del mundo (spawnX, spawnZ). */
+    public DonPollosCityLayout(long seed, int spacing, double chance, int minDistanceFromSpawn, int width, int length,
+                               int spawnX, int spawnZ) {
         if (spacing < Math.max(width, length) + 2 * MARGIN) {
             throw new IllegalArgumentException("ciudades.spacing tiene que ser mayor a la ciudad + margenes");
         }
@@ -55,6 +64,8 @@ public final class DonPollosCityLayout {
         this.minDistanceFromSpawn = Math.max(0, minDistanceFromSpawn);
         this.width = width;
         this.length = length;
+        this.spawnX = spawnX;
+        this.spawnZ = spawnZ;
     }
 
     public Optional<CityPlan> cityInCell(int cellX, int cellZ) {
@@ -69,8 +80,8 @@ public final class DonPollosCityLayout {
         int x = cellX * spacing + MARGIN + random.nextInt(spacing - 2 * MARGIN - sizeX + 1);
         int z = cellZ * spacing + MARGIN + random.nextInt(spacing - 2 * MARGIN - sizeZ + 1);
         CityPlan plan = new CityPlan(cellX, cellZ, x, z, rotation, sizeX, sizeZ);
-        long dx = plan.centerX();
-        long dz = plan.centerZ();
+        long dx = (long) plan.centerX() - spawnX;
+        long dz = (long) plan.centerZ() - spawnZ;
         if (dx * dx + dz * dz < (long) minDistanceFromSpawn * minDistanceFromSpawn) {
             return Optional.empty();
         }

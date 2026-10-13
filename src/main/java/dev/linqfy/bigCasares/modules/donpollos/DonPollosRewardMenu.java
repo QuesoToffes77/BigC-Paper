@@ -62,6 +62,16 @@ final class DonPollosRewardMenu implements Listener {
         this.claim = claim;
     }
 
+    /** Cierra los menus del premio abiertos (antes de sacar el listener que los protege) y olvida las elecciones. */
+    void closeAll() {
+        for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder) {
+                player.closeInventory();
+            }
+        }
+        choices.clear();
+    }
+
     // ------------------------------------------------------------ menus
 
     void open(Player player, UUID bossId) {

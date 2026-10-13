@@ -104,7 +104,17 @@ final class DonPollosSecret implements Listener {
         this.closed = listener;
     }
 
+    /** Cierra los menus del secreto abiertos; al cerrarse, onClose devuelve la salsa y el picante que habia puestos. */
+    void closeAll() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof SecretHolder) {
+                player.closeInventory();
+            }
+        }
+    }
+
     void stop() {
+        closeAll();
         if (task != null) {
             task.cancel();
         }

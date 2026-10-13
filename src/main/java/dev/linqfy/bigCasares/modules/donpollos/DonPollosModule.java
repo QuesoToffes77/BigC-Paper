@@ -160,6 +160,9 @@ public final class DonPollosModule implements PluginModule {
         }
         DonPollosCommand command = new DonPollosCommand(this);
         registrations.bindCommand("don-pollos-command", pluginCommand, command, command);
+        // Las limpiezas corren en orden inverso: esta, registrada al final, cierra los menus antes de que se
+        // saquen los listeners (don-pollos-runtime corre ultima, cuando ya no estan).
+        registrations.ownCleanup("don-pollos-close-menus", this::closeMenus);
 
         for (World world : plugin.getServer().getWorlds()) {
             for (Villager villager : world.getEntitiesByClass(Villager.class)) {
@@ -179,7 +182,27 @@ public final class DonPollosModule implements PluginModule {
         }
     }
 
+    /**
+     * Cierra todos los menus de Don Pollos. Tiene que correr mientras sus listeners siguen registrados: son los
+     * que protegen los clicks y devuelven apuestas e ingredientes al cerrar.
+     */
+    private void closeMenus() {
+        if (roulette != null) {
+            roulette.closeAll();
+        }
+        if (secret != null) {
+            secret.closeAll();
+        }
+        if (bosses != null) {
+            bosses.closeMenus();
+        }
+        if (menus != null) {
+            menus.closeAll();
+        }
+    }
+
     private void shutdown() {
+        closeMenus();
         if (roulette != null) {
             roulette.shutdown();
             roulette = null;

@@ -108,6 +108,12 @@ final class DonPollosKfcBucket implements org.bukkit.event.Listener {
         }
         event.setCancelled(true);
         ItemStack helmet = player.getInventory().getHelmet();
+        boolean cursed = helmet != null && helmet.containsEnchantment(Enchantment.BINDING_CURSE);
+        if (!DonPollosHelmetRule.canReplaceHelmet(cursed, player.getGameMode() == org.bukkit.GameMode.CREATIVE)) {
+            player.sendMessage(LEGACY.deserialize("§cTu casco tiene Maldicion de ligamiento: no te lo podes sacar."));
+            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+            return;
+        }
         player.getInventory().setHelmet(hand);
         player.getInventory().setItemInMainHand(helmet);
         player.playSound(player.getLocation(), org.bukkit.Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 0.8f);

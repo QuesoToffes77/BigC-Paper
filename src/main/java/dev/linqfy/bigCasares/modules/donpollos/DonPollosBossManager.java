@@ -1584,6 +1584,11 @@ final class DonPollosBossManager implements Listener {
         return true;
     }
 
+    /** Cierra los menus del premio mientras su listener todavia los protege. */
+    void closeMenus() {
+        rewardMenu.closeAll();
+    }
+
     void shutdown() {
         if (task != null) {
             task.cancel();
@@ -1591,6 +1596,7 @@ final class DonPollosBossManager implements Listener {
         meteors.clear();
         shockwaves.clear();
         bucket.stop();
+        closeMenus();
         org.bukkit.event.HandlerList.unregisterAll(minions);
         org.bukkit.event.HandlerList.unregisterAll(rewardMenu);
         org.bukkit.event.HandlerList.unregisterAll(bucket);

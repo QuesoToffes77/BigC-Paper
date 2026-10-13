@@ -329,20 +329,28 @@ final class DonPollosRouletteMenu implements Listener {
         choices.remove(player.getUniqueId());
     }
 
-    void shutdown() {
+    /**
+     * Liquida los giros en curso y cierra todas las ventanas del casino (apuesta y ruleta, tambien las ya
+     * terminadas). Al cerrar la de apuesta, onClose devuelve lo que habia en el hueco.
+     */
+    void closeAll() {
         for (Spin spin : new ArrayList<>(spins.values())) {
             Player player = Bukkit.getPlayer(spin.playerId());
             if (player != null) {
                 playerQuit(player);
-                player.closeInventory();
             }
         }
         spins.clear();
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (player.getOpenInventory().getTopInventory().getHolder() instanceof BetHolder) {
+            InventoryHolder holder = player.getOpenInventory().getTopInventory().getHolder();
+            if (holder instanceof BetHolder || holder instanceof WheelHolder) {
                 player.closeInventory();
             }
         }
+    }
+
+    void shutdown() {
+        closeAll();
     }
 
     // ------------------------------------------------------------ utilidades

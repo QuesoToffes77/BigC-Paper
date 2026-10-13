@@ -54,6 +54,8 @@ final class DonPollosCityManager implements Listener {
     private final BlockData[][] palette = new BlockData[4][];
     private final Deque<Job> queue = new ArrayDeque<>();
     private BukkitTask task;
+    /** En true desde el apagado: la carga de chunks que termine despues no encola trabajos ni pone tickets. */
+    private volatile boolean stopped;
 
     private DonPollosCityManager(JavaPlugin plugin, java.util.function.BiConsumer<Location, DonPolloVariant> spawner,
                                  DonPollosCitySettings settings, DonPollosCityTemplate template) {
@@ -78,15 +80,24 @@ final class DonPollosCityManager implements Listener {
 
     void start() {
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::work, 1L, 1L);
-        // Ciudades que quedaron a medio hacer (se apago el servidor mientras se construian).
+        // Ciudades que quedaron a medio hacer (se apago el servidor mientras se construian). Un registro roto se
+        // anota en el log y se saltea: nunca impide que arranque el modulo.
         for (Map.Entry<String, String> entry : new ArrayList<>(status.entrySet())) {
-            if (entry.getValue().equals("pendiente")) {
-                String[] parts = entry.getKey().split(";");
-                World world = parts.length == 3 ? worldByUid(parts[0]) : null;
-                if (world != null) {
-                    layout(world).cityInCell(Integer.parseInt(parts[1]), Integer.parseInt(parts[2]))
-                        .ifPresent(plan -> prepare(world, plan, entry.getKey(), null));
-                }
+            if (!entry.getValue().equals("pendiente")) {
+                continue;
+            }
+            String key = entry.getKey();
+            World world = worldByUid(DonPollosCityRecords.worldId(key));
+            if (world == null) {
+                continue;  // ese mundo no esta cargado ahora: queda pendiente para cuando vuelva
+            }
+            Optional<DonPollosCityLayout.CityPlan> plan = DonPollosCityRecords.isManual(key)
+                ? Optional.ofNullable(manualPlans.get(key))
+                : DonPollosCityRecords.seededCell(key).flatMap(cell -> layout(world).cityInCell(cell[0], cell[1]));
+            if (plan.isPresent()) {
+                prepare(world, plan.get(), key, null);
+            } else {
+                plugin.getLogger().warning("[Don Pollos] Ciudad pendiente " + key + " no se pudo recuperar: registro invalido.");
             }
         }
     }
@@ -111,9 +122,17 @@ final class DonPollosCityManager implements Listener {
         });
     }
 
+    /**
+     * La distancia minima se mide desde el spawn real del mundo. Si el spawn se mueve se arma otro plan con el
+     * spawn nuevo (la clave lo incluye); las ciudades ya hechas quedan donde estan.
+     */
     private DonPollosCityLayout layout(World world) {
-        return layouts.computeIfAbsent(world.getName(), name -> new DonPollosCityLayout(world.getSeed(),
-            settings.spacing(), settings.chance(), settings.minDistanceFromSpawn(), template.width(), template.length()));
+        Location spawn = world.getSpawnLocation();
+        int spawnX = spawn.getBlockX();
+        int spawnZ = spawn.getBlockZ();
+        return layouts.computeIfAbsent(world.getName() + ";" + spawnX + ";" + spawnZ,
+            name -> new DonPollosCityLayout(world.getSeed(), settings.spacing(), settings.chance(),
+                settings.minDistanceFromSpawn(), template.width(), template.length(), spawnX, spawnZ));
     }
 
     /** Clave por identificador unico del mundo: si borras el mundo y creas otro con el mismo
@@ -134,6 +153,9 @@ final class DonPollosCityManager implements Listener {
 
     /** Carga (genera) los chunks de la ciudad sin trabar el servidor y despues la encola. */
     private void prepare(World world, DonPollosCityLayout.CityPlan plan, String key, Player notify) {
+        if (stopped) {
+            return;
+        }
         status.put(key, "pendiente");
         saveStatus();
         List<CompletableFuture<Chunk>> chunks = new ArrayList<>();
@@ -142,14 +164,21 @@ final class DonPollosCityManager implements Listener {
                 chunks.add(world.getChunkAtAsync(cx, cz, true));
             }
         }
-        CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new)).whenComplete((ignored, error) ->
+        CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new)).whenComplete((ignored, error) -> {
+            if (stopped || !plugin.isEnabled()) {
+                return;  // el modulo se apago mientras cargaban los chunks: queda "pendiente" para el proximo arranque
+            }
             Bukkit.getScheduler().runTask(plugin, () -> {
+                if (stopped) {
+                    return;
+                }
                 if (error != null) {
                     plugin.getLogger().warning("No se pudo cargar el terreno de la ciudad " + key + ": " + error);
                     return;
                 }
                 enqueue(world, plan, key, notify, chunks.stream().map(CompletableFuture::join).toList());
-            }));
+            });
+        });
     }
 
     private void enqueue(World world, DonPollosCityLayout.CityPlan plan, String key, Player notify, List<Chunk> chunks) {
@@ -166,7 +195,7 @@ final class DonPollosCityManager implements Listener {
                 heights.add(world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES));
             }
         }
-        if (notify == null && water > samples * 0.3) {
+        if (!DonPollosCityRecords.isManual(key) && water > samples * 0.3) {
             status.put(key, "agua");
             saveStatus();
             plugin.getLogger().info("Ciudad " + key + " salteada: cae sobre agua.");
@@ -355,7 +384,7 @@ final class DonPollosCityManager implements Listener {
         DonPollosCityLayout.CityPlan plan = new DonPollosCityLayout.CityPlan(Integer.MIN_VALUE, Integer.MIN_VALUE,
             centerX - sizeX / 2, centerZ - sizeZ / 2, rotation, sizeX, sizeZ);
         String key = player.getWorld().getUID() + ";manual;" + System.currentTimeMillis();
-        manualPlans.put(key, plan);
+        manualPlans.put(key, plan);  // se guarda con el estado, asi se puede terminar si el servidor se cae
         player.sendMessage("§eConstruyendo una ciudad de Don Pollo delante tuyo...");
         prepare(player.getWorld(), plan, key, player);
     }
@@ -416,6 +445,16 @@ final class DonPollosCityManager implements Listener {
                 status.put(key, line.substring(split + 1));
             }
         }
+        for (String line : yaml.getStringList("manuales")) {
+            int split = line.lastIndexOf('=');
+            Optional<DonPollosCityLayout.CityPlan> plan = split > 0
+                ? DonPollosCityRecords.decodePlan(line.substring(split + 1)) : Optional.empty();
+            if (plan.isPresent()) {
+                manualPlans.put(line.substring(0, split), plan.get());
+            } else {
+                plugin.getLogger().warning("[Don Pollos] Ciudad manual con registro invalido, se ignora: " + line);
+            }
+        }
     }
 
     private void saveStatus() {
@@ -423,6 +462,9 @@ final class DonPollosCityManager implements Listener {
         List<String> lines = new ArrayList<>();
         status.forEach((key, value) -> lines.add(key + "=" + value));
         yaml.set("ciudades", lines);
+        List<String> manual = new ArrayList<>();
+        manualPlans.forEach((key, plan) -> manual.add(key + "=" + DonPollosCityRecords.encodePlan(plan)));
+        yaml.set("manuales", manual);
         try {
             storageFile.getParentFile().mkdirs();
             yaml.save(storageFile);
@@ -433,6 +475,7 @@ final class DonPollosCityManager implements Listener {
 
     /** Al apagar: termina de una lo que se estaba construyendo para no dejar ciudades por la mitad. */
     void shutdown() {
+        stopped = true;
         if (task != null) {
             task.cancel();
         }

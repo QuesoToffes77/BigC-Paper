@@ -71,6 +71,21 @@ class DonPollosCityTest {
     }
 
     @Test
+    void spawnDistanceIsMeasuredFromTheWorldSpawnNotTheOrigin() {
+        DonPollosCityLayout.CityPlan plan = new DonPollosCityLayout(3L, 1400, 1.0, 0, 45, 56).cityInCell(4, 4).orElseThrow();
+
+        // spawn movido justo encima de la ciudad: queda excluida aunque este lejos de 0, 0
+        DonPollosCityLayout spawnOnCity = new DonPollosCityLayout(3L, 1400, 1.0, 500, 45, 56,
+            plan.centerX() + 100, plan.centerZ() - 100);
+        assertTrue(spawnOnCity.cityInCell(4, 4).isEmpty());
+
+        // spawn lejos de la ciudad: se planea, y la de la celda 0, 0 (cerca del origen) tambien
+        DonPollosCityLayout spawnFarAway = new DonPollosCityLayout(3L, 1400, 1.0, 500, 45, 56, 50_000, 50_000);
+        assertEquals(Optional.of(plan), spawnFarAway.cityInCell(4, 4));
+        assertTrue(spawnFarAway.cityInCell(0, 0).isPresent());
+    }
+
+    @Test
     void nearestFindsAPlannedCity() {
         DonPollosCityLayout layout = new DonPollosCityLayout(7L, 1400, 1.0, 0, 45, 56);
         DonPollosCityLayout.CityPlan plan = layout.nearest(100, 100, 1).orElseThrow();
