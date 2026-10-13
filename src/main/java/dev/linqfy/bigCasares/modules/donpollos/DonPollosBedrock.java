@@ -163,7 +163,8 @@ final class DonPollosBedrock {
         try (java.util.zip.ZipInputStream entries = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
             for (java.util.zip.ZipEntry entry = entries.getNextEntry(); entry != null; entry = entries.getNextEntry()) {
                 Path target = input.resolve(entry.getName()).normalize();
-                if (entry.isDirectory() || !target.startsWith(input)) {
+                if (entry.isDirectory() || !target.startsWith(input)
+                    || (keepsExisting(entry.getName()) && Files.isRegularFile(target))) {
                     continue;
                 }
                 changed |= write(target, entries.readAllBytes(), logger);
@@ -175,6 +176,14 @@ final class DonPollosBedrock {
             logger.info("Modelos de Don Pollos instalados en GeyserModelEngine (" + input + ").");
         }
         return changed;
+    }
+
+    /**
+     * GeyserModelEngineExtension reescribe el config.json de cada modelo al arrancar. Si se pisara siempre, cada
+     * arranque pediria reiniciar; por eso solo se escribe la primera vez.
+     */
+    static boolean keepsExisting(String entryName) {
+        return entryName.endsWith("/config.json");
     }
 
     private static byte[] read(JavaPlugin plugin, String resource) {

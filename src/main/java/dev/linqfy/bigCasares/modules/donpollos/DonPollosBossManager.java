@@ -1202,7 +1202,7 @@ final class DonPollosBossManager implements Listener {
             ravager.getWorld().playSound(ravager.getLocation(), Sound.ENTITY_GUARDIAN_ATTACK, 1.5f, 1.8f);
         }
         Location aim = target.getLocation().add(0, 1.1, 0);
-        boolean hit = false;
+        List<Player> hitsPerEye = new ArrayList<>(2);
         for (int side : new int[]{1, -1}) {
             Location from = eyes(ravager, side);
             Vector direction = aim.toVector().subtract(from.toVector());
@@ -1212,19 +1212,20 @@ final class DonPollosBossManager implements Listener {
                 FluidCollisionMode.NEVER, true);
             double reach = wall == null ? length : wall.getHitPosition().distance(from.toVector());
             beam(from, direction, reach);
+            // el rayo frena en la pared (reach) y en el primer jugador que cruza: ese es el que recibe el golpe
             RayTraceResult entity = ravager.getWorld().rayTraceEntities(from, direction, reach, 0.4,
-                e -> e instanceof Player p && p.getGameMode() != GameMode.SPECTATOR);
-            if (entity != null && entity.getHitEntity() instanceof Player) {
-                hit = true;
-            }
+                e -> e instanceof Player p && attackable(p));
+            hitsPerEye.add(entity != null && entity.getHitEntity() instanceof Player p ? p : null);
             if (wall != null) {
                 ravager.getWorld().spawnParticle(Particle.LAVA, wall.getHitPosition().toLocation(ravager.getWorld()), 1);
             }
         }
-        if (hit && (now - boss.chargeEnd) % 4 == 0) {
-            blame(target, DeathCause.LASER);
-            target.damage(settings.laserDamage(), ravager);
-            target.setFireTicks(Math.max(target.getFireTicks(), 40));
+        if ((now - boss.chargeEnd) % 4 == 0) {
+            for (Player hitPlayer : DonPollosLaser.victims(hitsPerEye)) {
+                blame(hitPlayer, DeathCause.LASER);
+                hitPlayer.damage(settings.laserDamage(), ravager);
+                hitPlayer.setFireTicks(Math.max(hitPlayer.getFireTicks(), 40));
+            }
         }
     }
 

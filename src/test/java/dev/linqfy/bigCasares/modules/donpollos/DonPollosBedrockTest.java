@@ -86,6 +86,13 @@ class DonPollosBedrockTest {
     }
 
     @Test
+    void modelEngineConfigIsOnlyWrittenTheFirstTime() {
+        assertTrue(DonPollosBedrock.keepsExisting("bigcasares_coronel/config.json"));
+        assertFalse(DonPollosBedrock.keepsExisting("bigcasares_coronel/bigcasares_coronel.geo.json"));
+        assertFalse(DonPollosBedrock.keepsExisting("bigcasares_coronel/bigcasares_coronel.png"));
+    }
+
+    @Test
     void eachDonPolloLooksDifferentForBedrockPlayers() {
         Set<String> looks = new HashSet<>();
         for (DonPolloVariant variant : DonPolloVariant.values()) {
