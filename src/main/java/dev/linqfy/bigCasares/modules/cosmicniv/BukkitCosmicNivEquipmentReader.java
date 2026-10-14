@@ -13,6 +13,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,20 +42,20 @@ final class BukkitCosmicNivEquipmentReader {
         worn(builder, items, CosmicNivArmorSlot.BOOTS, equipment.getBoots());
 
         if (entity instanceof Player player) {
-            PlayerInventory inventory = player.getInventory();
+            Carried carried = Carried.of(player.getInventory());
             CosmicNivSearch search = service.settings().search();
             if (search.armor() == CosmicNivArmorSearch.INVENTORY) {
-                for (ItemStack stack : stacks(inventory, CosmicNivHeldSearch.INVENTORY)) {
+                for (ItemStack stack : carried.stacks(CosmicNivHeldSearch.INVENTORY)) {
                     carriedArmor(builder, items, service, stack);
                 }
             }
-            for (ItemStack stack : stacks(inventory, search.weapon())) {
+            for (ItemStack stack : carried.stacks(search.weapon())) {
                 CosmicNivItem item = items.of(stack);
                 if (item != null) {
                     builder.weapon(item);
                 }
             }
-            for (ItemStack stack : stacks(inventory, search.tool())) {
+            for (ItemStack stack : carried.stacks(search.tool())) {
                 CosmicNivItem item = items.of(stack);
                 if (item != null) {
                     builder.tool(item);
@@ -71,26 +72,41 @@ final class BukkitCosmicNivEquipmentReader {
         return builder.build();
     }
 
-    private static List<ItemStack> stacks(PlayerInventory inventory, CosmicNivHeldSearch search) {
-        List<ItemStack> stacks = new ArrayList<>();
-        switch (search) {
-            case MAIN_HAND -> stacks.add(inventory.getItemInMainHand());
-            case HANDS -> {
-                stacks.add(inventory.getItemInMainHand());
-                stacks.add(inventory.getItemInOffHand());
-            }
-            case HOTBAR -> {
-                for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
-                    stacks.add(inventory.getItem(slot));
-                }
-                stacks.add(inventory.getItemInOffHand());
-            }
-            case INVENTORY -> {
-                stacks.addAll(List.of(inventory.getStorageContents()));
-                stacks.add(inventory.getItemInOffHand());
-            }
+    /**
+     * The player's carried items read once per check, so every search sees the same stack objects and each one is
+     * converted only once.
+     */
+    private record Carried(ItemStack[] storage, ItemStack offHand, int heldSlot) {
+        static Carried of(PlayerInventory inventory) {
+            return new Carried(inventory.getStorageContents(), inventory.getItemInOffHand(),
+                inventory.getHeldItemSlot());
         }
-        return stacks;
+
+        List<ItemStack> stacks(CosmicNivHeldSearch search) {
+            List<ItemStack> stacks = new ArrayList<>();
+            switch (search) {
+                case MAIN_HAND -> stacks.add(mainHand());
+                case HANDS -> {
+                    stacks.add(mainHand());
+                    stacks.add(offHand);
+                }
+                case HOTBAR -> {
+                    for (int slot = 0; slot < HOTBAR_SIZE && slot < storage.length; slot++) {
+                        stacks.add(storage[slot]);
+                    }
+                    stacks.add(offHand);
+                }
+                case INVENTORY -> {
+                    stacks.addAll(Arrays.asList(storage));
+                    stacks.add(offHand);
+                }
+            }
+            return stacks;
+        }
+
+        private ItemStack mainHand() {
+            return heldSlot >= 0 && heldSlot < storage.length ? storage[heldSlot] : null;
+        }
     }
 
     private static void worn(CosmicNivLoadout.Builder builder, Items items, CosmicNivArmorSlot slot, ItemStack stack) {
@@ -113,14 +129,13 @@ final class BukkitCosmicNivEquipmentReader {
     }
 
     private static CosmicNivArmorSlot armorSlot(ItemStack stack) {
-        CosmicNivArmorSlot slot = armorSlot(stack.getType().getEquipmentSlot());
-        if (slot == null && stack.hasItemMeta()) {
+        if (stack.hasItemMeta()) {
             ItemMeta meta = stack.getItemMeta();
             if (meta.hasEquippable()) {
-                slot = armorSlot(meta.getEquippable().getSlot());
+                return armorSlot(meta.getEquippable().getSlot());
             }
         }
-        return slot;
+        return armorSlot(stack.getType().getEquipmentSlot());
     }
 
     private static CosmicNivArmorSlot armorSlot(EquipmentSlot slot) {

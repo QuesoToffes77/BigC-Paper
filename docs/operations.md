@@ -38,6 +38,7 @@ change the date or reset persistent event state without understanding its rules.
 | `packs/artifacts/`, `packs/active-pack.json` | Published artifacts and active pack identity |
 | `packs/bigcasares-bedrock.mcpack` | Replaced from packaged output when the Geyser module extracts it |
 | `cosmicniv_lib.yml`, `cosmicniv_valores.yml` | Equipment level: how it is computed / what each item and enchantment is worth. Seeded if missing; existing files preserved ([guide](cosmicniv-lib/README.md)) |
+| `data/cosmicniv-lib/players/<uuid>.yml` | Equipment memory behind the cosmicniv "real level"; deleting a file resets that player's memory |
 | `data/` and feature-root YAML | Persistent gameplay/admin state; back up before upgrades |
 
 Repository assets feed builds; runtime reloads read the server's editable copies.

@@ -176,6 +176,18 @@ public final class CosmicNivService {
         return owner == null ? null : owner.family();
     }
 
+    /**
+     * Score of a weapon or tool against its own family's references, between 0 and 1; 0 for anything else.
+     */
+    public double heldScore(CosmicNivItem item) {
+        Owner owner = item == null ? null : catalog.heldOwners.get(item.key());
+        if (owner == null) {
+            return 0.0;
+        }
+        return normalize(catalog.itemPower(item), zeroHeldPower.get(owner.category()).get(owner.family()),
+            maxHeldPower.get(owner.category()).get(owner.family()));
+    }
+
     public CosmicNivResult evaluate(CosmicNivLoadout loadout) {
         CosmicNivLoadout safeLoadout = loadout == null ? CosmicNivLoadout.empty() : loadout;
         Map<CosmicNivArmorSlot, CosmicNivItem> armorPieces = catalog.bestArmor(safeLoadout.armor());
@@ -393,6 +405,10 @@ public final class CosmicNivService {
                         continue;
                     }
                     double power = itemPower(piece);
+                    if (power < 0.0) {
+                        // An empty slot is worth 0, so a net-negative piece (e.g. cursed leather) is never the best.
+                        continue;
+                    }
                     if (chosen == null || power > chosenPower) {
                         chosen = piece;
                         chosenPower = power;

@@ -9,6 +9,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,6 +21,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Shared equipment level library (0 to 200 by default). Other modules use it through
@@ -31,11 +33,13 @@ public final class CosmicNivModule implements PluginModule {
     public static final String CONFIG_FILE = CosmicNivSettingsLoader.MAIN_FILE;
     public static final String VALUES_FILE = CosmicNivSettingsLoader.VALUES_FILE;
     private static final String LOG_PREFIX = "[CosmicNiv] ";
+    private static final String MEMORY_FOLDER = "data/cosmicniv-lib/players";
 
     private final BigCasares plugin;
     private final BukkitCosmicNivEquipmentReader reader = new BukkitCosmicNivEquipmentReader();
     private volatile CosmicNivService service;
     private volatile CosmicNivSettings lastValidSettings;
+    private CosmicNivMemoryTracker tracker;
     private RuntimeRegistrationScope compatibilityScope;
 
     public CosmicNivModule(BigCasares plugin) {
@@ -97,6 +101,20 @@ public final class CosmicNivModule implements PluginModule {
         }
         CosmicNivCommand command = new CosmicNivCommand(this);
         registrations.bindCommand("cosmicniv-command", pluginCommand, command, command);
+
+        CosmicNivMemoryTracker memoryTracker = new CosmicNivMemoryTracker(
+            () -> new CosmicNivMemoryService(requireService().settings().memory()),
+            new YamlCosmicNivMemoryStorage(plugin.getDataFolder().toPath().resolve(MEMORY_FOLDER)),
+            System::currentTimeMillis,
+            warning -> plugin.getLogger().warning(LOG_PREFIX + warning));
+        tracker = memoryTracker;
+        registrations.ownCleanup("cosmicniv-memory", () -> {
+            memoryTracker.saveAll();
+            tracker = null;
+        });
+        registrations.registerListener("cosmicniv-memory-listener", new CosmicNivMemoryListener(this));
+        long interval = requireService().settings().memory().checkIntervalTicks();
+        registrations.scheduleRepeating("cosmicniv-memory-check", this::checkOnlinePlayers, interval, interval);
         plugin.getLogger().info(LOG_PREFIX + "Module enabled (curve " + requireService().settings().curve().type()
             + ", maximum " + requireService().maximum() + ").");
     }
@@ -149,6 +167,39 @@ public final class CosmicNivModule implements PluginModule {
         return reader.read(entity, requireService());
     }
 
+    /**
+     * The real level: the current equipment plus what the player is remembered to own (the pieces, weapon and tool
+     * it had before taking them off or swapping them for worse ones). Never below {@link #level(LivingEntity)}.
+     * Mobs, and players while {@code memory.enabled} is false, get their current level. Main thread only.
+     */
+    public double realLevel(LivingEntity entity) {
+        return evaluateReal(entity).value();
+    }
+
+    /**
+     * Full breakdown of the real level. Also updates the player's memory with what it has now. Main thread only.
+     */
+    public CosmicNivResult evaluateReal(LivingEntity entity) {
+        CosmicNivService current = requireService();
+        CosmicNivLoadout loadout = reader.read(entity, current);
+        CosmicNivMemoryTracker activeTracker = tracker;
+        if (!(entity instanceof Player player) || activeTracker == null) {
+            return current.evaluate(loadout);
+        }
+        return activeTracker.check(player.getUniqueId(), current, loadout).real();
+    }
+
+    /**
+     * What {@code playerId} is remembered to own right now, read from its file if the player is not being checked.
+     * Forgotten items are left out; empty while {@code memory.enabled} is false. Works for offline players.
+     * Main thread only.
+     */
+    public CosmicNivMemory rememberedEquipment(UUID playerId) {
+        requireService();
+        CosmicNivMemoryTracker activeTracker = tracker;
+        return activeTracker == null ? CosmicNivMemory.empty() : activeTracker.peek(playerId);
+    }
+
     public double maximum() {
         return requireService().maximum();
     }
@@ -185,6 +236,37 @@ public final class CosmicNivModule implements PluginModule {
 
     Server server() {
         return Objects.requireNonNull(plugin, "plugin").getServer();
+    }
+
+    void checkOnlinePlayers() {
+        if (service == null || tracker == null) {
+            return;
+        }
+        for (Player player : server().getOnlinePlayers()) {
+            evaluateReal(player);
+        }
+    }
+
+    void playerDied(Player player) {
+        CosmicNivMemoryTracker activeTracker = tracker;
+        if (service != null && activeTracker != null) {
+            activeTracker.death(player.getUniqueId());
+        }
+    }
+
+    void playerRespawned(Player player) {
+        CosmicNivMemoryTracker activeTracker = tracker;
+        if (activeTracker != null) {
+            activeTracker.respawn(player.getUniqueId());
+        }
+    }
+
+    void playerQuit(Player player) {
+        CosmicNivMemoryTracker activeTracker = tracker;
+        if (service != null && activeTracker != null) {
+            evaluateReal(player);
+            activeTracker.quit(player.getUniqueId());
+        }
     }
 
     private void install(CosmicNivSettings settings) {

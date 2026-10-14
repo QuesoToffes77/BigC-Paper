@@ -26,6 +26,7 @@ public final class CosmicNivSettingsLoader {
     public static final double DEFAULT_EXPONENT = 2.0;
     public static final double DEFAULT_MIDPOINT = 0.5;
     public static final double MAXIMUM_ABSOLUTE_VALUE = 1_000_000.0;
+    public static final double MAXIMUM_FORGET_MINUTES = 525_600.0;
 
     private static final Pattern FAMILY_NAME = Pattern.compile("[a-z0-9_-]+");
 
@@ -43,7 +44,7 @@ public final class CosmicNivSettingsLoader {
 
     private CosmicNivConfigLoadResult parse(Map<String, Object> main, Map<String, Object> values) {
         checkKeys(main, MAIN_FILE, "", List.of("output", "weights", "armor-search", "weapon-search", "tool-search",
-            "curve", "references"));
+            "memory", "curve", "references"));
         checkKeys(values, VALUES_FILE, "", List.of("armor", "weapons", "tools", "enchantments", "custom-items"));
         Map<String, Object> output = optionalMap(main, "output", MAIN_FILE, "output");
         checkKeys(output, MAIN_FILE, "output", List.of("maximum", "decimals"));
@@ -71,6 +72,18 @@ public final class CosmicNivSettingsLoader {
             warnings.add(MAIN_FILE + " > weapon-search / tool-search: both are MAIN_HAND, so a weapon and a tool never"
                 + " count together and the maximum level cannot be reached");
         }
+        Map<String, Object> memorySection = optionalMap(main, "memory", MAIN_FILE, "memory");
+        checkKeys(memorySection, MAIN_FILE, "memory",
+            List.of("enabled", "forget-after-minutes", "forget-on-death", "check-interval-ticks"));
+        CosmicNivMemorySettings memory = new CosmicNivMemorySettings(
+            readBoolean(memorySection, "enabled", "memory.enabled", CosmicNivMemorySettings.DEFAULT.enabled()),
+            Math.round(readDouble(memorySection, "forget-after-minutes", "memory.forget-after-minutes",
+                CosmicNivMemorySettings.DEFAULT_FORGET_AFTER_MINUTES, 0.0, MAXIMUM_FORGET_MINUTES) * 60_000.0),
+            readBoolean(memorySection, "forget-on-death", "memory.forget-on-death",
+                CosmicNivMemorySettings.DEFAULT.forgetOnDeath()),
+            readInt(memorySection, "check-interval-ticks", "memory.check-interval-ticks",
+                CosmicNivMemorySettings.DEFAULT_CHECK_INTERVAL_TICKS, 1, 1_200));
+
         Map<String, Object> curveSection = optionalMap(main, "curve", MAIN_FILE, "curve");
         checkKeys(curveSection, MAIN_FILE, "curve", List.of("type", "strength", "exponent", "midpoint", "points"));
         CosmicNivCurve curve = readCurve(curveSection);
@@ -97,7 +110,7 @@ public final class CosmicNivSettingsLoader {
             return new CosmicNivConfigLoadResult(null, errors, warnings);
         }
         CosmicNivSettings settings = new CosmicNivSettings(maximum, decimals, armorWeight, weaponWeight, toolWeight,
-            search, curve, zero, max, armor, weapons, tools, enchantments, customItems);
+            search, curve, zero, max, armor, weapons, tools, enchantments, customItems, memory);
         errors.addAll(CosmicNivService.problems(settings));
         warnUnvaluedReferenceEnchantments(settings);
         return new CosmicNivConfigLoadResult(errors.isEmpty() ? settings : null, errors, warnings);
@@ -554,6 +567,18 @@ public final class CosmicNivSettingsLoader {
         double value = number.doubleValue();
         if (value < minimum || value > maximum) {
             mainError(path, "must be between " + minimum + " and " + maximum + ", got " + value);
+            return fallback;
+        }
+        return value;
+    }
+
+    private boolean readBoolean(Map<String, Object> section, String key, String path, boolean fallback) {
+        Object raw = section.get(key);
+        if (raw == null) {
+            return fallback;
+        }
+        if (!(raw instanceof Boolean value)) {
+            mainError(path, "must be true or false, got " + raw);
             return fallback;
         }
         return value;

@@ -123,6 +123,35 @@ class CosmicNivSettingsLoaderTest {
     }
 
     @Test
+    void theMemorySectionIsReadWithDefaults() {
+        assertEquals(CosmicNivMemorySettings.DEFAULT, bundledSettings().memory());
+
+        YamlConfiguration main = bundledMain();
+        main.set("memory", null);
+        assertEquals(CosmicNivMemorySettings.DEFAULT, load(main, bundledValues()).settings().memory());
+
+        main.set("memory.enabled", false);
+        main.set("memory.forget-after-minutes", 0);
+        main.set("memory.forget-on-death", false);
+        main.set("memory.check-interval-ticks", 100);
+        assertEquals(new CosmicNivMemorySettings(false, 0L, false, 100), load(main, bundledValues()).settings().memory());
+
+        main.set("memory.forget-after-minutes", 1.5);
+        assertEquals(90_000L, load(main, bundledValues()).settings().memory().forgetAfterMillis());
+    }
+
+    @Test
+    void invalidMemoryValuesAreReported() {
+        YamlConfiguration main = bundledMain();
+        main.set("memory.enabled", "si");
+        main.set("memory.forget-after-minutes", -5);
+        main.set("memory.check-interval-ticks", 0);
+        main.set("memory.forget-on-dead", true);
+        assertErrorMentions(main, bundledValues(), "memory.enabled: must be true or false",
+            "memory.forget-after-minutes", "memory.check-interval-ticks", "memory.forget-on-dead: unknown key");
+    }
+
+    @Test
     void eachSearchIsReadOnItsOwn() {
         YamlConfiguration main = bundledMain();
         main.set("armor-search", "worn");

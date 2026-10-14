@@ -26,7 +26,7 @@ class CosmicNivCustomItemTest {
         return new CosmicNivSettings(settings.maximum(), settings.decimals(), settings.armorWeight(),
             settings.weaponWeight(), settings.toolWeight(), settings.search(), settings.curve(),
             settings.zeroReference(), settings.maxReference(), settings.armorValues(), settings.weaponFamilies(),
-            settings.toolFamilies(), settings.enchantmentValues(), custom);
+            settings.toolFamilies(), settings.enchantmentValues(), custom, settings.memory());
     }
 
     @Test

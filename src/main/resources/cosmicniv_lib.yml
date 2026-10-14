@@ -51,6 +51,24 @@ armor-search: INVENTORY
 weapon-search: HOTBAR
 tool-search: INVENTORY
 
+# Memoria del equipo, para el "nivel real". Cada jugador tiene guardado, por lugar de armadura, su mejor arma y su
+# mejor herramienta, lo mejor que tuvo:
+#   - si se pone algo igual o mejor, eso pasa a ser lo recordado;
+#   - si se lo saca (deja el lugar vacío) o lo cambia por algo peor, se sigue recordando lo anterior.
+# El nivel real usa lo que tiene ahora más lo recordado; nunca es menor que el nivel actual. La durabilidad no cuenta.
+# Se guarda en plugins/BigCasares/data/cosmicniv-lib/players/<uuid>.yml, así que sobrevive a desconexiones y reinicios.
+memory:
+  # false: el nivel real es igual al actual y no se toca lo guardado.
+  enabled: true
+  # Minutos sin volver a tener una pieza recordada hasta que se olvida (cuenta tiempo real, también desconectado).
+  # 0 = no se olvida por tiempo.
+  forget-after-minutes: 60
+  # Al morir se olvida todo y se vuelve a empezar con lo que tenga después de morir.
+  forget-on-death: true
+  # Cada cuántos ticks se revisa el equipo de los jugadores conectados (20 ticks = 1 segundo).
+  # Este valor se aplica con /bigcasares reload; los demás también con /cosmicniv reload.
+  check-interval-ticks: 20
+
 # Curva que dobla el progreso t (0..1) antes de multiplicarlo por maximum.
 #   LINEAR       f(t) = t                                    (sin cambios)
 #   EXPONENTIAL  f(t) = (e^(k·t) - 1) / (e^k - 1)            usa strength (k). k > 0: sube lento al principio y

@@ -52,7 +52,7 @@ Los dos archivos se crean la primera vez que arranca el servidor.
 
 | Comando | Qué hace | Permiso |
 |---|---|---|
-| `/cosmicniv` | Tu nivel y el detalle (armadura, arma, herramienta, curva) | `bigcasares.cosmicniv.check` (todos) |
+| `/cosmicniv` | Tu nivel, el detalle (armadura, arma, herramienta, curva) y el nivel real | `bigcasares.cosmicniv.check` (todos) |
 | `/cosmicniv <jugador>` | El nivel de otro jugador | `bigcasares.cosmicniv.check.others` (op) |
 | `/cosmicniv curva` | Tabla de la curva actual: progreso → nivel | `bigcasares.cosmicniv.admin` (op) |
 | `/cosmicniv reload` | Vuelve a leer los dos archivos | `bigcasares.cosmicniv.admin` (op) |
@@ -67,9 +67,16 @@ CosmicNiv » Juan: 77.4/200.0
   Armadura: 44% (poder 36.0)
   Arma: espada 31% (minecraft:diamond_sword, poder 7.0)
   Progreso: 0.39 -> curva LINEAR -> 0.39
+  Nivel real: 148.4 (cuenta lo que tenía antes de sacárselo o cambiarlo por algo peor)
 ```
 
-La línea de herramienta aparece cuando las herramientas tienen peso o cuando el jugador tiene una.
+La línea de herramienta aparece cuando las herramientas tienen peso o cuando el jugador tiene una. La del nivel real
+aparece mientras `memory.enabled` sea `true` (ver [`memory`](#memory-nivel-real)).
+
+Hay **dos niveles**:
+- **Nivel actual:** con lo que tiene ahora (puesto, en el inventario y en la barra, según las búsquedas).
+- **Nivel real:** el actual más lo que la librería **recuerda** que tuvo. Si alguien se saca la armadura de netherite
+  y la guarda en un cofre para parecer más débil, el real lo sigue contando. Nunca es menor que el actual.
 
 ### Flujo para ajustar
 
@@ -339,6 +346,51 @@ hecho sobre un ítem que no se puede equipar solo cuenta puesto.
 | `HANDS` | Mano principal y secundaria |
 | `HOTBAR` | Los 9 slots de la barra rápida y la mano secundaria. Es estable y difícil de esquivar |
 | `INVENTORY` | Todo el inventario y la mano secundaria |
+
+### `memory`: nivel real
+
+La librería recuerda, por jugador, lo mejor que tuvo en cada lugar de armadura, su mejor arma y su mejor herramienta.
+Con eso calcula el **nivel real**. Revisa el equipo de los jugadores conectados cada `check-interval-ticks`, y además
+cada vez que otro módulo pide el nivel real.
+
+| Pasa esto | Qué recuerda |
+|---|---|
+| Se pone algo mejor (por ejemplo, cambia el casco de diamante por uno de netherite) | Lo nuevo |
+| Se pone algo exactamente igual de bueno (una maza full en vez de una espada full) | Lo anterior, como "visto ahora" |
+| Se lo saca y deja el lugar vacío (lo guarda en un cofre, lo tira, se lo da a otro) | Lo anterior |
+| Lo cambia por algo peor (netherite por cuero) | Lo anterior |
+| Pasan `forget-after-minutes` minutos sin volver a tenerlo | Lo olvida |
+| Muere (con `forget-on-death: true`) | Olvida todo y empieza de nuevo con lo que tenga después de reaparecer. Si otro plugin cancela la muerte, no olvida nada |
+
+- Armadura se compara por poder; armas y herramientas por su puntaje contra su propia familia (una maza full y una
+  espada full valen lo mismo).
+- La durabilidad no cuenta: gastar una pieza no cambia nada.
+- Una pieza que vale menos que nada (por ejemplo, cuero con maldición de ligamiento) no cuenta como armadura ni se
+  recuerda: un lugar vacío vale 0, así que nadie puede bajar su nivel cargando piezas malditas.
+- Si un archivo de memoria está roto, se renombra a `<uuid>.yml.broken-<hora>` (para no perderlo), la consola avisa
+  y ese jugador empieza con la memoria vacía.
+- Con `armor-search: INVENTORY`, una pieza que lleva en el inventario ya cuenta en el nivel actual. El real hace la
+  diferencia cuando la pieza ya no la tiene encima.
+- Los mobs no tienen memoria: su nivel real es el actual.
+- Se guarda en `plugins/BigCasares/data/cosmicniv-lib/players/<uuid>.yml`, así que sobrevive a desconexiones y
+  reinicios.
+
+| Clave | Por defecto | Rango | Qué es |
+|---|---|---|---|
+| `enabled` | `true` | `true` / `false` | Con `false` el nivel real es igual al actual y no se toca lo guardado |
+| `forget-after-minutes` | 60 | 0 a 525 600 | Minutos sin tener una pieza recordada hasta olvidarla. Cuenta tiempo real, también desconectado. 0 = no se olvida por tiempo |
+| `forget-on-death` | `true` | `true` / `false` | Al morir se olvida todo |
+| `check-interval-ticks` | 20 | 1 a 1 200 | Cada cuántos ticks se revisa el equipo de los conectados (20 = 1 segundo). Se aplica con `/bigcasares reload` |
+
+Dos cosas a tener en cuenta si usás el nivel real para dificultad o recompensas:
+- **Prestar equipo lo infla.** Basta con tener encima equipo ajeno durante un chequeo (1 segundo) para que se
+  recuerde por `forget-after-minutes`.
+- **Morir a propósito lo baja.** Con `forget-on-death: true`, alguien puede guardar todo en un cofre y morir. Su real
+  queda en lo que tenga hasta que vuelva a agarrar el equipo.
+
+Ejemplo: un jugador con netherite full encantada y una espada full tiene 200. Guarda todo en un cofre y queda en 0 de
+nivel actual, pero su nivel real sigue en 200. Si en 60 minutos no vuelve a tener esas cosas encima, o si muere, el
+real baja a lo que tenga en ese momento.
 
 ### `curve`
 
@@ -778,6 +830,21 @@ r.weapon().power();    // poder de esa arma
 r.tool();              // lo mismo para la mejor herramienta
 ```
 
+### El nivel real
+
+```java
+double actual = niv.level(player);          // con lo que tiene ahora
+double real = niv.realLevel(player);        // lo que tiene ahora + lo que se recuerda que tuvo
+CosmicNivResult r = niv.evaluateReal(player);
+r.armorPieces();                            // las piezas que contaron, recordadas incluidas
+
+CosmicNivMemory m = niv.rememberedEquipment(player.getUniqueId());
+m.get(CosmicNivMemorySlot.HELMET);          // el casco recordado y cuándo lo tuvo por última vez, o null
+```
+
+Para escalar dificultad o recompensas conviene usar el **nivel real**, así nadie baja su nivel sacándose el equipo
+justo antes. `evaluateReal` también actualiza la memoria con lo que el jugador tiene en ese momento.
+
 ### Funciona con mobs
 
 `level` y `evaluate` reciben cualquier `LivingEntity`. Un zombie con armadura de hierro y espada de diamante tiene su
@@ -819,7 +886,8 @@ s.familyOf(CosmicNivItem.of("trident"));                                     // 
   necesites; es solo un getter.
 - **Es barato.** Son unas sumas sobre como mucho 4 piezas y 37 ítems. Llamarlo en cada evento no pesa, pero si lo
   necesitás cada tick para todos los jugadores, calculalo cada pocos segundos.
-- **No hay valores guardados.** El nivel se calcula en el momento. Si querés historial o ranking, eso va en tu módulo.
+- **Lo único que se guarda es la memoria del equipo** (para el nivel real). Los niveles se calculan en el momento; si
+  querés historial o ranking, eso va en tu módulo.
 
 ### Ejemplo completo: escalar la vida de un boss según el equipo de los jugadores cercanos
 
@@ -880,6 +948,11 @@ el hacha es más herramienta que arma, movela de `weapons.axe` a una familia de 
 | `CosmicNivItem`, `CosmicNivLoadout`, `CosmicNivArmorSlot`, `CosmicNivItemCategory`, `CosmicNivReference`, `CosmicNivEnchantmentValue`, `CosmicNivSearch`, `CosmicNivArmorSearch`, `CosmicNivHeldSearch`, `CosmicNivResult`, `CosmicNivKeys` | Tipos de valor |
 | `BukkitCosmicNivEquipmentReader` | `LivingEntity` → `CosmicNivLoadout` (lee material, `bigcasares:item_id`, `item_model` y datos persistentes) |
 | `BukkitCosmicNivKeyAudit` | Avisa de ítems o encantamientos que no existen en el servidor |
+| `CosmicNivMemoryService` | Reglas de la memoria del equipo (qué se recuerda, cuándo se olvida, nivel real). Sin Bukkit |
+| `CosmicNivMemoryTracker` | Memoria de los jugadores conectados: la carga, la actualiza en cada chequeo y la guarda cuando cambia |
+| `CosmicNivMemory`, `CosmicNivMemorySlot`, `CosmicNivMemorySettings` | Tipos de la memoria |
+| `CosmicNivMemoryStorage` / `YamlCosmicNivMemoryStorage` | Guardado por jugador en `data/cosmicniv-lib/players/<uuid>.yml` |
+| `CosmicNivMemoryListener` | Muerte y desconexión |
 | `CosmicNivCommand` | `/cosmicniv` |
 
 ### Agregar un tipo de curva

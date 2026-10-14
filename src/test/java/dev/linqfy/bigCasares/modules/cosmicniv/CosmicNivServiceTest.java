@@ -335,7 +335,7 @@ class CosmicNivServiceTest {
         CosmicNivSettings huge = new CosmicNivSettings(settings.maximum(), settings.decimals(), settings.armorWeight(),
             settings.weaponWeight(), settings.toolWeight(), settings.search(), settings.curve(),
             settings.zeroReference(), settings.maxReference(), armor, settings.weaponFamilies(),
-            settings.toolFamilies(), settings.enchantmentValues(), settings.customItems());
+            settings.toolFamilies(), settings.enchantmentValues(), settings.customItems(), settings.memory());
 
         assertTrue(String.join("\n", CosmicNivService.problems(huge)).contains("armor.minecraft:netherite_helmet"));
     }
@@ -348,7 +348,7 @@ class CosmicNivServiceTest {
             settings.zeroReference(), new CosmicNivReference(settings.maxReference().armor(),
                 settings.maxReference().weapons(), Map.of()),
             settings.armorValues(), settings.weaponFamilies(), settings.toolFamilies(), settings.enchantmentValues(),
-            settings.customItems());
+            settings.customItems(), settings.memory());
         CosmicNivService service = new CosmicNivService(noTools);
 
         CosmicNivResult result = service.evaluate(maxArmor(noTools)

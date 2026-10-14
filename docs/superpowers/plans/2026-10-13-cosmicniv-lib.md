@@ -29,9 +29,13 @@ New (`src/main/java/dev/linqfy/bigCasares/modules/cosmicniv/`):
 - `BukkitCosmicNivEquipmentReader.java`: `LivingEntity` to loadout.
 - `BukkitCosmicNivKeyAudit.java`: warnings for keys unknown to the server.
 - `CosmicNivCommand.java`: `/cosmicniv`.
+- `CosmicNivMemoryService.java`, `CosmicNivMemoryTracker.java`, `CosmicNivMemory.java`, `CosmicNivMemorySlot.java`,
+  `CosmicNivMemorySettings.java`, `CosmicNivMemoryStorage.java`, `YamlCosmicNivMemoryStorage.java`,
+  `CosmicNivMemoryListener.java`: equipment memory and real level.
 - `src/main/resources/cosmicniv_lib.yml` and `src/main/resources/cosmicniv_valores.yml`: bundled configuration.
 - Tests (`src/test/java/dev/linqfy/bigCasares/modules/cosmicniv/`): `CosmicNivCurveTest`,
-  `CosmicNivSettingsLoaderTest`, `CosmicNivServiceTest`, `CosmicNivCustomItemTest`, `CosmicNivModuleWiringTest`.
+  `CosmicNivSettingsLoaderTest`, `CosmicNivServiceTest`, `CosmicNivCustomItemTest`, `CosmicNivModuleWiringTest`,
+  `CosmicNivMemoryServiceTest`, `CosmicNivMemoryTrackerTest`, `YamlCosmicNivMemoryStorageTest`.
 - `docs/cosmicniv-lib/README.md`: Spanish user and developer guide.
 
 Modified:
@@ -43,7 +47,8 @@ Modified:
 ## Boundaries
 
 - Do not touch `build.gradle`, other modules or the resource pack.
-- No persistence, no scheduled tasks, no Adventure or Paper-only classes loaded by tests.
+- Persistence only for the per-player equipment memory; one scheduled task (its periodic check); no Adventure or
+  Paper-only classes loaded by tests.
 
 ## Tasks
 
@@ -104,7 +109,9 @@ Files: `docs/cosmicniv-lib/README.md`, `README.md`, this plan.
   `CosmicNivLoadout`, `CosmicNivArmorSlot`, `CosmicNivItemCategory`, `CosmicNivReference`,
   `CosmicNivEnchantmentValue`, `CosmicNivSearch`, `CosmicNivArmorSearch`, `CosmicNivHeldSearch`, `CosmicNivResult`,
   `CosmicNivKeys`,
-  `BukkitCosmicNivEquipmentReader`, `BukkitCosmicNivKeyAudit`, `CosmicNivCommand`.
+  `BukkitCosmicNivEquipmentReader`, `BukkitCosmicNivKeyAudit`, `CosmicNivCommand`, `CosmicNivMemoryService`,
+  `CosmicNivMemoryTracker`, `CosmicNivMemory`, `CosmicNivMemorySlot`, `CosmicNivMemorySettings`,
+  `CosmicNivMemoryStorage`, `YamlCosmicNivMemoryStorage`, `CosmicNivMemoryListener`.
 - `src/main/resources/cosmicniv_lib.yml` (how the level is computed) and `src/main/resources/cosmicniv_valores.yml`
   (what everything is worth; reference enchantments from vanilla 26.2 data).
 - `docs/cosmicniv-lib/README.md`: Spanish user and developer guide.
@@ -113,7 +120,7 @@ Files: `docs/cosmicniv-lib/README.md`, `README.md`, this plan.
 
 ### Tests written
 - `CosmicNivCurveTest` (13): curve endpoints, monotonicity, formulas, clamping and invalid parameters.
-- `CosmicNivSettingsLoaderTest` (32): bundled files, defaults, curve types, the three searches, and every validation
+- `CosmicNivSettingsLoaderTest` (34): the `memory` section, bundled files, defaults, curve types, the three searches, and every validation
   error and warning with its file and path (unknown keys, text types, duplicates, limits, references, families, custom
   items, weight-0 parts, MAIN_HAND warning).
 - `CosmicNivServiceTest` (25): 0 and 200 references, weights, tools, families, best armor piece per slot, separate
@@ -121,6 +128,11 @@ Files: `docs/cosmicniv-lib/README.md`, `README.md`, this plan.
   in the guide.
 - `CosmicNivCustomItemTest` (8): custom item recognition (catalog id, item model, persistent data, material), first
   match wins, where custom armor and tools count, invalid definitions.
+- `CosmicNivMemoryServiceTest` (17): what is remembered (better replaces, equal only refreshes, empty or worse
+  keeps), forget time, death, disabled memory, net-negative pieces, real level never below the current one.
+- `CosmicNivMemoryTrackerTest` (10): both levels, saves on item changes and every 5 minutes for times only, quit,
+  lazy load, death until respawn, unreadable files, peeking offline players, disabled memory leaves files alone.
+- `YamlCosmicNivMemoryStorageTest` (4): round trip, missing file, empty memory, broken files kept as `.broken-*`.
 - `CosmicNivModuleWiringTest` (8): stable id, availability, settings carried across reloads, bundled files,
   config key, plugin.yml, BigCasares registration, command formatting.
 
@@ -130,7 +142,7 @@ How to run the tests for this module:
 bash gradlew test --tests 'dev.linqfy.bigCasares.modules.cosmicniv.*'
 ```
 Expected result: all tests pass, no failures. Full `bash gradlew --no-daemon clean build` (with `main` merged, including
-Celular): BUILD SUCCESSFUL, 1100 tests, 0 failures.
+Celular and #16): BUILD SUCCESSFUL, 1133 tests, 0 failures.
 
 ### Deviations from plan
 - No `CosmicNivStorage` / `YamlCosmicNivStorage` / `CosmicNivListener`: the level is computed on demand and nothing
@@ -140,6 +152,13 @@ Celular): BUILD SUCCESSFUL, 1100 tests, 0 failures.
 - Also at the user's request: armor takes the best piece per slot among the worn and the carried ones
   (`armor-search`), and weapons and tools have their own searches (`weapon-search` defaults to the hotbar,
   `tool-search` to the whole inventory). They replace the single `held-search` key.
+- Also at the user's request: an equipment memory per player and a "real level" (current equipment plus what the
+  player is remembered to own), saved in `data/cosmicniv-lib/players/<uuid>.yml`. Rules chosen with the user: taking
+  a piece off or swapping it for something worse keeps the old one; it is forgotten on death or after
+  `forget-after-minutes`. A read-only Opus review led to: net-negative armor never counts, cancelled deaths are
+  ignored, nothing is remembered between death and respawn, ties keep the remembered item, the inventory is read
+  once per check, broken files are kept aside, last-seen times are flushed every 5 minutes, and reading an offline
+  player's memory neither caches it nor returns forgotten items.
 - Review fixes: minimum curve strength, ±1,000,000 limits (also enforced for hand-built settings), unknown keys and
   duplicate keys are errors, text-only match values, weapons never count as armor, enchantments summed in key order,
   settings carried across `/bigcasares reload`, weight-0 parts need no references and never affect the level,
@@ -153,3 +172,7 @@ Celular): BUILD SUCCESSFUL, 1100 tests, 0 failures.
 - Spear base values are an approximate scale; tune them in-game.
 - Players named `reload`, `curva` or `curve` cannot be looked up by name with `/cosmicniv`.
 - Existing power formulas (Jeremy, mob scaling) were not migrated to this library.
+- The equipment memory was not exercised on a live server (death/respawn timing, the periodic check, file writes on
+  the main thread). Lending gear for one check inflates the real level for `forget-after-minutes`, and dying on
+  purpose with gear stored away lowers it; both are documented in the guide.
+- The HTML simulator published during development was not updated: it predates the searches and the memory.

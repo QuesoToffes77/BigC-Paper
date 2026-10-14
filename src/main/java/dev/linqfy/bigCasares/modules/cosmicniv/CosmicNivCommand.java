@@ -79,6 +79,11 @@ final class CosmicNivCommand implements CommandExecutor, TabCompleter {
         }
         sender.sendMessage("§7  Progreso: §f" + decimal(result.progress()) + " §7-> curva §f" + result.curveType()
             + " §7-> §f" + decimal(result.curvedProgress()));
+        if (module.service().settings().memory().enabled()) {
+            CosmicNivResult real = module.evaluateReal(target);
+            sender.sendMessage("§7  Nivel real: §d" + level(real.value(), decimals)
+                + " §8(cuenta lo que tenía antes de sacárselo o cambiarlo por algo peor)");
+        }
     }
 
     private static String heldLine(String label, CosmicNivResult.Held held) {

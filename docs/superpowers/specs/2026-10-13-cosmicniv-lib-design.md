@@ -25,13 +25,15 @@ In scope:
   data (key, optionally value) and/or material, each with its own value, category and family.
 - Reading armor, weapons and tools from a `LivingEntity` (players: worn armor plus carried pieces, hotbar and
   inventory; mobs: their equipment).
+- Equipment memory and a "real level" per player (see Confirmed rules), stored per player in
+  `plugins/BigCasares/data/cosmicniv-lib/players/<uuid>.yml`.
 - Public API on `CosmicNivModule` for other modules.
 - `/cosmicniv [jugador]`, `/cosmicniv curva` and `/cosmicniv reload`.
 - A Spanish user guide: `docs/cosmicniv-lib/README.md`.
 
 Out of scope:
 - Changing how any existing module computes power (Jeremy, mob scaling, danger). They can migrate later.
-- Persisting levels, leaderboards or history (GUIDELINES: no global statistics unless scoped). There is no Storage.
+- Persisting levels, leaderboards or history. Only the equipment memory behind the real level is stored.
 - Durability, potion effects, attribute modifiers, bows and crossbows (bows can be added as a weapon family).
 - PlaceholderAPI placeholders.
 
@@ -102,6 +104,17 @@ Other rules:
   - shears: efficiency;
   - fishing rod: luck of the sea, lure;
   - and unbreaking III plus mending on all of them.
+- Equipment memory (`memory:` in `cosmicniv_lib.yml`): per player and per memory slot (four armor slots, best
+  weapon, best tool) the best item seen is remembered. A better item replaces it; an equally strong one only counts
+  as seeing it now (so ties never rewrite the file); an empty slot or a worse item keeps it. Armor compares by power,
+  weapons and tools by their family-normalized score. Armor pieces with negative power never count (an empty slot is
+  worth 0) and are never remembered. A remembered item is forgotten after `forget-after-minutes` (real time) without
+  being seen, on a non-cancelled death when `forget-on-death` (nothing is remembered until the respawn, because the
+  inventory empties after the death event), and when it no longer has a value. Online players are checked every
+  `check-interval-ticks`, plus on every real-level request and on quit. Real level = evaluate(current candidates +
+  remembered items), so it is never below the current level. Mobs have no memory. Durability is not part of an
+  item, so it never changes the memory. Files are written when remembered items change, every 5 minutes when only
+  "last seen" times moved, on quit and on module disable; unreadable files are kept as `<uuid>.yml.broken-<millis>`.
 - Validation errors are reported as `<file> > <yaml path>: <message>`. When the installed files are invalid, the
   module keeps the last valid settings (carried across `/bigcasares reload`, which builds a new module instance) or,
   if there never were any, the bundled defaults. Unknown item or enchantment keys only produce warnings.
@@ -121,6 +134,9 @@ Other rules:
 - `BukkitCosmicNivEquipmentReader`: converts a `LivingEntity` into a `CosmicNivLoadout`, reading material,
   `bigcasares:item_id`, `item_model` and the persistent data keys custom items ask for.
 - `BukkitCosmicNivKeyAudit`: warns about item and enchantment keys that do not exist on the server.
+- `CosmicNivMemoryService` (pure rules), `CosmicNivMemoryTracker` (online cache, saves on item changes, on quit and
+  on module disable), `CosmicNivMemory`, `CosmicNivMemorySlot`, `CosmicNivMemorySettings`, `CosmicNivMemoryStorage`
+  + `YamlCosmicNivMemoryStorage`, `CosmicNivMemoryListener` (death, quit).
 - `CosmicNivCommand`: `/cosmicniv`.
 
 ## Config shape
@@ -141,6 +157,7 @@ weights: { armor: 0.6, weapon: 0.4, tool: 0.0 }
 armor-search: INVENTORY
 weapon-search: HOTBAR
 tool-search: INVENTORY
+memory: { enabled: true, forget-after-minutes: 60, forget-on-death: true, check-interval-ticks: 20 }
 curve: { type: LINEAR, strength: 3.0, exponent: 2.0, midpoint: 0.5, points: [[0, 0], [0.5, 0.3], [1, 1]] }
 references:
   zero: { armor: {}, weapons: {}, tools: {} }
@@ -167,4 +184,5 @@ custom-items:
   (field, getter, construction, registration), `config.yml`, `plugin.yml` and `README.md`.
 - The catalog id is read straight from the item's persistent data (`bigcasares:item_id`); no catalog classes are
   imported.
-- No persistence and no scheduled tasks. The level is computed on demand on the main thread.
+- Levels are computed on demand on the main thread. The only persistence is the per-player equipment memory, and
+  the only scheduled task is its periodic check.
