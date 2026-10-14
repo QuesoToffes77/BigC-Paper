@@ -48,6 +48,9 @@ final class DonPollosBattleManager implements Listener {
     private final Consumer<Villager> restoreBehaviour;
     private final Consumer<Villager> onWin;
     private final java.util.function.Predicate<UUID> bedrockPlayer;
+    /** Batallas contra el Salsero que jugo y que gano cada jugador (guardadas en el jugador, sobreviven reinicios). */
+    private final org.bukkit.NamespacedKey playedKey;
+    private final org.bukkit.NamespacedKey wonKey;
     private final Map<UUID, Session> byPlayer = new HashMap<>();
     private final Map<UUID, UUID> bySalsero = new HashMap<>();
     private BukkitTask task;
@@ -57,6 +60,8 @@ final class DonPollosBattleManager implements Listener {
                            java.util.function.Predicate<UUID> bedrockPlayer) {
         this.plugin = plugin;
         this.bedrockPlayer = bedrockPlayer;
+        this.playedKey = new org.bukkit.NamespacedKey(plugin, "salsero_jugadas");
+        this.wonKey = new org.bukkit.NamespacedKey(plugin, "salsero_ganadas");
         this.binder = binder;
         this.settings = settings;
         this.dances = dances;
@@ -88,8 +93,11 @@ final class DonPollosBattleManager implements Listener {
             return;
         }
         long now = Bukkit.getCurrentTick();
+        int played = count(player, playedKey);
+        int won = count(player, wonKey);
+        setCount(player, playedKey, played + 1);
         DonPollosDanceBattle battle = new DonPollosDanceBattle(settings,
-            bound -> ThreadLocalRandom.current().nextInt(bound), now, INTRO_TICKS);
+            bound -> ThreadLocalRandom.current().nextInt(bound), now, INTRO_TICKS, won);
         BossBar bar = BossBar.bossBar(text("§d§lDon Pollo Salsero §7- ¡Batalla de baile!"), 1f,
             BossBar.Color.PINK, BossBar.Overlay.NOTCHED_12);
         Session session = new Session(player.getUniqueId(), salsero, battle, bar);
@@ -106,6 +114,9 @@ final class DonPollosBattleManager implements Listener {
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.4f);
         player.sendMessage("§d¡Batalla de baile! §7Hace el paso que aparece en pantalla (W/A/S/D, saltar o agacharte). "
             + "Tenes §c" + settings.lives() + " vidas§7.");
+        player.sendMessage("§dLe ganaste §f" + won + "§d de §f" + played + "§d batallas al Salsero. §7Tiempo para cada paso: §f"
+            + String.format(java.util.Locale.ROOT, "%.2f", DonPollosDanceBattle.startWindowTicks(settings, won) / 20.0)
+            + " s§7.");
         playNextDance(session);
     }
 
@@ -166,7 +177,8 @@ final class DonPollosBattleManager implements Listener {
                 double dx = at.getX() - session.joystickFrom.getX();
                 double dz = at.getZ() - session.joystickFrom.getZ();
                 if (dx * dx + dz * dz >= DonPollosJoystick.MIN_MOVE * DonPollosJoystick.MIN_MOVE
-                    || now - session.joystickAt >= DonPollosJoystick.WAIT_TICKS) {
+                    || now - session.joystickAt >= DonPollosJoystick.WAIT_TICKS
+                    || session.battle.ticksLeft(now) <= 1) {
                     resolveJoystick(session, player, now);
                 }
             }
@@ -271,8 +283,20 @@ final class DonPollosBattleManager implements Listener {
 
     // ------------------------------------------------------------ final
 
+    private int count(Player player, org.bukkit.NamespacedKey key) {
+        return player.getPersistentDataContainer().getOrDefault(key, org.bukkit.persistence.PersistentDataType.INTEGER, 0);
+    }
+
+    private void setCount(Player player, org.bukkit.NamespacedKey key, int value) {
+        player.getPersistentDataContainer().set(key, org.bukkit.persistence.PersistentDataType.INTEGER, value);
+    }
+
     private void win(Session session, Player player) {
         session.over = true;
+        int won = count(player, wonKey) + 1;
+        setCount(player, wonKey, won);
+        player.sendMessage("§dYa le ganaste §f" + won + "§d de §f" + count(player, playedKey)
+            + "§d batallas al Salsero. §7La proxima vas a tener menos tiempo...");
         session.bar.progress(0f);
         stopDance(session);
         player.hideBossBar(session.bar);

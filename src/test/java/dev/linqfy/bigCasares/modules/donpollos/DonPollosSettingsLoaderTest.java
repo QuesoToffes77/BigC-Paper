@@ -63,10 +63,10 @@ class DonPollosSettingsLoaderTest {
     }
 
     @Test
-    void salseroBattleRewardsFiveDiamondsAndHasThreeLives() {
+    void salseroBattleRewardsTwoDiamondsAndHasThreeLives() {
         DonPollosBattleSettings battle = new DonPollosSettingsLoader().load(bundled()).battle();
 
-        assertEquals(new DonPollosItem("DIAMOND", 5), battle.reward());
+        assertEquals(new DonPollosItem("DIAMOND", 2), battle.reward());
         assertEquals(3, battle.lives());
         assertTrue(battle.hitsToWin() > 0);
     }

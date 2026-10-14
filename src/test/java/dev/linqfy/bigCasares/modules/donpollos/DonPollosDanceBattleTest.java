@@ -117,4 +117,34 @@ class DonPollosDanceBattleTest {
         battle.tick(100);
         assertNotEquals(first, battle.current());
     }
+
+    @Test
+    void reactionTimeIsDividedByPreviousWins() {
+        // SETTINGS: 40 ticks al empezar
+        assertEquals(40, new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0, 0).windowTicks());
+        assertEquals(40, new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0, 1).windowTicks());
+        assertEquals(20, new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0, 2).windowTicks());
+        assertEquals(10, new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0, 4).windowTicks());
+        assertEquals(1, new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0, 1000).windowTicks());
+        assertEquals(20, DonPollosDanceBattle.startWindowTicks(SETTINGS, 2));
+    }
+
+    @Test
+    void theShrinkingWindowIsAlsoDividedByPreviousWins() {
+        DonPollosDanceBattle fresh = new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0, 0);
+        DonPollosDanceBattle veteran = new DonPollosDanceBattle(SETTINGS, bound -> 0, 0, 0, 3);
+        for (DonPollosDanceBattle battle : new DonPollosDanceBattle[]{fresh, veteran}) {
+            battle.tick(0);
+            battle.input(1, Set.of(battle.current()));
+            battle.tick(100);
+            battle.input(101, Set.of(battle.current()));
+        }
+        assertEquals(27, fresh.windowTicks());
+        assertEquals(9, veteran.windowTicks());
+    }
+
+    @Test
+    void salseroPaysTwoDiamondsByDefault() {
+        assertEquals(new DonPollosItem("DIAMOND", 2), DonPollosBattleSettings.defaults().reward());
+    }
 }

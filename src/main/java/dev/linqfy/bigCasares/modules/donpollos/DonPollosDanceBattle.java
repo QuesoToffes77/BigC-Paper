@@ -7,7 +7,8 @@ import java.util.function.IntUnaryOperator;
 /**
  * Batalla de baile contra el Salsero (sin Bukkit). El Salsero pide un paso, tenes una ventana
  * de tiempo para hacerlo: si acertas le sacas vida, si te equivocas o no llegas perdes una vida.
- * La ventana se achica a medida que el Salsero pierde vida.
+ * La ventana se achica a medida que el Salsero pierde vida, y se divide por las veces que ese jugador ya le gano
+ * (cuanto mas le ganas, menos tiempo tenes).
  */
 public final class DonPollosDanceBattle {
 
@@ -15,6 +16,7 @@ public final class DonPollosDanceBattle {
 
     private final DonPollosBattleSettings settings;
     private final IntUnaryOperator randomBelow;
+    private final int previousWins;
     private int hitsLeft;
     private int lives;
     private DonPollosDanceMove current;
@@ -23,8 +25,15 @@ public final class DonPollosDanceBattle {
     private long nextPromptAt;
 
     public DonPollosDanceBattle(DonPollosBattleSettings settings, IntUnaryOperator randomBelow, long now, long introTicks) {
+        this(settings, randomBelow, now, introTicks, 0);
+    }
+
+    /** previousWins: cuantas veces este jugador ya le gano al Salsero (divide el tiempo de cada paso). */
+    public DonPollosDanceBattle(DonPollosBattleSettings settings, IntUnaryOperator randomBelow, long now, long introTicks,
+                                int previousWins) {
         this.settings = Objects.requireNonNull(settings, "settings");
         this.randomBelow = Objects.requireNonNull(randomBelow, "randomBelow");
+        this.previousWins = Math.max(0, previousWins);
         this.hitsLeft = settings.hitsToWin();
         this.lives = settings.lives();
         this.nextPromptAt = now + introTicks;
@@ -77,11 +86,23 @@ public final class DonPollosDanceBattle {
         return lives <= 0 ? Outcome.LOST : reason;
     }
 
-    /** Ventana para hacer el paso: arranca en window-ticks y baja hasta min-window-ticks. */
+    /**
+     * Ventana para hacer el paso: arranca en window-ticks y baja hasta min-window-ticks, dividida por las victorias
+     * anteriores del jugador (sin victorias se divide por 1). Nunca baja de 1 tick.
+     */
     public int windowTicks() {
         double done = 1 - hitsLeft / (double) settings.hitsToWin();
-        return (int) Math.round(settings.startWindowTicks()
-            - (settings.startWindowTicks() - settings.minWindowTicks()) * done);
+        double base = settings.startWindowTicks() - (settings.startWindowTicks() - settings.minWindowTicks()) * done;
+        return windowFor(base, previousWins);
+    }
+
+    /** Tiempo para cada paso al empezar, en ticks, para quien ya le gano previousWins veces. */
+    public static int startWindowTicks(DonPollosBattleSettings settings, int previousWins) {
+        return windowFor(settings.startWindowTicks(), previousWins);
+    }
+
+    private static int windowFor(double baseTicks, int previousWins) {
+        return Math.max(1, (int) Math.round(baseTicks / Math.max(1, previousWins)));
     }
 
     public DonPollosDanceMove current() {

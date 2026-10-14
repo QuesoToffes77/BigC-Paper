@@ -26,6 +26,6 @@ public record DonPollosBattleSettings(
     }
 
     public static DonPollosBattleSettings defaults() {
-        return new DonPollosBattleSettings(12, 3, 50, 22, 12, new DonPollosItem("DIAMOND", 5), 16.0);
+        return new DonPollosBattleSettings(12, 3, 50, 22, 12, new DonPollosItem("DIAMOND", 2), 16.0);
     }
 }

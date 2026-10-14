@@ -158,7 +158,7 @@ public final class DonPollosSettingsLoader {
         DonPollosItem reward = config.isConfigurationSection(p + "reward")
             ? new DonPollosItem(
                 validMaterial(config.getString(p + "reward.material", "DIAMOND"), p + "reward"),
-                config.getInt(p + "reward.amount", 5))
+                config.getInt(p + "reward.amount", 2))
             : d.reward();
         return new DonPollosBattleSettings(
             config.getInt(p + "hits-to-win", d.hitsToWin()),
