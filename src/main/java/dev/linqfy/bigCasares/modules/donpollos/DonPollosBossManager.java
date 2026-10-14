@@ -379,7 +379,7 @@ final class DonPollosBossManager implements Listener {
         for (UUID viewer : boss.viewers) {
             Player player = Bukkit.getPlayer(viewer);
             if (player != null && attackable(player) && !inAnyPit(boss, player.getLocation())) {
-                Pit pit = digPit(player, settings.phase3().pitDepth());
+                Pit pit = digPit(boss, player, settings.phase3().pitDepth());
                 if (pit != null) {
                     boss.pits.add(pit);
                 }
@@ -744,11 +744,27 @@ final class DonPollosBossManager implements Listener {
         }
     }
 
+    /** Si un cubo nuevo de este boss tocaria los bloques de un cubo de otro boss (ver DonPollosPitRestore). */
+    private boolean touchesOtherBossPit(Boss owner, World world, int chunkX, int chunkZ, int bottom, int feet) {
+        for (Boss other : bosses.values()) {
+            if (other == owner) {
+                continue;
+            }
+            for (Pit pit : other.pits) {
+                if (pit.world() == world && DonPollosPitRestore.regionsOverlap(chunkX, chunkZ, bottom, feet,
+                    pit.chunkX(), pit.chunkZ(), pit.bottom(), pit.feet())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private static boolean inAnyPit(Boss boss, Location location) {
         return boss.pits.stream().anyMatch(pit -> pit.contains(location));
     }
 
-    private Pit digPit(Player player, int depth) {
+    private Pit digPit(Boss owner, Player player, int depth) {
         if (depth <= 0) {
             return null;
         }
@@ -756,6 +772,9 @@ final class DonPollosBossManager implements Listener {
         Chunk chunk = player.getLocation().getChunk();
         int feet = player.getLocation().getBlockY();
         int bottom = pitBottom(feet, depth, world.getMinHeight());
+        if (touchesOtherBossPit(owner, world, chunk.getX(), chunk.getZ(), bottom, feet)) {
+            return null;  // pelea en la superficie: el cubo del otro boss queda intacto
+        }
         List<BlockState> changed = new ArrayList<>();
         for (int y = feet - 1; y >= bottom; y--) {
             for (int x = 0; x < 16; x++) {
@@ -1042,7 +1061,7 @@ final class DonPollosBossManager implements Listener {
             if (chunkTaken) {
                 continue;  // ese chunk ya es un cubo (esta arriba del borde: se cae adentro)
             }
-            Pit pit = digPit(player, settings.phase3().pitDepth());
+            Pit pit = digPit(boss, player, settings.phase3().pitDepth());
             if (pit != null) {
                 boss.pits.add(pit);
                 player.showTitle(net.kyori.adventure.title.Title.title(

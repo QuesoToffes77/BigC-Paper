@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DonPollosPitRestoreTest {
 
@@ -78,5 +80,25 @@ class DonPollosPitRestoreTest {
         assertEquals(List.of("b2", "b1", "a2", "a1"),
             DonPollosPitRestore.restoreOrder(List.of(List.of("a1", "a2"), List.of("b1", "b2"))));
         assertEquals(List.of(), DonPollosPitRestore.restoreOrder(List.<List<String>>of()));
+    }
+
+    @Test
+    void pitsInNeighbouringChunksShareWalls() {
+        // mismo chunk, al lado, en diagonal: comparten bloques
+        assertTrue(DonPollosPitRestore.regionsOverlap(0, 0, 64, 70, 0, 0, 64, 70));
+        assertTrue(DonPollosPitRestore.regionsOverlap(0, 0, 64, 70, 1, 0, 64, 70));
+        assertTrue(DonPollosPitRestore.regionsOverlap(0, 0, 64, 70, -1, -1, 64, 70));
+        // con un chunk de por medio no se tocan
+        assertFalse(DonPollosPitRestore.regionsOverlap(0, 0, 64, 70, 2, 0, 64, 70));
+        assertFalse(DonPollosPitRestore.regionsOverlap(0, 0, 64, 70, 1, 3, 64, 70));
+    }
+
+    @Test
+    void pitsAtDifferentHeightsDoNotTouch() {
+        // uno de 64 a 70 y otro de 100 a 106, en chunks vecinos (un cubo en una montania)
+        assertFalse(DonPollosPitRestore.regionsOverlap(0, 0, 64, 70, 1, 0, 100, 106));
+        // la pared de abajo del de arriba (fondo - 1) llega justo al suelo del de abajo
+        assertTrue(DonPollosPitRestore.regionsOverlap(0, 0, 64, 70, 1, 0, 71, 77));
+        assertFalse(DonPollosPitRestore.regionsOverlap(0, 0, 64, 70, 1, 0, 72, 78));
     }
 }
