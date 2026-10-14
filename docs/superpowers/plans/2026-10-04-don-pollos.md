@@ -80,7 +80,7 @@ Modified:
 - `tools/donpollos/`: generators, dance data and sources (schematic, block photos, textures, voice originals).
 - `BigCasares.java`, `config.yml`, `plugin.yml`: module registration, toggle, command and permission.
 - Docs: design spec, this plan, `docs/don-pollos/README.md` (usage guide in Spanish),
-  `docs/don-pollos/compatibilidad-bedrock.md`, and a Don Pollos section in the root `README.md`.
+  and `docs/don-pollos/compatibilidad-bedrock.md`.
 - `build.gradle`: `runServer` downloads the server plugins needed on Java and Bedrock (BetterModel 3.5.0,
   Geyser, Floodgate, packetevents, GeyserUtils, GeyserModelEngine). A new `downloadGeyserExtensions` task installs the Geyser
   extensions. Compile dependencies are unchanged.
