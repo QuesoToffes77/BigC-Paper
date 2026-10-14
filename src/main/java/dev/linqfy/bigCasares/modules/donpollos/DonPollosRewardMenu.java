@@ -83,13 +83,13 @@ final class DonPollosRewardMenu implements Listener {
         for (int i = 0; i < CHOICES; i++) {
             inventory.setItem(CHOICE_SLOTS[i], chosen[i] == null
                 ? icon(Material.CHEST, "§e§lElegi un item", "§7Click para ver las categorias")
-                : icon(chosen[i], "§a" + pretty(chosen[i]) + " §7x" + chosen[i].getMaxStackSize(),
-                    "§7Click para cambiarlo"));
+                : icon(chosen[i], "§a" + pretty(chosen[i]), "§7Click para cambiarlo"));
         }
         boolean ready = java.util.Arrays.stream(chosen).allMatch(java.util.Objects::nonNull);
         inventory.setItem(CLAIM_SLOT, ready
             ? icon(Material.LIME_CONCRETE, "§a§lReclamar premios", "§7Te llevas el balde y los 4 items")
-            : icon(Material.GRAY_DYE, "§7Elegi los 4 items", "§7El primero ya es tuyo: el balde de KFC"));
+            : icon(Material.GRAY_DYE, "§7Elegi los 4 items", "§7El primero ya es tuyo: el balde de KFC",
+                "§7Uno de cada uno. Como mucho una plantilla y un disco."));
         player.openInventory(inventory);
     }
 
@@ -135,7 +135,7 @@ final class DonPollosRewardMenu implements Listener {
             itemsByCategory = new EnumMap<>(DonPollosReward.Category.class);
             for (Material material : Material.values()) {
                 if (material.isLegacy() || !material.isItem() || material.isAir() || FORBIDDEN.contains(material.name())
-                    || material.name().endsWith("_SPAWN_EGG")) {
+                    || material.name().endsWith("_SPAWN_EGG") || DonPollosReward.bannedReward(material.name())) {
                     continue;
                 }
                 DonPollosReward.Category found = DonPollosReward.category(material.name(), material.isBlock(),
@@ -197,7 +197,7 @@ final class DonPollosRewardMenu implements Listener {
         List<ItemStack> prizes = new ArrayList<>();
         prizes.add(bucket.create());
         for (Material material : chosen) {
-            prizes.add(new ItemStack(material, material.getMaxStackSize()));
+            prizes.add(new ItemStack(material, DonPollosReward.AMOUNT_PER_CHOICE));
         }
         for (ItemStack leftover : player.getInventory().addItem(prizes.toArray(ItemStack[]::new)).values()) {
             player.getWorld().dropItemNaturally(player.getLocation(), leftover);
@@ -220,7 +220,14 @@ final class DonPollosRewardMenu implements Listener {
             List<Material> shown = DonPollosReward.page(items(CATEGORIES.get(items.category())), items.page(),
                 ITEMS_PER_PAGE);
             if (slot < shown.size()) {
-                choices.computeIfAbsent(player.getUniqueId(), id -> new Material[CHOICES])[items.choice()] = shown.get(slot);
+                Material[] chosen = choices.computeIfAbsent(player.getUniqueId(), id -> new Material[CHOICES]);
+                String[] names = java.util.Arrays.stream(chosen).map(m -> m == null ? null : m.name()).toArray(String[]::new);
+                if (!DonPollosReward.canChoose(names, items.choice(), shown.get(slot).name())) {
+                    player.sendMessage(LEGACY.deserialize("§cSolo podes elegir una plantilla y un disco."));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                    return;
+                }
+                chosen[items.choice()] = shown.get(slot);
                 player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.3f);
                 open(player, items.bossId());
             }

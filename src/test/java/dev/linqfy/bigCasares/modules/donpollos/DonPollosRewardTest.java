@@ -107,4 +107,36 @@ class DonPollosRewardTest {
         org.junit.jupiter.api.Assertions.assertEquals("§cVos no sos §fel que le gano§c. No hay nada para vos.",
             DonPollosReward.notYoursMessage(null));
     }
+
+    @Test
+    void theBossNeverGivesEndDiamondOrNetheriteItems() {
+        for (String banned : new String[]{"END_STONE", "END_STONE_BRICKS", "PURPUR_BLOCK", "PURPUR_STAIRS",
+            "CHORUS_FRUIT", "POPPED_CHORUS_FRUIT", "SHULKER_SHELL", "SHULKER_BOX", "RED_SHULKER_BOX", "ELYTRA",
+            "DRAGON_HEAD", "DRAGON_EGG", "END_ROD", "END_CRYSTAL", "DIAMOND", "DIAMOND_BLOCK", "DIAMOND_ORE",
+            "DEEPSLATE_DIAMOND_ORE", "DIAMOND_SWORD", "DIAMOND_CHESTPLATE", "DIAMOND_HORSE_ARMOR", "NETHERITE_INGOT",
+            "NETHERITE_BLOCK", "NETHERITE_SCRAP", "NETHERITE_PICKAXE", "NETHERITE_BOOTS", "ANCIENT_DEBRIS"}) {
+            org.junit.jupiter.api.Assertions.assertTrue(DonPollosReward.bannedReward(banned), banned);
+        }
+    }
+
+    @Test
+    void templatesDiscsAndEverydayItemsAreAllowed() {
+        for (String allowed : new String[]{"NETHERITE_UPGRADE_SMITHING_TEMPLATE", "SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE",
+            "MUSIC_DISC_CAT", "JUKEBOX", "IRON_SWORD", "GOLDEN_APPLE", "ENDER_PEARL", "OAK_LOG"}) {
+            org.junit.jupiter.api.Assertions.assertFalse(DonPollosReward.bannedReward(allowed), allowed);
+        }
+        org.junit.jupiter.api.Assertions.assertEquals(1, DonPollosReward.AMOUNT_PER_CHOICE);
+    }
+
+    @Test
+    void atMostOneTemplateAndOneDisc() {
+        String[] chosen = {"MUSIC_DISC_CAT", "COAST_ARMOR_TRIM_SMITHING_TEMPLATE", null, null};
+        org.junit.jupiter.api.Assertions.assertFalse(DonPollosReward.canChoose(chosen, 2, "MUSIC_DISC_13"));
+        org.junit.jupiter.api.Assertions.assertFalse(DonPollosReward.canChoose(chosen, 3,
+            "NETHERITE_UPGRADE_SMITHING_TEMPLATE"));
+        // cambiar el disco que ya elegiste por otro si se puede
+        org.junit.jupiter.api.Assertions.assertTrue(DonPollosReward.canChoose(chosen, 0, "MUSIC_DISC_13"));
+        org.junit.jupiter.api.Assertions.assertTrue(DonPollosReward.canChoose(chosen, 2, "JUKEBOX"));
+        org.junit.jupiter.api.Assertions.assertTrue(DonPollosReward.canChoose(new String[4], 0, "MUSIC_DISC_CAT"));
+    }
 }

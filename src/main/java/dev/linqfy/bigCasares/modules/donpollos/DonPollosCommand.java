@@ -162,7 +162,7 @@ final class DonPollosCommand implements CommandExecutor, TabCompleter {
         Location spawn = at.clone().add(ahead.normalize().multiply(6));
         spawn.setY(player.getWorld().getHighestBlockYAt(spawn) + 1);
         spawn.setYaw(at.getYaw() + 180);
-        module.bosses().spawn(spawn);
+        module.bosses().spawn(spawn, player);
         sender.sendMessage("§4§l¡Aparecio el Don Pollo Boss!");
     }
 

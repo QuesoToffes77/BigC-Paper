@@ -45,8 +45,8 @@ final class DonPollosReward {
         REDSTONE("Redstone", "REDSTONE"),
         TRANSPORTE("Transporte", "POWERED_RAIL"),
         COMIDA("Comida", "GOLDEN_APPLE"),
-        HERRAMIENTAS("Herramientas", "DIAMOND_PICKAXE"),
-        COMBATE("Combate", "NETHERITE_SWORD"),
+        HERRAMIENTAS("Herramientas", "IRON_PICKAXE"),
+        COMBATE("Combate", "IRON_SWORD"),
         POCIONES("Pociones", "BREWING_STAND"),
         VARIOS("Varios", "LAVA_BUCKET");
 
@@ -126,6 +126,51 @@ final class DonPollosReward {
     static String notYoursMessage(String winnerName) {
         String name = winnerName == null || winnerName.isBlank() ? "el que le gano" : winnerName;
         return "§cVos no sos §f" + name + "§c. No hay nada para vos.";
+    }
+
+    /** Cuanto te llevas de cada item elegido: uno solo (antes era un stack). */
+    static final int AMOUNT_PER_CHOICE = 1;
+
+    private static final java.util.Set<String> END_ITEMS = java.util.Set.of("ELYTRA", "DRAGON_EGG", "DRAGON_HEAD",
+        "DRAGON_BREATH", "END_ROD", "END_CRYSTAL", "END_PORTAL_FRAME");
+
+    /**
+     * Items que el boss no da: los del End (end stone, purpur, chorus, shulkers, elytras, cosas del dragon) y todo lo
+     * de diamante y netherite (minerales, bloques, armaduras, herramientas, chatarra). Las plantillas de herreria si,
+     * incluida la de netherite.
+     */
+    static boolean bannedReward(String name) {
+        if (name.endsWith("_SMITHING_TEMPLATE")) {
+            return false;
+        }
+        return END_ITEMS.contains(name) || name.startsWith("END_STONE") || name.startsWith("PURPUR")
+            || name.contains("CHORUS") || name.contains("SHULKER")
+            || name.contains("DIAMOND") || name.contains("NETHERITE") || name.equals("ANCIENT_DEBRIS");
+    }
+
+    /** Grupo con limite de uno por premio: las plantillas de herreria y los discos. null si no tiene limite. */
+    static String limitGroup(String name) {
+        if (name.endsWith("_SMITHING_TEMPLATE")) {
+            return "plantilla";
+        }
+        if (name.startsWith("MUSIC_DISC_")) {
+            return "disco";
+        }
+        return null;
+    }
+
+    /** Si se puede poner candidate en el lugar slot: como mucho una plantilla y un disco entre los elegidos. */
+    static boolean canChoose(String[] chosen, int slot, String candidate) {
+        String group = limitGroup(candidate);
+        if (group == null) {
+            return true;
+        }
+        for (int i = 0; i < chosen.length; i++) {
+            if (i != slot && chosen[i] != null && group.equals(limitGroup(chosen[i]))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static int pageCount(int items, int perPage) {

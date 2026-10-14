@@ -102,6 +102,10 @@ final class DonPollosBossManager implements Listener {
     private final DonPollosSounds sounds;
     private final DonPollosBossSettings settings;
     private final NamespacedKey bossKey;
+    /** Dificultad con la que salio este boss (victorias de quien lo invoco). */
+    private final NamespacedKey difficultyKey;
+    /** Cuantas veces le gano cada jugador al boss (guardado en el jugador). */
+    private final NamespacedKey bossWinsKey;
     /** En el boss derrotado: UUID de quien le gano ("" si no se sabe). */
     private final NamespacedKey defeatedKey;
     private final DonPollosKfcBucket bucket;
@@ -121,6 +125,8 @@ final class DonPollosBossManager implements Listener {
         this.sounds = sounds;
         this.settings = settings;
         this.bossKey = new NamespacedKey(plugin, "don_pollo_boss");
+        this.difficultyKey = new NamespacedKey(plugin, "boss_dificultad");
+        this.bossWinsKey = new NamespacedKey(plugin, "boss_ganadas");
         this.defeatedKey = new NamespacedKey(plugin, "don_pollo_boss_derrotado");
         this.bucket = new DonPollosKfcBucket(plugin);
         this.rewardMenu = new DonPollosRewardMenu(bucket, this::claimReward);
@@ -145,8 +151,19 @@ final class DonPollosBossManager implements Listener {
     // ------------------------------------------------------------ spawn
 
     Ravager spawn(Location location) {
+        return spawn(location, null);
+    }
+
+    /**
+     * El boss sale mas fuerte segun cuantas veces ya le gano quien lo invoca (sin jugador, como la primera vez).
+     * La dificultad queda guardada en el boss, asi no cambia si se descarga el chunk o se reinicia el servidor.
+     */
+    Ravager spawn(Location location, Player summoner) {
+        int level = summoner == null ? 0 : bossWins(summoner);
+        DonPollosBossDifficulty difficulty = new DonPollosBossDifficulty(level);
         Ravager ravager = location.getWorld().spawn(location, Ravager.class, boss -> {
             boss.getPersistentDataContainer().set(bossKey, PersistentDataType.BYTE, (byte) 1);
+            boss.getPersistentDataContainer().set(difficultyKey, PersistentDataType.INTEGER, level);
             boss.customName(LEGACY.deserialize("§4§lDon Pollo Boss"));
             boss.setCustomNameVisible(false);
             boss.setPersistent(true);
@@ -154,7 +171,7 @@ final class DonPollosBossManager implements Listener {
             boss.setCanJoinRaid(false);
             setAttribute(boss, Attribute.MAX_HEALTH, settings.health());
             setAttribute(boss, Attribute.SCALE, settings.scale());
-            setAttribute(boss, Attribute.ATTACK_DAMAGE, settings.meleeDamage());
+            setAttribute(boss, Attribute.ATTACK_DAMAGE, difficulty.damage(settings.meleeDamage()));
             setAttribute(boss, Attribute.KNOCKBACK_RESISTANCE, 1.0);
             setAttribute(boss, Attribute.FOLLOW_RANGE, CHASE_RANGE);
             boss.setHealth(settings.health());
@@ -162,7 +179,28 @@ final class DonPollosBossManager implements Listener {
         track(ravager);
         sounds.play(ravager);
         ravager.getWorld().playSound(ravager.getLocation(), Sound.ENTITY_RAVAGER_ROAR, 2f, 0.7f);
+        if (summoner != null) {
+            summoner.sendMessage(LEGACY.deserialize(DonPollosBossDifficulty.summonMessage(level)));
+        }
         return ravager;
+    }
+
+    /** Cuantas veces le gano este jugador al boss (guardado en el jugador). */
+    private int bossWins(Player player) {
+        return player.getPersistentDataContainer().getOrDefault(bossWinsKey, PersistentDataType.INTEGER, 0);
+    }
+
+    /** Bichos del boss mas rapidos y con mas dano segun la dificultad. */
+    private org.bukkit.entity.Zombie toughen(Boss boss, org.bukkit.entity.Zombie minion) {
+        AttributeInstance speed = minion.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (speed != null) {
+            speed.setBaseValue(boss.difficulty.speed(speed.getBaseValue()));
+        }
+        AttributeInstance damage = minion.getAttribute(Attribute.ATTACK_DAMAGE);
+        if (damage != null) {
+            damage.setBaseValue(boss.difficulty.damage(damage.getBaseValue()));
+        }
+        return minion;
     }
 
     private static void setAttribute(LivingEntity entity, Attribute attribute, double value) {
@@ -189,10 +227,12 @@ final class DonPollosBossManager implements Listener {
         BossBar bar = BossBar.bossBar(barTitle(PHASES.getFirst()), 1f,
             BossBar.Color.RED, BossBar.Overlay.NOTCHED_10);
         Boss boss = new Boss(ravager, bar);
+        boss.difficulty = new DonPollosBossDifficulty(
+            ravager.getPersistentDataContainer().getOrDefault(difficultyKey, PersistentDataType.INTEGER, 0));
         ravager.setGravity(true);
         ravager.setAI(true);
         setInflate(ravager, 0);
-        boss.nextLaser = Bukkit.getCurrentTick() + settings.laserCooldownSeconds() * 20L;
+        boss.nextLaser = Bukkit.getCurrentTick() + boss.difficulty.cooldownTicks(settings.laserCooldownSeconds() * 20.0);
         bosses.put(ravager.getUniqueId(), boss);
         binder.bindModel(ravager, MODEL);
         String winner = ravager.getPersistentDataContainer().get(defeatedKey, PersistentDataType.STRING);
@@ -282,7 +322,7 @@ final class DonPollosBossManager implements Listener {
             }
             if (boss.phase.chickens() && now >= boss.nextChickens) {
                 spawnChickens(boss);
-                boss.nextChickens = now + Math.round(settings.chickenWaveSeconds() * 20);
+                boss.nextChickens = now + boss.difficulty.cooldownTicks(settings.chickenWaveSeconds() * 20);
             }
             if (boss.phase.has(DonPollosBossPhase.Ability.HOP)) {
                 hop(boss, now);
@@ -294,7 +334,7 @@ final class DonPollosBossManager implements Listener {
             }
             if (boss.phase.has(DonPollosBossPhase.Ability.FINAL_COLONELS) && now >= boss.nextFinalColonels) {
                 spawnFinalColonels(boss);
-                boss.nextFinalColonels = now + Math.round(settings.phase4().colonelSeconds() * 20);
+                boss.nextFinalColonels = now + boss.difficulty.cooldownTicks(settings.phase4().colonelSeconds() * 20);
             }
         }
     }
@@ -324,7 +364,7 @@ final class DonPollosBossManager implements Listener {
         }
         boss.bar.color(phase.has(DonPollosBossPhase.Ability.GROW) ? BossBar.Color.PURPLE : BossBar.Color.RED);
         boss.nextBeam = now + 60;
-        boss.nextJump = now + Math.round(settings.phase4().jumpCooldownSeconds() * 10);
+        boss.nextJump = now + boss.difficulty.cooldownTicks(settings.phase4().jumpCooldownSeconds() * 10);
         boss.nextFinalColonels = now + 60;
         if (DonPollosBossPhase.KEEP_AWAY.equals(phase.ai())) {
             ravager.setTarget(null);
@@ -620,7 +660,7 @@ final class DonPollosBossManager implements Listener {
             double off = chest.clone().subtract(direction.clone().multiply(along)).length();
             if (off <= BEAM_HIT_RADIUS) {
                 blame(player, DeathCause.BEAM);
-                player.damage(settings.phase4().beamDamage(), source);
+                player.damage(boss.difficulty.damage(settings.phase4().beamDamage()), source);
                 player.setVelocity(direction.clone().setY(0).multiply(2.0).setY(0.5));
             }
         }
@@ -632,7 +672,7 @@ final class DonPollosBossManager implements Listener {
         boss.beamPoint = null;
         boss.beamTarget = null;
         boss.ravager.setAI(true);
-        boss.nextBeam = now + Math.round(settings.phase4().beamCooldownSeconds() * 20);
+        boss.nextBeam = now + boss.difficulty.cooldownTicks(settings.phase4().beamCooldownSeconds() * 20);
         boss.nextJump = Math.max(boss.nextJump, now + 40);
     }
 
@@ -699,8 +739,9 @@ final class DonPollosBossManager implements Listener {
             ravager.setGravity(true);
             ravager.setAI(true);
             ravager.setVelocity(new Vector());
-            shockwaves.slam(ravager, boss.jumpTo, settings.phase4().shockwaveRadius(), settings.phase4().shockwaveDamage());
-            boss.nextJump = now + Math.round(settings.phase4().jumpCooldownSeconds() * 20);
+            shockwaves.slam(ravager, boss.jumpTo, settings.phase4().shockwaveRadius(),
+                boss.difficulty.damage(settings.phase4().shockwaveDamage()));
+            boss.nextJump = now + boss.difficulty.cooldownTicks(settings.phase4().jumpCooldownSeconds() * 20);
             boss.nextBeam = Math.max(boss.nextBeam, now + 40);
         }
     }
@@ -710,16 +751,16 @@ final class DonPollosBossManager implements Listener {
         Ravager ravager = boss.ravager;
         DonPollosBossPhase4Settings phase4 = settings.phase4();
         long alive = minions.count(boss.minions, kind -> kind == DonPollosBossMinions.Kind.CORONEL_FINAL);
-        long count = Math.min(phase4.colonelsPerWave(), phase4.maxColonels() - alive);
+        long count = Math.min(boss.difficulty.count(phase4.colonelsPerWave()), boss.difficulty.count(phase4.maxColonels()) - alive);
         for (int i = 0; i < count; i++) {
             Location location = DonPollosBossMinions.around(ravager.getLocation(), 2 * scale(ravager));
-            boss.minions.add(minions.spawn(DonPollosBossMinions.Kind.CORONEL_FINAL, location,
+            boss.minions.add(toughen(boss, minions.spawn(DonPollosBossMinions.Kind.CORONEL_FINAL, location,
                 nearestPlayer(location, CHASE_RANGE), colonel -> {
                     DonPollosBossMinions.setAttribute(colonel, Attribute.MOVEMENT_SPEED, ZOMBIE_SPEED * phase4.colonelSpeed());
                     DonPollosBossMinions.setAttribute(colonel, Attribute.ATTACK_DAMAGE, ZOMBIE_DAMAGE + phase4.colonelDamage());
                     DonPollosBossMinions.setAttribute(colonel, Attribute.MAX_HEALTH, phase4.colonelHealth());
                     colonel.setHealth(phase4.colonelHealth());
-                }).getUniqueId());
+                })).getUniqueId());
         }
     }
 
@@ -955,7 +996,8 @@ final class DonPollosBossManager implements Listener {
     private void startCube(Boss boss, long now) {
         DonPollosBossPhase3Settings phase3 = settings.phase3();
         // la primera ronda arranca justo cuando termina de elevarse (la pausa inicial dura hasta ahi)
-        boss.cube = new DonPollosCubeBattle(phase3.rounds(), phase3.maxAlive(), phase3.roundPauseTicks(),
+        boss.cube = new DonPollosCubeBattle(phase3.rounds().stream().map(boss.difficulty::round).toList(),
+            boss.difficulty.count(phase3.maxAlive()), phase3.roundPauseTicks(),
             Math.max(now, boss.levitateEnd) - phase3.roundPauseTicks());
         boss.cubeBar = BossBar.bossBar(cubeTitle(boss.cube), 1f, BossBar.Color.YELLOW, BossBar.Overlay.PROGRESS);
         plugin.getLogger().info("Batallas del Cubo: " + boss.pits.size() + " cubo(s), " + phase3.rounds().size() + " rondas");
@@ -982,17 +1024,17 @@ final class DonPollosBossManager implements Listener {
         }
         if (step.spawnColonel()) {
             DonPollosCubeRound round = cube.current();
-            boss.minions.add(minions.spawn(DonPollosBossMinions.Kind.CORONEL,
+            boss.minions.add(toughen(boss, minions.spawn(DonPollosBossMinions.Kind.CORONEL,
                 DonPollosBossMinions.around(player.getLocation(), 4), player, colonel -> {
                     // cada ronda mas rapido y mas fuerte
                     DonPollosBossMinions.setAttribute(colonel, Attribute.MOVEMENT_SPEED, ZOMBIE_SPEED * round.colonelSpeed());
                     DonPollosBossMinions.setAttribute(colonel, Attribute.ATTACK_DAMAGE, ZOMBIE_DAMAGE + round.colonelDamage());
-                }).getUniqueId());
+                })).getUniqueId());
             colonels++;
         }
         if (step.spawnLabubu()) {
             DonPollosBossMinions.Kind kind = DonPollosBossMinions.Kind.LABUBUS[(cube.labubuIndex() - 1) % 4];
-            boss.minions.add(minions.spawn(kind, DonPollosBossMinions.around(player.getLocation(), 3), player)
+            boss.minions.add(toughen(boss, minions.spawn(kind, DonPollosBossMinions.around(player.getLocation(), 3), player))
                 .getUniqueId());
             labubus++;
         }
@@ -1241,8 +1283,8 @@ final class DonPollosBossManager implements Listener {
         }
         Location from = ravager.getLocation().add(0, CAR_TOP * scale, 0).add(forward.multiply(CAR_FRONT * scale));
         Location target = player.getLocation().add(0, 0.5, 0);
-        meteors.launch(ravager, from, target, settings.meteorDamage());
-        boss.nextMeteor = now + Math.round(settings.meteorCooldownSeconds() * 20);
+        meteors.launch(ravager, from, target, boss.difficulty.damage(settings.meteorDamage()));
+        boss.nextMeteor = now + boss.difficulty.cooldownTicks(settings.meteorCooldownSeconds() * 20);
     }
 
     private static double scale(LivingEntity entity) {
@@ -1254,11 +1296,11 @@ final class DonPollosBossManager implements Listener {
     private void spawnChickens(Boss boss) {
         Ravager ravager = boss.ravager;
         long alive = minions.count(boss.minions, kind -> kind == DonPollosBossMinions.Kind.GALLINA);
-        long count = Math.min(settings.chickensPerWave(), settings.maxChickens() - alive);
+        long count = Math.min(boss.difficulty.count(settings.chickensPerWave()), boss.difficulty.count(settings.maxChickens()) - alive);
         for (int i = 0; i < count; i++) {
             Location location = DonPollosBossMinions.around(ravager.getLocation(), 1.6 * scale(ravager));
-            boss.minions.add(minions.spawn(DonPollosBossMinions.Kind.GALLINA, location,
-                nearestPlayer(location, CHASE_RANGE)).getUniqueId());
+            boss.minions.add(toughen(boss, minions.spawn(DonPollosBossMinions.Kind.GALLINA, location,
+                nearestPlayer(location, CHASE_RANGE))).getUniqueId());
         }
     }
 
@@ -1351,7 +1393,7 @@ final class DonPollosBossManager implements Listener {
         if ((now - boss.chargeEnd) % 4 == 0) {
             for (Player hitPlayer : DonPollosLaser.victims(hitsPerEye)) {
                 blame(hitPlayer, DeathCause.LASER);
-                hitPlayer.damage(settings.laserDamage(), ravager);
+                hitPlayer.damage(boss.difficulty.damage(settings.laserDamage()), ravager);
                 hitPlayer.setFireTicks(Math.max(hitPlayer.getFireTicks(), 40));
             }
         }
@@ -1362,7 +1404,7 @@ final class DonPollosBossManager implements Listener {
         boss.target = null;
         boss.ravager.setAI(true);
         int jitter = ThreadLocalRandom.current().nextInt(-40, 41);
-        boss.nextLaser = now + settings.laserCooldownSeconds() * 20L + jitter;
+        boss.nextLaser = now + boss.difficulty.cooldownTicks(settings.laserCooldownSeconds() * 20.0) + jitter;
     }
 
     private Location eyes(Ravager ravager, int side) {
@@ -1553,6 +1595,12 @@ final class DonPollosBossManager implements Listener {
         minions.removeAll(boss.minions);
         endCube(boss);
         boss.defeat = new Defeat(winner == null ? null : winner.getUniqueId(), now);
+        if (winner != null) {
+            int wins = bossWins(winner) + 1;
+            winner.getPersistentDataContainer().set(bossWinsKey, PersistentDataType.INTEGER, wins);
+            winner.sendMessage(LEGACY.deserialize("§6Ya le ganaste §f" + wins + "§6 " + (wins == 1 ? "vez" : "veces")
+                + " a Don Pollo. §7La proxima vez que lo invoques va a ser mas fuerte."));
+        }
         ravager.getPersistentDataContainer().set(defeatedKey, PersistentDataType.STRING,
             winner == null ? "" : winner.getUniqueId().toString());
         showDefeatedBar(boss);
@@ -1774,6 +1822,7 @@ final class DonPollosBossManager implements Listener {
         private BossBar cubeBar;
         private final Set<UUID> cubeViewers = new HashSet<>();
         private final List<Pit> pits = new ArrayList<>();
+        private DonPollosBossDifficulty difficulty = new DonPollosBossDifficulty(0);
         /** Tick desde el que no hay nadie en ningun cubo, o -1 (para cerrar las Batallas del Cubo abandonadas). */
         private long cubeEmptySince = -1;
         /** Turno para repartir los bichos entre los jugadores que estan en un cubo. */

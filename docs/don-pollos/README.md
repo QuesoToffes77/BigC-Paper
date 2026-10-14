@@ -144,6 +144,11 @@ a los jugadores en creativo. Pelea en cuatro fases y cada una arranca con un men
 
 Los números de cada fase están en `boss`, `boss.fase-2`, `boss.fase-3` y `boss.fase-final`.
 
+**Cada vez más difícil.** Cada jugador lleva la cuenta de cuántas veces le ganó al boss. Cuando lo invocás (con el
+bloque del secreto o con `/donpollo boss`), sale un 25% más fuerte por cada victoria tuya anterior, y te lo dice:
+pega más, ataca más seguido, invoca más bichos y los bichos son más rápidos y pegan más. Los ataques nunca se repiten
+más de una vez por segundo y los bichos no pasan del doble de velocidad. Desde la consola sale con la fuerza normal.
+
 ### Cuando le ganás
 
 Don Pollo no muere: el golpe final lo deja con 1 de vida. Te mira, llora y dice "Ya no hay video mi gente...",
@@ -153,7 +158,9 @@ Después se abre el menú del premio, con 5 lugares:
 
 - El primero es siempre el **Balde de KFC**. Es un casco: mientras lo tenés puesto te da Velocidad II y Agilidad
   acuática II. En Bedrock se pone con click derecho.
-- Los otros 4 los elegís vos por categoría, en un menú con páginas. Te llevás un stack de cada uno.
+- Los otros 4 los elegís vos por categoría, en un menú con páginas. Te llevás uno de cada uno.
+- No da cosas del End (end stone, purpur, chorus, shulkers, elytras, cosas del dragón) ni nada de diamante o
+  netherite. Las plantillas de herrería y los discos sí, pero como mucho una plantilla y un disco.
 
 Si cerrás el menú, hacé click derecho a Don Pollo para volver a abrirlo. Cuando reclamás el premio, se va llorando.
 
