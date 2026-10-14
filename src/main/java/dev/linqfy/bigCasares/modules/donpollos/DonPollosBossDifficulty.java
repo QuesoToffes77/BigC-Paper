@@ -2,12 +2,12 @@ package dev.linqfy.bigCasares.modules.donpollos;
 
 /**
  * Que tan fuerte sale el Don Pollo Boss (sin Bukkit). level = cuantas veces ya le gano el jugador que lo invoco.
- * Cada victoria suma un 25%: pega mas, ataca mas seguido, invoca mas bichos y los bichos son mas rapidos y pegan mas.
+ * Cada victoria suma un 50%: pega mas, ataca mas seguido, invoca mas bichos y los bichos son mas rapidos y pegan mas.
  */
 record DonPollosBossDifficulty(int level) {
 
     /** Cuanto mas fuerte por cada victoria anterior. */
-    static final double STEP = 0.25;
+    static final double STEP = 0.5;
     /** La velocidad no pasa del doble: mas rapido los bichos ya no pueden caminar bien. */
     static final double MAX_SPEED = 2.0;
     /** Un ataque nunca se repite mas seguido que una vez por segundo. */

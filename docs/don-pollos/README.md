@@ -145,7 +145,7 @@ a los jugadores en creativo. Pelea en cuatro fases y cada una arranca con un men
 Los números de cada fase están en `boss`, `boss.fase-2`, `boss.fase-3` y `boss.fase-final`.
 
 **Cada vez más difícil.** Cada jugador lleva la cuenta de cuántas veces le ganó al boss. Cuando lo invocás (con el
-bloque del secreto o con `/donpollo boss`), sale un 25% más fuerte por cada victoria tuya anterior, y te lo dice:
+bloque del secreto o con `/donpollo boss`), sale un 50% más fuerte por cada victoria tuya anterior, y te lo dice:
 pega más, ataca más seguido, invoca más bichos y los bichos son más rápidos y pegan más. Los ataques nunca se repiten
 más de una vez por segundo y los bichos no pasan del doble de velocidad. Desde la consola sale con la fuerza normal.
 

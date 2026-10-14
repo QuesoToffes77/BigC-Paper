@@ -21,12 +21,13 @@ class DonPollosBossDifficultyTest {
     }
 
     @Test
-    void eachWinMakesItTwentyFivePercentStronger() {
-        assertEquals(1.5, AFTER_TWO.factor());
-        assertEquals(21.0, AFTER_TWO.damage(14));
-        assertEquals(93, AFTER_TWO.cooldownTicks(140), "ataca mas seguido");
-        assertEquals(3, AFTER_TWO.count(2), "invoca mas bichos");
-        assertEquals(0.345, AFTER_TWO.speed(0.23), 1e-9, "bichos mas rapidos");
+    void eachWinMakesItFiftyPercentStronger() {
+        assertEquals(1.5, new DonPollosBossDifficulty(1).factor());
+        assertEquals(2.0, AFTER_TWO.factor());
+        assertEquals(28.0, AFTER_TWO.damage(14));
+        assertEquals(70, AFTER_TWO.cooldownTicks(140), "ataca mas seguido");
+        assertEquals(4, AFTER_TWO.count(2), "invoca mas bichos");
+        assertEquals(0.46, AFTER_TWO.speed(0.23), 1e-9, "bichos mas rapidos");
     }
 
     @Test
@@ -41,16 +42,16 @@ class DonPollosBossDifficultyTest {
     void cubeRoundsGetMoreLabubusMoreOften() {
         DonPollosCubeRound round = new DonPollosCubeRound(10, 1.0, 1.2, 2);
         DonPollosCubeRound harder = AFTER_TWO.round(round);
-        assertEquals(15, harder.labubus());
-        assertEquals(1.0 / 1.5, harder.spawnSeconds(), 1e-9);
+        assertEquals(20, harder.labubus());
+        assertEquals(0.5, harder.spawnSeconds(), 1e-9);
         assertEquals(round.colonelSpeed(), harder.colonelSpeed());
     }
 
     @Test
     void theSummonerIsToldHowStrongItIs() {
         assertTrue(DonPollosBossDifficulty.summonMessage(0).contains("nunca"));
-        assertEquals("§4Le ganaste §f1§4 vez a Don Pollo: §cesta vez es 25% mas fuerte.",
+        assertEquals("§4Le ganaste §f1§4 vez a Don Pollo: §cesta vez es 50% mas fuerte.",
             DonPollosBossDifficulty.summonMessage(1));
-        assertTrue(DonPollosBossDifficulty.summonMessage(4).contains("100% mas fuerte"));
+        assertTrue(DonPollosBossDifficulty.summonMessage(4).contains("200% mas fuerte"));
     }
 }
