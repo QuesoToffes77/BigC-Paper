@@ -731,8 +731,8 @@ final class DonPollosBossManager implements Listener {
     /** El cubo vaciado: guarda como estaba cada bloque que toco (con su contenido) para dejarlo igual despues. */
     private record Pit(World world, int chunkX, int chunkZ, int feet, int bottom, List<BlockState> changed) {
         boolean contains(Location location) {
-            return location.getWorld() == world && location.getBlockX() >> 4 == chunkX
-                && location.getBlockZ() >> 4 == chunkZ && location.getY() < feet + 1 && location.getY() >= bottom - 1;
+            return location.getWorld() == world && DonPollosCubeEscape.inside(chunkX, chunkZ, feet, bottom,
+                location.getBlockX(), location.getBlockZ(), location.getY());
         }
 
         /** El cubo con sus paredes y su piso (el anillo de afuera del chunk incluido). */
@@ -823,6 +823,83 @@ final class DonPollosBossManager implements Listener {
         return false;
     }
 
+    /** El cubo en el que esta encerrado este jugador ahora (con las Batallas del Cubo en curso), o null. */
+    private Pit trappingPit(Player player, Location at) {
+        if (!attackable(player)) {
+            return null;
+        }
+        for (Boss boss : bosses.values()) {
+            if (boss.cube == null) {
+                continue;
+            }
+            for (Pit pit : boss.pits) {
+                if (pit.contains(at)) {
+                    return pit;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void blockEscape(Player player) {
+        player.sendActionBar(LEGACY.deserialize("§cNo hay escape del cubo hasta ganar las Batallas del Cubo"));
+        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 0.8f);
+    }
+
+    /** Perlas, fruta chorus, comandos (/home, /tpa, /spawn...): nada te saca del cubo. */
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
+    public void onCubeTeleport(org.bukkit.event.player.PlayerTeleportEvent event) {
+        Player player = event.getPlayer();
+        Pit pit = trappingPit(player, event.getFrom());
+        if (pit != null && DonPollosCubeEscape.escapes(true, pit.contains(event.getTo()))) {
+            event.setCancelled(true);
+            blockEscape(player);
+        }
+    }
+
+    /** Elytras, tridente con Corriente, cargas de viento, saltos: si salis volando por arriba, volves adentro. */
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
+    public void onCubeMove(org.bukkit.event.player.PlayerMoveEvent event) {
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY() && from.getBlockZ() == to.getBlockZ()) {
+            return;  // sin cambiar de bloque no se cruza el borde del cubo
+        }
+        Player player = event.getPlayer();
+        Pit pit = trappingPit(player, from);
+        if (pit == null || !DonPollosCubeEscape.escapes(true, pit.contains(to))) {
+            return;
+        }
+        Location back = from.clone();
+        back.setYaw(to.getYaw());
+        back.setPitch(to.getPitch());
+        event.setTo(back);
+        player.setGliding(false);
+        player.setVelocity(new Vector(0, Math.min(0, player.getVelocity().getY()), 0));
+        blockEscape(player);
+    }
+
+    /** Adentro del cubo no se abren las elytras. */
+    @EventHandler(ignoreCancelled = true)
+    public void onCubeGlide(org.bukkit.event.entity.EntityToggleGlideEvent event) {
+        if (event.isGliding() && event.getEntity() instanceof Player player
+            && trappingPit(player, player.getLocation()) != null) {
+            event.setCancelled(true);
+            blockEscape(player);
+        }
+    }
+
+    /** Adentro del cubo no se tiran perlas ni cargas de viento. */
+    @EventHandler(ignoreCancelled = true)
+    public void onCubeProjectile(org.bukkit.event.entity.ProjectileLaunchEvent event) {
+        if (event.getEntity().getShooter() instanceof Player player
+            && DonPollosCubeEscape.blocksProjectile(event.getEntity().getType().name())
+            && trappingPit(player, player.getLocation()) != null) {
+            event.setCancelled(true);
+            blockEscape(player);
+        }
+    }
+
     private static void noEscape(org.bukkit.event.Cancellable event, Player player) {
         event.setCancelled(true);
         player.sendActionBar(LEGACY.deserialize("§cNo podes poner ni romper bloques en el cubo hasta ganar las Batallas del Cubo"));
@@ -866,6 +943,9 @@ final class DonPollosBossManager implements Listener {
     }
 
     private void tickCube(Boss boss, long now) {
+        if (abandonCubeIfEmpty(boss, now)) {
+            return;
+        }
         DonPollosCubeBattle cube = boss.cube;
         int labubus = (int) minions.count(boss.minions, DonPollosBossMinions.Kind::isLabubu);
         int colonels = (int) minions.count(boss.minions, kind -> kind == DonPollosBossMinions.Kind.CORONEL);
@@ -918,6 +998,35 @@ final class DonPollosBossManager implements Listener {
             }
             endCube(boss);
         }
+    }
+
+    /**
+     * Si nadie queda adentro de ningun cubo (se desconectaron o murieron) durante un rato, se terminan las Batallas
+     * del Cubo: se rellenan los pozos y Don Pollo baja a pelear. Asi el encuentro nunca queda trabado.
+     */
+    private boolean abandonCubeIfEmpty(Boss boss, long now) {
+        boolean anyoneInside = boss.pits.stream().anyMatch(pit -> pit.world().getPlayers().stream()
+            .anyMatch(p -> attackable(p) && pit.contains(p.getLocation())));
+        if (anyoneInside) {
+            boss.cubeEmptySince = -1;
+            return false;
+        }
+        if (boss.cubeEmptySince < 0) {
+            boss.cubeEmptySince = now;
+        }
+        if (!DonPollosCubeEscape.abandoned(boss.cubeEmptySince, now)) {
+            return false;
+        }
+        plugin.getLogger().info("Batallas del Cubo abandonadas: se rellenan los cubos y Don Pollo vuelve a pelear.");
+        for (UUID viewer : boss.viewers) {
+            Player p = Bukkit.getPlayer(viewer);
+            if (p != null) {
+                p.sendMessage(LEGACY.deserialize("§eNo quedo nadie en el cubo: §6Don Pollo baja a pelear."));
+            }
+        }
+        boss.cubeEmptySince = -1;
+        endCube(boss);
+        return true;
     }
 
     /** Quien entra al rango de la barra durante las Batallas del Cubo tambien cae en su propio cubo. */
@@ -1646,6 +1755,8 @@ final class DonPollosBossManager implements Listener {
         private BossBar cubeBar;
         private final Set<UUID> cubeViewers = new HashSet<>();
         private final List<Pit> pits = new ArrayList<>();
+        /** Tick desde el que no hay nadie en ningun cubo, o -1 (para cerrar las Batallas del Cubo abandonadas). */
+        private long cubeEmptySince = -1;
         /** Turno para repartir los bichos entre los jugadores que estan en un cubo. */
         private long fighterTurn;
         // FASE FINAL

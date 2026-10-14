@@ -131,7 +131,9 @@ a los jugadores en creativo. Pelea en cuatro fases y cada una arranca con un men
 3. **Fase 3** (desde el 50%): "No hay picante para ti...".
    - El boss se eleva 20 bloques en 7 s y se queda flotando, invulnerable, dentro de una esfera de partículas azules.
    - El chunk de cada jugador se vacía y queda como un cubo de 6 bloques de profundidad, con paredes de piedra. Adentro
-     del cubo no se pueden poner ni romper bloques.
+     del cubo no se pueden poner ni romper bloques, y no hay forma de salir: perlas, fruta chorus, comandos de
+     teletransporte, elytras, tridente con Corriente y cargas de viento están bloqueados. Si el cubo queda vacío
+     30 segundos (por ejemplo, porque todos se desconectaron), se rellena y Don Pollo baja a pelear.
    - Empiezan las **Batallas del Cubo**: 3 rondas de 10, 30 y 50 Labubus, con un Coronel por ronda que es cada vez más
      rápido y fuerte. Al ganar las tres, el jugador sube y el cubo se vuelve a rellenar.
 4. **Fase final** (desde el 25%): "Me haz hecho enojar, Papi Don Pollo esta enojado".
