@@ -901,7 +901,7 @@ el hacha es más herramienta que arma, movela de `weapons.axe` a una familia de 
 ### Tests
 
 ```bash
-./gradlew test --tests "dev.linqfy.bigCasares.modules.cosmicniv.*"
+bash gradlew test --tests 'dev.linqfy.bigCasares.modules.cosmicniv.*'
 ```
 
 - `CosmicNivCurveTest`: extremos, que nunca bajen, fórmulas y parámetros inválidos.

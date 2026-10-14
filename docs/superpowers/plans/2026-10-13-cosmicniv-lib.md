@@ -85,7 +85,7 @@ Files: `CosmicNivModule.java`, `BukkitCosmicNiv*.java`, `CosmicNivCommand.java`,
 Files: `docs/cosmicniv-lib/README.md`, `README.md`, this plan.
 - [x] Write the Spanish guide (usage, math, every key of both files, custom items, curves, API).
 - [x] Independent read-only reviews (code and docs) and their fixes.
-- [x] Run `./gradlew clean build`.
+- [x] Run `bash gradlew --no-daemon clean build`.
 - [x] Add the Agent Completion Report.
 - Verification: `BUILD SUCCESSFUL`.
 
@@ -127,9 +127,9 @@ Files: `docs/cosmicniv-lib/README.md`, `README.md`, this plan.
 ### Testing instructions
 How to run the tests for this module:
 ```
-./gradlew test --tests "dev.linqfy.bigCasares.modules.cosmicniv.*"
+bash gradlew test --tests 'dev.linqfy.bigCasares.modules.cosmicniv.*'
 ```
-Expected result: all tests pass, no failures. Full `./gradlew clean build` (with `main` merged, including
+Expected result: all tests pass, no failures. Full `bash gradlew --no-daemon clean build` (with `main` merged, including
 Celular): BUILD SUCCESSFUL, 1100 tests, 0 failures.
 
 ### Deviations from plan

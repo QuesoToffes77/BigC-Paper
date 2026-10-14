@@ -1,129 +1,58 @@
 ---
 name: add-new-boss
-description: Use when integrating a new PvE boss into the BigCasares framework. Covers YAML definition, resource pack registration, and testing.
+description: Use when integrating a new PvE boss into the BigCasares framework.
 ---
 
 # Integrating a New Boss
 
-When adding a new PvE boss to the BigCasares framework, follow these steps to ensure it is properly registered, its abilities are loaded, and its assets are delivered to both Java and Bedrock clients.
-
-For Java clients, the entity visual is a BetterModel source model at `plugins/BetterModel/models/<boss-id>.bbmodel`. The filename is the model key used by the runtime. Keep every animation referenced by the boss YAML in that Blockbench model, generate BetterModel's Java pack, and merge it through the documented `generateResourcePacks -PbettermodelJavaPack=...` workflow.
-
-4. Configure boss behaviours (`abilities`, `animations`, `phases`).
-    - Note that you can use advanced effects like `PROJECTILE`, `PULL_CONTINUOUS` (Gravity Well), and `SUMMON_CLONE`.
-    - You can also chain abilities using `combo-chance` and `next-combo-ability`.
-    - Phase 3 automatically enables Enrage mode (faster cast times and cooldowns).
+Follow the repository contributor instructions. Gameplay definitions, BetterModel sources, shared pack assets, and Geyser entity mappings are separate registrations.
 
 ## 1. Create the YAML Definition
 
-Create a new YAML file in `src/main/resources/bosses/<boss-id>.yml`. Use the following template:
+Create `src/main/resources/bosses/<boss-id>.yml`, using [Abyss Guardian](../../../src/main/resources/bosses/abyss-guardian.yml) or [Sahur](../../../src/main/resources/bosses/tung-tung-sahur.yml) and `AbyssGuardianDefinitionLoader` as schema references.
 
-```yaml
-id: <boss-id>
-display-name: "BOSS NAME"
-maximum-health: 10000.0
-audience-radius: 64.0
+Set health, audience radius, phase thresholds, UI cadence, `presentation.java-model-key`, animation names, dialogue, and music tracks/fallback. Keep at least one complete ability with targets, telegraph, and effects; use `add-boss-ability` for extensions. `PROJECTILE`, `PULL_CONTINUOUS`, and `SUMMON_CLONE` are implemented; phase 3 reduces cast times/cooldowns. Combos reset eligibility rather than force instant casting.
 
-ui:
-  update-ticks: 5
-
-phases:
-  phase-2-at: 0.66
-  phase-3-at: 0.33
-
-category-cooldowns:
-  physical: 5
-  magic: 8
-  movement: 12
-  defensive: 15
-
-animations:
-  idle:
-    type: LOOPING
-    duration-ticks: 60
-    scale: [1.0, 1.0]
-    y-offset: [0.0, 1.0]
-    y-rotation: [0, 0]
-    priority: 0
-  cast:
-    type: ONE_SHOT
-    duration-ticks: 40
-    scale: [1.0, 1.2]
-    y-offset: [0.0, 0.5]
-    y-rotation: [0, 0]
-    priority: 10
-
-abilities:
-  # Add abilities here using the add-boss-ability skill
-
-dialogue:
-  spawn:
-    - "§5The boss appears..."
-  phase-2:
-    - "§cYou cannot defeat me!"
-  defeat:
-    - "§7The boss has fallen."
-
-music:
-  enabled: true
-  radius: 64
-  stop-when-leaving-radius: true
-  fallback-sound: minecraft:music_disc.5
-  tracks:
-    phase-1: bigcasares:music.<boss-id>
-    phase-2: bigcasares:music.<boss-id>
-    phase-3: bigcasares:music.<boss-id>
-```
+Use `category-weights`, not `category-cooldowns`. Java plays named `.bbmodel` clips; transform arrays remain legacy metadata. The loader does not read `music.enabled`, `music.radius`, or `music.stop-when-leaving-radius`.
 
 ## 2. Register the Boss Definition
 
-In `src/main/java/dev/linqfy/bigCasares/modules/pveboss/PveBossModule.java`, update the `onEnable` method to load the new boss definition alongside existing ones. Note: The framework currently supports a single boss instance, but you should structure the loader to support multiple if required.
+Add the ID to `PveBossModule.supportedBossIds()`; `onEnable` loads its definition and runtime. Multiple live instances are supported. Existing `plugins/BigCasares/bosses/` YAML is preserved. Live boss state has no restart recovery.
 
 ## 3. Register the Assets
 
 Update `resourcepack/shared/registry.yml` to include the new boss assets:
 
 ```yaml
-<boss-id>:
-  type: boss-model
-  java-model: bigcasares:<boss-id>
-  bedrock-entity: bigcasares:<boss-id>
-  texture: boss/<boss-id>
+assets:
+  <boss-id>:
+    type: boss-model
+    java-model: bigcasares:<boss_id>
+    bedrock-entity: bigcasares:<boss_id>
+    texture: boss/<boss_id>
 ```
 
-Add the custom music definition if applicable:
-```yaml
-<boss-id>-theme:
-  type: music
-  java-sound: bigcasares:music.<boss-id>
-  bedrock-sound: bigcasares.music.<boss-id>
-```
+For custom music, add a `type: music` entry with matching `java-sound` and `bedrock-sound`, following `abyss-theme`.
 
 ## 4. Add Resource Pack Files
 
-Ensure the following files are added to the resource pack directory structure:
-- **Java model source:** `plugins/BetterModel/models/<boss-id>.bbmodel`. Do not add a hand-authored flat Java entity model under `resourcepack/java/`; BetterModel generates that renderer and its assets.
-- **Bedrock Entity:** `resourcepack/bedrock/entity/<boss-id>.entity.json`
-- **Bedrock Geometry:** Update `resourcepack/bedrock/models/entity/bigcasares.geo.json`
-- **Bedrock Texture:** `resourcepack/bedrock/textures/boss/<boss-id>.png`
-- **Bedrock Animations:** Update `resourcepack/bedrock/animations/bigcasares.animation.json`
-- **Bedrock Controller:** Update `resourcepack/bedrock/animation_controllers/bigcasares.controller.json`
+Track `.bbmodel` sources under `src/main/resources/bettermodel/models/`, add explicit `BetterModelAssetInstaller` wiring, and deploy under `plugins/BetterModel/models/`. Its filename stem must match `presentation.java-model-key`; the registry's namespaced `java-model` is separate.
+
+Supply native Bedrock entity/geometry/texture/animation/controller files and shared textures/music. Follow [the asset workflow](../../../docs/blockbench/04-java-animations-and-registration.md) for directories and optional offline merging; runtime Java delivery uses a pack stack.
 
 ## 5. Geyser Registration
 
-In `src/main/java/dev/linqfy/bigCasares/modules/geyser/GeyserIntegrationModule.java`, register the new boss entity mapping:
+In `GeyserIntegrationModule`, queue a `GeyserCustomEntityDefinition` on the project's `GeyserApiFacade`:
 
 ```java
-// WARDEN base entity + marker key -> Bedrock entity identifier
-api.registerCustomEntity(
-    org.bukkit.entity.EntityType.WARDEN,
-    "pve_boss_id", // Assumes same marker key or a specific one for the new boss
-    "bigcasares:<boss-id>"
-);
+runtime.registerCustomEntity(new GeyserCustomEntityDefinition(
+    "WARDEN", "bigcasares:<boss_id>", "<boss_id>_boss_id"));
 ```
+
+Verify that spawn code assigns this distinct marker to the intended boss and registers it in `ClientEntityPresentationRegistry`. Check owned transient entities separately. Reusing `pve_boss_id` matches Abyss Guardian first; replacing every Warden would affect ordinary mobs. The bridge uses experimental Geyser entity events. Bedrock cast/phase synchronization is not automatic.
 
 ## 6. Build and Test
 
-1. Run `./gradlew generateResourcePacks` to rebuild the resource packs.
-2. Run `./gradlew test` to ensure no tests are broken.
-3. Start the server and use `/boss spawn <boss-id>` (if implemented) to verify.
+1. Add definition/catalog/asset tests, then run `bash gradlew clean build`.
+2. Deploy model sources and update existing runtime YAML/pack sources deliberately; JAR seeds preserve installed files.
+3. Start the server and use `/boss spawn <boss-id>` to verify both clients, abilities, multiple instances, and cleanup. Check every requested clip; removal currently requests `death` then closes immediately.
