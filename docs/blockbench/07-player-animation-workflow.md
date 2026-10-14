@@ -1,10 +1,10 @@
 # Player animation workflow and safety rules
 
-BetterModel supports player limb assets and per-player animation. Treat this as a cosmetic layer with stricter ownership rules than a boss model: a player remains the authoritative Bukkit player at all times.
+BetterModel supports player limb assets and per-player animation. BigCasares currently has no player-limb gateway or cosmetic session service; this guide defines requirements for a future integration. A player remains the authoritative Bukkit player at all times.
 
 ## 1. Author a limb model
 
-1. Design the player-compatible limb model in Blockbench with the BetterModel player limb layout expected by the installed 3.2.0 release.
+1. Start from BetterModel's `players/steve.bbmodel` template and retain the limb tags expected by 3.2.0. The [official player guide](https://github.com/toxicity188/BetterModel/wiki/Create-player-animation) covers the skin-backed template and `/bm play <limb> <animation>` smoke test.
 2. Save it under the BetterModel player directory, for example:
 
    ```text

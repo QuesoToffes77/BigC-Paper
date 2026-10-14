@@ -4,18 +4,18 @@ This section explains how to create the actual 3D model and paint its texture fo
 
 ## 1. Creating the Geometry
 
-To ensure compatibility with Bedrock edition (and because it allows for bone hierarchy), we start our project as a Bedrock Entity.
+Use a Bedrock Entity export copy for native Bedrock assets. BetterModel's Java source uses a Generic Model `.bbmodel`; keep both copies aligned with the [authoring contract](01-boss-models-overview.md).
 
 1. Open Blockbench and click **Bedrock Entity** under the New menu.
-2. Set the **File Name** and **Model Identifier** to `geometry.bigcasares.<boss_name>` (e.g., `geometry.bigcasares.abyss_guardian`).
+2. Use a descriptive file name and set the exported **Model Identifier** to `geometry.bigcasares.<boss_name>` (e.g., `geometry.bigcasares.abyss_guardian`). Keep it identical to the client entity's geometry reference.
 3. **Model Constraints:**
    - Keep the origin `(0, 0, 0)` at the bottom-center of the model. This is where the entity touches the ground.
-   - Recommended maximum size is 64×64×64 blocks. Anything larger may cause rendering issues or clipping.
-   - Use standard cubes and per-face UV mapping. Do not use complex meshes, as they are not supported natively by Minecraft entity renderers.
+   - Model in Blockbench units (16 units per Minecraft block); validate dimensions and visibility bounds against the actual gameplay anchor. There is no project-enforced 64-block size allowance.
+   - Use standard cubes and clean UV mapping for the shared Java/Bedrock workflow. BetterModel has version-dependent mesh support, but that does not establish native Bedrock export compatibility.
 4. **Bone Hierarchy:**
    - You MUST create a root folder/bone named `root`.
    - Place all other bones and cubes inside this `root` bone.
-   - The `root` bone is required for Bedrock animation controllers and keeps the BetterModel bone hierarchy organized. On Java, BetterModel's tracker renders and animates every named bone in that hierarchy.
+   - `root` is this project's authoring convention, not a Bedrock controller requirement. On Java, BetterModel renders and animates the hierarchy's visual bones.
 
 ## 2. Painting the Texture
 
@@ -30,9 +30,11 @@ Once the geometry is complete, it's time to paint the boss.
 
 ## 3. Exporting the Texture
 
-Because both Java and Bedrock use the same texture file, you need to export the PNG to two locations in the project structure:
+Export the shared artwork for each renderer:
 
 1. **Bedrock:** Export to `resourcepack/bedrock/textures/boss/<boss_name>.png`
-2. **Java:** Export to `resourcepack/java/assets/bigcasares/textures/boss/<boss_name>.png`
+2. **Java:** Embed or resolve the texture in the BetterModel `.bbmodel`, with any external PNG deployed beside it. BetterModel generates its Java textures. The shared registry may also require the matching PNG in `resourcepack/shared/textures/boss/`; this is separate from BetterModel texture resolution.
+
+Files already under `resourcepack/java/assets/bigcasares/textures/boss/` can remain as legacy/shared pack assets; they do not replace BetterModel's generated model textures.
 
 Next, proceed to [Bedrock Animations](03-bedrock-animations.md) to make your boss move.
