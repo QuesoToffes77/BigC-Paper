@@ -63,10 +63,10 @@ Alias: `/cniv`. `bigcasares.cosmicniv.admin` incluye los otros dos y es hijo de 
 Ejemplo de lo que muestra `/cosmicniv`:
 
 ```
-CosmicNiv » Juan: 77.4/200.0
-  Armadura: 44% (poder 36.0)
+CosmicNiv » Juan: 73.8/200.0
+  Armadura: 41% (poder 36.0)
   Arma: espada 31% (minecraft:diamond_sword, poder 7.0)
-  Progreso: 0.39 -> curva LINEAR -> 0.39
+  Progreso: 0.37 -> curva LINEAR -> 0.37
   Nivel real: 148.4 (cuenta lo que tenía antes de sacárselo o cambiarlo por algo peor)
 ```
 
@@ -126,7 +126,10 @@ A = (poder armadura − poder armadura de "zero") / (poder armadura de "max" −
 ```
 
 y se recorta a [0, 1]. Con los valores de fábrica, "zero" no tiene nada (poder 0) y "max" (netherite full
-encantada) tiene poder 82.25, así que `A = poder / 82.25`.
+encantada) tiene poder 88.25, así que `A = poder / 88.25`.
+
+Cada pieza cuenta **solo en su lugar**: un casco como casco, una pechera como pechera. Una pechera puesta en la
+cabeza (con comandos) o pasada como casco en un equipo armado a mano no suma.
 
 ### Paso 3: puntaje de arma W y de herramienta T (entre 0 y 1)
 
@@ -167,8 +170,24 @@ nivel = maximum × f(t)                                                      (li
 ### Resumen en una línea (valores de fábrica)
 
 ```
-nivel = 200 · f( 0.6 · clamp(Parmadura / 82.25) + 0.4 · max_armas clamp(Parma / Pmax de su familia) )
+nivel = 200 · f( 0.6 · clamp(Parmadura / 88.25) + 0.4 · max_armas clamp(Parma / Pmax de su familia) )
 ```
+
+### Qué garantiza el número
+
+- **200 exige el equipo de referencia.** La referencia de 200 lleva todos los encantamientos compatibles que suman
+  puntos, así que ninguna combinación con piezas de menor material la iguala (por ejemplo, 3 piezas de diamante y
+  1 de netherite con los mismos encantamientos dan 111.8 de los 120 de la armadura). Esto vale con los valores de
+  fábrica: si se cambian los valores, el 200 pasa a ser "el mismo poder que la referencia".
+- **Es poder de equipo, no amenaza.** El nivel solo mira el equipo: no sabe cuán bien juega alguien (eso es
+  `skill-rating-system`) ni cuánta actividad tiene (`danger`). Para escalar un boss o repartir premios, combiná
+  esos valores en el módulo que los usa, sin sumarlos en crudo. Por ejemplo, Danger ya incluye una parte del
+  skill.
+- **Nivel actual vs. nivel real.** `level()` es una foto del momento (lo que tiene puesto y encima). `realLevel()`
+  también cuenta lo que se le recuerda que tuvo, así que guardar el equipo justo antes no lo baja. Para decisiones con
+  consecuencias (dificultad, premios), usá el real y volvé a pedirlo durante el encuentro: una sola foto al inicio
+  no alcanza.
+- **No mira el Ender Chest** ni cofres, shulkers o bundles: solo lo que el jugador tiene puesto y en el inventario.
 
 ---
 
@@ -180,7 +199,7 @@ Con la curva `LINEAR` y los pesos 0.6 / 0.4 / 0.
 
 | Referencia | Poder |
 |---|---|
-| Armadura de netherite full encantada (4 piezas) | 82.25 |
+| Armadura de netherite full encantada (4 piezas) | 88.25 |
 | Espada de netherite full | 22.5 |
 | Hacha de netherite full | 22.4 |
 | Maza full | 18.5 |
@@ -195,31 +214,31 @@ Con la curva `LINEAR` y los pesos 0.6 / 0.4 / 0.
 | Equipo | Nivel |
 |---|---|
 | Nada | 0 |
-| Cuero completo, sin encantar, sin arma | 10.2 |
-| Hierro completo, sin encantar, sin arma | 21.9 |
-| Diamante completo, sin encantar, sin arma | 40.9 |
-| Netherite completo, sin encantar, sin arma | 52.5 |
+| Cuero completo, sin encantar, sin arma | 9.5 |
+| Hierro completo, sin encantar, sin arma | 20.4 |
+| Diamante completo, sin encantar, sin arma | 38.1 |
+| Netherite completo, sin encantar, sin arma | 49.0 |
 | Solo el Bate de Sahur (objeto custom, valor 9), sin armadura | 32.0 |
-| Netherite completo sin encantar + espada de diamante sin encantar | 77.4 |
+| Netherite completo sin encantar + espada de diamante sin encantar | 73.8 |
 | Solo un arma full encantada (cualquier familia), sin armadura | 80.0 |
 | Solo la armadura de netherite full encantada, sin arma | 120.0 |
 | Armadura full encantada + espada de netherite sin encantar | 148.4 |
 | Armadura full encantada + cualquier arma full encantada | **200.0** |
 
-Cuenta del ejemplo de 77.4: `A = 36 / 82.25 = 0.4377` y `W = 7 / 22.5 = 0.3111`, así que
-`t = 0.6·0.4377 + 0.4·0.3111 = 0.3871` y el nivel es `200 · 0.3871 = 77.4`.
+Cuenta del ejemplo de 73.8: `A = 36 / 88.25 = 0.4079` y `W = 7 / 22.5 = 0.3111`, así que
+`t = 0.6·0.4079 + 0.4·0.3111 = 0.3692` y el nivel es `200 · 0.3692 = 73.8`.
 
 ### Cuánto aporta cada cosa de la armadura
 
-Un punto de poder de armadura vale `120 / 82.25 ≈ 1.46` de nivel (la armadura completa da como mucho 120):
+Un punto de poder de armadura vale `120 / 88.25 ≈ 1.36` de nivel (la armadura completa da como mucho 120):
 
 | Cosa | Poder | Nivel que aporta |
 |---|---|---|
-| Pechera de netherite sin encantar | 12 | ≈ 17.5 |
-| Pechera de diamante sin encantar | 10 | ≈ 14.6 |
-| Protección IV en una pieza | 6 | ≈ 8.8 |
-| Reparación en una pieza | 2 | ≈ 2.9 |
-| Irrompibilidad III en una pieza | 1.5 | ≈ 2.2 |
+| Pechera de netherite sin encantar | 12 | ≈ 16.3 |
+| Pechera de diamante sin encantar | 10 | ≈ 13.6 |
+| Protección IV en una pieza | 6 | ≈ 8.2 |
+| Reparación en una pieza | 2 | ≈ 2.7 |
+| Irrompibilidad III en una pieza | 1.5 | ≈ 2.0 |
 
 ---
 
@@ -443,10 +462,10 @@ encantamiento y cuáles son incompatibles entre sí), para que cada referencia s
 
 | Pieza | Encantamientos |
 |---|---|
-| Casco de netherite | Protección IV, Respiración III, Afinidad acuática, Irrompibilidad III, Reparación |
-| Pechera de netherite | Protección IV, Irrompibilidad III, Reparación |
-| Pantalones de netherite | Protección IV, Sigilo rápido III, Irrompibilidad III, Reparación |
-| Botas de netherite | Protección IV, Caída de pluma IV, Agilidad acuática III, Velocidad de alma III, Irrompibilidad III, Reparación |
+| Casco de netherite | Protección IV, Espinas III, Respiración III, Afinidad acuática, Irrompibilidad III, Reparación |
+| Pechera de netherite | Protección IV, Espinas III, Irrompibilidad III, Reparación |
+| Pantalones de netherite | Protección IV, Espinas III, Sigilo rápido III, Irrompibilidad III, Reparación |
+| Botas de netherite | Protección IV, Espinas III, Caída de pluma IV, Agilidad acuática III, Velocidad de alma III, Irrompibilidad III, Reparación |
 | Espada de netherite | Filo V, Aspecto ígneo II, Empuje II, Botín III, Filo arrasador III, Irrompibilidad III, Reparación |
 | Hacha de netherite | Filo V, Eficiencia V, Fortuna III, Irrompibilidad III, Reparación |
 | Maza | Densidad V, Carga de viento III, Aspecto ígneo II, Irrompibilidad III, Reparación |
@@ -456,8 +475,9 @@ encantamiento y cuáles son incompatibles entre sí), para que cada referencia s
 | Tijeras | Eficiencia V, Irrompibilidad III, Reparación |
 | Caña de pescar | Suerte marina III, Atracción III, Irrompibilidad III, Reparación |
 
-Espinas no está en la pechera porque mucha gente no la usa. Si querés que cuente para llegar a 200, agregala a la
-referencia: `enchantments: { protection: 4, thorns: 3, unbreaking: 3, mending: 1 }`.
+Cada referencia lleva **todos** los encantamientos compatibles que suman puntos, Espinas incluida. Si se sacara
+alguno, una combinación con piezas peores y ese encantamiento de más podría llegar al mismo poder (ver "Qué garantiza
+el número" en la sección 2).
 
 ---
 
@@ -596,7 +616,7 @@ suman igual que en uno normal.
 
 | `category` | Cuenta | `family` |
 |---|---|---|
-| `armor` | Puesto en casco, pechera, pantalones o botas | No va |
+| `armor` | Puesto en casco, pechera, pantalones o botas | No va. Opcional: `slot: helmet` (o `chestplate`, `leggings`, `boots`) para que cuente solo en ese lugar; si no se pone, se deduce de `match.material` y, si tampoco hay, cuenta en cualquiera |
 | `weapon` | En la mano o la barra rápida, como arma | Una familia de `weapons:` (la compara contra su referencia) |
 | `tool` | En la mano o la barra rápida, como herramienta | Una familia de `tools:` |
 
@@ -674,7 +694,7 @@ weights:
 ```
 
 Ahora el 200 también pide una herramienta de las referencias de `references.max.tools`. Por ejemplo, armadura y
-espada full sin herramienta dan 180, y netherite sin encantar + espada de diamante + pico de hierro dan 74.8.
+espada full sin herramienta dan 180, y netherite sin encantar + espada de diamante + pico de hierro dan 71.5.
 
 ### Que el máximo sea diamante en vez de netherite
 

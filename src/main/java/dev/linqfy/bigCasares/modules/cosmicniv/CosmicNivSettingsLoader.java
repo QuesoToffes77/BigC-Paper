@@ -324,10 +324,20 @@ public final class CosmicNivSettingsLoader {
                 valuesError(path, "must be a section with match:, category:, value: and (for weapons and tools) family:");
                 return;
             }
-            checkKeys(item, VALUES_FILE, path, List.of("match", "category", "family", "value"));
+            checkKeys(item, VALUES_FILE, path, List.of("match", "category", "family", "slot", "value"));
             if (item.get("family") != null && !(item.get("family") instanceof String)) {
                 valuesError(path + ".family", "must be a family name, got " + item.get("family"));
                 return;
+            }
+            CosmicNivArmorSlot slot = null;
+            if (item.get("slot") != null) {
+                slot = item.get("slot") instanceof String slotText
+                    ? CosmicNivArmorSlot.fromConfigKey(slotText.trim()).orElse(null)
+                    : null;
+                if (slot == null) {
+                    valuesError(path + ".slot", "must be helmet, chestplate, leggings or boots, got " + item.get("slot"));
+                    return;
+                }
             }
             CosmicNivCustomMatch match = readMatch(item.get("match"), path + ".match");
             CosmicNivItemCategory category = item.get("category") instanceof String text
@@ -347,7 +357,8 @@ public final class CosmicNivSettingsLoader {
             }
             try {
                 items.add(new CosmicNivCustomItem(id, match, category,
-                    item.get("family") == null ? null : String.valueOf(item.get("family")), number.doubleValue()));
+                    item.get("family") == null ? null : String.valueOf(item.get("family")), number.doubleValue(),
+                    slot));
             } catch (IllegalArgumentException invalid) {
                 valuesError(path, invalid.getMessage());
             }

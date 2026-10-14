@@ -530,6 +530,31 @@ class CosmicNivSettingsLoaderTest {
     }
 
     @Test
+    void armorReferencesMustGoInTheirOwnSlot() {
+        YamlConfiguration main = bundledMain();
+        main.set("references.max.armor.helmet.item", "netherite_chestplate");
+        assertErrorMentions(main, bundledValues(), "references.max.armor.helmet", "worn as chestplate, not helmet");
+    }
+
+    @Test
+    void customArmorCanDeclareItsSlot() {
+        YamlConfiguration values = bundledValues();
+        values.set("custom-items.dragon_helmet.match.item-model", "otroplugin:casco_dragon");
+        values.set("custom-items.dragon_helmet.category", "armor");
+        values.set("custom-items.dragon_helmet.slot", "helmet");
+        values.set("custom-items.dragon_helmet.value", 9.0);
+
+        CosmicNivSettings settings = load(bundledMain(), values).settings();
+
+        assertEquals(CosmicNivArmorSlot.HELMET, settings.customItems().get(1).armorSlot());
+
+        values.set("custom-items.dragon_helmet.slot", "head");
+        values.set("custom-items.sahurs_bat.slot", "helmet");
+        assertErrorMentions(bundledMain(), values, "custom-items.dragon_helmet.slot",
+            "custom-items.sahurs_bat: only armor custom items have a slot");
+    }
+
+    @Test
     void aMissingEnchantmentSectionOnlyWarns() {
         YamlConfiguration values = bundledValues();
         values.set("enchantments", null);

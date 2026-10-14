@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CosmicNivServiceTest {
     private static final double EPSILON = 1e-9;
-    private static final double MAX_ARMOR_POWER = 82.25;
+    private static final double MAX_ARMOR_POWER = 88.25;
     private static final double MAX_SWORD_POWER = 22.5;
     private static final double MAX_PICKAXE_POWER = 12.4;
 
@@ -106,7 +106,7 @@ class CosmicNivServiceTest {
             assertEquals(200.0, service.evaluate(maxArmor(settings).held(sword).held(tool).build()).value(),
                 tool.key());
         }
-        assertEquals(74.8, service.evaluate(plainArmor("netherite")
+        assertEquals(71.5, service.evaluate(plainArmor("netherite")
             .held(CosmicNivItem.of("diamond_sword"))
             .held(CosmicNivItem.of("iron_pickaxe")).build()).value());
     }
@@ -144,7 +144,7 @@ class CosmicNivServiceTest {
 
         assertEquals(36.0, result.armorPower(), EPSILON);
         assertEquals(36.0 / MAX_ARMOR_POWER, result.armorScore(), EPSILON);
-        assertEquals(52.5, result.value());
+        assertEquals(49.0, result.value());
     }
 
     @Test
@@ -298,8 +298,8 @@ class CosmicNivServiceTest {
         CosmicNivService whole = new CosmicNivService(bundledSettings().withDecimals(0));
         CosmicNivService precise = new CosmicNivService(bundledSettings().withDecimals(3));
 
-        assertEquals(53.0, whole.evaluate(plainArmor("netherite").build()).value());
-        assertEquals(52.523, precise.evaluate(plainArmor("netherite").build()).value());
+        assertEquals(49.0, whole.evaluate(plainArmor("netherite").build()).value());
+        assertEquals(48.952, precise.evaluate(plainArmor("netherite").build()).value());
     }
 
     @Test
@@ -307,11 +307,11 @@ class CosmicNivServiceTest {
         CosmicNivSettings settings = bundledSettings();
         CosmicNivService service = new CosmicNivService(settings);
 
-        assertEquals(10.2, service.evaluate(plainArmor("leather").build()).value());
-        assertEquals(21.9, service.evaluate(plainArmor("iron").build()).value());
-        assertEquals(40.9, service.evaluate(plainArmor("diamond").build()).value());
-        assertEquals(52.5, service.evaluate(plainArmor("netherite").build()).value());
-        assertEquals(77.4, service.evaluate(plainArmor("netherite")
+        assertEquals(9.5, service.evaluate(plainArmor("leather").build()).value());
+        assertEquals(20.4, service.evaluate(plainArmor("iron").build()).value());
+        assertEquals(38.1, service.evaluate(plainArmor("diamond").build()).value());
+        assertEquals(49.0, service.evaluate(plainArmor("netherite").build()).value());
+        assertEquals(73.8, service.evaluate(plainArmor("netherite")
             .held(CosmicNivItem.of("diamond_sword")).build()).value());
         assertEquals(148.4, service.evaluate(maxArmor(settings)
             .held(CosmicNivItem.of("netherite_sword")).build()).value());
@@ -389,6 +389,64 @@ class CosmicNivServiceTest {
 
         assertFalse(result.hasWeapon());
         assertEquals("minecraft:iron_pickaxe", result.tool().item().key());
+    }
+
+    @Test
+    void aPieceOnlyCountsInItsOwnSlot() {
+        CosmicNivSettings settings = bundledSettings();
+        CosmicNivItem maxChestplate = settings.maxReference().armor().get(CosmicNivArmorSlot.CHESTPLATE);
+        CosmicNivLoadout.Builder fourChestplates = CosmicNivLoadout.builder();
+        for (CosmicNivArmorSlot slot : CosmicNivArmorSlot.values()) {
+            fourChestplates.armor(slot, maxChestplate);
+        }
+        CosmicNivService service = new CosmicNivService(settings);
+
+        CosmicNivResult result = service.evaluate(fourChestplates
+            .held(settings.maxReference().weapons().get("sword")).build());
+
+        assertEquals(1, result.armorPieces().size());
+        assertEquals(service.itemPower(maxChestplate), result.armorPower(), EPSILON);
+        assertTrue(result.value() < 200.0);
+        assertEquals(CosmicNivArmorSlot.CHESTPLATE, service.armorSlotOf(maxChestplate));
+    }
+
+    @Test
+    void twoHundredNeedsTheFullNetheriteKitNotJustAsManyPoints() {
+        CosmicNivSettings settings = bundledSettings();
+        CosmicNivService service = new CosmicNivService(settings);
+        CosmicNivLoadout.Builder mixed = CosmicNivLoadout.builder();
+        settings.maxReference().armor().forEach((slot, piece) -> {
+            String material = slot == CosmicNivArmorSlot.CHESTPLATE ? "netherite" : "diamond";
+            mixed.armor(slot, CosmicNivItem.of(material + "_" + slot.configKey(), piece.enchantments()));
+        });
+
+        CosmicNivResult result = service.evaluate(mixed.held(settings.maxReference().weapons().get("sword")).build());
+
+        assertEquals(MAX_ARMOR_POWER - 3 * 2.0, result.armorPower(), EPSILON);
+        assertTrue(result.value() < 200.0);
+    }
+
+    @Test
+    void aMaximumThatCannotBeShownWithTheDecimalsIsRejected() {
+        CosmicNivSettings settings = bundledSettings();
+        CosmicNivSettings tooPrecise = new CosmicNivSettings(200.06, 1, settings.armorWeight(), settings.weaponWeight(),
+            settings.toolWeight(), settings.search(), settings.curve(), settings.zeroReference(),
+            settings.maxReference(), settings.armorValues(), settings.weaponFamilies(), settings.toolFamilies(),
+            settings.enchantmentValues(), settings.customItems(), settings.memory());
+        CosmicNivSettings tiny = new CosmicNivSettings(0.001, 0, settings.armorWeight(), settings.weaponWeight(),
+            settings.toolWeight(), settings.search(), settings.curve(), settings.zeroReference(),
+            settings.maxReference(), settings.armorValues(), settings.weaponFamilies(), settings.toolFamilies(),
+            settings.enchantmentValues(), settings.customItems(), settings.memory());
+        CosmicNivSettings fine = new CosmicNivSettings(200.1, 1, settings.armorWeight(), settings.weaponWeight(),
+            settings.toolWeight(), settings.search(), settings.curve(), settings.zeroReference(),
+            settings.maxReference(), settings.armorValues(), settings.weaponFamilies(), settings.toolFamilies(),
+            settings.enchantmentValues(), settings.customItems(), settings.memory());
+
+        assertTrue(String.join("\n", CosmicNivService.problems(tooPrecise)).contains("output.maximum"));
+        assertTrue(String.join("\n", CosmicNivService.problems(tiny)).contains("output.maximum"));
+        CosmicNivService service = new CosmicNivService(fine);
+        assertEquals(200.1, service.evaluate(maxArmor(fine).held(fine.maxReference().weapons().get("sword")).build())
+            .value());
     }
 
     @Test

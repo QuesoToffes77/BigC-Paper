@@ -65,6 +65,13 @@ public final class CosmicNivService {
         }
         if (settings.decimals() < 0) {
             problems.add(MAIN + "output.decimals: must not be negative");
+        } else if (settings.maximum() > 0.0 && Double.isFinite(settings.maximum())) {
+            try {
+                BigDecimal.valueOf(settings.maximum()).setScale(settings.decimals(), RoundingMode.UNNECESSARY);
+            } catch (ArithmeticException notRepresentable) {
+                problems.add(MAIN + "output.maximum: " + settings.maximum() + " cannot be shown with output.decimals "
+                    + settings.decimals() + "; the level could round above the maximum or never reach it");
+            }
         }
         double totalWeight = settings.armorWeight() + settings.weaponWeight() + settings.toolWeight();
         if (settings.armorWeight() < 0.0 || settings.weaponWeight() < 0.0 || settings.toolWeight() < 0.0
@@ -157,6 +164,14 @@ public final class CosmicNivService {
     /**
      * Where {@code item} counts, or {@code null} when it has no value.
      */
+    /**
+     * The armor slot {@code item} is worn in, or {@code null} when it is not armor or fits any slot. A piece only
+     * counts in its own slot.
+     */
+    public CosmicNivArmorSlot armorSlotOf(CosmicNivItem item) {
+        return item == null ? null : catalog.armorSlots.get(item.key());
+    }
+
     public CosmicNivItemCategory categoryOf(CosmicNivItem item) {
         if (item == null) {
             return null;
@@ -287,6 +302,9 @@ public final class CosmicNivService {
                     ? itemPath + " has no armor value in " + CosmicNivSettingsLoader.VALUES_FILE
                     : itemPath + " is a " + owner.category().configKey() + " (" + section(owner.category()) + "."
                         + owner.family() + "); only armor counts in armor slots");
+            } else if (!catalog.fits(item, slot)) {
+                problems.add(itemPath + " is worn as " + catalog.armorSlots.get(item.key()).configKey() + ", not "
+                    + slot.configKey());
             }
         });
     }
@@ -331,6 +349,7 @@ public final class CosmicNivService {
     private static final class Catalog {
         private final CosmicNivSettings settings;
         private final Map<String, Double> armorValues = new LinkedHashMap<>();
+        private final Map<String, CosmicNivArmorSlot> armorSlots = new LinkedHashMap<>();
         private final Map<String, Double> heldValues = new LinkedHashMap<>();
         private final Map<String, Owner> heldOwners = new LinkedHashMap<>();
         private final Map<CosmicNivItemCategory, List<String>> families = new EnumMap<>(CosmicNivItemCategory.class);
@@ -342,6 +361,7 @@ public final class CosmicNivService {
             settings.armorValues().forEach((key, value) -> {
                 place(places, key, "armor." + key, problems);
                 armorValues.put(key, value);
+                CosmicNivArmorSlot.ofItemKey(key).ifPresent(slot -> armorSlots.put(key, slot));
             });
             for (CosmicNivItemCategory category : HELD_CATEGORIES) {
                 List<String> names = new ArrayList<>();
@@ -372,6 +392,9 @@ public final class CosmicNivService {
                 }
                 if (custom.category() == CosmicNivItemCategory.ARMOR) {
                     armorValues.put(custom.key(), custom.value());
+                    if (custom.armorSlot() != null) {
+                        armorSlots.put(custom.key(), custom.armorSlot());
+                    }
                 } else if (!settings.families(custom.category()).containsKey(custom.family())) {
                     problems.add(VALUES + path + ".family: unknown " + custom.category().configKey() + " family "
                         + custom.family() + " (use one declared under " + section(custom.category()) + ":)");
@@ -401,7 +424,7 @@ public final class CosmicNivService {
                 CosmicNivItem chosen = null;
                 double chosenPower = 0.0;
                 for (CosmicNivItem piece : pieces) {
-                    if (!armorValues.containsKey(piece.key())) {
+                    if (!armorValues.containsKey(piece.key()) || !fits(piece, slot)) {
                         continue;
                     }
                     double power = itemPower(piece);
@@ -421,11 +444,16 @@ public final class CosmicNivService {
             return best;
         }
 
+        boolean fits(CosmicNivItem piece, CosmicNivArmorSlot slot) {
+            CosmicNivArmorSlot own = armorSlots.get(piece.key());
+            return own == null || own == slot;
+        }
+
         double armorPower(Map<CosmicNivArmorSlot, CosmicNivItem> armor) {
             double total = 0.0;
-            for (CosmicNivItem piece : armor.values()) {
-                if (armorValues.containsKey(piece.key())) {
-                    total += itemPower(piece);
+            for (Map.Entry<CosmicNivArmorSlot, CosmicNivItem> entry : armor.entrySet()) {
+                if (armorValues.containsKey(entry.getValue().key()) && fits(entry.getValue(), entry.getKey())) {
+                    total += itemPower(entry.getValue());
                 }
             }
             return total;

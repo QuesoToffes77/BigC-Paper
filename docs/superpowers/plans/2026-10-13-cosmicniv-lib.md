@@ -120,10 +120,11 @@ Files: `docs/cosmicniv-lib/README.md`, `README.md`, this plan.
 
 ### Tests written
 - `CosmicNivCurveTest` (13): curve endpoints, monotonicity, formulas, clamping and invalid parameters.
-- `CosmicNivSettingsLoaderTest` (34): the `memory` section, bundled files, defaults, curve types, the three searches, and every validation
+- `CosmicNivSettingsLoaderTest` (36): the `memory` section, armor reference slots, custom armor `slot`, bundled files, defaults, curve types, the three searches, and every validation
   error and warning with its file and path (unknown keys, text types, duplicates, limits, references, families, custom
   items, weight-0 parts, MAIN_HAND warning).
-- `CosmicNivServiceTest` (25): 0 and 200 references, weights, tools, families, best armor piece per slot, separate
+- `CosmicNivServiceTest` (28): 0 and 200 references, a piece only counting in its own slot, 200 requiring the
+  reference kit, `maximum`/`decimals` compatibility, weights, tools, families, best armor piece per slot, separate
   weapon and tool candidates, caps, curses, curves, rounding, weight-0 parts, hand-built limits and the numbers printed
   in the guide.
 - `CosmicNivCustomItemTest` (8): custom item recognition (catalog id, item model, persistent data, material), first
@@ -142,7 +143,7 @@ How to run the tests for this module:
 bash gradlew test --tests 'dev.linqfy.bigCasares.modules.cosmicniv.*'
 ```
 Expected result: all tests pass, no failures. Full `bash gradlew --no-daemon clean build` (with `main` merged, including
-Celular and #16): BUILD SUCCESSFUL, 1133 tests, 0 failures.
+Celular and #16): BUILD SUCCESSFUL, 1138 tests, 0 failures.
 
 ### Deviations from plan
 - No `CosmicNivStorage` / `YamlCosmicNivStorage` / `CosmicNivListener`: the level is computed on demand and nothing
@@ -159,6 +160,12 @@ Celular and #16): BUILD SUCCESSFUL, 1133 tests, 0 failures.
   ignored, nothing is remembered between death and respawn, ties keep the remembered item, the inventory is read
   once per check, broken files are kept aside, last-seen times are flushed every 5 minutes, and reading an offline
   player's memory neither caches it nor returns forgotten items.
+- From the PR #15 review (linqfy and an automated reviewer): `output.maximum` must be representable with
+  `output.decimals`; armor pieces only count in their own slot (custom armor can declare `slot`); thorns joined the
+  max armor reference so that 200 requires the reference kit instead of an equal number of points (max armor power
+  82.25 -> 88.25, guide numbers updated); the guide documents what the number guarantees (equipment only, not a
+  threat score; current vs. real level; no Ender Chest). The proposed threat aggregator with skill and danger and
+  the group encounter scaling are left for a separate PR.
 - Review fixes: minimum curve strength, ±1,000,000 limits (also enforced for hand-built settings), unknown keys and
   duplicate keys are errors, text-only match values, weapons never count as armor, enchantments summed in key order,
   settings carried across `/bigcasares reload`, weight-0 parts need no references and never affect the level,

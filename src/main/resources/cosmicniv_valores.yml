@@ -181,6 +181,7 @@ enchantments:
 #                  material: <material>       material de base (para acotar, por ejemplo iron_sword)
 #   category:    armor (cuenta puesto), weapon o tool (cuentan en la mano)
 #   family:      familia de weapons o tools a la que pertenece (no va en armor)
+#   slot:        solo armor, opcional: helmet, chestplate, leggings o boots (si no, se deduce de match.material)
 #   value:       valor sin encantar. Los encantamientos que tenga el ítem suman igual que en uno normal.
 # Si un ítem coincide con varios, gana el primero de la lista. En las referencias se escribe custom:<nombre>.
 # ---------------------------------------------------------------------------------------------------

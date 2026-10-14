@@ -109,22 +109,23 @@ references:
     weapons: {}
     tools: {}
 
-  # Lo que vale 200: netherite completa con todos los encantamientos útiles y compatibles entre sí
-  # (datos de vanilla 26.2) y un arma full encantada de cualquiera de las familias.
+  # Lo que vale 200: netherite completa con todos los encantamientos compatibles entre sí que suman puntos
+  # (datos de vanilla 26.2) y un arma full encantada de cualquiera de las familias. Como lleva todos los encantamientos
+  # que suman, ninguna combinación con piezas de menor material puede igualarla: el 200 exige este equipo.
   max:
     armor:
       helmet:
         item: netherite_helmet
-        enchantments: { protection: 4, respiration: 3, aqua_affinity: 1, unbreaking: 3, mending: 1 }
+        enchantments: { protection: 4, thorns: 3, respiration: 3, aqua_affinity: 1, unbreaking: 3, mending: 1 }
       chestplate:
         item: netherite_chestplate
-        enchantments: { protection: 4, unbreaking: 3, mending: 1 }
+        enchantments: { protection: 4, thorns: 3, unbreaking: 3, mending: 1 }
       leggings:
         item: netherite_leggings
-        enchantments: { protection: 4, swift_sneak: 3, unbreaking: 3, mending: 1 }
+        enchantments: { protection: 4, thorns: 3, swift_sneak: 3, unbreaking: 3, mending: 1 }
       boots:
         item: netherite_boots
-        enchantments: { protection: 4, feather_falling: 4, depth_strider: 3, soul_speed: 3, unbreaking: 3, mending: 1 }
+        enchantments: { protection: 4, thorns: 3, feather_falling: 4, depth_strider: 3, soul_speed: 3, unbreaking: 3, mending: 1 }
     # Una referencia por cada familia de "weapons:" de cosmicniv_valores.yml. Cada arma se compara contra la de su
     # familia, así una maza full y una espada full valen lo mismo (W = 1).
     weapons:

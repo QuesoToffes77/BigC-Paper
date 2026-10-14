@@ -92,9 +92,20 @@ Other rules:
   `HANDS`, `HOTBAR` or `INVENTORY` (defaults `HOTBAR` and `INVENTORY`). Mobs always use their equipment.
 - A part with weight 0 needs no references and scores 0 when its references are missing.
 - Values and points must be within ±1,000,000; keys that collide after normalization are errors.
+- `output.maximum` must be representable with `output.decimals` (200.06 with 1 decimal is rejected), so the rounded
+  level never exceeds the maximum and the max reference always reaches it.
+- An armor piece only counts in its own slot: vanilla keys by name (`*_helmet`, `*_chestplate`, `*_leggings`,
+  `*_boots`, heads/pumpkin, elytra), custom armor by its optional `slot` or its `match.material`. References are
+  validated the same way. Hand-built loadouts with, e.g., four chestplates only count the chestplate slot.
 - Custom items: the first match in file order wins; every set condition must hold; at least one must be set.
+- 200 means the reference kit, not just as many points: each default armor/weapon/tool reference carries every
+  compatible enchantment that has points (thorns included), so with the factory values no combination of
+  lower-material pieces reaches it. The level measures equipment only; it is not a threat score (skill and danger
+  belong to their own modules) and does not look into Ender Chests or containers.
 - Default reference enchantments follow the vanilla 26.2 data (`data/minecraft/enchantment/*.json` and the
   `enchantable/*` item tags) so every max reference can be obtained in survival:
+  - armor: protection, thorns, plus respiration and aqua affinity (helmet), swift sneak (leggings), feather falling,
+    depth strider and soul speed (boots);
   - sword: sharpness, fire aspect, knockback, looting, sweeping edge;
   - axe: sharpness, efficiency, fortune;
   - mace: density, wind burst, fire aspect;
