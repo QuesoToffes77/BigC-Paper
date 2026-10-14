@@ -1,0 +1,82 @@
+package dev.linqfy.bigCasares.modules.cosmicniv;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * Everything both configuration files say. {@code cosmicniv_lib.yml}: output, weights, held search, curve and
+ * references. {@code cosmicniv_valores.yml}: armor values, weapon and tool families with their values,
+ * enchantment values and custom items.
+ */
+public record CosmicNivSettings(
+    double maximum,
+    int decimals,
+    double armorWeight,
+    double weaponWeight,
+    double toolWeight,
+    CosmicNivHeldSearch heldSearch,
+    CosmicNivCurve curve,
+    CosmicNivReference zeroReference,
+    CosmicNivReference maxReference,
+    Map<String, Double> armorValues,
+    Map<String, Map<String, Double>> weaponFamilies,
+    Map<String, Map<String, Double>> toolFamilies,
+    Map<String, CosmicNivEnchantmentValue> enchantmentValues,
+    List<CosmicNivCustomItem> customItems
+) {
+    public CosmicNivSettings {
+        Objects.requireNonNull(heldSearch, "heldSearch");
+        Objects.requireNonNull(curve, "curve");
+        Objects.requireNonNull(zeroReference, "zeroReference");
+        Objects.requireNonNull(maxReference, "maxReference");
+        armorValues = Collections.unmodifiableMap(new LinkedHashMap<>(Objects.requireNonNull(armorValues, "armorValues")));
+        weaponFamilies = copyFamilies(Objects.requireNonNull(weaponFamilies, "weaponFamilies"));
+        toolFamilies = copyFamilies(Objects.requireNonNull(toolFamilies, "toolFamilies"));
+        enchantmentValues = Collections.unmodifiableMap(
+            new LinkedHashMap<>(Objects.requireNonNull(enchantmentValues, "enchantmentValues")));
+        customItems = List.copyOf(Objects.requireNonNull(customItems, "customItems"));
+    }
+
+    public Map<String, Map<String, Double>> families(CosmicNivItemCategory category) {
+        return category == CosmicNivItemCategory.TOOL ? toolFamilies : weaponFamilies;
+    }
+
+    public double weight(CosmicNivItemCategory category) {
+        return switch (category) {
+            case ARMOR -> armorWeight;
+            case WEAPON -> weaponWeight;
+            case TOOL -> toolWeight;
+        };
+    }
+
+    public CosmicNivSettings withCurve(CosmicNivCurve newCurve) {
+        return new CosmicNivSettings(maximum, decimals, armorWeight, weaponWeight, toolWeight, heldSearch, newCurve,
+            zeroReference, maxReference, armorValues, weaponFamilies, toolFamilies, enchantmentValues, customItems);
+    }
+
+    public CosmicNivSettings withZeroReference(CosmicNivReference newZeroReference) {
+        return new CosmicNivSettings(maximum, decimals, armorWeight, weaponWeight, toolWeight, heldSearch, curve,
+            newZeroReference, maxReference, armorValues, weaponFamilies, toolFamilies, enchantmentValues, customItems);
+    }
+
+    public CosmicNivSettings withDecimals(int newDecimals) {
+        return new CosmicNivSettings(maximum, newDecimals, armorWeight, weaponWeight, toolWeight, heldSearch, curve,
+            zeroReference, maxReference, armorValues, weaponFamilies, toolFamilies, enchantmentValues, customItems);
+    }
+
+    public CosmicNivSettings withWeights(double newArmorWeight, double newWeaponWeight, double newToolWeight) {
+        return new CosmicNivSettings(maximum, decimals, newArmorWeight, newWeaponWeight, newToolWeight, heldSearch,
+            curve, zeroReference, maxReference, armorValues, weaponFamilies, toolFamilies, enchantmentValues,
+            customItems);
+    }
+
+    private static Map<String, Map<String, Double>> copyFamilies(Map<String, Map<String, Double>> families) {
+        Map<String, Map<String, Double>> copy = new LinkedHashMap<>();
+        families.forEach((family, members) ->
+            copy.put(family, Collections.unmodifiableMap(new LinkedHashMap<>(members))));
+        return Collections.unmodifiableMap(copy);
+    }
+}
