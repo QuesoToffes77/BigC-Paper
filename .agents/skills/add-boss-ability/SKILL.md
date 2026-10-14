@@ -1,39 +1,21 @@
 ---
 name: add-boss-ability
-description: Use when adding a new ability or behaviour to an existing PvE boss in BigCasares. Covers ability definition, conditions, targets, effects, and telegraphs.
+description: Use when adding a new ability or behaviour to an existing PvE boss in BigCasares.
 ---
 
 # Adding a Boss Ability
 
-Boss abilities in BigCasares are data-driven and defined in the boss's YAML file. They are executed by the `BossAbilityCoordinator` based on priority, cooldowns, category weights, and conditions.
+`BossAbilityCoordinator` selects YAML abilities by weighted priority, cooldowns, targets, and conditions.
+
+Use `AbyssGuardianDefinitionLoader` as the schema reference. JAR deployment preserves existing `plugins/BigCasares/bosses/` YAML; update it explicitly when testing content changes.
 
 ## 1. YAML Definition Structure
 
-Add the new ability under the `abilities:` section in `src/main/resources/bosses/<boss-id>.yml`:
-
-```yaml
-  <ability-id>:
-    category: <CATEGORY> # PHYSICAL, MAGIC, MOVEMENT, DEFENSIVE, PASSIVE
-    animation: <animation-id> # References an animation defined in the animations section
-    cooldown-seconds: 15
-    cast-time-seconds: 2
-    priority: 50
-    interruptible: false
-    conditions:
-      # See Conditions section below
-    targets:
-      # See Targets section below
-    telegraph:
-      # See Telegraph section below
-    effects:
-      # See Effects section below
-    combo-chance: 0.25 # (Optional) 25% chance to combo
-    next-combo-ability: <ability-id> # (Optional) Next ability to cast instantly if combo triggers
-```
+Add an entry under `abilities:` in `src/main/resources/bosses/<boss-id>.yml`, adapting [void-pulse](../../../src/main/resources/bosses/abyss-guardian.yml). Set `category` (`PHYSICAL`, `MAGIC`, `MOVEMENT`, `DEFENSIVE`, `PASSIVE`), `animation`, `cooldown-seconds`, `cast-time-seconds`, `priority`, `interruptible`, conditions, targets, telegraph, and effects. Optional combo fields are explained below.
 
 ## 2. Conditions
 
-Conditions determine when the ability can be cast. All conditions must pass.
+All conditions must pass.
 Types available: `HEALTH_BELOW`, `HEALTH_ABOVE`, `PHASE_EQUALS`, `PLAYERS_AT_LEAST`, `TARGET_IN_RANGE`, `NOT_CASTING`, `COOLDOWN_READY`, `RANDOM_CHANCE`.
 
 Example:
@@ -48,8 +30,9 @@ Example:
 
 ## 3. Targets
 
-The target selector defines who is affected by the ability.
 Types available: `NEAREST_PLAYER`, `FARTHEST_PLAYER`, `RANDOM_PLAYER`, `HIGHEST_DAMAGE`, `LOWEST_HEALTH`, `ALL_IN_RADIUS`, `RANDOM_POSITION`, `CURRENT_TARGET`.
+
+`RANDOM_POSITION` currently selects a random player's UUID, not a ground position. `ALL_IN_RADIUS` ignores YAML `max-targets` and selects every eligible candidate in range.
 
 Example:
 ```yaml
@@ -61,8 +44,7 @@ Example:
 
 ## 4. Telegraph
 
-Telegraphs warn players before the cast finishes.
-Types available: `CIRCLE`, `CONE`, `LINE`, `TARGET_MARK`, `GROUND_MARK`, `COUNTDOWN`, `BOSS_ANIMATION`, `SOUND_WARNING`.
+Schema enum: `CIRCLE`, `CONE`, `LINE`, `TARGET_MARK`, `GROUND_MARK`, `COUNTDOWN`, `BOSS_ANIMATION`, `SOUND_WARNING`. The current `Telegraphs` renderer ignores type/particle and draws a purple dust circle plus warning sound for every type. Supply a telegraph section: `BossAbilityDefinition` requires it.
 
 Example:
 ```yaml
@@ -77,6 +59,8 @@ Example:
 
 Effects are executed when the cast finishes.
 Types available (currently implemented in `PaperAbyssGuardianRuntime`): `DAMAGE`, `KNOCKBACK`, `PUSH`, `PULL`, `MESSAGE`, `SOUND`, `PARTICLE`, `PARTICLE_SHAPE`, `PROJECTILE`, `PULL_CONTINUOUS`, `POTION_EFFECT_AREA`, `SUMMON_CLONE`.
+
+`PARTICLE` currently uses Witch particles; `PARTICLE_SHAPE` supports `CIRCLE` and `SPIRAL`. The `SAHUR_*` effects require `PaperSahurCombatController`. Other enum entries (e.g. `TELEPORT`, `SUMMON`, `HEAL`) currently fall through the generic runtime without an effect.
 
 Example:
 ```yaml
@@ -105,11 +89,12 @@ Example:
 
 ## 6. Combos & Enrage Mode
 
-- If you specify `combo-chance` (0.0 to 1.0) and `next-combo-ability` in an ability's YAML, the boss has a chance to instantly reset the cooldown of the next ability, forcing a combo.
+- `combo-chance` and `next-combo-ability` can reset the named ability's cooldown on completion. Normal conditions, weighted selection, and cast time still apply; this does not force an instant cast.
 - During Phase 3 (Enraged), all ability cast times are reduced by 20%, and all cooldowns are reduced by 30%. Keep this pacing in mind when balancing.
 
 ## 7. Implementation Notes
 
-- If you add a new effect type (e.g., `POTION_EFFECT`, `SUMMON`), you **must** implement its logic in the `executeEffects` method of `PaperAbyssGuardianRuntime.java`.
+- New effect behavior needs an enum/loader contract and runtime dispatch in `executeEffects` (or the Sahur controller), with tests and transient cleanup.
 - If you add a new telegraph type, you **must** implement its rendering in the `Telegraphs` inner class of `PaperAbyssGuardianRuntime.java`.
 - Ensure the animation referenced by `animation:` exists in the boss's `animations:` section and has the same name in the boss's BetterModel `.bbmodel` source. Reload BetterModel before testing the ability in-game.
+- Run the relevant `pveboss` tests and `bash gradlew clean build`; test both clients. Bedrock cast/phase notification currently stores names in memory without transmitting state to controllers.

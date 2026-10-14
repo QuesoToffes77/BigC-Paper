@@ -1,18 +1,21 @@
 # BigCasares Minecraft Test Client
 
-This untracked local harness joins Paper as a real Java player and exposes a small
+This local harness joins Paper as a real Java player and exposes a small
 JSON-line protocol. It is intended for local verification of player-only flows such as
 custom-item PDC, legacy-item upgrades, recipes, and online-inventory reconciliation.
 
 ## Setup
 
+Use Node.js 22 or newer (required by the pinned Mineflayer 4.37.1 dependency).
+
 ```bash
 cd tools/minecraft-test-client
-npm install
+npm ci
 ```
 
-The default target is `127.0.0.1:25565`. Remote hosts are refused unless
-`MC_ALLOW_REMOTE=true` is set deliberately.
+The default target is `127.0.0.1:25565`. The configured host guard accepts
+`localhost`, `::1`, and strings starting with `127.`; other hosts require
+`MC_ALLOW_REMOTE=true`. This is a hostname check, not DNS/address validation.
 
 For a local server in offline mode:
 
@@ -29,13 +32,25 @@ For a normal local Paper server, Mineflayer can use its Microsoft device-code fl
 MC_AUTH=microsoft MC_USERNAME=your-email@example.com npm start
 ```
 
-No password or token is stored by this tool. Set `MC_VERSION` only when automatic
-protocol detection is insufficient.
+The wrapper does not request a password. Mineflayer's Microsoft flow caches
+authentication tokens in the user's `.minecraft` directory by default; this
+wrapper does not override `profilesFolder`. See [Mineflayer's authentication
+documentation](https://github.com/PrismarineJS/mineflayer#usage). Set `MC_VERSION`
+only when automatic protocol detection is insufficient.
+
+Settings: `MC_HOST`, `MC_PORT`, `MC_AUTH` (`offline` by default), `MC_USERNAME`,
+`MC_VERSION`, and `MC_ALLOW_REMOTE` (`true` or `false`).
 
 ## JSON-line actions
 
 Send one JSON object per line on standard input. The client writes JSON events to
 standard output.
+
+Wait for the `ready` event before issuing actions. Actions execute sequentially;
+`waitForChat` matches a substring in future messages only, so a reply that arrives
+before that action starts is not matched. Use the emitted `chat` events when
+checking immediate command replies. End standard input after `quit` to finish the
+process.
 
 ```json
 {"action":"command","command":"bigcasares items info"}
@@ -50,6 +65,9 @@ standard output.
 
 Supported actions are `chat`, `command`, `setControlState`, `look`, `swingArm`,
 `inventory`, `position`, `waitForChat`, and `quit`.
+
+This client checks protocol-visible behavior. It has no graphical renderer or
+recipe/crafting action and cannot validate BetterModel visuals or Bedrock clients.
 
 ## Checks
 
