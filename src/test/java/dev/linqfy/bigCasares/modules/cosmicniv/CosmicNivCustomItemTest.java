@@ -24,7 +24,7 @@ class CosmicNivCustomItemTest {
         List<CosmicNivCustomItem> custom = new ArrayList<>(settings.customItems());
         custom.addAll(List.of(extra));
         return new CosmicNivSettings(settings.maximum(), settings.decimals(), settings.armorWeight(),
-            settings.weaponWeight(), settings.toolWeight(), settings.heldSearch(), settings.curve(),
+            settings.weaponWeight(), settings.toolWeight(), settings.search(), settings.curve(),
             settings.zeroReference(), settings.maxReference(), settings.armorValues(), settings.weaponFamilies(),
             settings.toolFamilies(), settings.enchantmentValues(), custom);
     }

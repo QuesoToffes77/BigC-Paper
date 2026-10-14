@@ -5,13 +5,17 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EntityEquipment;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 final class BukkitCosmicNivEquipmentReader {
@@ -29,20 +33,107 @@ final class BukkitCosmicNivEquipmentReader {
         if (equipment == null) {
             return CosmicNivLoadout.empty();
         }
-        Map<String, NamespacedKey> keys = persistentKeys(service);
+        Items items = new Items(service, persistentKeys(service));
         CosmicNivLoadout.Builder builder = CosmicNivLoadout.builder();
-        armor(builder, service, keys, CosmicNivArmorSlot.HELMET, equipment.getHelmet());
-        armor(builder, service, keys, CosmicNivArmorSlot.CHESTPLATE, equipment.getChestplate());
-        armor(builder, service, keys, CosmicNivArmorSlot.LEGGINGS, equipment.getLeggings());
-        armor(builder, service, keys, CosmicNivArmorSlot.BOOTS, equipment.getBoots());
+        worn(builder, items, CosmicNivArmorSlot.HELMET, equipment.getHelmet());
+        worn(builder, items, CosmicNivArmorSlot.CHESTPLATE, equipment.getChestplate());
+        worn(builder, items, CosmicNivArmorSlot.LEGGINGS, equipment.getLeggings());
+        worn(builder, items, CosmicNivArmorSlot.BOOTS, equipment.getBoots());
 
         if (entity instanceof Player player) {
-            playerHeld(builder, service, keys, player.getInventory(), service.settings().heldSearch());
+            PlayerInventory inventory = player.getInventory();
+            CosmicNivSearch search = service.settings().search();
+            if (search.armor() == CosmicNivArmorSearch.INVENTORY) {
+                for (ItemStack stack : stacks(inventory, CosmicNivHeldSearch.INVENTORY)) {
+                    carriedArmor(builder, items, service, stack);
+                }
+            }
+            for (ItemStack stack : stacks(inventory, search.weapon())) {
+                CosmicNivItem item = items.of(stack);
+                if (item != null) {
+                    builder.weapon(item);
+                }
+            }
+            for (ItemStack stack : stacks(inventory, search.tool())) {
+                CosmicNivItem item = items.of(stack);
+                if (item != null) {
+                    builder.tool(item);
+                }
+            }
         } else {
-            held(builder, service, keys, equipment.getItemInMainHand());
-            held(builder, service, keys, equipment.getItemInOffHand());
+            for (ItemStack stack : new ItemStack[] {equipment.getItemInMainHand(), equipment.getItemInOffHand()}) {
+                CosmicNivItem item = items.of(stack);
+                if (item != null) {
+                    builder.held(item);
+                }
+            }
         }
         return builder.build();
+    }
+
+    private static List<ItemStack> stacks(PlayerInventory inventory, CosmicNivHeldSearch search) {
+        List<ItemStack> stacks = new ArrayList<>();
+        switch (search) {
+            case MAIN_HAND -> stacks.add(inventory.getItemInMainHand());
+            case HANDS -> {
+                stacks.add(inventory.getItemInMainHand());
+                stacks.add(inventory.getItemInOffHand());
+            }
+            case HOTBAR -> {
+                for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
+                    stacks.add(inventory.getItem(slot));
+                }
+                stacks.add(inventory.getItemInOffHand());
+            }
+            case INVENTORY -> {
+                stacks.addAll(List.of(inventory.getStorageContents()));
+                stacks.add(inventory.getItemInOffHand());
+            }
+        }
+        return stacks;
+    }
+
+    private static void worn(CosmicNivLoadout.Builder builder, Items items, CosmicNivArmorSlot slot, ItemStack stack) {
+        CosmicNivItem item = items.of(stack);
+        if (item != null) {
+            builder.armor(slot, item);
+        }
+    }
+
+    private static void carriedArmor(CosmicNivLoadout.Builder builder, Items items, CosmicNivService service,
+                                     ItemStack stack) {
+        CosmicNivItem item = items.of(stack);
+        if (item == null || service.categoryOf(item) != CosmicNivItemCategory.ARMOR) {
+            return;
+        }
+        CosmicNivArmorSlot slot = armorSlot(stack);
+        if (slot != null) {
+            builder.armor(slot, item);
+        }
+    }
+
+    private static CosmicNivArmorSlot armorSlot(ItemStack stack) {
+        CosmicNivArmorSlot slot = armorSlot(stack.getType().getEquipmentSlot());
+        if (slot == null && stack.hasItemMeta()) {
+            ItemMeta meta = stack.getItemMeta();
+            if (meta.hasEquippable()) {
+                slot = armorSlot(meta.getEquippable().getSlot());
+            }
+        }
+        return slot;
+    }
+
+    private static CosmicNivArmorSlot armorSlot(EquipmentSlot slot) {
+        if (slot == null) {
+            return null;
+        }
+        return switch (slot) {
+            case HEAD -> CosmicNivArmorSlot.HELMET;
+            case CHEST -> CosmicNivArmorSlot.CHESTPLATE;
+            case LEGS -> CosmicNivArmorSlot.LEGGINGS;
+            case FEET -> CosmicNivArmorSlot.BOOTS;
+            default -> null;
+        };
     }
 
     private synchronized Map<String, NamespacedKey> persistentKeys(CosmicNivService service) {
@@ -93,43 +184,24 @@ final class BukkitCosmicNivEquipmentReader {
         return data.has(key, PersistentDataType.STRING) ? data.get(key, PersistentDataType.STRING) : null;
     }
 
-    private static void playerHeld(CosmicNivLoadout.Builder builder, CosmicNivService service,
-                                   Map<String, NamespacedKey> keys, PlayerInventory inventory,
-                                   CosmicNivHeldSearch search) {
-        switch (search) {
-            case MAIN_HAND -> held(builder, service, keys, inventory.getItemInMainHand());
-            case HANDS -> {
-                held(builder, service, keys, inventory.getItemInMainHand());
-                held(builder, service, keys, inventory.getItemInOffHand());
-            }
-            case HOTBAR -> {
-                for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
-                    held(builder, service, keys, inventory.getItem(slot));
-                }
-                held(builder, service, keys, inventory.getItemInOffHand());
-            }
-            case INVENTORY -> {
-                for (ItemStack stack : inventory.getStorageContents()) {
-                    held(builder, service, keys, stack);
-                }
-                held(builder, service, keys, inventory.getItemInOffHand());
-            }
-        }
-    }
+    private static final class Items {
+        private final CosmicNivService service;
+        private final Map<String, NamespacedKey> persistentKeys;
+        private final Map<ItemStack, CosmicNivItem> read = new IdentityHashMap<>();
 
-    private static void armor(CosmicNivLoadout.Builder builder, CosmicNivService service,
-                              Map<String, NamespacedKey> keys, CosmicNivArmorSlot slot, ItemStack stack) {
-        CosmicNivItem item = toItem(stack, service, keys);
-        if (item != null) {
-            builder.armor(slot, item);
+        private Items(CosmicNivService service, Map<String, NamespacedKey> persistentKeys) {
+            this.service = service;
+            this.persistentKeys = persistentKeys;
         }
-    }
 
-    private static void held(CosmicNivLoadout.Builder builder, CosmicNivService service,
-                             Map<String, NamespacedKey> keys, ItemStack stack) {
-        CosmicNivItem item = toItem(stack, service, keys);
-        if (item != null) {
-            builder.held(item);
+        CosmicNivItem of(ItemStack stack) {
+            if (stack == null) {
+                return null;
+            }
+            if (!read.containsKey(stack)) {
+                read.put(stack, toItem(stack, service, persistentKeys));
+            }
+            return read.get(stack);
         }
     }
 }

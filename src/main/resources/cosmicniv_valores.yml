@@ -10,7 +10,8 @@
 #   - Un ítem que no está en este archivo vale 0 y no cuenta, aunque esté encantado.
 #   - Cada ítem va en UN solo lugar: armor, una familia de weapons, una familia de tools o custom-items.
 #   - Lo que está en armor solo cuenta puesto (casco, pechera, pantalones, botas).
-#     Lo que está en weapons o tools solo cuenta en la mano / barra rápida (ver held-search en cosmicniv_lib.yml).
+#     Lo que está en weapons o tools solo cuenta en la mano o el inventario (ver weapon-search y tool-search en
+#     cosmicniv_lib.yml). Si lleva varias piezas o herramientas, cuenta la mejor (ver armor-search).
 #   - Solo importa la PROPORCIÓN entre valores: multiplicar todo por 2 no cambia ningún nivel.
 #   - Claves: "netherite_sword" o "minecraft:netherite_sword" (los ids de /give). Valores entre -1000000 y 1000000.
 #   - Nombres de familia: a-z, 0-9, _ y -. Un mismo nombre no puede estar en weapons y en tools.

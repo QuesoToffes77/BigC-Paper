@@ -42,7 +42,8 @@ public final class CosmicNivSettingsLoader {
     }
 
     private CosmicNivConfigLoadResult parse(Map<String, Object> main, Map<String, Object> values) {
-        checkKeys(main, MAIN_FILE, "", List.of("output", "weights", "held-search", "curve", "references"));
+        checkKeys(main, MAIN_FILE, "", List.of("output", "weights", "armor-search", "weapon-search", "tool-search",
+            "curve", "references"));
         checkKeys(values, VALUES_FILE, "", List.of("armor", "weapons", "tools", "enchantments", "custom-items"));
         Map<String, Object> output = optionalMap(main, "output", MAIN_FILE, "output");
         checkKeys(output, MAIN_FILE, "output", List.of("maximum", "decimals"));
@@ -58,10 +59,17 @@ public final class CosmicNivSettingsLoader {
             mainError("weights", "armor + weapon + tool must be greater than 0");
         }
 
-        CosmicNivHeldSearch heldSearch = readHeldSearch(main.get("held-search"));
-        if (heldSearch == CosmicNivHeldSearch.MAIN_HAND && weaponWeight > 0.0 && toolWeight > 0.0) {
-            warnings.add(MAIN_FILE + " > held-search: with MAIN_HAND a player holds one item, so a weapon and a tool"
-                + " never count together and the maximum level cannot be reached");
+        CosmicNivSearch search = new CosmicNivSearch(
+            readSearch(main.get("armor-search"), "armor-search", CosmicNivArmorSearch.class,
+                CosmicNivSearch.DEFAULT.armor()),
+            readSearch(main.get("weapon-search"), "weapon-search", CosmicNivHeldSearch.class,
+                CosmicNivSearch.DEFAULT.weapon()),
+            readSearch(main.get("tool-search"), "tool-search", CosmicNivHeldSearch.class,
+                CosmicNivSearch.DEFAULT.tool()));
+        if (search.weapon() == CosmicNivHeldSearch.MAIN_HAND && search.tool() == CosmicNivHeldSearch.MAIN_HAND
+            && weaponWeight > 0.0 && toolWeight > 0.0) {
+            warnings.add(MAIN_FILE + " > weapon-search / tool-search: both are MAIN_HAND, so a weapon and a tool never"
+                + " count together and the maximum level cannot be reached");
         }
         Map<String, Object> curveSection = optionalMap(main, "curve", MAIN_FILE, "curve");
         checkKeys(curveSection, MAIN_FILE, "curve", List.of("type", "strength", "exponent", "midpoint", "points"));
@@ -89,21 +97,25 @@ public final class CosmicNivSettingsLoader {
             return new CosmicNivConfigLoadResult(null, errors, warnings);
         }
         CosmicNivSettings settings = new CosmicNivSettings(maximum, decimals, armorWeight, weaponWeight, toolWeight,
-            heldSearch, curve, zero, max, armor, weapons, tools, enchantments, customItems);
+            search, curve, zero, max, armor, weapons, tools, enchantments, customItems);
         errors.addAll(CosmicNivService.problems(settings));
         warnUnvaluedReferenceEnchantments(settings);
         return new CosmicNivConfigLoadResult(errors.isEmpty() ? settings : null, errors, warnings);
     }
 
-    private CosmicNivHeldSearch readHeldSearch(Object raw) {
+    private <E extends Enum<E>> E readSearch(Object raw, String path, Class<E> type, E fallback) {
         if (raw == null) {
-            return CosmicNivHeldSearch.HOTBAR;
+            return fallback;
         }
         try {
-            return CosmicNivHeldSearch.valueOf(String.valueOf(raw).trim().toUpperCase(Locale.ROOT));
+            return Enum.valueOf(type, String.valueOf(raw).trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException invalid) {
-            mainError("held-search", "must be MAIN_HAND, HANDS, HOTBAR or INVENTORY, got " + raw);
-            return CosmicNivHeldSearch.HOTBAR;
+            List<String> options = new ArrayList<>();
+            for (E option : type.getEnumConstants()) {
+                options.add(option.name());
+            }
+            mainError(path, "must be " + String.join(", ", options) + ", got " + raw);
+            return fallback;
         }
     }
 

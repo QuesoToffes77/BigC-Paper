@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Everything both configuration files say. {@code cosmicniv_lib.yml}: output, weights, held search, curve and
+ * Everything both configuration files say. {@code cosmicniv_lib.yml}: output, weights, searches, curve and
  * references. {@code cosmicniv_valores.yml}: armor values, weapon and tool families with their values,
  * enchantment values and custom items.
  */
@@ -17,7 +17,7 @@ public record CosmicNivSettings(
     double armorWeight,
     double weaponWeight,
     double toolWeight,
-    CosmicNivHeldSearch heldSearch,
+    CosmicNivSearch search,
     CosmicNivCurve curve,
     CosmicNivReference zeroReference,
     CosmicNivReference maxReference,
@@ -28,7 +28,7 @@ public record CosmicNivSettings(
     List<CosmicNivCustomItem> customItems
 ) {
     public CosmicNivSettings {
-        Objects.requireNonNull(heldSearch, "heldSearch");
+        Objects.requireNonNull(search, "search");
         Objects.requireNonNull(curve, "curve");
         Objects.requireNonNull(zeroReference, "zeroReference");
         Objects.requireNonNull(maxReference, "maxReference");
@@ -53,24 +53,29 @@ public record CosmicNivSettings(
     }
 
     public CosmicNivSettings withCurve(CosmicNivCurve newCurve) {
-        return new CosmicNivSettings(maximum, decimals, armorWeight, weaponWeight, toolWeight, heldSearch, newCurve,
+        return new CosmicNivSettings(maximum, decimals, armorWeight, weaponWeight, toolWeight, search, newCurve,
             zeroReference, maxReference, armorValues, weaponFamilies, toolFamilies, enchantmentValues, customItems);
     }
 
     public CosmicNivSettings withZeroReference(CosmicNivReference newZeroReference) {
-        return new CosmicNivSettings(maximum, decimals, armorWeight, weaponWeight, toolWeight, heldSearch, curve,
+        return new CosmicNivSettings(maximum, decimals, armorWeight, weaponWeight, toolWeight, search, curve,
             newZeroReference, maxReference, armorValues, weaponFamilies, toolFamilies, enchantmentValues, customItems);
     }
 
     public CosmicNivSettings withDecimals(int newDecimals) {
-        return new CosmicNivSettings(maximum, newDecimals, armorWeight, weaponWeight, toolWeight, heldSearch, curve,
+        return new CosmicNivSettings(maximum, newDecimals, armorWeight, weaponWeight, toolWeight, search, curve,
             zeroReference, maxReference, armorValues, weaponFamilies, toolFamilies, enchantmentValues, customItems);
     }
 
     public CosmicNivSettings withWeights(double newArmorWeight, double newWeaponWeight, double newToolWeight) {
-        return new CosmicNivSettings(maximum, decimals, newArmorWeight, newWeaponWeight, newToolWeight, heldSearch,
+        return new CosmicNivSettings(maximum, decimals, newArmorWeight, newWeaponWeight, newToolWeight, search,
             curve, zeroReference, maxReference, armorValues, weaponFamilies, toolFamilies, enchantmentValues,
             customItems);
+    }
+
+    public CosmicNivSettings withSearch(CosmicNivSearch newSearch) {
+        return new CosmicNivSettings(maximum, decimals, armorWeight, weaponWeight, toolWeight, newSearch, curve,
+            zeroReference, maxReference, armorValues, weaponFamilies, toolFamilies, enchantmentValues, customItems);
     }
 
     private static Map<String, Map<String, Double>> copyFamilies(Map<String, Map<String, Double>> families) {

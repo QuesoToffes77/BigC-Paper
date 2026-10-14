@@ -61,7 +61,8 @@ class CosmicNivSettingsLoaderTest {
         assertEquals(0.6, settings.armorWeight());
         assertEquals(0.4, settings.weaponWeight());
         assertEquals(0.0, settings.toolWeight());
-        assertEquals(CosmicNivHeldSearch.HOTBAR, settings.heldSearch());
+        assertEquals(new CosmicNivSearch(CosmicNivArmorSearch.INVENTORY, CosmicNivHeldSearch.HOTBAR,
+            CosmicNivHeldSearch.INVENTORY), settings.search());
         assertEquals(CosmicNivCurveType.LINEAR, settings.curve().type());
         assertEquals(List.of("sword", "axe", "mace", "spear", "trident"), List.copyOf(settings.weaponFamilies().keySet()));
         assertEquals(List.of("pickaxe", "shovel", "hoe", "shears", "fishing_rod"),
@@ -104,7 +105,9 @@ class CosmicNivSettingsLoaderTest {
         YamlConfiguration main = bundledMain();
         main.set("output", null);
         main.set("weights", null);
-        main.set("held-search", null);
+        main.set("armor-search", null);
+        main.set("weapon-search", null);
+        main.set("tool-search", null);
         main.set("curve", null);
 
         CosmicNivConfigLoadResult result = load(main, bundledValues());
@@ -115,8 +118,22 @@ class CosmicNivSettingsLoaderTest {
         assertEquals(0.6, result.settings().armorWeight());
         assertEquals(0.4, result.settings().weaponWeight());
         assertEquals(0.0, result.settings().toolWeight());
-        assertEquals(CosmicNivHeldSearch.HOTBAR, result.settings().heldSearch());
+        assertEquals(CosmicNivSearch.DEFAULT, result.settings().search());
         assertEquals(CosmicNivCurveType.LINEAR, result.settings().curve().type());
+    }
+
+    @Test
+    void eachSearchIsReadOnItsOwn() {
+        YamlConfiguration main = bundledMain();
+        main.set("armor-search", "worn");
+        main.set("weapon-search", "HANDS");
+        main.set("tool-search", "MAIN_HAND");
+
+        CosmicNivConfigLoadResult result = load(main, bundledValues());
+
+        assertTrue(result.valid(), () -> String.join("\n", result.errors()));
+        assertEquals(new CosmicNivSearch(CosmicNivArmorSearch.WORN, CosmicNivHeldSearch.HANDS,
+            CosmicNivHeldSearch.MAIN_HAND), result.settings().search());
     }
 
     @Test
@@ -160,7 +177,7 @@ class CosmicNivSettingsLoaderTest {
         YamlConfiguration main = bundledMain();
         main.set("weights.wepon", 0.4);
         main.set("references.max.weapons.sword.enchants", Map.of("sharpness", 5));
-        main.set("weapon-search", "HOTBAR");
+        main.set("held-search", "HOTBAR");
         YamlConfiguration values = bundledValues();
         values.set("custom-items.sahurs_bat.match.bigcasares_item", "sahurs_bat");
         values.set("custom-items.sahurs_bat.valor", 9);
@@ -170,7 +187,7 @@ class CosmicNivSettingsLoaderTest {
         assertErrorMentions(main, values,
             "cosmicniv_lib.yml > weights.wepon: unknown key",
             "references.max.weapons.sword.enchants: unknown key",
-            "cosmicniv_lib.yml > weapon-search: unknown key",
+            "cosmicniv_lib.yml > held-search: unknown key",
             "custom-items.sahurs_bat.match.bigcasares_item: unknown key",
             "custom-items.sahurs_bat.valor: unknown key",
             "enchantments.protection.points: unknown key",
@@ -211,7 +228,8 @@ class CosmicNivSettingsLoaderTest {
     @Test
     void mainHandWithWeaponAndToolWeightsWarns() {
         YamlConfiguration main = bundledMain();
-        main.set("held-search", "MAIN_HAND");
+        main.set("weapon-search", "MAIN_HAND");
+        main.set("tool-search", "MAIN_HAND");
         main.set("weights.tool", 0.1);
 
         CosmicNivConfigLoadResult result = load(main, bundledValues());
@@ -238,10 +256,13 @@ class CosmicNivSettingsLoaderTest {
         YamlConfiguration main = bundledMain();
         main.set("output.maximum", -1);
         main.set("output.decimals", 12);
-        main.set("held-search", "POCKETS");
+        main.set("weapon-search", "POCKETS");
+        main.set("tool-search", "BACKPACK");
+        main.set("armor-search", "HOTBAR");
         main.set("weights.tool", -1);
         assertErrorMentions(main, bundledValues(), "cosmicniv_lib.yml > output.maximum", "output.decimals",
-            "held-search", "weights.tool");
+            "weapon-search: must be MAIN_HAND, HANDS, HOTBAR, INVENTORY", "tool-search", "armor-search: must be WORN",
+            "weights.tool");
     }
 
     @Test

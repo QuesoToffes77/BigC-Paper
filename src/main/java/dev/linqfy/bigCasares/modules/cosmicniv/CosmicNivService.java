@@ -178,10 +178,11 @@ public final class CosmicNivService {
 
     public CosmicNivResult evaluate(CosmicNivLoadout loadout) {
         CosmicNivLoadout safeLoadout = loadout == null ? CosmicNivLoadout.empty() : loadout;
-        double armorPower = catalog.armorPower(safeLoadout.armor());
+        Map<CosmicNivArmorSlot, CosmicNivItem> armorPieces = catalog.bestArmor(safeLoadout.armor());
+        double armorPower = catalog.armorPower(armorPieces);
         double armorScore = normalize(armorPower, zeroArmorPower, maxArmorPower);
-        CosmicNivResult.Held weapon = best(CosmicNivItemCategory.WEAPON, safeLoadout.held());
-        CosmicNivResult.Held tool = best(CosmicNivItemCategory.TOOL, safeLoadout.held());
+        CosmicNivResult.Held weapon = best(CosmicNivItemCategory.WEAPON, safeLoadout.weapons());
+        CosmicNivResult.Held tool = best(CosmicNivItemCategory.TOOL, safeLoadout.tools());
 
         double totalWeight = settings.armorWeight() + settings.weaponWeight() + settings.toolWeight();
         double weighted = weighted(settings.armorWeight(), armorScore)
@@ -192,7 +193,7 @@ public final class CosmicNivService {
         double exact = settings.maximum() * curved;
         double rounded = BigDecimal.valueOf(exact).setScale(settings.decimals(), RoundingMode.HALF_UP).doubleValue();
         return new CosmicNivResult(rounded, exact, settings.maximum(), progress, curved, settings.curve().type(),
-            armorScore, armorPower, weapon, tool);
+            armorScore, armorPower, armorPieces, weapon, tool);
     }
 
     private CosmicNivResult.Held best(CosmicNivItemCategory category, List<CosmicNivItem> held) {
@@ -380,6 +381,28 @@ public final class CosmicNivService {
 
         List<String> families(CosmicNivItemCategory category) {
             return families.get(category);
+        }
+
+        Map<CosmicNivArmorSlot, CosmicNivItem> bestArmor(Map<CosmicNivArmorSlot, List<CosmicNivItem>> candidates) {
+            Map<CosmicNivArmorSlot, CosmicNivItem> best = new EnumMap<>(CosmicNivArmorSlot.class);
+            candidates.forEach((slot, pieces) -> {
+                CosmicNivItem chosen = null;
+                double chosenPower = 0.0;
+                for (CosmicNivItem piece : pieces) {
+                    if (!armorValues.containsKey(piece.key())) {
+                        continue;
+                    }
+                    double power = itemPower(piece);
+                    if (chosen == null || power > chosenPower) {
+                        chosen = piece;
+                        chosenPower = power;
+                    }
+                }
+                if (chosen != null) {
+                    best.put(slot, chosen);
+                }
+            });
+            return best;
         }
 
         double armorPower(Map<CosmicNivArmorSlot, CosmicNivItem> armor) {

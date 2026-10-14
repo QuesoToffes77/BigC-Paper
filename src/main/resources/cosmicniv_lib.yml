@@ -35,13 +35,21 @@ weights:
   weapon: 0.4
   tool: 0.0
 
-# Dónde se buscan las armas y herramientas de un jugador:
+# Dónde se busca cada parte en un jugador. Siempre cuenta la MEJOR que se encuentre.
+#
+# armor-search (armadura), por cada lugar (casco, pechera, pantalones, botas):
+#   WORN       solo la pieza que tiene puesta
+#   INVENTORY  la puesta y las que lleve en el inventario: cuenta la mejor de cada lugar   <- por defecto
+#
+# weapon-search (armas) y tool-search (herramientas):
 #   MAIN_HAND  solo la mano principal (cambia apenas el jugador cambia de slot)
 #   HANDS      mano principal y secundaria
-#   HOTBAR     la barra rápida (9 slots) y la mano secundaria   <- recomendado, es estable
+#   HOTBAR     la barra rápida (9 slots) y la mano secundaria
 #   INVENTORY  todo el inventario y la mano secundaria
-# Los mobs siempre usan sus dos manos. Cuenta la MEJOR arma y la MEJOR herramienta que se encuentren.
-held-search: HOTBAR
+# Los mobs siempre usan lo que tienen puesto y sus dos manos.
+armor-search: INVENTORY
+weapon-search: HOTBAR
+tool-search: INVENTORY
 
 # Curva que dobla el progreso t (0..1) antes de multiplicarlo por maximum.
 #   LINEAR       f(t) = t                                    (sin cambios)

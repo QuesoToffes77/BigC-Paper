@@ -95,8 +95,9 @@ poder(ítem) = valor del ítem  +  Σ  puntos por nivel × min(nivel, max-level)
 - Un encantamiento que no está en `enchantments:` no suma nada.
 - Los niveles por encima de `max-level` no suman de más: Filo X puesto con comandos cuenta como Filo V.
 - Las maldiciones tienen puntos negativos, así que restan.
-- Lo que está en `armor:` solo cuenta **puesto**. Lo que está en `weapons:` o `tools:` solo cuenta **en la mano o la
-  barra rápida**. Una espada puesta en la cabeza no suma como armadura.
+- Lo que está en `armor:` solo cuenta como armadura (puesta o, por defecto, también llevada en el inventario). Lo que
+  está en `weapons:` o `tools:` solo cuenta como arma o herramienta. Una espada puesta en la cabeza no suma como
+  armadura.
 
 Ejemplo: espada de netherite con Filo V, Aspecto ígneo II, Empuje II, Botín III, Filo arrasador III, Irrompibilidad
 III y Reparación:
@@ -107,7 +108,11 @@ III y Reparación:
 
 ### Paso 2: puntaje de armadura A (entre 0 y 1)
 
-Se suma el poder de las cuatro piezas y se ubica entre las dos referencias:
+Por cada lugar (casco, pechera, pantalones, botas) cuenta **la mejor pieza que tenga el jugador**: la puesta o una
+que lleve en el inventario, la de más poder. Por ejemplo, si tiene puesto un casco de hierro y lleva en el inventario
+uno de netherite, cuenta el de netherite. Esto lo decide `armor-search:` (con `WORN` cuenta solo lo puesto).
+
+Se suma el poder de esas cuatro piezas y se ubica entre las dos referencias:
 
 ```
 A = (poder armadura − poder armadura de "zero") / (poder armadura de "max" − poder armadura de "zero")
@@ -130,7 +135,8 @@ T       = el N más alto entre todas las herramientas que se encuentran     (0 s
 Por eso una maza full encantada y una espada full encantada dan las dos `W = 1`, aunque una tenga poder 18.5 y la
 otra 22.5. Lo que no es arma ni herramienta (bloques, comida, armadura en la mano...) se ignora.
 
-Dónde se buscan lo decide `held-search:` (por defecto la barra rápida y la mano secundaria).
+Dónde se buscan lo deciden `weapon-search:` (por defecto la barra rápida y la mano secundaria) y `tool-search:` (por
+defecto todo el inventario: cuenta la mejor herramienta que lleve, aunque no la tenga en la mano).
 
 ### Paso 4: progreso t (entre 0 y 1)
 
@@ -310,16 +316,29 @@ custom se escriben `custom:<nombre>`.
 No hace falta que sumen 1: se usan como proporción (`armor: 3, weapon: 2` es lo mismo que 0.6 / 0.4). Cada uno va de
 0 a 1 000 y la suma tiene que ser mayor que 0. Una parte con peso 0 no cuenta y no necesita referencias.
 
-### `held-search`
+### `armor-search`, `weapon-search` y `tool-search`
 
-| Valor | Dónde busca las armas y herramientas de un jugador |
+Dónde se busca cada parte en un jugador. Siempre cuenta **la mejor** que se encuentre. Los mobs usan siempre lo que
+tienen puesto y sus dos manos.
+
+`armor-search`, por cada lugar (casco, pechera, pantalones, botas):
+
+| Valor | Qué cuenta |
+|---|---|
+| `WORN` | Solo la pieza que tiene puesta |
+| `INVENTORY` (por defecto) | La puesta y las que lleve en el inventario o en la mano secundaria: cuenta la de más poder en cada lugar |
+
+El lugar de una pieza del inventario es el lugar donde se equipa (un casco va al casco). Un objeto custom de armadura
+hecho sobre un ítem que no se puede equipar solo cuenta puesto.
+
+`weapon-search` (por defecto `HOTBAR`) y `tool-search` (por defecto `INVENTORY`):
+
+| Valor | Dónde busca |
 |---|---|
 | `MAIN_HAND` | Solo la mano principal. Cambia apenas el jugador cambia de slot |
 | `HANDS` | Mano principal y secundaria |
-| `HOTBAR` (por defecto) | Los 9 slots de la barra rápida y la mano secundaria. Es estable y difícil de esquivar |
+| `HOTBAR` | Los 9 slots de la barra rápida y la mano secundaria. Es estable y difícil de esquivar |
 | `INVENTORY` | Todo el inventario y la mano secundaria |
-
-Siempre cuenta **la mejor** arma y **la mejor** herramienta encontradas. Los mobs usan siempre sus dos manos.
 
 ### `curve`
 
@@ -658,10 +677,12 @@ references:
 
 Ojo: con esto un arco full encantado también da `W = 1`, igual que una espada full.
 
-### Que solo cuente lo que tiene en la mano
+### Que solo cuente lo que tiene puesto y en la mano
 
 ```yaml
-held-search: MAIN_HAND
+armor-search: WORN
+weapon-search: MAIN_HAND
+tool-search: MAIN_HAND
 ```
 
 ### Números enteros
@@ -709,7 +730,8 @@ Así, un error de tipeo nunca deja a los otros módulos sin nivel.
   coincidir con nada;
 - falta la sección `enchantments`;
 - una referencia usa un encantamiento que no tiene valor en `enchantments` (suma 0);
-- `held-search: MAIN_HAND` con peso en armas y en herramientas: con una sola mano nunca cuentan las dos juntas, así
+- `weapon-search` y `tool-search` en `MAIN_HAND` con peso en armas y en herramientas: con una sola mano nunca cuentan
+  las dos juntas, así
   que no se puede llegar al máximo.
 
 ---
@@ -743,6 +765,7 @@ r.value();             // nivel redondeado (lo mismo que level())
 r.exactValue();        // nivel sin redondear
 r.maximum();           // 200.0, o lo que diga output.maximum
 r.armorScore();        // A, de 0 a 1
+r.armorPieces();       // la pieza que contó en cada lugar (la mejor entre la puesta y las del inventario)
 r.weaponScore();       // W, de 0 a 1
 r.toolScore();         // T, de 0 a 1 (se calcula aunque su peso sea 0)
 r.progress();          // t, antes de la curva
@@ -768,8 +791,10 @@ Para kits, la vista previa de una tienda o una tabla de spawn de un boss, sin qu
 CosmicNivLoadout kit = CosmicNivLoadout.builder()
     .armor(CosmicNivArmorSlot.HELMET, CosmicNivItem.of("diamond_helmet", Map.of("protection", 4)))
     .armor(CosmicNivArmorSlot.CHESTPLATE, CosmicNivItem.of("diamond_chestplate"))
-    .held(CosmicNivItem.of("iron_axe", Map.of("sharpness", 3)))
-    .held(CosmicNivItem.of("custom:sahurs_bat"))
+    .armor(CosmicNivArmorSlot.CHESTPLATE, CosmicNivItem.of("iron_chestplate"))   // varias por lugar: cuenta la mejor
+    .held(CosmicNivItem.of("iron_axe", Map.of("sharpness", 3)))                     // puede contar como arma o herramienta
+    .weapon(CosmicNivItem.of("custom:sahurs_bat"))                                  // solo como arma
+    .tool(CosmicNivItem.of("diamond_pickaxe"))                                      // solo como herramienta
     .build();
 
 double nivelDelKit = niv.evaluate(kit).value();
@@ -830,7 +855,7 @@ Agregalos ahí para darles su propio valor (sección 7).
 **¿Puede dar más de 200?** No. Lo que supera la referencia "max" se recorta.
 
 **Cambié la curva y la referencia max ya no da 200.** No debería pasar: todas las curvas dan `f(1) = 1`. Revisá con
-`/cosmicniv` que el equipo sea exactamente el de la referencia, que las armas estén donde busca `held-search` y, si
+`/cosmicniv` que el equipo sea exactamente el de la referencia, que las armas estén donde busca `weapon-search` y, si
 las herramientas tienen peso, que también haya una herramienta de referencia.
 
 **¿Por qué mi hacha de diamante sin encantar da tan poco?** Porque se compara contra un hacha de netherite **full
@@ -852,7 +877,7 @@ el hacha es más herramienta que arma, movela de `weapons.axe` a una familia de 
 | `CosmicNivSettings` / `CosmicNivSettingsLoader` / `CosmicNivConfigLoadResult` | Configuración, lectura y validación de los dos archivos |
 | `CosmicNivCurve` / `CosmicNivCurveType` | Las curvas (interfaz sellada, un record por tipo) |
 | `CosmicNivCustomItem` / `CosmicNivCustomMatch` / `CosmicNivItemIdentity` | Objetos custom y cómo se reconocen |
-| `CosmicNivItem`, `CosmicNivLoadout`, `CosmicNivArmorSlot`, `CosmicNivItemCategory`, `CosmicNivReference`, `CosmicNivEnchantmentValue`, `CosmicNivHeldSearch`, `CosmicNivResult`, `CosmicNivKeys` | Tipos de valor |
+| `CosmicNivItem`, `CosmicNivLoadout`, `CosmicNivArmorSlot`, `CosmicNivItemCategory`, `CosmicNivReference`, `CosmicNivEnchantmentValue`, `CosmicNivSearch`, `CosmicNivArmorSearch`, `CosmicNivHeldSearch`, `CosmicNivResult`, `CosmicNivKeys` | Tipos de valor |
 | `BukkitCosmicNivEquipmentReader` | `LivingEntity` → `CosmicNivLoadout` (lee material, `bigcasares:item_id`, `item_model` y datos persistentes) |
 | `BukkitCosmicNivKeyAudit` | Avisa de ítems o encantamientos que no existen en el servidor |
 | `CosmicNivCommand` | `/cosmicniv` |

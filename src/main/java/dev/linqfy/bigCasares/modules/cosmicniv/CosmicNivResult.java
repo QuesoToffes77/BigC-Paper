@@ -1,5 +1,10 @@
 package dev.linqfy.bigCasares.modules.cosmicniv;
 
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.Objects;
+
 /**
  * Breakdown of one evaluation.
  *
@@ -11,6 +16,7 @@ package dev.linqfy.bigCasares.modules.cosmicniv;
  * @param curveType      curve used
  * @param armorScore     armor score {@code A}, between 0 and 1
  * @param armorPower     raw armor power (sum of the four slots)
+ * @param armorPieces    the piece that counted in each slot (the best one among the candidates)
  * @param weapon         best weapon (score {@code W})
  * @param tool           best tool (score {@code T})
  */
@@ -23,9 +29,16 @@ public record CosmicNivResult(
     CosmicNivCurveType curveType,
     double armorScore,
     double armorPower,
+    Map<CosmicNivArmorSlot, CosmicNivItem> armorPieces,
     Held weapon,
     Held tool
 ) {
+    public CosmicNivResult {
+        EnumMap<CosmicNivArmorSlot, CosmicNivItem> pieces = new EnumMap<>(CosmicNivArmorSlot.class);
+        pieces.putAll(Objects.requireNonNull(armorPieces, "armorPieces"));
+        armorPieces = Collections.unmodifiableMap(pieces);
+    }
+
     public double weaponScore() {
         return weapon.score();
     }

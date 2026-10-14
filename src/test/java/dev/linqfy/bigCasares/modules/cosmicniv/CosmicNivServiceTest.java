@@ -260,7 +260,10 @@ class CosmicNivServiceTest {
 
     @Test
     void aCustomZeroReferenceMapsToZero() {
-        EnumMap<CosmicNivArmorSlot, CosmicNivItem> leather = new EnumMap<>(plainArmor("leather").build().armor());
+        EnumMap<CosmicNivArmorSlot, CosmicNivItem> leather = new EnumMap<>(CosmicNivArmorSlot.class);
+        for (CosmicNivArmorSlot slot : CosmicNivArmorSlot.values()) {
+            leather.put(slot, CosmicNivItem.of("leather_" + slot.configKey()));
+        }
         CosmicNivSettings settings = bundledSettings()
             .withZeroReference(new CosmicNivReference(leather, Map.of(), Map.of()));
         CosmicNivService service = new CosmicNivService(settings);
@@ -330,7 +333,7 @@ class CosmicNivServiceTest {
         Map<String, Double> armor = new LinkedHashMap<>(settings.armorValues());
         armor.put("minecraft:netherite_helmet", 1e308);
         CosmicNivSettings huge = new CosmicNivSettings(settings.maximum(), settings.decimals(), settings.armorWeight(),
-            settings.weaponWeight(), settings.toolWeight(), settings.heldSearch(), settings.curve(),
+            settings.weaponWeight(), settings.toolWeight(), settings.search(), settings.curve(),
             settings.zeroReference(), settings.maxReference(), armor, settings.weaponFamilies(),
             settings.toolFamilies(), settings.enchantmentValues(), settings.customItems());
 
@@ -341,7 +344,7 @@ class CosmicNivServiceTest {
     void aPartWithoutWeightNeverAffectsTheLevel() {
         CosmicNivSettings settings = bundledSettings();
         CosmicNivSettings noTools = new CosmicNivSettings(settings.maximum(), settings.decimals(),
-            settings.armorWeight(), settings.weaponWeight(), 0.0, settings.heldSearch(), settings.curve(),
+            settings.armorWeight(), settings.weaponWeight(), 0.0, settings.search(), settings.curve(),
             settings.zeroReference(), new CosmicNivReference(settings.maxReference().armor(),
                 settings.maxReference().weapons(), Map.of()),
             settings.armorValues(), settings.weaponFamilies(), settings.toolFamilies(), settings.enchantmentValues(),
@@ -354,6 +357,38 @@ class CosmicNivServiceTest {
 
         assertEquals(200.0, result.value());
         assertEquals(0.0, result.toolScore());
+    }
+
+    @Test
+    void theBestPieceOfEachSlotCountsAmongWornAndCarriedArmor() {
+        CosmicNivSettings settings = bundledSettings();
+        CosmicNivItem enchantedDiamond = CosmicNivItem.of("diamond_chestplate", Map.of("protection", 4));
+        CosmicNivResult result = new CosmicNivService(settings).evaluate(CosmicNivLoadout.builder()
+            .armor(CosmicNivArmorSlot.HELMET, CosmicNivItem.of("leather_helmet"))
+            .armor(CosmicNivArmorSlot.HELMET, CosmicNivItem.of("netherite_helmet"))
+            .armor(CosmicNivArmorSlot.HELMET, CosmicNivItem.of("iron_helmet"))
+            .armor(CosmicNivArmorSlot.CHESTPLATE, CosmicNivItem.of("netherite_chestplate"))
+            .armor(CosmicNivArmorSlot.CHESTPLATE, enchantedDiamond)
+            .armor(CosmicNivArmorSlot.BOOTS, CosmicNivItem.of("netherite_sword"))
+            .build());
+
+        assertEquals("minecraft:netherite_helmet", result.armorPieces().get(CosmicNivArmorSlot.HELMET).key());
+        assertEquals(enchantedDiamond, result.armorPieces().get(CosmicNivArmorSlot.CHESTPLATE));
+        assertNull(result.armorPieces().get(CosmicNivArmorSlot.BOOTS));
+        assertEquals(7.0 + 16.0, result.armorPower(), EPSILON);
+    }
+
+    @Test
+    void weaponsAndToolsAreSearchedInTheirOwnLists() {
+        CosmicNivSettings settings = bundledSettings();
+        CosmicNivResult result = new CosmicNivService(settings).evaluate(CosmicNivLoadout.builder()
+            .weapon(CosmicNivItem.of("netherite_pickaxe"))
+            .tool(CosmicNivItem.of("netherite_sword"))
+            .tool(CosmicNivItem.of("iron_pickaxe"))
+            .build());
+
+        assertFalse(result.hasWeapon());
+        assertEquals("minecraft:iron_pickaxe", result.tool().item().key());
     }
 
     @Test

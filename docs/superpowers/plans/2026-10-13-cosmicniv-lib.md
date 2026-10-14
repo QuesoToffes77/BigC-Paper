@@ -24,8 +24,8 @@ New (`src/main/java/dev/linqfy/bigCasares/modules/cosmicniv/`):
 - `CosmicNivCurve.java`, `CosmicNivCurveType.java`: curves.
 - `CosmicNivCustomItem.java`, `CosmicNivCustomMatch.java`, `CosmicNivItemIdentity.java`: custom items.
 - `CosmicNivItem.java`, `CosmicNivLoadout.java`, `CosmicNivArmorSlot.java`, `CosmicNivItemCategory.java`,
-  `CosmicNivReference.java`, `CosmicNivEnchantmentValue.java`, `CosmicNivHeldSearch.java`, `CosmicNivResult.java`,
-  `CosmicNivKeys.java`: value types.
+  `CosmicNivReference.java`, `CosmicNivEnchantmentValue.java`, `CosmicNivSearch.java`, `CosmicNivArmorSearch.java`,
+  `CosmicNivHeldSearch.java`, `CosmicNivResult.java`, `CosmicNivKeys.java`: value types.
 - `BukkitCosmicNivEquipmentReader.java`: `LivingEntity` to loadout.
 - `BukkitCosmicNivKeyAudit.java`: warnings for keys unknown to the server.
 - `CosmicNivCommand.java`: `/cosmicniv`.
@@ -102,7 +102,8 @@ Files: `docs/cosmicniv-lib/README.md`, `README.md`, this plan.
   `CosmicNivSettings`, `CosmicNivSettingsLoader`, `CosmicNivConfigLoadResult`, `CosmicNivCurve`,
   `CosmicNivCurveType`, `CosmicNivCustomItem`, `CosmicNivCustomMatch`, `CosmicNivItemIdentity`, `CosmicNivItem`,
   `CosmicNivLoadout`, `CosmicNivArmorSlot`, `CosmicNivItemCategory`, `CosmicNivReference`,
-  `CosmicNivEnchantmentValue`, `CosmicNivHeldSearch`, `CosmicNivResult`, `CosmicNivKeys`,
+  `CosmicNivEnchantmentValue`, `CosmicNivSearch`, `CosmicNivArmorSearch`, `CosmicNivHeldSearch`, `CosmicNivResult`,
+  `CosmicNivKeys`,
   `BukkitCosmicNivEquipmentReader`, `BukkitCosmicNivKeyAudit`, `CosmicNivCommand`.
 - `src/main/resources/cosmicniv_lib.yml` (how the level is computed) and `src/main/resources/cosmicniv_valores.yml`
   (what everything is worth; reference enchantments from vanilla 26.2 data).
@@ -112,11 +113,12 @@ Files: `docs/cosmicniv-lib/README.md`, `README.md`, this plan.
 
 ### Tests written
 - `CosmicNivCurveTest` (13): curve endpoints, monotonicity, formulas, clamping and invalid parameters.
-- `CosmicNivSettingsLoaderTest` (31): bundled files, defaults, curve types, and every validation error and warning
-  with its file and path (unknown keys, text types, duplicates, limits, references, families, custom items, weight-0
-  parts, MAIN_HAND warning).
-- `CosmicNivServiceTest` (23): 0 and 200 references, weights, tools, families, caps, curses, curves, rounding,
-  weight-0 parts, hand-built limits and the numbers printed in the guide.
+- `CosmicNivSettingsLoaderTest` (32): bundled files, defaults, curve types, the three searches, and every validation
+  error and warning with its file and path (unknown keys, text types, duplicates, limits, references, families, custom
+  items, weight-0 parts, MAIN_HAND warning).
+- `CosmicNivServiceTest` (25): 0 and 200 references, weights, tools, families, best armor piece per slot, separate
+  weapon and tool candidates, caps, curses, curves, rounding, weight-0 parts, hand-built limits and the numbers printed
+  in the guide.
 - `CosmicNivCustomItemTest` (8): custom item recognition (catalog id, item model, persistent data, material), first
   match wins, where custom armor and tools count, invalid definitions.
 - `CosmicNivModuleWiringTest` (8): stable id, availability, settings carried across reloads, bundled files,
@@ -127,14 +129,17 @@ How to run the tests for this module:
 ```
 ./gradlew test --tests "dev.linqfy.bigCasares.modules.cosmicniv.*"
 ```
-Expected result: all tests pass, no failures. Full `./gradlew clean build`: BUILD SUCCESSFUL, 1061 tests, 0
-failures.
+Expected result: all tests pass, no failures. Full `./gradlew clean build` (with `main` merged, including
+Celular): BUILD SUCCESSFUL, 1100 tests, 0 failures.
 
 ### Deviations from plan
 - No `CosmicNivStorage` / `YamlCosmicNivStorage` / `CosmicNivListener`: the level is computed on demand and nothing
   is persisted or listened to, so the GUIDELINES storage and listener classes do not apply.
 - The values moved from `cosmicniv_lib.yml` to a dedicated `cosmicniv_valores.yml`, tools were added as a third part
   (weight 0 by default) and custom items were added, at the user's request.
+- Also at the user's request: armor takes the best piece per slot among the worn and the carried ones
+  (`armor-search`), and weapons and tools have their own searches (`weapon-search` defaults to the hotbar,
+  `tool-search` to the whole inventory). They replace the single `held-search` key.
 - Review fixes: minimum curve strength, ±1,000,000 limits (also enforced for hand-built settings), unknown keys and
   duplicate keys are errors, text-only match values, weapons never count as armor, enchantments summed in key order,
   settings carried across `/bigcasares reload`, weight-0 parts need no references and never affect the level,

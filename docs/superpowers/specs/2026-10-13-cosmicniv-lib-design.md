@@ -23,7 +23,8 @@ In scope:
   0–200 definition above holds; admins can give them weight.
 - Custom items recognized by BigCasares catalog id (`bigcasares:item_id`), `item_model` component, string persistent
   data (key, optionally value) and/or material, each with its own value, category and family.
-- Reading armor and held items from a `LivingEntity` (players use their hotbar/inventory, mobs their equipment).
+- Reading armor, weapons and tools from a `LivingEntity` (players: worn armor plus carried pieces, hotbar and
+  inventory; mobs: their equipment).
 - Public API on `CosmicNivModule` for other modules.
 - `/cosmicniv [jugador]`, `/cosmicniv curva` and `/cosmicniv reload`.
 - A Spanish user guide: `docs/cosmicniv-lib/README.md`.
@@ -46,9 +47,11 @@ P(item) = 0                                                      otherwise
 Enchantment points are summed in key order so the result does not depend on the order Bukkit returns them.
 
 Every valued item lives in exactly one place: `armor`, one weapon family, one tool family or `custom-items`. Armor
-only counts in armor slots; weapons and tools only count when held. Custom items are valued under `custom:<id>`.
+only counts as armor; weapons and tools only count as weapons or tools. Custom items are valued under `custom:<id>`.
 
-Armor score, normalized between the references:
+Armor: for each slot the best piece counts among the candidates. With `armor-search: INVENTORY` (default) the
+candidates are the worn piece plus every carried piece (inventory and off hand) whose equipment slot is that slot;
+with `WORN` only the worn piece. The armor score is then normalized between the references:
 
 ```
 A = clamp01( (P_armor − P_armor(zero)) / (P_armor(max) − P_armor(zero)) )
@@ -83,7 +86,8 @@ the max reference is always 200.
 Other rules:
 - Keys accept `netherite_sword` or `minecraft:netherite_sword`; both are normalized to the namespaced lowercase form.
 - Negative enchantment points (curses) are allowed; scores are clamped so they never go below 0.
-- Held search: `MAIN_HAND`, `HANDS`, `HOTBAR` (default) or `INVENTORY`. Mobs always use their two hands.
+- Searches: `armor-search` `WORN` or `INVENTORY` (default); `weapon-search` and `tool-search` `MAIN_HAND`,
+  `HANDS`, `HOTBAR` or `INVENTORY` (defaults `HOTBAR` and `INVENTORY`). Mobs always use their equipment.
 - A part with weight 0 needs no references and scores 0 when its references are missing.
 - Values and points must be within ±1,000,000; keys that collide after normalization are errors.
 - Custom items: the first match in file order wins; every set condition must hold; at least one must be set.
@@ -112,7 +116,8 @@ Other rules:
 - `CosmicNivCurve` (sealed) + `CosmicNivCurveType`: the curves.
 - `CosmicNivCustomItem`, `CosmicNivCustomMatch`, `CosmicNivItemIdentity`: custom items and how they are recognized.
 - Value types: `CosmicNivItem`, `CosmicNivLoadout`, `CosmicNivArmorSlot`, `CosmicNivItemCategory`,
-  `CosmicNivReference`, `CosmicNivEnchantmentValue`, `CosmicNivHeldSearch`, `CosmicNivResult`, `CosmicNivKeys`.
+  `CosmicNivReference`, `CosmicNivEnchantmentValue`, `CosmicNivSearch`, `CosmicNivArmorSearch`,
+  `CosmicNivHeldSearch`, `CosmicNivResult`, `CosmicNivKeys`.
 - `BukkitCosmicNivEquipmentReader`: converts a `LivingEntity` into a `CosmicNivLoadout`, reading material,
   `bigcasares:item_id`, `item_model` and the persistent data keys custom items ask for.
 - `BukkitCosmicNivKeyAudit`: warns about item and enchantment keys that do not exist on the server.
@@ -133,7 +138,9 @@ modules:
 ```yaml
 output: { maximum: 200.0, decimals: 1 }
 weights: { armor: 0.6, weapon: 0.4, tool: 0.0 }
-held-search: HOTBAR
+armor-search: INVENTORY
+weapon-search: HOTBAR
+tool-search: INVENTORY
 curve: { type: LINEAR, strength: 3.0, exponent: 2.0, midpoint: 0.5, points: [[0, 0], [0.5, 0.3], [1, 1]] }
 references:
   zero: { armor: {}, weapons: {}, tools: {} }
