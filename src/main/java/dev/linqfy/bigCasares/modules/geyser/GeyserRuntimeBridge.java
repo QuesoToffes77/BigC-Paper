@@ -3,7 +3,6 @@ package dev.linqfy.bigCasares.modules.geyser;
 import dev.linqfy.bigCasares.platform.ClientEntityPresentationRegistry;
 import org.geysermc.cumulus.form.SimpleForm;
 import org.geysermc.cumulus.util.FormImage;
-import org.geysermc.event.subscribe.Subscribe;
 import org.geysermc.geyser.api.GeyserApi;
 import org.geysermc.geyser.api.event.EventRegistrar;
 import org.geysermc.geyser.api.entity.custom.CustomEntityDefinition;
@@ -40,7 +39,13 @@ public final class GeyserRuntimeBridge implements GeyserApiFacade, EventRegistra
         this.api = GeyserApi.api();
         this.settings = settings;
         this.formResponses = new GeyserFormResponseDispatcher(mainThreadExecutor);
-        this.api.eventBus().register(this, this);
+        // Subscribed one by one instead of registering annotated handlers: Floodgate ships its own unrelocated
+        // copy of org.geysermc.event, and when this plugin resolves @Subscribe from it Geyser ignores every annotated
+        // method, so nothing (pack, items, entities) ever reached Geyser.
+        this.api.eventBus().subscribe(this, GeyserDefineResourcePacksEvent.class, this::onDefineResourcePacks);
+        this.api.eventBus().subscribe(this, GeyserDefineEntitiesEvent.class, this::onDefineCustomEntities);
+        this.api.eventBus().subscribe(this, GeyserDefineCustomItemsEvent.class, this::onDefineCustomItems);
+        this.api.eventBus().subscribe(this, ServerSpawnEntityEvent.class, this::onServerSpawnEntity);
         this.subscriptions = new GeyserSubscriptionLifecycle(() -> this.api.eventBus().unregisterAll(this));
     }
 
@@ -118,7 +123,6 @@ public final class GeyserRuntimeBridge implements GeyserApiFacade, EventRegistra
         return true;
     }
 
-    @Subscribe
     public void onDefineResourcePacks(GeyserDefineResourcePacksEvent event) {
         Path pack = resourcePack;
         if (pack != null && Files.isRegularFile(pack)) {
@@ -126,7 +130,6 @@ public final class GeyserRuntimeBridge implements GeyserApiFacade, EventRegistra
         }
     }
 
-    @Subscribe
     public void onDefineCustomEntities(GeyserDefineEntitiesEvent event) {
         registeredEntities.clear();
         for (GeyserCustomEntityDefinition definition : customEntities) {
@@ -137,7 +140,6 @@ public final class GeyserRuntimeBridge implements GeyserApiFacade, EventRegistra
         }
     }
 
-    @Subscribe
     public void onDefineCustomItems(GeyserDefineCustomItemsEvent event) {
         for (GeyserCustomItemDefinition definition : customItems) {
             CustomItemDefinition geyserDefinition = CustomItemDefinition.builder(
@@ -152,7 +154,6 @@ public final class GeyserRuntimeBridge implements GeyserApiFacade, EventRegistra
         }
     }
 
-    @Subscribe
     public void onServerSpawnEntity(ServerSpawnEntityEvent event) {
         ClientEntityPresentationRegistry.find(event.uuid()).ifPresent(presentation ->
             customEntities.stream()

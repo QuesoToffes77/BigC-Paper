@@ -28,6 +28,7 @@ import dev.linqfy.bigCasares.modules.airdrop.AirdropModule;
 import dev.linqfy.bigCasares.modules.acidrain.AcidRainModule;
 import dev.linqfy.bigCasares.modules.bloodmoon.BloodMoonModule;
 import dev.linqfy.bigCasares.modules.jeremy.JeremyModule;
+import dev.linqfy.bigCasares.modules.celular.CelularModule;
 import dev.linqfy.bigCasares.modules.mobscaling.MobScalingModule;
 import dev.linqfy.bigCasares.modules.grapplinghook.GrapplingHookModule;
 import dev.linqfy.bigCasares.modules.glider.GliderModule;
@@ -86,6 +87,7 @@ public final class BigCasares extends JavaPlugin {
     private BloodMoonModule bloodMoonModule;
     private JeremyModule jeremyModule;
     private CosmicNivModule cosmicNivModule;
+    private CelularModule celularModule;
     private GrapplingHookModule grapplingHookModule;
     private GliderModule gliderModule;
     private MobScalingModule mobScalingModule;
@@ -212,6 +214,10 @@ public final class BigCasares extends JavaPlugin {
         return cosmicNivModule;
     }
 
+    public CelularModule getCelularModule() {
+        return celularModule;
+    }
+
     public MobScalingModule getMobScalingModule() {
         return mobScalingModule;
     }
@@ -334,6 +340,7 @@ public final class BigCasares extends JavaPlugin {
         this.acidRainModule = new AcidRainModule(this, javaModels);
         this.bloodMoonModule = new BloodMoonModule(this, this::acidRainEventActive);
         this.jeremyModule = new JeremyModule(this);
+        this.celularModule = new CelularModule(this);
         this.grapplingHookModule = new GrapplingHookModule(this, javaModels);
         this.gliderModule = new GliderModule(this);
         this.mobScalingModule = new MobScalingModule(this);
@@ -389,6 +396,7 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(acidRainModule);
         moduleManager.register(bloodMoonModule);
         moduleManager.register(jeremyModule);
+        moduleManager.register(celularModule);
         moduleManager.register(shopModule);
         moduleManager.register(pveBossModule);
         moduleManager.register(geyserIntegrationModule);

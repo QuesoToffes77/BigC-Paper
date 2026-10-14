@@ -57,6 +57,11 @@ commands:
     description: Show the CosmicNiv equipment level (0-200), preview the curve or reload cosmicniv_lib.yml
     usage: /<command> [jugador|curva|reload]
     aliases: [ cniv ]
+  celular:
+    description: Give a Celular (the phone that plays videos)
+    usage: /<command> give [player]
+    permission: bigcasares.celular.admin
+    aliases: [ celu ]
   glider:
     description: Give one of the six BigCasares Glider tiers
     usage: /<command> give <1-6> [player] [amount]
@@ -161,6 +166,7 @@ permissions:
       bigcasares.jeremy.start: true
       bigcasares.jeremy.stop: true
       bigcasares.cosmicniv.admin: true
+      bigcasares.celular.admin: true
       bigcasares.glider.admin: true
       bigcasares.glider.give: true
 
@@ -314,6 +320,10 @@ permissions:
     children:
       bigcasares.cosmicniv.check: true
       bigcasares.cosmicniv.check.others: true
+
+  bigcasares.celular.admin:
+    description: Give Celular phones with /celular give
+    default: op
 
   bigcasares.glider.admin:
     description: Full Glider administration

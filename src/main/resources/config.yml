@@ -16,6 +16,8 @@ modules:
   # Nivel de equipo 0-200. Se configura en plugins/BigCasares/cosmicniv_lib.yml
   cosmicniv-lib:
     enabled: true
+  celular:
+    enabled: true
   grappling-hook:
     enabled: true
   glider:
@@ -41,6 +43,14 @@ modules:
   moderation-system:
     enabled: true
   discord-integration:
+    enabled: true
+
+celular:
+  # Receta: 8 lingotes de hierro alrededor y 1 vidrio en el medio.
+  recipe:
+    enabled: true
+  # El primer cofre que se abre en cada aldea trae un celu.
+  village-loot:
     enabled: true
 
 server-control-system:
