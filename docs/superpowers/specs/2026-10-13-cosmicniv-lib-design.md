@@ -1,0 +1,163 @@
+# CosmicNiv Lib Module Design
+
+## Objective
+
+`cosmicniv_lib` is a shared BigCasares library that turns what a player (or any mob) is wearing and carrying into a
+single equipment level between 0 and 200. Other modules (events, bosses, mob scaling, missions...) read that number
+through `BigCasares#getCosmicNivModule()` instead of each one inventing its own gear formula.
+
+- **0** is the "zero reference": by default a player with absolutely nothing.
+- **200** is the "max reference": by default full netherite armor with every useful enchantment plus one fully
+  enchanted weapon of any of the five weapon families (sword, axe, mace, spear, trident).
+
+Everything is tuned without code from two files in the data folder:
+- `cosmicniv_lib.yml`: how the level is computed (output, weights, held search, curve, references).
+- `cosmicniv_valores.yml`: what everything is worth (armor values, weapon and tool families with their item values,
+  enchantment values and custom items).
+
+## Scope
+
+In scope:
+- The math model (pure Java, no Bukkit) and its two-file loader with validation and a fail-safe fallback.
+- Armor, weapons and tools (pickaxe, shovel, hoe, shears, fishing rod). Tools have weight 0 by default so the
+  0–200 definition above holds; admins can give them weight.
+- Custom items recognized by BigCasares catalog id (`bigcasares:item_id`), `item_model` component, string persistent
+  data (key, optionally value) and/or material, each with its own value, category and family.
+- Reading armor and held items from a `LivingEntity` (players use their hotbar/inventory, mobs their equipment).
+- Public API on `CosmicNivModule` for other modules.
+- `/cosmicniv [jugador]`, `/cosmicniv curva` and `/cosmicniv reload`.
+- A Spanish user guide: `docs/cosmicniv-lib/README.md`.
+
+Out of scope:
+- Changing how any existing module computes power (Jeremy, mob scaling, danger). They can migrate later.
+- Persisting levels, leaderboards or history (GUIDELINES: no global statistics unless scoped). There is no Storage.
+- Durability, potion effects, attribute modifiers, bows and crossbows (bows can be added as a weapon family).
+- PlaceholderAPI placeholders.
+
+## Confirmed rules
+
+Item power of an item with key `k` and enchantments `{e: level}`:
+
+```
+P(item) = value(k) + Σ points(e) · min(level, maxLevel(e))      if k has a value in cosmicniv_valores.yml
+P(item) = 0                                                      otherwise
+```
+
+Enchantment points are summed in key order so the result does not depend on the order Bukkit returns them.
+
+Every valued item lives in exactly one place: `armor`, one weapon family, one tool family or `custom-items`. Armor
+only counts in armor slots; weapons and tools only count when held. Custom items are valued under `custom:<id>`.
+
+Armor score, normalized between the references:
+
+```
+A = clamp01( (P_armor − P_armor(zero)) / (P_armor(max) − P_armor(zero)) )
+```
+
+Weapon score W and tool score T: every held weapon (tool) belongs to one family `φ`, is normalized against its own
+family's references and the best one wins (0 when there is none):
+
+```
+N(item) = clamp01( (P(item) − P_φ(zero)) / (P_φ(max) − P_φ(zero)) )
+```
+
+Combined progress, curve and output:
+
+```
+t     = (wArmor · A + wWeapon · W + wTool · T) / (wArmor + wWeapon + wTool)
+level = maximum · f(t)                     maximum = 200 by default
+```
+
+`f` is the configured curve. Every curve satisfies `f(0) = 0` and `f(1) = 1`, so the zero reference is always 0 and
+the max reference is always 200.
+
+| Curve | f(t) | Parameters |
+|---|---|---|
+| `LINEAR` | `t` | — |
+| `EXPONENTIAL` | `(e^(k·t) − 1) / (e^k − 1)` | `strength` k, 1e-6 ≤ abs(k) ≤ 50 (k > 0 slow start) |
+| `LOGARITHMIC` | `ln(1 + k·t) / ln(1 + k)` | `strength` k in [1e-6, 1e6] (fast start) |
+| `POWER` | `t^p` | `exponent` p in (0, 100] |
+| `SIGMOID` | logistic normalized to [0,1] | `strength` k in [1e-6, 100], `midpoint` m in (0,1) |
+| `POINTS` | piecewise linear | `points`, x strictly increasing from 0 to 1, y non-decreasing, first y 0, last y 1 |
+
+Other rules:
+- Keys accept `netherite_sword` or `minecraft:netherite_sword`; both are normalized to the namespaced lowercase form.
+- Negative enchantment points (curses) are allowed; scores are clamped so they never go below 0.
+- Held search: `MAIN_HAND`, `HANDS`, `HOTBAR` (default) or `INVENTORY`. Mobs always use their two hands.
+- A part with weight 0 needs no references and scores 0 when its references are missing.
+- Values and points must be within ±1,000,000; keys that collide after normalization are errors.
+- Custom items: the first match in file order wins; every set condition must hold; at least one must be set.
+- Default reference enchantments follow the vanilla 26.2 data (`data/minecraft/enchantment/*.json` and the
+  `enchantable/*` item tags) so every max reference can be obtained in survival:
+  - sword: sharpness, fire aspect, knockback, looting, sweeping edge;
+  - axe: sharpness, efficiency, fortune;
+  - mace: density, wind burst, fire aspect;
+  - spear: sharpness, lunge, fire aspect, knockback, looting;
+  - trident: impaling, loyalty, channeling;
+  - pickaxe, shovel, hoe: efficiency, fortune;
+  - shears: efficiency;
+  - fishing rod: luck of the sea, lure;
+  - and unbreaking III plus mending on all of them.
+- Validation errors are reported as `<file> > <yaml path>: <message>`. When the installed files are invalid, the
+  module keeps the last valid settings (carried across `/bigcasares reload`, which builds a new module instance) or,
+  if there never were any, the bundled defaults. Unknown item or enchantment keys only produce warnings.
+
+## Architecture
+
+- `CosmicNivModule`: the `PluginModule`. Copies both files, loads them with the fallback, binds the command and
+  exposes the API (`evaluate`, `level`, `readLoadout`, `isAvailable`, `maximum`, `service`).
+- `CosmicNivService`: the model and custom item recognition (`identify`). No Bukkit.
+- `CosmicNivSettings` + `CosmicNivSettingsLoader` + `CosmicNivConfigLoadResult`: immutable settings, parsing of both
+  files, errors and warnings.
+- `CosmicNivCurve` (sealed) + `CosmicNivCurveType`: the curves.
+- `CosmicNivCustomItem`, `CosmicNivCustomMatch`, `CosmicNivItemIdentity`: custom items and how they are recognized.
+- Value types: `CosmicNivItem`, `CosmicNivLoadout`, `CosmicNivArmorSlot`, `CosmicNivItemCategory`,
+  `CosmicNivReference`, `CosmicNivEnchantmentValue`, `CosmicNivHeldSearch`, `CosmicNivResult`, `CosmicNivKeys`.
+- `BukkitCosmicNivEquipmentReader`: converts a `LivingEntity` into a `CosmicNivLoadout`, reading material,
+  `bigcasares:item_id`, `item_model` and the persistent data keys custom items ask for.
+- `BukkitCosmicNivKeyAudit`: warns about item and enchantment keys that do not exist on the server.
+- `CosmicNivCommand`: `/cosmicniv`.
+
+## Config shape
+
+`config.yml`:
+
+```yaml
+modules:
+  cosmicniv-lib:
+    enabled: true
+```
+
+`cosmicniv_lib.yml`:
+
+```yaml
+output: { maximum: 200.0, decimals: 1 }
+weights: { armor: 0.6, weapon: 0.4, tool: 0.0 }
+held-search: HOTBAR
+curve: { type: LINEAR, strength: 3.0, exponent: 2.0, midpoint: 0.5, points: [[0, 0], [0.5, 0.3], [1, 1]] }
+references:
+  zero: { armor: {}, weapons: {}, tools: {} }
+  max:
+    armor: { helmet: { item: ..., enchantments: { ... } }, chestplate: ..., leggings: ..., boots: ... }
+    weapons: { sword: ..., axe: ..., mace: ..., spear: ..., trident: ... }
+    tools: { pickaxe: ..., shovel: ..., hoe: ..., shears: ..., fishing_rod: ... }
+```
+
+`cosmicniv_valores.yml`:
+
+```yaml
+armor: { netherite_helmet: 7.0, ... }
+weapons: { sword: { netherite_sword: 8.0, ... }, axe: { ... }, mace: { mace: 6.0 }, spear: { ... }, trident: { ... } }
+tools: { pickaxe: { ... }, shovel: { ... }, hoe: { ... }, shears: { shears: 2.0 }, fishing_rod: { fishing_rod: 2.0 } }
+enchantments: { protection: { points-per-level: 1.5, max-level: 4 }, ... }
+custom-items:
+  sahurs_bat: { match: { bigcasares-item: sahurs_bat }, category: weapon, family: sword, value: 9.0 }
+```
+
+## Boundaries
+
+- No changes to `build.gradle` or to other modules' code. The only shared files touched are `BigCasares.java`
+  (field, getter, construction, registration), `config.yml`, `plugin.yml` and `README.md`.
+- The catalog id is read straight from the item's persistent data (`bigcasares:item_id`); no catalog classes are
+  imported.
+- No persistence and no scheduled tasks. The level is computed on demand on the main thread.
