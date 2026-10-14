@@ -63,7 +63,7 @@ Todas usan pan como moneda.
 
 - **Común**: camina por ahí. Cuando alguien se le acerca a menos de 15 bloques, dice un audio.
 - **Gordito**: tiene intercambios de pan y además guarda un secreto (ver abajo).
-- **Salsero**: sigue a los jugadores. Si le ganás la batalla de baile, festeja con un audio y te da 2 diamantes.
+- **Salsero**: sigue a los jugadores. Si le ganás la batalla de baile, festeja con un audio y te da 2 diamantes (desde tu tercera victoria, 1).
   Lleva la cuenta de cuántas batallas le jugaste y cuántas le ganaste, y te la dice antes de empezar. El tiempo
   para cada paso se divide por las veces que ya le ganaste.
 - **Aura 67**: tiene una pollería.

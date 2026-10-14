@@ -147,4 +147,13 @@ class DonPollosDanceBattleTest {
     void salseroPaysTwoDiamondsByDefault() {
         assertEquals(new DonPollosItem("DIAMOND", 2), DonPollosBattleSettings.defaults().reward());
     }
+
+    @Test
+    void onlyTheFirstTwoWinsPayTheFullReward() {
+        DonPollosBattleSettings settings = DonPollosBattleSettings.defaults();
+        assertEquals(2, settings.rewardAmount(1));
+        assertEquals(2, settings.rewardAmount(2));
+        assertEquals(1, settings.rewardAmount(3));
+        assertEquals(1, settings.rewardAmount(50));
+    }
 }

@@ -25,6 +25,14 @@ public record DonPollosBattleSettings(
         }
     }
 
+    /** Cuantas victorias pagan el premio completo; desde la siguiente el Salsero da 1. */
+    public static final int FULL_REWARD_WINS = 2;
+
+    /** Premio de la victoria numero winNumber de ese jugador (1 = la primera). */
+    public int rewardAmount(int winNumber) {
+        return winNumber <= FULL_REWARD_WINS ? reward.amount() : Math.min(1, reward.amount());
+    }
+
     public static DonPollosBattleSettings defaults() {
         return new DonPollosBattleSettings(12, 3, 50, 22, 12, new DonPollosItem("DIAMOND", 2), 16.0);
     }

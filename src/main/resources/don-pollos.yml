@@ -24,7 +24,7 @@ salsero:
     min-window-ticks: 22     # tiempo para cada paso cuando ya casi no le queda vida
                              # (los dos se dividen por las veces que ese jugador ya le gano al Salsero)
     pause-ticks: 12          # pausa entre pasos
-    reward: { material: DIAMOND, amount: 2 }
+    reward: { material: DIAMOND, amount: 2 }   # las primeras 2 victorias de cada jugador; despues da 1
     max-distance: 16.0       # si te alejas mas, la batalla se corta
 
 # Ciudades de Don Pollo: aparecen solas al generar terreno nuevo. El mundo se divide en celdas de

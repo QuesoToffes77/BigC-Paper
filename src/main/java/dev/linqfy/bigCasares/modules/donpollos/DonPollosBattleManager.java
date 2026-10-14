@@ -295,6 +295,7 @@ final class DonPollosBattleManager implements Listener {
         session.over = true;
         int won = count(player, wonKey) + 1;
         setCount(player, wonKey, won);
+        int amount = settings.rewardAmount(won);
         player.sendMessage("§dYa le ganaste §f" + won + "§d de §f" + count(player, playedKey)
             + "§d batallas al Salsero. §7La proxima vas a tener menos tiempo...");
         session.bar.progress(0f);
@@ -323,18 +324,16 @@ final class DonPollosBattleManager implements Listener {
             if (target != null && salsero.isValid()) {
                 salsero.getPathfinder().stopPathfinding();
                 face(salsero, target);
-                throwReward(salsero, target);
+                throwReward(salsero, target, amount);
             } else if (target != null) {
-                target.getInventory().addItem(new ItemStack(Material.valueOf(settings.reward().material()),
-                    settings.reward().amount()));
+                target.getInventory().addItem(new ItemStack(Material.valueOf(settings.reward().material()), amount));
             }
             release(session);
         }, 5L, 5L);
     }
 
-    private void throwReward(Villager salsero, Player player) {
+    private void throwReward(Villager salsero, Player player, int amount) {
         Material material = Material.valueOf(settings.reward().material());
-        int amount = settings.reward().amount();
         player.sendMessage("§d¡El Salsero te tira " + amount + " " + material.name().toLowerCase().replace('_', ' ')
             + "! §7Bien bailado.");
         for (int i = 0; i < amount; i++) {
