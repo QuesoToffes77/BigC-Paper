@@ -22,9 +22,7 @@ import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -56,10 +54,12 @@ final class DonPollosBossAttacks {
     private final DonPollosModelBinder binder;
     private final DonPollosBossSettings settings;
     private final DonPollosBossMinions minions;
-    private final DonPollosBossMeteors meteors = new DonPollosBossMeteors(player -> blame(player, DeathCause.METEOR));
-    private final DonPollosBossShockwaves shockwaves = new DonPollosBossShockwaves(player -> blame(player, DeathCause.SHOCKWAVE));
+    private final DonPollosBossMeteors meteors = new DonPollosBossMeteors(
+        (player, damage) -> special(player, DeathCause.METEOR, damage));
+    private final DonPollosBossShockwaves shockwaves = new DonPollosBossShockwaves(
+        (player, damage) -> special(player, DeathCause.SHOCKWAVE, damage));
     /** Ultimo ataque del boss (o de sus bichos) que recibio cada jugador, para el mensaje de muerte. */
-    private final Map<UUID, Blame> lastHits = new HashMap<>();
+    private final DonPollosBlameLog<DeathCause> blames = new DonPollosBlameLog<>();
 
     DonPollosBossAttacks(JavaPlugin plugin, DonPollosModelBinder binder, DonPollosBossSettings settings,
                          DonPollosBossMinions minions) {
@@ -82,13 +82,13 @@ final class DonPollosBossAttacks {
 
     /** Si el jugador murio por un ataque del boss hace poco, el mensaje de muerte lo dice. */
     void deathMessage(PlayerDeathEvent event) {
-        Blame blame = lastHits.remove(event.getPlayer().getUniqueId());
-        if (blame == null || Bukkit.getCurrentTick() - blame.tick() > BLAME_TICKS) {
+        DeathCause cause = blames.take(event.getPlayer().getUniqueId(), Bukkit.getCurrentTick(), BLAME_TICKS);
+        if (cause == null) {
             return;
         }
         event.deathMessage(Component.text()
             .append(event.getPlayer().displayName().colorIfAbsent(net.kyori.adventure.text.format.NamedTextColor.RED))
-            .append(LEGACY.deserialize(blame.cause().message()))
+            .append(LEGACY.deserialize(cause.message()))
             .build());
     }
 
@@ -226,8 +226,8 @@ final class DonPollosBossAttacks {
             }
             double off = chest.clone().subtract(direction.clone().multiply(along)).length();
             if (off <= BEAM_HIT_RADIUS) {
-                blame(player, DeathCause.BEAM);
-                player.damage(boss.difficulty.damage(settings.phase4().beamDamage()), source);
+                special(player, DeathCause.BEAM,
+                    () -> player.damage(boss.difficulty.damage(settings.phase4().beamDamage()), source));
                 player.setVelocity(direction.clone().setY(0).multiply(2.0).setY(0.5));
             }
         }
@@ -444,8 +444,8 @@ final class DonPollosBossAttacks {
         }
         if ((now - boss.chargeEnd) % 4 == 0) {
             for (Player hitPlayer : DonPollosLaser.victims(hitsPerEye)) {
-                blame(hitPlayer, DeathCause.LASER);
-                hitPlayer.damage(boss.difficulty.damage(settings.laserDamage()), ravager);
+                special(hitPlayer, DeathCause.LASER,
+                    () -> hitPlayer.damage(boss.difficulty.damage(settings.laserDamage()), ravager));
                 hitPlayer.setFireTicks(Math.max(hitPlayer.getFireTicks(), 40));
             }
         }
@@ -492,10 +492,21 @@ final class DonPollosBossAttacks {
     /** Cuanto despues del golpe se le sigue echando la culpa (cubre el fuego del meteorito o del laser). */
     static final long BLAME_TICKS = 100;
 
-    record Blame(DeathCause cause, long tick) {
+    void blame(Player player, DeathCause cause) {
+        blames.blame(player.getUniqueId(), cause, Bukkit.getCurrentTick());
     }
 
-    void blame(Player player, DeathCause cause) {
-        lastHits.put(player.getUniqueId(), new Blame(cause, Bukkit.getCurrentTick()));
+    /** Dano de un ataque especial: anota la causa y corre el dano dentro de su contexto (no cuenta como embestida). */
+    void special(Player player, DeathCause cause, Runnable damage) {
+        blames.special(player.getUniqueId(), cause, Bukkit.getCurrentTick(), damage);
+    }
+
+    /** Embestida real del boss; ignorada mientras se hace el dano de un ataque especial. */
+    boolean ram(Player player) {
+        return blames.ram(player.getUniqueId(), DeathCause.RAM, Bukkit.getCurrentTick());
+    }
+
+    boolean specialInProgress() {
+        return blames.specialInProgress();
     }
 }

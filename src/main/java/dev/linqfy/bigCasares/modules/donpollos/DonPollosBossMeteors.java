@@ -23,7 +23,7 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * Meteoritos del logo de WhatsApp (fase 2 del boss). Salen del auto, suben un poco y caen donde estaba
@@ -45,9 +45,9 @@ final class DonPollosBossMeteors {
 
     private final List<Meteor> meteors = new ArrayList<>();
     /** Se llama con cada jugador que alcanza una explosion (para el mensaje de muerte). */
-    private final Consumer<Player> onHit;
+    private final BiConsumer<Player, Runnable> onHit;
 
-    DonPollosBossMeteors(Consumer<Player> onHit) {
+    DonPollosBossMeteors(BiConsumer<Player, Runnable> onHit) {
         this.onHit = onHit;
     }
 
@@ -118,11 +118,11 @@ final class DonPollosBossMeteors {
         private final Vector position;
         private final Vector velocity;
         private final double damage;
-        private final Consumer<Player> onHit;
+        private final BiConsumer<Player, Runnable> onHit;
         private int age;
 
         private Meteor(ItemDisplay display, LivingEntity source, Vector position, Vector velocity, double damage,
-                       Consumer<Player> onHit) {
+                       BiConsumer<Player, Runnable> onHit) {
             this.display = display;
             this.source = source;
             this.position = position;
@@ -180,8 +180,7 @@ final class DonPollosBossMeteors {
             for (Player player : world.getPlayers()) {
                 if (canBeHit(player)
                     && player.getLocation().add(0, 0.9, 0).distanceSquared(at) <= BLAST_RADIUS * BLAST_RADIUS) {
-                    onHit.accept(player);
-                    player.damage(damage, source);
+                    onHit.accept(player, () -> player.damage(damage, source));
                     player.setFireTicks(Math.max(player.getFireTicks(), 60));
                 }
             }

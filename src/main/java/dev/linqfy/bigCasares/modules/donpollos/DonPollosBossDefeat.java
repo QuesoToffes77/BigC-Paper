@@ -39,6 +39,7 @@ final class DonPollosBossDefeat implements Listener {
     /** Lo que dice cuando le ganas, una frase cada {@link #PHRASE_TICKS}. */
     private static final List<String> DEFEAT_PHRASES = DonPollosReward.DEFEAT_PHRASES;
     static final int PHRASE_TICKS = 60;
+    private static final List<DonPollosBossPhase> PHASES = DonPollosBossPhase.defaults();
 
     private final JavaPlugin plugin;
     private final DonPollosSounds sounds;
@@ -52,6 +53,11 @@ final class DonPollosBossDefeat implements Listener {
     private final NamespacedKey bossWinsKey;
     /** En el boss derrotado: UUID de quien le gano ("" si no se sabe). */
     private final NamespacedKey defeatedKey;
+    /** En el boss derrotado: el premio ya se cobro (se guarda antes de entregarlo, para que un reinicio no deje cobrar de nuevo). */
+    private final NamespacedKey claimedKey;
+    private final DonPollosClaimLedger ledger;
+    /** Golpes recibidos por boss: la correccion de fase de 1 tick solo vale si no hubo otro golpe en el medio. */
+    private final Map<UUID, Integer> hitSerial = new java.util.HashMap<>();
     private final DonPollosKfcBucket bucket;
     private final DonPollosRewardMenu rewardMenu;
 
@@ -67,6 +73,9 @@ final class DonPollosBossDefeat implements Listener {
         this.untrack = untrack;
         this.bossWinsKey = new NamespacedKey(plugin, "boss_ganadas");
         this.defeatedKey = new NamespacedKey(plugin, "don_pollo_boss_derrotado");
+        this.claimedKey = new NamespacedKey(plugin, "don_pollo_boss_cobrado");
+        this.ledger = new DonPollosClaimLedger(
+            new java.io.File(plugin.getDataFolder(), "data/don-pollos/premios-cobrados.yml"), plugin.getLogger());
         this.bucket = new DonPollosKfcBucket(plugin);
         this.rewardMenu = new DonPollosRewardMenu(bucket, this::claimReward);
     }
@@ -99,6 +108,14 @@ final class DonPollosBossDefeat implements Listener {
     /** Un boss que ya estaba derrotado (se recargo el chunk o el servidor): sigue llorando con el menu listo. */
     void restore(DonPollosBoss boss) {
         Ravager ravager = boss.ravager;
+        if (DonPollosBossClaims.restore(ravager.getPersistentDataContainer(), defeatedKey, claimedKey, ledger,
+            ravager.getUniqueId()) == DonPollosBossClaims.Restore.CLAIMED) {
+            // ya cobro el premio: no se ofrece otra vez, el boss se retira (la despedida es solo visual)
+            untrack.accept(ravager.getUniqueId());
+            ravager.remove();
+            ledger.remove(ravager.getUniqueId());
+            return;
+        }
         String winner = ravager.getPersistentDataContainer().get(defeatedKey, PersistentDataType.STRING);
         if (winner != null) {
             long done = Bukkit.getCurrentTick() - (long) DEFEAT_PHRASES.size() * PHRASE_TICKS - 40;
@@ -133,9 +150,37 @@ final class DonPollosBossDefeat implements Listener {
             boss.ravager.getWorld().spawnParticle(Particle.DUST, boss.ravager.getLocation().add(0, 1.55 * scale(boss.ravager), 0),
                 20, 1.5, 1.5, 1.5, 0, new Particle.DustOptions(Color.fromRGB(120, 200, 255), 1.6f), true);
             boss.ravager.getWorld().playSound(boss.ravager.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1.5f, 0.8f);
-        } else if (event.getFinalDamage() >= boss.ravager.getHealth()) {
-            event.setCancelled(true);
-            startDefeat(boss, killer(event));
+        } else {
+            // las fases no se saltean: un golpe frena en el umbral de la fase que sigue; solo desde la ultima se derrota
+            double health = boss.ravager.getHealth();
+            double max = boss.ravager.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
+            double finalDamage = event.getFinalDamage();
+            double allowed = DonPollosBossPhase.allowedDamage(PHASES, max, health, finalDamage);
+            UUID id = boss.ravager.getUniqueId();
+            int serial = hitSerial.merge(id, 1, Integer::sum);
+            if (allowed < finalDamage && finalDamage > 0) {
+                event.setDamage(event.getDamage() * allowed / finalDamage);
+                finalDamage = event.getFinalDamage();
+                if (finalDamage < health) {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> fixOvershoot(boss, id, serial, max, health), 1L);
+                }
+            }
+            if (finalDamage >= health) {
+                event.setCancelled(true);
+                startDefeat(boss, killer(event));
+            }
+        }
+    }
+
+    /** Red de seguridad: si con armadura o absorcion el golpe freno mas abajo del umbral, devuelve la vida a su lugar. */
+    private void fixOvershoot(DonPollosBoss boss, UUID id, int serial, double max, double healthBefore) {
+        if (bosses.get(id) != boss || boss.defeat != null || !boss.ravager.isValid()
+            || hitSerial.getOrDefault(id, 0) != serial) {
+            return;
+        }
+        double fixed = DonPollosBossPhase.overshootFix(PHASES, max, healthBefore, boss.ravager.getHealth());
+        if (!Double.isNaN(fixed)) {
+            boss.ravager.setHealth(Math.min(max, fixed));
         }
     }
 
@@ -276,7 +321,9 @@ final class DonPollosBossDefeat implements Listener {
     /** Al reclamar el premio: el Don Pollo se va llorando. Devuelve false si ya se reclamo. */
     boolean claimReward(Player player, UUID bossId) {
         DonPollosBoss boss = bosses.get(bossId);
-        if (boss == null || boss.defeat == null || !boss.defeat.tryClaim(player.getUniqueId())) {
+        if (boss == null || boss.defeat == null || !boss.ravager.isValid()
+            || !DonPollosBossClaims.claim(boss.defeat, player.getUniqueId(),
+            boss.ravager.getPersistentDataContainer(), claimedKey, ledger, bossId)) {
             return false;
         }
         Bukkit.getScheduler().runTaskLater(plugin, () -> farewell(boss, player), 20L);
@@ -294,6 +341,7 @@ final class DonPollosBossDefeat implements Listener {
         Bukkit.broadcast(LEGACY.deserialize("§6§l¡" + player.getName() + " le gano al Don Pollo Boss! §7Se fue llorando..."));
         untrack.accept(ravager.getUniqueId());
         ravager.remove();
+        ledger.remove(ravager.getUniqueId());
     }
 
     /** Cuantas veces le gano este jugador al boss (guardado en el jugador). */

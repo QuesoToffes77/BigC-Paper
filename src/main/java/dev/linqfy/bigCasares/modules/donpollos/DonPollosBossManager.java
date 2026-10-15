@@ -151,7 +151,30 @@ final class DonPollosBossManager implements Listener {
      * La dificultad queda guardada en el boss, asi no cambia si se descarga el chunk o se reinicia el servidor.
      */
     Ravager spawn(Location location, Player summoner) {
-        int level = summoner == null ? 0 : defeat.bossWins(summoner);
+        return spawn(location, summoner == null ? 0 : defeat.bossWins(summoner), summoner);
+    }
+
+    /** Cuantas veces le gano este jugador al boss (para guardarlo al poner el bloque del secreto). */
+    int bossWins(Player player) {
+        return defeat.bossWins(player);
+    }
+
+    /**
+     * Sale con el nivel mas alto entre las victorias de quien lo invoco ({@code summonerWins}, ya leidas cuando puso
+     * el bloque: sirve aunque se haya desconectado) y las de cada jugador conectado a menos de {@code BAR_RADIUS}.
+     * {@code summonerIfOnline} solo recibe el mensaje si sigue conectado.
+     */
+    Ravager spawn(Location location, int summonerWins, Player summonerIfOnline) {
+        List<Integer> nearbyWins = new ArrayList<>();
+        for (Player player : location.getWorld().getPlayers()) {
+            if (attackable(player) && player.getLocation().distanceSquared(location) <= BAR_RADIUS * BAR_RADIUS) {
+                nearbyWins.add(defeat.bossWins(player));
+            }
+        }
+        return spawnAtLevel(location, DonPollosBossLevels.levelFor(summonerWins, nearbyWins), summonerIfOnline);
+    }
+
+    private Ravager spawnAtLevel(Location location, int level, Player summoner) {
         DonPollosBossDifficulty difficulty = new DonPollosBossDifficulty(level);
         Ravager ravager = location.getWorld().spawn(location, Ravager.class, boss -> {
             boss.getPersistentDataContainer().set(bossKey, PersistentDataType.BYTE, (byte) 1);
@@ -411,9 +434,13 @@ final class DonPollosBossManager implements Listener {
     @EventHandler
     public void onMelee(EntityDamageByEntityEvent event) {
         if (isBoss(event.getDamager())) {
+            if (attacks.specialInProgress()) {
+                // dano de un ataque a distancia (laser, meteorito, rayo, onda): no es una embestida
+                return;
+            }
             binder.playOnce(event.getDamager().getUniqueId(), "golpe", () -> { });
             if (event.getEntity() instanceof Player player) {
-                attacks.blame(player, DonPollosBossAttacks.DeathCause.RAM);
+                attacks.ram(player);
             }
         } else if (event.getEntity() instanceof Player player) {
             minions.kind(event.getDamager()).ifPresent(kind -> attacks.blame(player, switch (kind) {

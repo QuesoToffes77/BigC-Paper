@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * Ondas expansivas del mega salto del Don Pollo Boss (FASE FINAL): los bloques pegados a la caida salen
@@ -37,9 +37,9 @@ final class DonPollosBossShockwaves {
     private static final int MAX_FLYING_BLOCKS = 18;
 
     private final List<Wave> waves = new ArrayList<>();
-    private final Consumer<Player> onHit;
+    private final BiConsumer<Player, Runnable> onHit;
 
-    DonPollosBossShockwaves(Consumer<Player> onHit) {
+    DonPollosBossShockwaves(BiConsumer<Player, Runnable> onHit) {
         this.onHit = onHit;
     }
 
@@ -158,8 +158,8 @@ final class DonPollosBossShockwaves {
                     continue;
                 }
                 hit.add(player.getUniqueId());
-                onHit.accept(player);
-                player.damage(damageAt(distance, radius, maxDamage), source);
+                double hurt = damageAt(distance, radius, maxDamage);
+                onHit.accept(player, () -> player.damage(hurt, source));
                 Vector push = feet.toVector().subtract(center.toVector()).setY(0);
                 if (push.lengthSquared() > 1e-4) {
                     push.normalize().multiply(0.6);

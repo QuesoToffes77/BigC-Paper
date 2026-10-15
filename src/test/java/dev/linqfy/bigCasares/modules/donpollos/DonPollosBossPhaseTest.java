@@ -77,4 +77,39 @@ class DonPollosBossPhaseTest {
         assertThrows(IllegalArgumentException.class, () -> phase(1, 1, "volar"));
         assertThrows(IllegalArgumentException.class, () -> DonPollosBossPhase.forHealth(List.of(), 1));
     }
+
+    @Test
+    void phasesCannotBeSkippedByOneBigHit() {
+        List<DonPollosBossPhase> phases = DonPollosBossPhase.defaults();
+        double health = 600;
+        double[] expectedPhase = {2, 3, 4};
+        for (double phase : expectedPhase) {
+            double allowed = DonPollosBossPhase.allowedDamage(phases, 600, health, 1000);
+            health -= allowed;
+            assertEquals((int) phase, DonPollosBossPhase.forHealth(phases, health / 600).number());
+        }
+        assertTrue(health > 0 && health <= 150 + 1e-6);
+    }
+
+    @Test
+    void firstHitStopsAtTheNextThreshold() {
+        double allowed = DonPollosBossPhase.allowedDamage(DonPollosBossPhase.defaults(), 600, 600, 1000);
+        assertEquals(150, allowed, 0.01);
+    }
+
+    @Test
+    void smallHitsPassUntouchedAndFinalPhaseIsLethal() {
+        List<DonPollosBossPhase> phases = DonPollosBossPhase.defaults();
+        assertEquals(10, DonPollosBossPhase.allowedDamage(phases, 600, 600, 10));
+        assertEquals(1000, DonPollosBossPhase.allowedDamage(phases, 600, 100, 1000), "ultima fase: puede matar");
+    }
+
+    @Test
+    void overshootIsPutBackJustBelowTheCappedThreshold() {
+        List<DonPollosBossPhase> phases = DonPollosBossPhase.defaults();
+        double landing = 450 - DonPollosBossPhase.PHASE_EPSILON;
+        assertEquals(landing, DonPollosBossPhase.overshootFix(phases, 600, 600, 300), 1e-9);
+        assertTrue(Double.isNaN(DonPollosBossPhase.overshootFix(phases, 600, 600, landing)));
+        assertTrue(Double.isNaN(DonPollosBossPhase.overshootFix(phases, 600, 100, 10)));
+    }
 }

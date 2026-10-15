@@ -95,6 +95,48 @@ public record DonPollosBossPhase(int number, String title, double startsAt, Stri
         return current;
     }
 
+    /** Cuanto por debajo del umbral queda la vida al frenar un golpe (para que cuente como fase alcanzada). */
+    static final double PHASE_EPSILON = 1e-3;
+
+    /**
+     * Dano que se deja pasar: una fase no se puede saltear, asi que un golpe nunca baja la vida mas alla del
+     * umbral de la fase que sigue (un golpe por fase). Desde la ultima fase no hay tope: ahi se puede derrotar.
+     */
+    public static double allowedDamage(List<DonPollosBossPhase> phases, double maxHealth, double health, double damage) {
+        DonPollosBossPhase current = forHealth(phases, health / maxHealth);
+        DonPollosBossPhase next = null;
+        for (DonPollosBossPhase phase : phases) {
+            if (phase.startsAt() < current.startsAt() && (next == null || phase.startsAt() > next.startsAt())) {
+                next = phase;
+            }
+        }
+        if (next == null) {
+            return damage;
+        }
+        double threshold = next.startsAt() * maxHealth;
+        return Math.min(damage, Math.max(0, health - threshold) + PHASE_EPSILON);
+    }
+
+    /**
+     * Si un golpe frenado en el umbral de la fase siguiente dejo la vida mas abajo (armadura, absorcion), a que vida
+     * volverla: justo debajo de ese umbral. NaN: no hace falta corregir.
+     */
+    public static double overshootFix(List<DonPollosBossPhase> phases, double maxHealth, double healthBefore,
+                                      double healthAfter) {
+        DonPollosBossPhase current = forHealth(phases, healthBefore / maxHealth);
+        DonPollosBossPhase next = null;
+        for (DonPollosBossPhase phase : phases) {
+            if (phase.startsAt() < current.startsAt() && (next == null || phase.startsAt() > next.startsAt())) {
+                next = phase;
+            }
+        }
+        if (next == null) {
+            return Double.NaN;
+        }
+        double landing = next.startsAt() * maxHealth - PHASE_EPSILON;
+        return healthAfter < landing - 1e-6 && healthAfter > 0 ? landing : Double.NaN;
+    }
+
     /**
      * FASE 1: te persigue como un bebe zombie y tira laser. FASE 2 (75%): se aleja y ataca de lejos con
      * meteoritos y gallinas. FASE 3 (50%): se eleva, te hunde el piso y arranca las Batallas del Cubo.

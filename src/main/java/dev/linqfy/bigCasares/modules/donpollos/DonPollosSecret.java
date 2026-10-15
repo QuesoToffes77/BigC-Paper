@@ -362,7 +362,8 @@ final class DonPollosSecret implements Listener {
             return;
         }
         Block block = event.getBlock();
-        rituals.add(new Ritual(block, Bukkit.getCurrentTick(), faceCube(block), event.getPlayer().getUniqueId()));
+        rituals.add(new Ritual(block, Bukkit.getCurrentTick(), faceCube(block), event.getPlayer().getUniqueId(),
+            bosses.bossWins(event.getPlayer())));
         block.getWorld().playSound(block.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 2f, 0.6f);
     }
 
@@ -490,7 +491,8 @@ final class DonPollosSecret implements Listener {
         world.playSound(center, Sound.ENTITY_WITHER_SPAWN, 1.2f, 1.2f);
         sphere(center, 0.5);
         try {
-            bosses.spawn(ritual.block.getLocation().add(0.5, 0, 0.5), Bukkit.getPlayer(ritual.summoner()));
+            bosses.spawn(ritual.block.getLocation().add(0.5, 0, 0.5), ritual.summonerWins(),
+                Bukkit.getPlayer(ritual.summoner()));
         } catch (IllegalStateException cannotSpawn) {
             world.dropItemNaturally(center, secretBlock());
             plugin.getLogger().warning("No se pudo invocar al Don Pollo Boss: " + cannotSpawn.getMessage());
@@ -547,8 +549,11 @@ final class DonPollosSecret implements Listener {
         }
     }
 
-    /** summoner: quien puso el bloque (el boss sale mas fuerte segun cuantas veces ya le gano). */
-    private record Ritual(Block block, long start, ItemDisplay display, UUID summoner) {
+    /**
+     * summoner: quien puso el bloque; summonerWins: sus victorias contra el boss al ponerlo (el boss sale mas fuerte
+     * segun eso, aunque se desconecte durante el ritual).
+     */
+    private record Ritual(Block block, long start, ItemDisplay display, UUID summoner, int summonerWins) {
     }
 
     /** Si se apaga el plugin a mitad de la historia, saca los cubos de la cara (el beacon queda). */
