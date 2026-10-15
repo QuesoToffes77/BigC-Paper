@@ -40,6 +40,18 @@ public enum DonPollosProduct {
         return modelKey;
     }
 
+    /**
+     * Item de vanilla sobre el que va cada producto (el modelo propio va arriba con item_model). Es un switch
+     * completo: al agregar un producto hay que decidir su material aca, y tambien agregarlo en donpollos-geyser.json
+     * bajo ese material para Bedrock (lo revisa DonPollosItemTest).
+     */
+    public String vanillaMaterial() {
+        return switch (this) {
+            case POLLO_FRITO -> "COOKED_CHICKEN";
+            case SALSA, PICANTE -> "COOKIE";
+        };
+    }
+
     public String displayName() {
         return displayName;
     }

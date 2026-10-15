@@ -30,7 +30,7 @@ final class DonPollosItems {
     }
 
     ItemStack create(DonPollosProduct product, int amount) {
-        ItemStack stack = new ItemStack(product == DonPollosProduct.POLLO_FRITO ? Material.COOKED_CHICKEN : Material.COOKIE);
+        ItemStack stack = new ItemStack(Material.valueOf(product.vanillaMaterial()));
         stack.setData(DataComponentTypes.ITEM_MODEL, Key.key(NAMESPACE, product.modelKey()));
         if (product.effect() != null) {
             PotionEffectType type = Registry.EFFECT.getOrThrow(NamespacedKey.minecraft(product.effect()));
