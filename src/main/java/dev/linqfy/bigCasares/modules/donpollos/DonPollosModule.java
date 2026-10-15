@@ -137,6 +137,7 @@ public final class DonPollosModule implements PluginModule {
         try {
             cities = DonPollosCityManager.create(plugin, this::spawn, settings.cities());
             registrations.registerListener("don-pollos-cities", cities);
+            cities.useGuard(registrations::guard);
             cities.start();
         } catch (IOException exception) {
             plugin.getLogger().warning("[Don Pollos] Ciudades desactivadas: " + exception.getMessage());

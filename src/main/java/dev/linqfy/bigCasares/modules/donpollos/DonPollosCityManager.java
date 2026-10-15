@@ -54,8 +54,8 @@ final class DonPollosCityManager implements Listener {
     private final BlockData[][] palette = new BlockData[4][];
     private final Deque<Job> queue = new ArrayDeque<>();
     private BukkitTask task;
-    /** En true desde el apagado: la carga de chunks que termine despues no encola trabajos ni pone tickets. */
-    private volatile boolean stopped;
+    /** Ciclo de vida del modulo: la carga de chunks que termine despues de apagarlo no encola ni pone tickets. */
+    private java.util.function.UnaryOperator<Runnable> guard = java.util.function.UnaryOperator.identity();
 
     private DonPollosCityManager(JavaPlugin plugin, java.util.function.BiConsumer<Location, DonPolloVariant> spawner,
                                  DonPollosCitySettings settings, DonPollosCityTemplate template) {
@@ -76,6 +76,11 @@ final class DonPollosCityManager implements Listener {
             manager.loadStatus();
             return manager;
         }
+    }
+
+    /** Se llama antes de start() con el guard del ciclo de vida del modulo (ver DonPollosChunkLoad). */
+    void useGuard(java.util.function.UnaryOperator<Runnable> guard) {
+        this.guard = guard;
     }
 
     void start() {
@@ -153,9 +158,6 @@ final class DonPollosCityManager implements Listener {
 
     /** Carga (genera) los chunks de la ciudad sin trabar el servidor y despues la encola. */
     private void prepare(World world, DonPollosCityLayout.CityPlan plan, String key, Player notify) {
-        if (stopped) {
-            return;
-        }
         status.put(key, "pendiente");
         saveStatus();
         List<CompletableFuture<Chunk>> chunks = new ArrayList<>();
@@ -164,21 +166,11 @@ final class DonPollosCityManager implements Listener {
                 chunks.add(world.getChunkAtAsync(cx, cz, true));
             }
         }
-        CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new)).whenComplete((ignored, error) -> {
-            if (stopped || !plugin.isEnabled()) {
-                return;  // el modulo se apago mientras cargaban los chunks: queda "pendiente" para el proximo arranque
-            }
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (stopped) {
-                    return;
-                }
-                if (error != null) {
-                    plugin.getLogger().warning("No se pudo cargar el terreno de la ciudad " + key + ": " + error);
-                    return;
-                }
-                enqueue(world, plan, key, notify, chunks.stream().map(CompletableFuture::join).toList());
-            });
-        });
+        // Si el modulo se apaga mientras cargan, no se encola nada: queda "pendiente" para el proximo arranque.
+        DonPollosChunkLoad.whenLoaded(CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new)), guard,
+            task -> Bukkit.getScheduler().runTask(plugin, task),
+            error -> plugin.getLogger().warning("No se pudo cargar el terreno de la ciudad " + key + ": " + error),
+            () -> enqueue(world, plan, key, notify, chunks.stream().map(CompletableFuture::join).toList()));
     }
 
     private void enqueue(World world, DonPollosCityLayout.CityPlan plan, String key, Player notify, List<Chunk> chunks) {
@@ -432,39 +424,32 @@ final class DonPollosCityManager implements Listener {
     // ------------------------------------------------------------ guardado
 
     private void loadStatus() {
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(storageFile);
-        for (String line : yaml.getStringList("ciudades")) {
-            int split = line.lastIndexOf('=');
-            if (split > 0) {
-                String key = line.substring(0, split);
-                // Registros viejos guardados por nombre de mundo: se pasan al identificador unico.
-                World legacy = Bukkit.getWorld(key.substring(0, Math.max(0, key.indexOf(';'))));
-                if (legacy != null) {
-                    key = legacy.getUID() + key.substring(key.indexOf(';'));
-                }
-                status.put(key, line.substring(split + 1));
-            }
+        DonPollosCityStorage.Loaded loaded = DonPollosCityStorage.load(YamlConfiguration.loadConfiguration(storageFile),
+            name -> {
+                World world = Bukkit.getWorld(name);
+                return world == null ? null : world.getUID().toString();
+            });
+        status.putAll(loaded.status());
+        manualPlans.putAll(loaded.manualPlans());
+        for (String problem : loaded.problems()) {
+            plugin.getLogger().warning("[Don Pollos] Ciudades: " + problem + " (se ignora)");
         }
-        for (String line : yaml.getStringList("manuales")) {
-            int split = line.lastIndexOf('=');
-            Optional<DonPollosCityLayout.CityPlan> plan = split > 0
-                ? DonPollosCityRecords.decodePlan(line.substring(split + 1)) : Optional.empty();
-            if (plan.isPresent()) {
-                manualPlans.put(line.substring(0, split), plan.get());
-            } else {
-                plugin.getLogger().warning("[Don Pollos] Ciudad manual con registro invalido, se ignora: " + line);
+        if (storageFile.isFile() && loaded.version() < DonPollosCityStorage.VERSION) {
+            // copia del formato viejo antes de reescribirlo, por las dudas
+            try {
+                java.nio.file.Files.copy(storageFile.toPath(), storageFile.toPath().resolveSibling("ciudades.v1.yml"),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException exception) {
+                plugin.getLogger().warning("No se pudo copiar el ciudades.yml viejo: " + exception.getMessage());
             }
+            saveStatus();
+            plugin.getLogger().info("[Don Pollos] data/don-pollos/ciudades.yml pasado al formato " + DonPollosCityStorage.VERSION + ".");
         }
     }
 
     private void saveStatus() {
         YamlConfiguration yaml = new YamlConfiguration();
-        List<String> lines = new ArrayList<>();
-        status.forEach((key, value) -> lines.add(key + "=" + value));
-        yaml.set("ciudades", lines);
-        List<String> manual = new ArrayList<>();
-        manualPlans.forEach((key, plan) -> manual.add(key + "=" + DonPollosCityRecords.encodePlan(plan)));
-        yaml.set("manuales", manual);
+        DonPollosCityStorage.save(yaml, status, manualPlans);
         try {
             storageFile.getParentFile().mkdirs();
             yaml.save(storageFile);
@@ -475,7 +460,6 @@ final class DonPollosCityManager implements Listener {
 
     /** Al apagar: termina de una lo que se estaba construyendo para no dejar ciudades por la mitad. */
     void shutdown() {
-        stopped = true;
         if (task != null) {
             task.cancel();
         }
