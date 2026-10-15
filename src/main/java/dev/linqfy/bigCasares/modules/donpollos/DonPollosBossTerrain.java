@@ -33,14 +33,18 @@ final class DonPollosBossTerrain implements Listener {
 
     /** Los bosses vivos (el mismo mapa del manager: los cubos de un boss no pueden pisar los de otro). */
     private final Map<UUID, DonPollosBoss> bosses;
+    /** Zonas donde no se cava (los nexus en BigCasares). */
+    private final DonPollosProtection protection;
     /** Aviso al que intenta escaparse del cubo (el texto lo arma el manager: aca no se carga Adventure). */
     private final java.util.function.Consumer<Player> escapeWarning;
     /** Aviso al que intenta poner o romper bloques en el cubo. */
     private final java.util.function.Consumer<Player> buildWarning;
 
-    DonPollosBossTerrain(Map<UUID, DonPollosBoss> bosses, java.util.function.Consumer<Player> escapeWarning,
+    DonPollosBossTerrain(Map<UUID, DonPollosBoss> bosses, DonPollosProtection protection,
+                         java.util.function.Consumer<Player> escapeWarning,
                          java.util.function.Consumer<Player> buildWarning) {
         this.bosses = bosses;
+        this.protection = protection;
         this.escapeWarning = escapeWarning;
         this.buildWarning = buildWarning;
     }
@@ -96,17 +100,81 @@ final class DonPollosBossTerrain implements Listener {
         return boss.pits.stream().anyMatch(pit -> pit.contains(location));
     }
 
+    /**
+     * Si en ese chunk se puede cavar un cubo de este boss: no toca una zona protegida (ni sus paredes) ni el cubo de
+     * otro boss.
+     */
+    private boolean canDig(DonPollosBoss owner, World world, int chunkX, int chunkZ, int bottom, int feet) {
+        return !touchesOtherBossPit(owner, world, chunkX, chunkZ, bottom, feet)
+            && !protection.isProtected(world, chunkX * 16 - 1, chunkX * 16 + 16, bottom - 1, feet,
+                chunkZ * 16 - 1, chunkZ * 16 + 16);
+    }
+
+    /** Si este boss ya tiene un cubo en ese chunk. */
+    private static DonPollosBossPit ownPit(DonPollosBoss owner, World world, int chunkX, int chunkZ) {
+        for (DonPollosBossPit pit : owner.pits) {
+            if (pit.world() == world && pit.chunkX() == chunkX && pit.chunkZ() == chunkZ) {
+                return pit;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Cava el cubo del jugador en su chunk. Si ahi no se puede (zona protegida o el cubo de otro boss), lo cava en el
+     * chunk permitido mas cercano y lo lleva adentro; si ese chunk ya es un cubo de este boss, lo lleva a ese. Si no
+     * hay ninguno cerca, pelea en la superficie (devuelve null).
+     */
     DonPollosBossPit digPit(DonPollosBoss owner, Player player, int depth) {
         if (depth <= 0) {
             return null;
         }
         World world = player.getWorld();
-        Chunk chunk = player.getLocation().getChunk();
-        int feet = player.getLocation().getBlockY();
-        int bottom = pitBottom(feet, depth, world.getMinHeight());
-        if (touchesOtherBossPit(owner, world, chunk.getX(), chunk.getZ(), bottom, feet)) {
-            return null;  // pelea en la superficie: el cubo del otro boss queda intacto
+        Chunk here = player.getLocation().getChunk();
+        int feetHere = player.getLocation().getBlockY();
+        int bottomHere = pitBottom(feetHere, depth, world.getMinHeight());
+        if (canDig(owner, world, here.getX(), here.getZ(), bottomHere, feetHere)) {
+            return dig(world, here, player, feetHere, bottomHere, depth, false);
         }
+        // Su chunk no se puede: el permitido mas cercano. Si no hubo ninguno hace poco, no se busca de nuevo enseguida
+        // (digNewcomers vuelve a intentar cada medio segundo).
+        long now = org.bukkit.Bukkit.getCurrentTick();
+        if (now < noRoomUntil.getOrDefault(player.getUniqueId(), 0L)) {
+            return null;
+        }
+        for (int[] candidate : DonPollosPitPlacement.byDistance(here.getX(), here.getZ(),
+            DonPollosPitPlacement.MAX_SEARCH_CHUNKS)) {
+            int chunkX = candidate[0];
+            int chunkZ = candidate[1];
+            DonPollosBossPit existing = ownPit(owner, world, chunkX, chunkZ);
+            if (existing != null) {
+                moveInto(player, world, chunkX, chunkZ, existing.bottom());
+                return null;  // a un cubo que este boss ya tiene
+            }
+            // descarte barato a la altura del jugador; despues, el chunk de verdad a su propia altura
+            if (!canDig(owner, world, chunkX, chunkZ, bottomHere, feetHere)) {
+                continue;
+            }
+            int feet = world.getHighestBlockYAt(chunkX * 16 + 8, chunkZ * 16 + 8,
+                org.bukkit.HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1;
+            int bottom = pitBottom(feet, depth, world.getMinHeight());
+            if (canDig(owner, world, chunkX, chunkZ, bottom, feet)) {
+                return dig(world, world.getChunkAt(chunkX, chunkZ), player, feet, bottom, depth, true);
+            }
+        }
+        noRoomUntil.put(player.getUniqueId(), now + NO_ROOM_RETRY_TICKS);
+        return null;  // pelea en la superficie: no hay donde cavar cerca
+    }
+
+    /** Despues de no encontrar lugar para un jugador, cuando se vuelve a buscar (5 segundos). */
+    private static final long NO_ROOM_RETRY_TICKS = 100;
+    private final Map<UUID, Long> noRoomUntil = new java.util.HashMap<>();
+
+    /**
+     * Vacia el chunk y le pone paredes y piso. {@code moved}: es otro chunk que el del jugador, asi que lo lleva
+     * adentro; si no se lo puede llevar (otro plugin cancelo el teletransporte), deja el terreno como estaba.
+     */
+    private DonPollosBossPit dig(World world, Chunk chunk, Player player, int feet, int bottom, int depth, boolean moved) {
         List<BlockState> changed = new ArrayList<>();
         for (int y = feet - 1; y >= bottom; y--) {
             for (int x = 0; x < 16; x++) {
@@ -142,7 +210,27 @@ final class DonPollosBossTerrain implements Listener {
         world.spawnParticle(Particle.EXPLOSION_EMITTER, center, 2, 4, 1, 4, 0, null, true);
         world.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 2f, 0.5f);
         world.playSound(player.getLocation(), Sound.BLOCK_ROOTED_DIRT_BREAK, 2f, 0.5f);
+        if (moved) {
+            if (!moveInto(player, world, chunk.getX(), chunk.getZ(), bottom)) {
+                for (BlockState state : DonPollosPitRestore.restoreOrder(List.of(changed))) {
+                    state.update(true, false);
+                }
+                return null;
+            }
+            player.sendMessage("§eAca no se puede cavar (zona protegida): §6tu cubo esta en el chunk mas cercano.");
+        }
         return new DonPollosBossPit(world, chunk.getX(), chunk.getZ(), feet, bottom, changed);
+    }
+
+    /** Lleva al jugador al centro del piso del cubo de ese chunk. */
+    private static boolean moveInto(Player player, World world, int chunkX, int chunkZ, int bottom) {
+        Location at = new Location(world, chunkX * 16 + 8.5, bottom, chunkZ * 16 + 8.5,
+            player.getLocation().getYaw(), player.getLocation().getPitch());
+        if (!player.teleport(at)) {
+            return false;
+        }
+        player.setFallDistance(0);
+        return true;
     }
 
     /** Tapa un hueco (aire, agua, pasto...) de la pared o el piso del cubo, guardando como estaba. */

@@ -80,6 +80,8 @@ final class DonPollosSecret implements Listener {
 
     private final JavaPlugin plugin;
     private final DonPollosItems items;
+    /** Zonas donde no se puede poner el bloque del secreto (los nexus en BigCasares). */
+    private final DonPollosProtection protection;
     /** Sacar y devolver lo que pide el Gordito (lo de inventario, sin Paper: se prueba en DonPollosSecretAltarTest). */
     private final DonPollosSecretAltar altar = new DonPollosSecretAltar(new DonPollosSecretAltar.Goods() {
         @Override
@@ -102,8 +104,10 @@ final class DonPollosSecret implements Listener {
     private BukkitTask task;
     private Consumer<Player> closed = player -> { };
 
-    DonPollosSecret(JavaPlugin plugin, DonPollosItems items, DonPollosBossManager bosses, Consumer<Player> openTrades) {
+    DonPollosSecret(JavaPlugin plugin, DonPollosItems items, DonPollosBossManager bosses, Consumer<Player> openTrades,
+                    DonPollosProtection protection) {
         this.plugin = plugin;
+        this.protection = protection;
         this.items = items;
         this.bosses = bosses;
         this.openTrades = openTrades;
@@ -329,6 +333,7 @@ final class DonPollosSecret implements Listener {
             && stack.getItemMeta().getPersistentDataContainer().has(secretKey, PersistentDataType.BYTE);
     }
 
+    /** Antes de que se ponga: ni en pacifica ni en una zona protegida. */
     @EventHandler(ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
         if (!isSecret(event.getItemInHand())) {
@@ -338,6 +343,22 @@ final class DonPollosSecret implements Listener {
             event.setCancelled(true);
             event.getPlayer().sendMessage(LEGACY.deserialize(
                 "§cEn dificultad pacifica no puede aparecer el Don Pollo Boss. §7Usa /difficulty easy."));
+            return;
+        }
+        if (protection.isProtected(event.getBlock())) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(LEGACY.deserialize(
+                "§cEsta zona esta protegida: el Secreto del Don Pollo no se puede poner aca."));
+        }
+    }
+
+    /**
+     * El ritual arranca solo si el bloque quedo puesto de verdad: en MONITOR, despues de que cualquier plugin de
+     * proteccion (WorldGuard, claims...) pudo cancelar la colocacion.
+     */
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlaced(BlockPlaceEvent event) {
+        if (!isSecret(event.getItemInHand())) {
             return;
         }
         Block block = event.getBlock();

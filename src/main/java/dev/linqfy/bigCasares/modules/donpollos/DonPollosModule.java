@@ -142,11 +142,12 @@ public final class DonPollosModule implements PluginModule {
         } catch (IOException exception) {
             plugin.getLogger().warning("[Don Pollos] Ciudades desactivadas: " + exception.getMessage());
         }
-        bosses = new DonPollosBossManager(plugin, binder, sounds, settings.boss());
+        DonPollosProtection protection = protectedZones();
+        bosses = new DonPollosBossManager(plugin, binder, sounds, settings.boss(), protection);
         registrations.registerListener("don-pollos-bosses", bosses);
         bosses.start();
         secret = new DonPollosSecret(plugin, items, bosses,
-            player -> menus.openTrades(player, settings.variant(DonPolloVariant.GORDITO)));
+            player -> menus.openTrades(player, settings.variant(DonPolloVariant.GORDITO)), protection);
         registrations.registerListener("don-pollos-secret", secret);
         secret.start();
         registrations.scheduleRepeating("don-pollos-salseros", this::tickSalseros, 20L, settings.salseroUpdateTicks());
@@ -201,6 +202,20 @@ public final class DonPollosModule implements PluginModule {
         if (menus != null) {
             menus.closeAll();
         }
+    }
+
+    /**
+     * Zonas protegidas de BigCasares: los volumenes de los nexus. Se consulta en el momento (el modulo de nexus se crea
+     * despues que este y puede estar apagado; apagado, no hay nada que proteger).
+     */
+    private DonPollosProtection protectedZones() {
+        return (world, minX, maxX, minY, maxY, minZ, maxZ) -> {
+            if (!(plugin instanceof dev.linqfy.bigCasares.BigCasares bigCasares)) {
+                return false;
+            }
+            dev.linqfy.bigCasares.modules.nexus.NexusModule nexus = bigCasares.getNexusModule();
+            return nexus != null && nexus.intersectsProtectedVolume(world.getUID(), minX, maxX, minY, maxY, minZ, maxZ);
+        };
     }
 
     private void shutdown() {

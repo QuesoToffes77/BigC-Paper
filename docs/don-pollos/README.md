@@ -75,8 +75,8 @@ Todas usan pan como moneda.
 - **Fino**: tiene un casino de ruleta.
   - Ponés un objeto, elegís rojo, negro o verde y tocás GIRAR.
   - La ruleta tiene 26 casillas. Las chances son rojo 24/50, negro 24/50 y verde 2/50.
-  - Si sale tu color te devuelve el doble; si no, perdés el objeto. Si te desconectás mientras gira, te devuelve la
-    apuesta.
+  - Rojo y negro pagan x2 y verde paga x20; si no sale tu color, perdés el objeto. Si te desconectás mientras gira,
+    se paga igual con el resultado que ya salió (si ganaste cobrás, si perdiste no recuperás nada).
   - Chances y multiplicadores: `fino.roulette`.
 
 Al alejarte, cada uno se despide con su frase, salvo el Común. La primera vez que entrás a una ciudad aparece
@@ -92,6 +92,9 @@ Al alejarte, cada uno se despide con su frase, salvo el Común. La primera vez q
 4. Ponelo en el piso. El bloque cuenta su historia con las fotos del bloque: "Era una vez...", "En el auto...",
    y sigue hasta "Desde ese dia algo cambio en Don Pollo...".
 5. Salen partículas rojas y blancas, explota una esfera y del medio aparece el Don Pollo Boss.
+
+El Secreto no se puede poner en una zona protegida: ni dentro del volumen de un nexus ni donde un plugin de
+protección (WorldGuard, claims...) no te deje construir.
 
 El boss necesita la dificultad en fácil o más alta.
 
@@ -136,6 +139,9 @@ a los jugadores en creativo. Pelea en cuatro fases y cada una arranca con un men
      del cubo no se pueden poner ni romper bloques, y no hay forma de salir: perlas, fruta chorus, comandos de
      teletransporte, elytras, tridente con Corriente y cargas de viento están bloqueados. Si el cubo queda vacío
      30 segundos (por ejemplo, porque todos se desconectaron), se rellena y Don Pollo baja a pelear.
+   - El cubo nunca se cava en una zona protegida (el volumen de un nexus) ni encima del cubo de otro boss: si el chunk
+     del jugador no se puede, se cava en el chunk permitido más cercano (hasta 4 chunks) y se lo lleva adentro. Si no
+     hay ninguno, pelea en la superficie.
    - Empiezan las **Batallas del Cubo**: 3 rondas de 10, 30 y 50 Labubus, con un Coronel por ronda que es cada vez más
      rápido y fuerte. Al ganar las tres, el jugador sube y el cubo se vuelve a rellenar.
 4. **Fase final** (desde el 25%): "Me haz hecho enojar, Papi Don Pollo esta enojado".

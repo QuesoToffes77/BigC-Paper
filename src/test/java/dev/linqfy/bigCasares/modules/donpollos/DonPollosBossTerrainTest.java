@@ -36,7 +36,8 @@ class DonPollosBossTerrainTest {
     private final Map<UUID, DonPollosBoss> bosses = new HashMap<>();
     private final List<Player> escapeWarnings = new ArrayList<>();
     private final List<Player> buildWarnings = new ArrayList<>();
-    private final DonPollosBossTerrain terrain = new DonPollosBossTerrain(bosses, escapeWarnings::add, buildWarnings::add);
+    private final DonPollosBossTerrain terrain = new DonPollosBossTerrain(bosses, DonPollosProtection.NONE,
+        escapeWarnings::add, buildWarnings::add);
     private DonPollosBoss boss;
 
     private GameMode gameMode = GameMode.SURVIVAL;

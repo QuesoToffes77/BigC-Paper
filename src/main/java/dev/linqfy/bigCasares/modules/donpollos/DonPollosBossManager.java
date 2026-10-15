@@ -76,7 +76,7 @@ final class DonPollosBossManager implements Listener {
     private BukkitTask task;
 
     DonPollosBossManager(JavaPlugin plugin, DonPollosModelBinder binder, DonPollosSounds sounds,
-                         DonPollosBossSettings settings) {
+                         DonPollosBossSettings settings, DonPollosProtection protection) {
         this.plugin = plugin;
         this.binder = binder;
         this.sounds = sounds;
@@ -85,7 +85,7 @@ final class DonPollosBossManager implements Listener {
         this.difficultyKey = new NamespacedKey(plugin, "boss_dificultad");
         this.minions = new DonPollosBossMinions(plugin, binder, settings);
         this.attacks = new DonPollosBossAttacks(plugin, binder, settings, minions);
-        this.terrain = new DonPollosBossTerrain(bosses, player -> {
+        this.terrain = new DonPollosBossTerrain(bosses, protection, player -> {
             player.sendActionBar(LEGACY.deserialize("§cNo hay escape del cubo hasta ganar las Batallas del Cubo"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 0.8f);
         }, player -> player.sendActionBar(
