@@ -59,7 +59,8 @@ boss:
     meteor-cooldown-seconds: 2.5
     chicken-wave-seconds: 7.5 # cada cuanto spawnea gallinas WhatsApp
     chickens-per-wave: 2
-    max-chickens: 8           # tope de gallinas vivas a la vez
+    max-chickens: 8           # tope de gallinas vivas a la vez (escala con la dificultad)
+    hard-max-chickens: 24     # techo absoluto de gallinas vivas por encuentro (no escala con la dificultad)
     chicken-health: 8
     chicken-damage: 3         # el dano de un zombie
   fase-3:                     # desde un cuarto de la vida: "No hay picante para ti..."
@@ -67,7 +68,8 @@ boss:
     levitate-height: 20       # bloques que sube
     pit-depth: 6              # se vacia el chunk de cada jugador con esta profundidad
     batallas-del-cubo:        # empiezan cuando te hunde en el cubo; al ganarlas te sube y lo rellena
-      max-labubus-vivos: 20
+      max-labubus-vivos: 20   # escala con la dificultad
+      hard-max-labubus: 40    # techo absoluto de Labubus vivos en el cubo (no escala con la dificultad)
       pausa-segundos: 3       # entre ronda y ronda
       rondas:                 # en cada ronda sale un Coronel al empezar
         - { labubus: 10, cada-segundos: 1.2, coronel-velocidad: 1.0, coronel-dano-extra: 0 }
@@ -84,7 +86,8 @@ boss:
     shockwave-damage: 12      # pegado a la caida (en el borde hace un tercio)
     sanders-seconds: 10       # cada cuanto invoca Sanders fase final
     sanders-per-wave: 2
-    max-sanders: 6
+    max-sanders: 6            # escala con la dificultad
+    hard-max-sanders: 12      # techo absoluto de Sanders vivos por encuentro (no escala con la dificultad)
     sanders-speed: 1.6        # multiplicador de velocidad (1 = zombie)
     sanders-damage-extra: 8
     sanders-health: 40

@@ -10,6 +10,7 @@ import java.util.Objects;
  * @param levitateHeight     cuantos bloques sube
  * @param pitDepth           cuantos bloques de profundidad se vacia el chunk donde esta cada jugador
  * @param maxAlive           tope de Labubus vivos a la vez durante las Batallas del Cubo
+ * @param hardMaxLabubus     techo absoluto de Labubus vivos por encuentro (no escala con la dificultad)
  * @param roundPauseSeconds  pausa entre ronda y ronda
  * @param rounds             las rondas de las Batallas del Cubo
  */
@@ -18,9 +19,19 @@ public record DonPollosBossPhase3Settings(
     double levitateHeight,
     int pitDepth,
     int maxAlive,
+    int hardMaxLabubus,
     double roundPauseSeconds,
     List<DonPollosCubeRound> rounds
 ) {
+
+    /** Techo absoluto de Labubus por defecto. */
+    public static final int DEFAULT_HARD_MAX_LABUBUS = 40;
+
+    /** Sin techo absoluto propio: usa el de por defecto. */
+    public DonPollosBossPhase3Settings(double levitateSeconds, double levitateHeight, int pitDepth, int maxAlive,
+                                       double roundPauseSeconds, List<DonPollosCubeRound> rounds) {
+        this(levitateSeconds, levitateHeight, pitDepth, maxAlive, DEFAULT_HARD_MAX_LABUBUS, roundPauseSeconds, rounds);
+    }
 
     public DonPollosBossPhase3Settings {
         Objects.requireNonNull(rounds, "rounds");
@@ -31,11 +42,14 @@ public record DonPollosBossPhase3Settings(
         if (maxAlive < 1 || roundPauseSeconds < 0 || rounds.isEmpty()) {
             throw new IllegalArgumentException("boss.fase-3: max-alive >= 1, round-pause-seconds >= 0 y al menos una ronda");
         }
+        if (hardMaxLabubus < 1) {
+            throw new IllegalArgumentException("boss.fase-3: hard-max-labubus >= 1");
+        }
     }
 
     /** 3 rondas: 10, 30 y 50 Labubus, cada vez mas rapido, y un Coronel cada vez mas rapido y fuerte. */
     public static DonPollosBossPhase3Settings defaults() {
-        return new DonPollosBossPhase3Settings(7, 20, 6, 20, 3, List.of(
+        return new DonPollosBossPhase3Settings(7, 20, 6, 20, DEFAULT_HARD_MAX_LABUBUS, 3, List.of(
             new DonPollosCubeRound(10, 1.2, 1.0, 0),
             new DonPollosCubeRound(30, 0.6, 1.25, 3),
             new DonPollosCubeRound(50, 0.3, 1.5, 6)));

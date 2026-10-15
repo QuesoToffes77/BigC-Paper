@@ -35,6 +35,15 @@ record DonPollosBossDifficulty(int level) {
         return (int) Math.ceil(base * factor());
     }
 
+    /**
+     * Cuantos bichos spawnear en una tanda: la tanda y el tope escalan con la dificultad, pero el tope nunca pasa del
+     * techo absoluto {@code hardMax} (no escala): ese es el limite de entidades por encuentro.
+     */
+    long spawnCount(int perWave, int max, int hardMax, long alive) {
+        long cap = Math.min(count(max), hardMax);
+        return Math.max(0, Math.min(count(perWave), cap - alive));
+    }
+
     double speed(double base) {
         return base * Math.min(MAX_SPEED, factor());
     }

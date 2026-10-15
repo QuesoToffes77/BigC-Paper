@@ -57,16 +57,27 @@ final class DonPollosBossAttacks {
     private final DonPollosBossSettings settings;
     private final DonPollosBossMinions minions;
     private final DonPollosBossMeteors meteors = new DonPollosBossMeteors(player -> blame(player, DeathCause.METEOR));
-    private final DonPollosBossShockwaves shockwaves = new DonPollosBossShockwaves(player -> blame(player, DeathCause.SHOCKWAVE));
+    private final DonPollosBossShockwaves shockwaves;
+    /** Revisa donde aterrizan los bloques que lanzan las ondas. */
+    private final DonPollosShockwaveLanding landing;
     /** Ultimo ataque del boss (o de sus bichos) que recibio cada jugador, para el mensaje de muerte. */
     private final Map<UUID, Blame> lastHits = new HashMap<>();
 
     DonPollosBossAttacks(JavaPlugin plugin, DonPollosModelBinder binder, DonPollosBossSettings settings,
-                         DonPollosBossMinions minions) {
+                         DonPollosBossMinions minions, DonPollosProtection protection,
+                         java.util.function.Predicate<org.bukkit.block.Block> cubeBlock) {
+        org.bukkit.NamespacedKey flyingKey = new org.bukkit.NamespacedKey(plugin, "onda_bloque");
+        this.landing = new DonPollosShockwaveLanding(flyingKey, protection, cubeBlock);
+        this.shockwaves = new DonPollosBossShockwaves(player -> blame(player, DeathCause.SHOCKWAVE), protection, cubeBlock,
+            flyingKey);
         this.plugin = plugin;
         this.binder = binder;
         this.settings = settings;
         this.minions = minions;
+    }
+
+    DonPollosShockwaveLanding landing() {
+        return landing;
     }
 
     /** Mueve los meteoritos y las ondas expansivas en vuelo. */
@@ -304,7 +315,7 @@ final class DonPollosBossAttacks {
         Ravager ravager = boss.ravager;
         DonPollosBossPhase4Settings phase4 = settings.phase4();
         long alive = minions.count(boss.minions, kind -> kind == DonPollosBossMinions.Kind.CORONEL_FINAL);
-        long count = Math.min(boss.difficulty.count(phase4.colonelsPerWave()), boss.difficulty.count(phase4.maxColonels()) - alive);
+        long count = boss.difficulty.spawnCount(phase4.colonelsPerWave(), phase4.maxColonels(), phase4.hardMaxColonels(), alive);
         for (int i = 0; i < count; i++) {
             Location location = DonPollosBossMinions.around(ravager.getLocation(), 2 * scale(ravager));
             boss.minions.add(toughen(boss, minions.spawn(DonPollosBossMinions.Kind.CORONEL_FINAL, location,
@@ -372,7 +383,7 @@ final class DonPollosBossAttacks {
     void spawnChickens(DonPollosBoss boss) {
         Ravager ravager = boss.ravager;
         long alive = minions.count(boss.minions, kind -> kind == DonPollosBossMinions.Kind.GALLINA);
-        long count = Math.min(boss.difficulty.count(settings.chickensPerWave()), boss.difficulty.count(settings.maxChickens()) - alive);
+        long count = boss.difficulty.spawnCount(settings.chickensPerWave(), settings.maxChickens(), settings.hardMaxChickens(), alive);
         for (int i = 0; i < count; i++) {
             Location location = DonPollosBossMinions.around(ravager.getLocation(), 1.6 * scale(ravager));
             boss.minions.add(toughen(boss, minions.spawn(DonPollosBossMinions.Kind.GALLINA, location,

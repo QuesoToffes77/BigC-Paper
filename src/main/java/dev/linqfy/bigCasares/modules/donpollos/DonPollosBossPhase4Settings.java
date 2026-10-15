@@ -14,6 +14,7 @@ package dev.linqfy.bigCasares.modules.donpollos;
  * @param colonelSeconds       cada cuanto invoca Sanders fase final
  * @param colonelsPerWave      cuantos por tanda
  * @param maxColonels          tope de Sanders fase final vivos
+ * @param hardMaxColonels      techo absoluto de Sanders fase final vivos por encuentro (no escala con la dificultad)
  * @param colonelSpeed         multiplicador de velocidad (1 = zombie)
  * @param colonelDamage        dano extra sobre el de zombie con espada de netherite
  * @param colonelHealth        vida de cada Sanders fase final
@@ -30,10 +31,24 @@ public record DonPollosBossPhase4Settings(
     double colonelSeconds,
     int colonelsPerWave,
     int maxColonels,
+    int hardMaxColonels,
     double colonelSpeed,
     double colonelDamage,
     double colonelHealth
 ) {
+
+    /** Techo absoluto de Sanders fase final por defecto. */
+    public static final int DEFAULT_HARD_MAX_COLONELS = 12;
+
+    /** Sin techo absoluto propio: usa el de por defecto. */
+    public DonPollosBossPhase4Settings(double growFactor, double beamCooldownSeconds, double beamDamage, double beamRange,
+                                       double jumpCooldownSeconds, double jumpLandDistance, double shockwaveRadius,
+                                       double shockwaveDamage, double colonelSeconds, int colonelsPerWave,
+                                       int maxColonels, double colonelSpeed, double colonelDamage, double colonelHealth) {
+        this(growFactor, beamCooldownSeconds, beamDamage, beamRange, jumpCooldownSeconds, jumpLandDistance,
+            shockwaveRadius, shockwaveDamage, colonelSeconds, colonelsPerWave, maxColonels, DEFAULT_HARD_MAX_COLONELS,
+            colonelSpeed, colonelDamage, colonelHealth);
+    }
 
     public DonPollosBossPhase4Settings {
         if (growFactor < 1 || growFactor > 2 || beamCooldownSeconds < 3 || beamDamage < 0 || beamRange < 4 || beamRange > 64) {
@@ -47,9 +62,12 @@ public record DonPollosBossPhase4Settings(
             || colonelHealth < 1) {
             throw new IllegalArgumentException("boss.fase-final: coroneles con colonel-seconds >= 1 y valores validos");
         }
+        if (hardMaxColonels < 1) {
+            throw new IllegalArgumentException("boss.fase-final: hard-max-sanders >= 1");
+        }
     }
 
     public static DonPollosBossPhase4Settings defaults() {
-        return new DonPollosBossPhase4Settings(1.25, 6, 10, 32, 9, 8, 12, 12, 10, 2, 6, 1.6, 8, 40);
+        return new DonPollosBossPhase4Settings(1.25, 6, 10, 32, 9, 8, 12, 12, 10, 2, 6, DEFAULT_HARD_MAX_COLONELS, 1.6, 8, 40);
     }
 }

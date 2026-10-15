@@ -54,4 +54,18 @@ class DonPollosBossDifficultyTest {
             DonPollosBossDifficulty.summonMessage(1));
         assertTrue(DonPollosBossDifficulty.summonMessage(4).contains("200% mas fuerte"));
     }
+
+    @Test
+    void spawnCountNeverPassesTheAbsoluteCeilingNoMatterTheDifficulty() {
+        // a 100 victorias: tanda 2 -> 102 y tope 8 -> 408, pero el techo absoluto manda
+        DonPollosBossDifficulty veteran = new DonPollosBossDifficulty(100);
+        assertEquals(24, veteran.spawnCount(2, 8, 24, 0));
+        assertEquals(4, veteran.spawnCount(2, 8, 24, 20));
+        assertEquals(0, veteran.spawnCount(2, 8, 24, 24));
+        assertEquals(0, veteran.spawnCount(2, 8, 24, 40), "nunca negativo");
+        // sin dificultad el tope normal sigue valiendo
+        assertEquals(2, FIRST.spawnCount(2, 8, 24, 0));
+        assertEquals(1, FIRST.spawnCount(2, 8, 24, 7));
+        assertEquals(8, new DonPollosBossDifficulty(2).spawnCount(100, 4, 24, 0), "tope escalado 8 < techo 24");
+    }
 }

@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.donpollos;
 
 import org.bukkit.GameMode;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -12,6 +13,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
@@ -22,6 +24,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Ondas expansivas del mega salto del Don Pollo Boss (FASE FINAL): los bloques pegados a la caida salen
@@ -37,10 +40,33 @@ final class DonPollosBossShockwaves {
     private static final int MAX_FLYING_BLOCKS = 18;
 
     private final List<Wave> waves = new ArrayList<>();
-    private final Consumer<Player> onHit;
+    /** Cuanto se agranda la zona protegida para los bloques que salen volando (caen a varios bloques de donde estaban). */
+    static final int LANDING_MARGIN = 8;
 
-    DonPollosBossShockwaves(Consumer<Player> onHit) {
+    private final Consumer<Player> onHit;
+    private final DonPollosProtection protection;
+    /** Los bloques de un cubo de cualquier boss (paredes, piso e interior). */
+    private final Predicate<Block> cubeBlock;
+
+    /** Marca (en el FallingBlock) de los bloques que lanzo una onda: al aterrizar se revisa donde caen. */
+    private final NamespacedKey flyingKey;
+
+    DonPollosBossShockwaves(Consumer<Player> onHit, DonPollosProtection protection, Predicate<Block> cubeBlock,
+                            NamespacedKey flyingKey) {
+        this.flyingKey = flyingKey;
         this.onHit = onHit;
+        this.protection = protection;
+        this.cubeBlock = cubeBlock;
+    }
+
+    /**
+     * Si el megasalto no puede tocar este bloque: esta en una zona protegida (o a menos de {@link #LANDING_MARGIN}
+     * bloques, porque lo que sale volando aterriza al lado) o es parte del cubo de algun boss.
+     */
+    static boolean untouchable(Block block, DonPollosProtection protection, Predicate<Block> cubeBlock) {
+        return cubeBlock.test(block) || protection.isProtected(block.getWorld(),
+            block.getX() - LANDING_MARGIN, block.getX() + LANDING_MARGIN, block.getY() - LANDING_MARGIN,
+            block.getY() + LANDING_MARGIN, block.getZ() - LANDING_MARGIN, block.getZ() + LANDING_MARGIN);
     }
 
     /** Cuanto le pega y cuanto lo levanta a alguien a {@code distance} bloques: maximo al lado, un tercio en el borde. */
@@ -59,36 +85,22 @@ final class DonPollosBossShockwaves {
         world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.6f);
         world.playSound(center, Sound.ENTITY_WARDEN_ATTACK_IMPACT, 2.5f, 0.6f);
         world.spawnParticle(Particle.EXPLOSION_EMITTER, center, 1, 0, 0, 0, 0, null, true);
-        throwBlocks(center);
+        throwBlocks(center, protection, cubeBlock, flyingKey);
         waves.add(new Wave(source, center.clone(), radius, maxDamage));
     }
 
     /** Los bloques de arriba alrededor de la caida salen volando (nunca bedrock, liquidos ni cofres/hornos). */
-    private static void throwBlocks(Location center) {
+    private static void throwBlocks(Location center, DonPollosProtection protection, Predicate<Block> cubeBlock,
+                                    NamespacedKey flyingKey) {
         World world = center.getWorld();
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        List<Block> candidates = new ArrayList<>();
-        int r = (int) Math.ceil(FLYING_RADIUS);
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                if (dx * dx + dz * dz > FLYING_RADIUS * FLYING_RADIUS) {
-                    continue;
-                }
-                for (int dy = -1; dy >= -2; dy--) {
-                    Block block = center.clone().add(dx, dy, dz).getBlock();
-                    Material type = block.getType();
-                    if (type.isSolid() && type != Material.BEDROCK && !(block.getState() instanceof TileState)
-                        && block.getRelative(0, 1, 0).isPassable()) {
-                        candidates.add(block);
-                    }
-                }
-            }
-        }
+        List<Block> candidates = candidates(center, protection, cubeBlock, DonPollosBossShockwaves::isSolid);
         java.util.Collections.shuffle(candidates);
         for (Block block : candidates.subList(0, Math.min(MAX_FLYING_BLOCKS, candidates.size()))) {
             BlockData data = block.getBlockData();
             block.setType(Material.AIR, false);
             FallingBlock flying = world.spawnFallingBlock(block.getLocation().add(0.5, 0.2, 0.5), data);
+            flying.getPersistentDataContainer().set(flyingKey, PersistentDataType.BYTE, (byte) 1);
             flying.setDropItem(false);
             flying.setHurtEntities(false);
             Vector out = block.getLocation().add(0.5, 0, 0.5).toVector().subtract(center.toVector()).setY(0);
@@ -98,6 +110,33 @@ final class DonPollosBossShockwaves {
             out.normalize().multiply(random.nextDouble(0.15, 0.45));
             flying.setVelocity(out.setY(random.nextDouble(0.55, 1.05)));
         }
+    }
+
+    /** Solido de verdad (no faroles, cadenas, varas ni andamios): se inyecta en los tests porque necesita el registro. */
+    private static boolean isSolid(Block block) {
+        return block.getType().isSolid();
+    }
+
+    /** Los bloques que pueden salir volando alrededor de la caida: sin bedrock, cofres/hornos, zonas protegidas ni cubos. */
+    static List<Block> candidates(Location center, DonPollosProtection protection, Predicate<Block> cubeBlock,
+                                  Predicate<Block> solid) {
+        List<Block> candidates = new ArrayList<>();
+        int r = (int) Math.ceil(FLYING_RADIUS);
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                if (dx * dx + dz * dz > FLYING_RADIUS * FLYING_RADIUS) {
+                    continue;
+                }
+                for (int dy = -1; dy >= -2; dy--) {
+                    Block block = center.clone().add(dx, dy, dz).getBlock();
+                    if (solid.test(block) && !block.isPassable() && block.getType() != Material.BEDROCK && !(block.getState() instanceof TileState)
+                        && block.getRelative(0, 1, 0).isPassable() && !untouchable(block, protection, cubeBlock)) {
+                        candidates.add(block);
+                    }
+                }
+            }
+        }
+        return candidates;
     }
 
     void tick() {

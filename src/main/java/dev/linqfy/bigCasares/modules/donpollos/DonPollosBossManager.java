@@ -71,6 +71,8 @@ final class DonPollosBossManager implements Listener {
     private final Map<UUID, DonPollosBoss> bosses = new HashMap<>();
     private final DonPollosBossAttacks attacks;
     private final DonPollosBossTerrain terrain;
+    /** Sube a la superficie a quien se desconecto adentro de un cubo. */
+    private final DonPollosPitExit pitExit;
     private final DonPollosCubeBattles cubes;
     private final DonPollosBossDefeat defeat;
     private BukkitTask task;
@@ -84,12 +86,14 @@ final class DonPollosBossManager implements Listener {
         this.bossKey = new NamespacedKey(plugin, "don_pollo_boss");
         this.difficultyKey = new NamespacedKey(plugin, "boss_dificultad");
         this.minions = new DonPollosBossMinions(plugin, binder, settings);
-        this.attacks = new DonPollosBossAttacks(plugin, binder, settings, minions);
         this.terrain = new DonPollosBossTerrain(bosses, protection, player -> {
             player.sendActionBar(LEGACY.deserialize("§cNo hay escape del cubo hasta ganar las Batallas del Cubo"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 0.8f);
         }, player -> player.sendActionBar(
             LEGACY.deserialize("§cNo podes poner ni romper bloques en el cubo hasta ganar las Batallas del Cubo")));
+        this.pitExit = new DonPollosPitExit(bosses, new NamespacedKey(plugin, "pozo_salida"),
+            task -> Bukkit.getScheduler().runTask(plugin, task), Bukkit::getWorld, System::currentTimeMillis);
+        this.attacks = new DonPollosBossAttacks(plugin, binder, settings, minions, protection, terrain::isCubeBlock);
         this.cubes = new DonPollosCubeBattles(plugin, settings, minions, terrain);
         this.defeat = new DonPollosBossDefeat(plugin, sounds, bosses, minions, attacks, cubes, this::untrack);
     }
@@ -104,6 +108,8 @@ final class DonPollosBossManager implements Listener {
         }
         plugin.getServer().getPluginManager().registerEvents(minions, plugin);
         plugin.getServer().getPluginManager().registerEvents(terrain, plugin);
+        plugin.getServer().getPluginManager().registerEvents(pitExit, plugin);
+        plugin.getServer().getPluginManager().registerEvents(attacks.landing(), plugin);
         defeat.start();
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
     }
@@ -131,6 +137,8 @@ final class DonPollosBossManager implements Listener {
         defeat.stop();
         org.bukkit.event.HandlerList.unregisterAll(minions);
         org.bukkit.event.HandlerList.unregisterAll(terrain);
+        org.bukkit.event.HandlerList.unregisterAll(pitExit);
+        org.bukkit.event.HandlerList.unregisterAll(attacks.landing());
         for (UUID id : new ArrayList<>(bosses.keySet())) {
             DonPollosBoss boss = bosses.get(id);
             if (boss != null && boss.ravager.isValid()) {
