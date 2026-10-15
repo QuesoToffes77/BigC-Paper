@@ -170,7 +170,9 @@ public final class DonPollosSettingsLoader {
             config.getInt(p + "min-window-ticks", d.minWindowTicks()),
             config.getInt(p + "pause-ticks", d.pauseTicks()),
             reward,
-            config.getDouble(p + "max-distance", d.maxDistance()));
+            config.getDouble(p + "max-distance", d.maxDistance()),
+            config.getInt(p + "min-human-window-ticks", d.minHumanWindowTicks()),
+            config.getInt(p + "reward-cooldown-minutes", d.rewardCooldownMinutes()));
     }
 
     private DonPollosRoulette roulette(ConfigurationSection config) {
