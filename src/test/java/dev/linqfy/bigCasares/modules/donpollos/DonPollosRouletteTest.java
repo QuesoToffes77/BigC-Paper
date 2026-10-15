@@ -33,10 +33,21 @@ class DonPollosRouletteTest {
     }
 
     @Test
-    void winningDoublesTheBetAndLosingPaysNothing() {
+    void redAndBlackPayDoubleGreenPaysTwentyAndLosingPaysNothing() {
         assertEquals(32, roulette.payout(16, DonPollosRouletteColor.RED, DonPollosRouletteColor.RED));
-        assertEquals(2, roulette.payout(1, DonPollosRouletteColor.GREEN, DonPollosRouletteColor.GREEN));
+        assertEquals(20, roulette.payout(1, DonPollosRouletteColor.GREEN, DonPollosRouletteColor.GREEN));
         assertEquals(0, roulette.payout(16, DonPollosRouletteColor.RED, DonPollosRouletteColor.BLACK));
+    }
+
+    @Test
+    void greenIsAJackpotCloseToTheOtherColorsOnAverage() {
+        // retorno esperado: rojo/negro 24/50 x2 = 96%, verde 2/50 x20 = 80% (antes x2: 8%)
+        double red = roulette.weight(DonPollosRouletteColor.RED) * roulette.multiplier(DonPollosRouletteColor.RED)
+            / (double) roulette.totalWeight();
+        double green = roulette.weight(DonPollosRouletteColor.GREEN) * roulette.multiplier(DonPollosRouletteColor.GREEN)
+            / (double) roulette.totalWeight();
+        assertEquals(0.96, red, 1e-9);
+        assertEquals(0.80, green, 1e-9);
     }
 
     @Test

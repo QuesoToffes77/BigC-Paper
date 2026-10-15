@@ -82,7 +82,7 @@ final class DonPollosRouletteMenu implements Listener {
             "§71. Pone un objeto en el hueco de abajo.",
             "§72. Elegi §cROJO§7, §8NEGRO §7o §aVERDE§7.",
             "§73. Toca §6GIRAR§7.",
-            "§7Si sale tu color, te llevas el doble.")));
+            "§7Rojo y negro pagan §fx2§7; verde paga §ax20§7.")));
         inventory.setItem(BET_SLOT, null);
         inventory.setItem(INFO, item(Material.BOOK, "§eChances", List.of(
             "§cRojo: §f" + roulette.weight(DonPollosRouletteColor.RED) + "/" + roulette.totalWeight(),

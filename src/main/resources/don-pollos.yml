@@ -8,7 +8,7 @@ fino:
   roulette:
     red: { weight: 24, multiplier: 2 }
     black: { weight: 24, multiplier: 2 }
-    green: { weight: 2, multiplier: 2 }
+    green: { weight: 2, multiplier: 20 }   # 2/50 x20: devuelve en promedio el 80%, cerca del 96% de rojo y negro
 
 salsero:
   follow-radius: 12.0

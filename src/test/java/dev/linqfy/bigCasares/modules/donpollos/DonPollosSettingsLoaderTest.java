@@ -44,15 +44,15 @@ class DonPollosSettingsLoaderTest {
     }
 
     @Test
-    void bundledFinoRouletteIsTwentyFourTwentyFourTwoAndDoubles() {
+    void bundledFinoRouletteIsTwentyFourTwentyFourTwoAndGreenPaysTwenty() {
         DonPollosRoulette roulette = new DonPollosSettingsLoader().load(bundled()).roulette();
 
         assertEquals(24, roulette.weight(DonPollosRouletteColor.RED));
         assertEquals(24, roulette.weight(DonPollosRouletteColor.BLACK));
         assertEquals(2, roulette.weight(DonPollosRouletteColor.GREEN));
-        for (DonPollosRouletteColor color : DonPollosRouletteColor.values()) {
-            assertEquals(2, roulette.multiplier(color));
-        }
+        assertEquals(2, roulette.multiplier(DonPollosRouletteColor.RED));
+        assertEquals(2, roulette.multiplier(DonPollosRouletteColor.BLACK));
+        assertEquals(20, roulette.multiplier(DonPollosRouletteColor.GREEN));
     }
 
     @Test

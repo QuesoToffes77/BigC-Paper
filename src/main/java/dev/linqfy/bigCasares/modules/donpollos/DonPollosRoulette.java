@@ -49,7 +49,7 @@ public final class DonPollosRoulette {
     public static DonPollosRoulette standard() {
         return new DonPollosRoulette(
             Map.of(DonPollosRouletteColor.RED, 24, DonPollosRouletteColor.BLACK, 24, DonPollosRouletteColor.GREEN, 2),
-            Map.of(DonPollosRouletteColor.RED, 2, DonPollosRouletteColor.BLACK, 2, DonPollosRouletteColor.GREEN, 2));
+            Map.of(DonPollosRouletteColor.RED, 2, DonPollosRouletteColor.BLACK, 2, DonPollosRouletteColor.GREEN, 20));
     }
 
     public int weight(DonPollosRouletteColor color) {
