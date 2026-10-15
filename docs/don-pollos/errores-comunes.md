@@ -97,6 +97,36 @@ Sirve para revisar cualquier módulo nuevo de BigC antes de abrir el PR.
 25. **La descripción del PR decía algo que ya no era cierto** ("sin cambios en `build.gradle`").
     *Regla:* releer la descripción del PR cada vez que se agregan commits.
 
+## Segunda revisión (15/10)
+
+26. **El cobro de un premio vivía solo en memoria.** Si el servidor se reiniciaba antes de la despedida, el premio se
+    podía volver a cobrar.
+    *Regla:* marcar "cobrado" en algo persistente (PDC y un archivo que se escribe en el momento) **antes** de entregar.
+27. **Releer un jugador por UUID al final de una espera** (`Bukkit.getPlayer`) devolvía `null` si se había ido, y la
+    dificultad caía a 0.
+    *Regla:* capturar lo que se necesita (nivel, victorias) en el momento de la acción, no al final.
+28. **Seleccionar participantes por distancia a la entidad** (la barra del boss): un jugador movido lejos quedaba fuera
+    y el encuentro se trababa.
+    *Regla:* los participantes salen de dónde están de verdad (los ocupantes del cubo), no de un radio.
+29. **Nadie rescataba al que se desconectaba adentro de un pozo**: al restaurar, quedaba enterrado.
+    *Regla:* guardar una salida segura del jugador (PDC) al salir y aplicarla al volver, solo si sigue ahí.
+30. **Tareas programadas que no se cancelaban** (la animación de victoria) liberaban la sesión nueva de otro jugador.
+    *Regla:* cada tarea pertenece a una sesión, se cancela con ella y comprueba su identidad antes de actuar.
+31. **Entregas que no pasaban por el límite de inventario** (pagos de la ruleta).
+    *Regla:* toda entrega de ítems pasa por el mismo enforcer que usa el resto del servidor.
+32. **Aceptar una respuesta después del vencimiento** (el plazo solo se revisaba en el tick).
+    *Regla:* el vencimiento se comprueba en todos los caminos que reciben la respuesta.
+33. **Daño de ataques especiales atribuido al golpe cuerpo a cuerpo**, porque disparan el mismo evento.
+    *Regla:* marcar el contexto del ataque especial durante su daño y no reescribir la causa.
+34. **Un ataque que rompe bloques sin consultar las zonas protegidas** (el megasalto), incluido dónde caen los bloques.
+    *Regla:* toda modificación de terreno, directa o por bloques que caen, consulta la protección.
+35. **Escalas sin techo**: con muchas victorias, cientos de bichos y ventanas de 1 tick; apuestas con cualquier objeto.
+    *Regla:* topes absolutos por encuentro y por mundo, un mínimo humano configurable, premios con enfriamiento, y una
+    lista de lo que **sí** se puede apostar (solo objetos simples).
+36. **Tests que no prueban el ciclo real** (un objeto en memoria, un método suelto, buscar texto en el código fuente).
+    *Regla:* probar el ciclo completo con objetos falsos: cobro → reinicio → otro cobro, ganar → salir → otra sesión →
+    tarea vieja, cierre real del menú, orden de apagado con un scope real.
+
 ## Antes de abrir un PR en BigC
 
 - [ ] `./gradlew clean build` en una copia limpia.

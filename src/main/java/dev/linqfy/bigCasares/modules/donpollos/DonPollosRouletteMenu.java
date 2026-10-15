@@ -173,7 +173,7 @@ final class DonPollosRouletteMenu implements Listener {
         if (!allowedBet(bet)) {
             betInventory.setItem(BET_SLOT, null);
             give(player, bet, bet.getAmount());
-            fail(player, "Ese objeto no se puede apostar (cajas de shulker, bundles y objetos con nombre o datos especiales).");
+            fail(player, "Solo se pueden apostar objetos simples: sin encantamientos, nombre, contenido ni datos especiales (y nada de shulkers ni bundles).");
             return;
         }
         betInventory.setItem(BET_SLOT, null);
@@ -235,7 +235,7 @@ final class DonPollosRouletteMenu implements Listener {
             return;
         }
         if (payout > 0) {
-            give(player, spin.bet(), payout);
+            DonPollosRouletteDelivery.settle(player, spin.bet(), payout, inventoryLimiter);
             player.sendMessage("§a¡Salio " + spin.result().displayName() + "§a! Ganaste §f" + payout + "x "
                 + name(spin.bet()) + "§a.");
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
@@ -333,9 +333,7 @@ final class DonPollosRouletteMenu implements Listener {
                 spin.task.cancel();
             }
             int payout = roulette.payout(spin.bet().getAmount(), spin.chosen(), spin.result());
-            if (payout > 0) {
-                give(player, spin.bet(), payout);
-            }
+            DonPollosRouletteDelivery.settle(player, spin.bet(), payout, inventoryLimiter);
         }
         choices.remove(player.getUniqueId());
     }
@@ -371,14 +369,7 @@ final class DonPollosRouletteMenu implements Listener {
     }
 
     private static boolean allowedBet(ItemStack bet) {
-        boolean pluginData = false;
-        boolean customName = false;
-        if (bet.hasItemMeta()) {
-            var meta = bet.getItemMeta();
-            pluginData = !meta.getPersistentDataContainer().isEmpty();
-            customName = meta.hasDisplayName();
-        }
-        return DonPollosRouletteBets.allowed(bet.getType().name(), pluginData, customName);
+        return DonPollosRouletteBets.allowed(bet.getType().name(), bet.hasItemMeta());
     }
 
     private static void fail(Player player, String message) {

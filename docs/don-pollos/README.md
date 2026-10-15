@@ -154,9 +154,13 @@ a los jugadores en creativo. Pelea en cuatro fases y cada una arranca con un men
 Los números de cada fase están en `boss`, `boss.fase-2`, `boss.fase-3` y `boss.fase-final`.
 
 **Cada vez más difícil.** Cada jugador lleva la cuenta de cuántas veces le ganó al boss. Cuando lo invocás (con el
-bloque del secreto o con `/donpollo boss`), sale un 50% más fuerte por cada victoria tuya anterior, y te lo dice:
+bloque del secreto o con `/donpollo boss`), sale un 50% más fuerte por cada victoria anterior. El nivel es el más alto
+entre las victorias de quien lo invoca (se leen al poner el bloque, aunque después se desconecte) y las de cada
+jugador conectado en supervivencia o aventura a menos de 48 bloques del lugar de invocación. Si más tarde le pega un
+jugador con más victorias que el nivel del boss, el boss sube a ese nivel, así que un veterano no puede aprovechar un
+boss flojo invocado por una cuenta nueva. El premio es para quien lo termina. El que lo invoca se entera:
 pega más, ataca más seguido, invoca más bichos y los bichos son más rápidos y pegan más. Los ataques nunca se repiten
-más de una vez por segundo y los bichos no pasan del doble de velocidad. Desde la consola sale con la fuerza normal.
+más de una vez por segundo y los bichos no pasan del doble de velocidad. Desde la consola sale con la fuerza de los jugadores que tenga cerca.
 
 Sus bichos también se blindan: la primera vez salen como siempre; después con armadura de cobre, de hierro, de
 diamante y de netherite, y con netherite cada vez con mejores encantamientos (Protección hasta V y después Espinas

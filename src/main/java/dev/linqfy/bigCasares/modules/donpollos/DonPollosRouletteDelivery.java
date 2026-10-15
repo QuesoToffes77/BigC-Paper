@@ -27,4 +27,15 @@ final class DonPollosRouletteDelivery {
         }
         inventoryLimiter.accept(player);
     }
+
+    /**
+     * Liquida una apuesta: si el pago es mayor a cero lo entrega (y aplica los limites una vez); si no, no toca
+     * nada. Lo usan el pago normal y la liquidacion al salir. Devuelve el pago.
+     */
+    static int settle(Player player, ItemStack bet, int payout, Consumer<Player> inventoryLimiter) {
+        if (payout > 0) {
+            give(player, bet, payout, inventoryLimiter);
+        }
+        return payout;
+    }
 }

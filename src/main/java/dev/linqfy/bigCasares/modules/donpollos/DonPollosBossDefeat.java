@@ -49,12 +49,16 @@ final class DonPollosBossDefeat implements Listener {
     private final DonPollosCubeBattles cubes;
     /** Saca un boss del juego (lo maneja el manager). */
     private final java.util.function.Consumer<UUID> untrack;
+    /** Avisa al manager que el nivel del boss subio (para reaplicar el dano cuerpo a cuerpo). */
+    private final java.util.function.Consumer<DonPollosBoss> onLevelRaised;
     /** Cuantas veces le gano cada jugador al boss (guardado en el jugador). */
     private final NamespacedKey bossWinsKey;
     /** En el boss derrotado: UUID de quien le gano ("" si no se sabe). */
     private final NamespacedKey defeatedKey;
     /** En el boss derrotado: el premio ya se cobro (se guarda antes de entregarlo, para que un reinicio no deje cobrar de nuevo). */
     private final NamespacedKey claimedKey;
+    /** Mismo guardado que usa el manager al invocar. */
+    private final NamespacedKey difficultyKey;
     private final DonPollosClaimLedger ledger;
     /** Golpes recibidos por boss: la correccion de fase de 1 tick solo vale si no hubo otro golpe en el medio. */
     private final Map<UUID, Integer> hitSerial = new java.util.HashMap<>();
@@ -63,8 +67,10 @@ final class DonPollosBossDefeat implements Listener {
 
     DonPollosBossDefeat(JavaPlugin plugin, DonPollosSounds sounds, Map<UUID, DonPollosBoss> bosses,
                         DonPollosBossMinions minions, DonPollosBossAttacks attacks, DonPollosCubeBattles cubes,
-                        java.util.function.Consumer<UUID> untrack) {
+                        java.util.function.Consumer<UUID> untrack,
+                        java.util.function.Consumer<DonPollosBoss> onLevelRaised) {
         this.plugin = plugin;
+        this.onLevelRaised = onLevelRaised;
         this.sounds = sounds;
         this.bosses = bosses;
         this.minions = minions;
@@ -73,11 +79,16 @@ final class DonPollosBossDefeat implements Listener {
         this.untrack = untrack;
         this.bossWinsKey = new NamespacedKey(plugin, "boss_ganadas");
         this.defeatedKey = new NamespacedKey(plugin, "don_pollo_boss_derrotado");
+        this.difficultyKey = new NamespacedKey(plugin, "boss_dificultad");
         this.claimedKey = new NamespacedKey(plugin, "don_pollo_boss_cobrado");
         this.ledger = new DonPollosClaimLedger(
             new java.io.File(plugin.getDataFolder(), "data/don-pollos/premios-cobrados.yml"), plugin.getLogger());
         this.bucket = new DonPollosKfcBucket(plugin);
         this.rewardMenu = new DonPollosRewardMenu(bucket, this::claimReward);
+    }
+
+    NamespacedKey winsKey() {
+        return bossWinsKey;
     }
 
     void start() {
@@ -151,6 +162,7 @@ final class DonPollosBossDefeat implements Listener {
                 20, 1.5, 1.5, 1.5, 0, new Particle.DustOptions(Color.fromRGB(120, 200, 255), 1.6f), true);
             boss.ravager.getWorld().playSound(boss.ravager.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1.5f, 0.8f);
         } else {
+            raiseLevelIfStronger(boss, killer(event));
             // las fases no se saltean: un golpe frena en el umbral de la fase que sigue; solo desde la ultima se derrota
             double health = boss.ravager.getHealth();
             double max = boss.ravager.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
@@ -169,6 +181,19 @@ final class DonPollosBossDefeat implements Listener {
                 event.setCancelled(true);
                 startDefeat(boss, killer(event));
             }
+        }
+    }
+
+    /** Un jugador con mas victorias que el nivel del boss lo sube a su nivel (queda guardado en el boss). */
+    private void raiseLevelIfStronger(DonPollosBoss boss, Player attacker) {
+        if (attacker == null) {
+            return;
+        }
+        int level = DonPollosBossLevels.levelAfterHit(boss.difficulty.level(), bossWins(attacker));
+        if (level > boss.difficulty.level()) {
+            boss.difficulty = new DonPollosBossDifficulty(level);
+            boss.ravager.getPersistentDataContainer().set(difficultyKey, PersistentDataType.INTEGER, level);
+            onLevelRaised.accept(boss);
         }
     }
 
@@ -346,6 +371,6 @@ final class DonPollosBossDefeat implements Listener {
 
     /** Cuantas veces le gano este jugador al boss (guardado en el jugador). */
     int bossWins(Player player) {
-        return player.getPersistentDataContainer().getOrDefault(bossWinsKey, PersistentDataType.INTEGER, 0);
+        return DonPollosBossLevels.winsOf(player.getPersistentDataContainer(), bossWinsKey);
     }
 }

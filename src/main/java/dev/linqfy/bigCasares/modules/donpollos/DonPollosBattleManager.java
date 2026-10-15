@@ -54,6 +54,18 @@ final class DonPollosBattleManager implements Listener {
     /** Items del premio ganados pero no entregados porque el jugador salio antes (se entregan al volver a entrar). */
     private final org.bukkit.NamespacedKey pendingRewardKey;
     private final DonPollosBattleRegistry<Session> registry = new DonPollosBattleRegistry<>();
+    private final DonPollosVictoryFlow<Session> victory = new DonPollosVictoryFlow<>(registry,
+        new DonPollosVictoryFlow.Scheduler() {
+            @Override
+            public Runnable later(long delayTicks, Runnable task) {
+                return Bukkit.getScheduler().runTaskLater(plugin, task, delayTicks)::cancel;
+            }
+
+            @Override
+            public Runnable timer(long periodTicks, Runnable task) {
+                return Bukkit.getScheduler().runTaskTimer(plugin, task, periodTicks, periodTicks)::cancel;
+            }
+        });
     private BukkitTask task;
 
     DonPollosBattleManager(JavaPlugin plugin, DonPollosModelBinder binder, DonPollosBattleSettings settings,
@@ -184,17 +196,23 @@ final class DonPollosBattleManager implements Listener {
             if (now % 10 == 0) {
                 face(session.salsero, player);
             }
+            Set<DonPollosDanceMove> diagonal = null;
+            double[] local = {0, 0};
             if (session.joystick != null) {
                 Location at = player.getLocation();
                 double dx = at.getX() - session.joystickFrom.getX();
                 double dz = at.getZ() - session.joystickFrom.getZ();
-                if (dx * dx + dz * dz >= DonPollosJoystick.MIN_MOVE * DonPollosJoystick.MIN_MOVE
-                    || now - session.joystickAt >= DonPollosJoystick.WAIT_TICKS
-                    || session.battle.ticksLeft(now) <= 1) {
-                    resolveJoystick(session, player, now);
+                if (DonPollosDanceTick.shouldResolve(dx, dz, now, session.joystickAt, session.battle.ticksLeft(now))) {
+                    diagonal = session.joystick;
+                    local = DonPollosJoystick.local(dx, dz, at.getYaw());
+                    session.joystick = null;
+                    session.joystickFrom = null;
                 }
             }
-            handle(session, player, session.battle.tick(now), now);
+            for (DonPollosDanceBattle.Outcome outcome
+                : DonPollosDanceTick.advance(session.battle, diagonal, local[0], local[1], now)) {
+                handle(session, player, outcome, now);
+            }
             actionBar(session, player, now);
         }
     }
@@ -239,8 +257,7 @@ final class DonPollosBattleManager implements Listener {
         session.joystickFrom = null;
         Location at = player.getLocation();
         double[] local = DonPollosJoystick.local(at.getX() - from.getX(), at.getZ() - from.getZ(), at.getYaw());
-        DonPollosDanceMove move = DonPollosJoystick.dominant(diagonal, local[0], local[1]);
-        handle(session, player, session.battle.input(now, move == null ? diagonal : EnumSet.of(move)), now);
+        handle(session, player, DonPollosDanceTick.resolve(session.battle, diagonal, local[0], local[1], now), now);
     }
 
     private void handle(Session session, Player player, DonPollosDanceBattle.Outcome outcome, long now) {
@@ -331,89 +348,84 @@ final class DonPollosBattleManager implements Listener {
         restoreBehaviour.accept(salsero);
         salsero.setAI(true);
         salsero.getPathfinder().moveTo(player, 1.0);
-        int[] waited = {0};
-        BukkitTask[] walk = new BukkitTask[1];
-        walk[0] = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            if (!registry.owns(session) || session.tasksCancelled()) {
-                // la sesion ya termino o fue reemplazada: esta tarea vieja no toca nada
-                walk[0].cancel();
-                return;
+        victory.begin(session, new DonPollosVictoryFlow.World() {
+            @Override
+            public boolean salseroValid() {
+                return salsero.isValid();
             }
-            waited[0] += 5;
-            Player target = Bukkit.getPlayer(session.playerId);
-            boolean close = target != null && salsero.isValid() && target.getWorld() == salsero.getWorld()
-                && target.getLocation().distanceSquared(salsero.getLocation()) <= 2.5 * 2.5;
-            if (target != null && salsero.isValid() && !close && waited[0] < 100) {
-                salsero.getPathfinder().moveTo(target, 1.0);
-                return;
+
+            @Override
+            public boolean playerOnline() {
+                return Bukkit.getPlayer(session.playerId) != null;
             }
-            walk[0].cancel();
-            if (target == null) {
-                // onQuit ya guardo el premio pendiente (y libero la sesion); si aun se debe algo, nunca se pierde en silencio
+
+            @Override
+            public boolean playerClose() {
+                Player target = Bukkit.getPlayer(session.playerId);
+                return target != null && target.getWorld() == salsero.getWorld()
+                    && target.getLocation().distanceSquared(salsero.getLocation()) <= 2.5 * 2.5;
+            }
+
+            @Override
+            public void approach() {
+                Player target = Bukkit.getPlayer(session.playerId);
+                if (target != null) {
+                    salsero.getPathfinder().moveTo(target, 1.0);
+                }
+            }
+
+            @Override
+            public void stopAndFace() {
+                Player target = Bukkit.getPlayer(session.playerId);
+                salsero.getPathfinder().stopPathfinding();
+                if (target != null) {
+                    face(salsero, target);
+                    Material material = Material.valueOf(settings.reward().material());
+                    if (session.owedReward > 0) {
+                        target.sendMessage("§d¡El Salsero te tira " + session.owedReward + " "
+                            + material.name().toLowerCase().replace('_', ' ') + "! §7Bien bailado.");
+                    }
+                }
+            }
+
+            @Override
+            public void dropOne() {
+                Player target = Bukkit.getPlayer(session.playerId);
+                if (target == null) {
+                    return;
+                }
+                Material material = Material.valueOf(settings.reward().material());
+                Location from = salsero.getEyeLocation();
+                Vector toward = target.getLocation().toVector().subtract(from.toVector()).normalize().multiply(0.3);
+                Item item = salsero.getWorld().dropItem(from, new ItemStack(material));
+                item.setVelocity(toward.setY(0.25));
+                item.setPickupDelay(10);
+                salsero.getWorld().playSound(from, Sound.ENTITY_ITEM_PICKUP, 1f, 1.3f);
+            }
+
+            @Override
+            public void give(int amount) {
+                Player target = Bukkit.getPlayer(session.playerId);
+                if (target != null) {
+                    giveItems(target, amount);
+                }
+            }
+
+            @Override
+            public void endWithoutPlayer() {
+                // onQuit ya guardo el premio pendiente (y libero la sesion); si aun se debe algo, no se pierde en silencio
                 end(session, Bukkit.getPlayer(session.playerId));
                 if (session.owedReward > 0) {
                     plugin.getLogger().warning("Salsero: se perdio un premio pendiente de " + session.owedReward
                         + " para " + session.playerId);
                 }
-            } else if (salsero.isValid()) {
-                salsero.getPathfinder().stopPathfinding();
-                face(salsero, target);
-                if (session.owedReward > 0) {
-                    throwReward(session, salsero, target);  // libera la sesion al terminar de tirar
-                } else {
-                    release(session);
-                }
-            } else {
-                giveOwed(session, target);
-                release(session);
             }
-        }, 5L, 5L);
-        session.track(walk[0]::cancel);
-    }
 
-    private void throwReward(Session session, Villager salsero, Player player) {
-        Material material = Material.valueOf(settings.reward().material());
-        int amount = session.owedReward;
-        player.sendMessage("§d¡El Salsero te tira " + amount + " " + material.name().toLowerCase().replace('_', ' ')
-            + "! §7Bien bailado.");
-        for (int i = 0; i < amount; i++) {
-            BukkitTask throwTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (!registry.owns(session) || session.tasksCancelled() || session.owedReward <= 0
-                    || !player.isOnline()) {
-                    return;
-                }
-                if (!salsero.isValid()) {
-                    giveOwed(session, player);
-                    return;
-                }
-                Location from = salsero.getEyeLocation();
-                Vector toward = player.getLocation().toVector().subtract(from.toVector()).normalize().multiply(0.3);
-                Item item = salsero.getWorld().dropItem(from, new ItemStack(material));
-                item.setVelocity(toward.setY(0.25));
-                item.setPickupDelay(10);
-                session.owedReward--;
-                salsero.getWorld().playSound(from, Sound.ENTITY_ITEM_PICKUP, 1f, 1.3f);
-            }, i * 4L);
-            session.track(throwTask::cancel);
-        }
-        // la sesion sigue viva hasta el ultimo tiro: asi un quit en el medio todavia guarda lo que falta
-        BukkitTask finish = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!registry.owns(session) || session.tasksCancelled()) {
-                return;
+            @Override
+            public void release() {
+                DonPollosBattleManager.this.release(session);
             }
-            if (session.owedReward > 0 && player.isOnline()) {
-                giveOwed(session, player);
-            }
-            release(session);
-        }, amount * 4L + 1L);
-        session.track(finish::cancel);
-    }
-
-    /** Entrega directo al inventario (lo que no entra cae al piso) todo lo que la sesion todavia debe. */
-    private void giveOwed(Session session, Player player) {
-        int owed = session.owedReward;
-        session.owedReward = 0;
-        giveItems(player, owed);
+        });
     }
 
     private void giveItems(Player player, int amount) {
@@ -438,25 +450,16 @@ final class DonPollosBattleManager implements Listener {
 
     /** Guarda en el jugador lo que el Salsero le debia, para darselo cuando vuelva a entrar. */
     private void storePendingReward(Session session, Player player) {
-        if (session.owedReward <= 0) {
-            return;
-        }
-        int total = player.getPersistentDataContainer().getOrDefault(pendingRewardKey,
-            org.bukkit.persistence.PersistentDataType.INTEGER, 0) + session.owedReward;
-        player.getPersistentDataContainer().set(pendingRewardKey,
-            org.bukkit.persistence.PersistentDataType.INTEGER, total);
-        session.owedReward = 0;
+        DonPollosVictoryFlow.storePending(player.getPersistentDataContainer(), pendingRewardKey, session);
     }
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        int pending = player.getPersistentDataContainer().getOrDefault(pendingRewardKey,
-            org.bukkit.persistence.PersistentDataType.INTEGER, 0);
+        int pending = DonPollosVictoryFlow.claimPending(player.getPersistentDataContainer(), pendingRewardKey);
         if (pending <= 0) {
             return;
         }
-        player.getPersistentDataContainer().remove(pendingRewardKey);
         giveItems(player, pending);
         player.sendMessage("§d¡El Salsero te debia §f" + pending + "§d "
             + settings.reward().material().toLowerCase().replace('_', ' ') + "! §7Bien bailado.");

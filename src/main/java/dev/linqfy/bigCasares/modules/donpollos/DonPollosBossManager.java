@@ -93,9 +93,22 @@ final class DonPollosBossManager implements Listener {
             LEGACY.deserialize("§cNo podes poner ni romper bloques en el cubo hasta ganar las Batallas del Cubo")));
         this.pitExit = new DonPollosPitExit(bosses, new NamespacedKey(plugin, "pozo_salida"),
             task -> Bukkit.getScheduler().runTask(plugin, task), Bukkit::getWorld, System::currentTimeMillis);
-        this.attacks = new DonPollosBossAttacks(plugin, binder, settings, minions, protection, terrain::isCubeBlock);
-        this.cubes = new DonPollosCubeBattles(plugin, settings, minions, terrain);
-        this.defeat = new DonPollosBossDefeat(plugin, sounds, bosses, minions, attacks, cubes, this::untrack);
+        this.attacks = new DonPollosBossAttacks(plugin, binder, settings, minions, protection, terrain::isCubeBlock,
+            this::aliveInWorld);
+        this.cubes = new DonPollosCubeBattles(plugin, settings, minions, terrain, this::aliveInWorld);
+        this.defeat = new DonPollosBossDefeat(plugin, sounds, bosses, minions, attacks, cubes, this::untrack,
+            boss -> setAttribute(boss.ravager, Attribute.ATTACK_DAMAGE, boss.difficulty.damage(settings.meleeDamage())));
+    }
+
+    /** Bichos vivos de todos los jefes que estan en ese mundo (para el tope por mundo). */
+    private long aliveInWorld(World world) {
+        long alive = 0;
+        for (DonPollosBoss boss : bosses.values()) {
+            if (boss.ravager.getWorld() == world) {
+                alive += minions.count(boss.minions, kind -> true);
+            }
+        }
+        return alive;
     }
 
     void start() {
@@ -173,13 +186,9 @@ final class DonPollosBossManager implements Listener {
      * {@code summonerIfOnline} solo recibe el mensaje si sigue conectado.
      */
     Ravager spawn(Location location, int summonerWins, Player summonerIfOnline) {
-        List<Integer> nearbyWins = new ArrayList<>();
-        for (Player player : location.getWorld().getPlayers()) {
-            if (attackable(player) && player.getLocation().distanceSquared(location) <= BAR_RADIUS * BAR_RADIUS) {
-                nearbyWins.add(defeat.bossWins(player));
-            }
-        }
-        return spawnAtLevel(location, DonPollosBossLevels.levelFor(summonerWins, nearbyWins), summonerIfOnline);
+        int level = DonPollosBossLevels.levelAt(location, summonerWins, location.getWorld().getPlayers(),
+            defeat.winsKey(), BAR_RADIUS);
+        return spawnAtLevel(location, level, summonerIfOnline);
     }
 
     private Ravager spawnAtLevel(Location location, int level, Player summoner) {

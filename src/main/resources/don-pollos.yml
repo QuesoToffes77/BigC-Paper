@@ -55,6 +55,7 @@ boss:
   laser-damage: 3             # dano de cada pulso del laser (pega varias veces por rafaga)
   laser-range: 28
   laser-cooldown-seconds: 7
+  max-minions-per-world: 80   # tope de bichos del jefe vivos entre todos los encuentros de un mundo
   fase-2:                     # desde la mitad de la vida: se aleja y ataca de lejos
     keep-distance: 10         # bloques que intenta mantener entre el y vos
     meteor-damage: 6          # dano de cada meteorito de WhatsApp

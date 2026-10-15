@@ -68,4 +68,13 @@ class DonPollosBossDifficultyTest {
         assertEquals(1, FIRST.spawnCount(2, 8, 24, 7));
         assertEquals(8, new DonPollosBossDifficulty(2).spawnCount(100, 4, 24, 0), "tope escalado 8 < techo 24");
     }
+
+    @Test
+    void worldBudgetNeverExceedsWhatIsLeftOfTheWorldCap() {
+        assertEquals(5, DonPollosBossDifficulty.worldBudget(5, 10, 80));
+        assertEquals(3, DonPollosBossDifficulty.worldBudget(5, 77, 80));
+        assertEquals(0, DonPollosBossDifficulty.worldBudget(5, 80, 80));
+        assertEquals(0, DonPollosBossDifficulty.worldBudget(5, 120, 80), "nunca negativo");
+        assertEquals(0, DonPollosBossDifficulty.worldBudget(0, 0, 80));
+    }
 }

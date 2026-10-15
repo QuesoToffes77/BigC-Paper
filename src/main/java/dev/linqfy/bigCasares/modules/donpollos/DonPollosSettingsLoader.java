@@ -93,7 +93,8 @@ public final class DonPollosSettingsLoader {
             config.getDouble("boss.fase-2.chicken-damage", d.chickenDamage()),
             config.getInt("boss.fase-2.hard-max-chickens", d.hardMaxChickens()),
             phase3(config, d.phase3()),
-            phase4(config, d.phase4()));
+            phase4(config, d.phase4()),
+            config.getInt("boss.max-minions-per-world", d.maxMinionsPerWorld()));
     }
 
     private DonPollosBossPhase4Settings phase4(ConfigurationSection config, DonPollosBossPhase4Settings d) {

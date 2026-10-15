@@ -186,4 +186,21 @@ class DonPollosSettingsLoaderTest {
         config.set("boss.fase-2.hard-max-chickens", 0);
         assertThrows(IllegalArgumentException.class, () -> new DonPollosSettingsLoader().load(config));
     }
+
+    @Test
+    void maxMinionsPerWorldDefaultsToEightyCanBeOverriddenAndMustBePositive() {
+        assertEquals(80, new DonPollosSettingsLoader().load(bundled()).boss().maxMinionsPerWorld());
+
+        YamlConfiguration without = bundled();
+        without.set("boss.max-minions-per-world", null);
+        assertEquals(DonPollosBossSettings.DEFAULT_MAX_MINIONS_PER_WORLD,
+            new DonPollosSettingsLoader().load(without).boss().maxMinionsPerWorld());
+
+        YamlConfiguration config = bundled();
+        config.set("boss.max-minions-per-world", 30);
+        assertEquals(30, new DonPollosSettingsLoader().load(config).boss().maxMinionsPerWorld());
+
+        config.set("boss.max-minions-per-world", 0);
+        assertThrows(IllegalArgumentException.class, () -> new DonPollosSettingsLoader().load(config));
+    }
 }

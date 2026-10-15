@@ -33,9 +33,13 @@ final class DonPollosCubeBattles {
     private final DonPollosBossSettings settings;
     private final DonPollosBossMinions minions;
     private final DonPollosBossTerrain terrain;
+    /** Bichos de jefe vivos en un mundo, de todos los encuentros. */
+    private final java.util.function.ToLongFunction<World> aliveInWorld;
 
     DonPollosCubeBattles(JavaPlugin plugin, DonPollosBossSettings settings, DonPollosBossMinions minions,
-                         DonPollosBossTerrain terrain) {
+                         DonPollosBossTerrain terrain,
+                         java.util.function.ToLongFunction<World> aliveInWorld) {
+        this.aliveInWorld = aliveInWorld;
         this.plugin = plugin;
         this.settings = settings;
         this.minions = minions;
@@ -181,7 +185,10 @@ final class DonPollosCubeBattles {
         if (step.roundStarted() > 0) {
             announceRound(boss, step.roundStarted());
         }
-        if (step.spawnColonel()) {
+        // tope de bichos por mundo: si no queda lugar el bicho de este turno no sale (la ronda sigue su curso)
+        boolean worldRoom = DonPollosBossDifficulty.worldBudget(1, aliveInWorld.applyAsLong(player == null
+            ? boss.ravager.getWorld() : player.getWorld()), settings.maxMinionsPerWorld()) > 0;
+        if (step.spawnColonel() && worldRoom) {
             DonPollosCubeRound round = cube.current();
             boss.minions.add(toughen(boss, minions.spawn(DonPollosBossMinions.Kind.CORONEL,
                 DonPollosBossMinions.around(player.getLocation(), 4), player, boss.difficulty.level(), colonel -> {
@@ -191,7 +198,8 @@ final class DonPollosCubeBattles {
                 })).getUniqueId());
             colonels++;
         }
-        if (step.spawnLabubu()) {
+        if (step.spawnLabubu() && worldRoom && DonPollosBossDifficulty.worldBudget(1, aliveInWorld.applyAsLong(
+            player.getWorld()), settings.maxMinionsPerWorld()) > 0) {
             DonPollosBossMinions.Kind kind = DonPollosBossMinions.Kind.LABUBUS[(cube.labubuIndex() - 1) % 4];
             boss.minions.add(toughen(boss, minions.spawn(kind, DonPollosBossMinions.around(player.getLocation(), 3), player,
                 boss.difficulty.level())).getUniqueId());

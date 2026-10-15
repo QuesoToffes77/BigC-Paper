@@ -44,6 +44,14 @@ record DonPollosBossDifficulty(int level) {
         return Math.max(0, Math.min(count(perWave), cap - alive));
     }
 
+    /**
+     * Cuantos bichos se pueden spawnear de los {@code perEncounterCount} que le tocan a un encuentro: nunca mas de lo
+     * que queda del tope del mundo ({@code worldCap}) dado lo que ya hay vivo ({@code aliveInWorld}, de todos los jefes).
+     */
+    static long worldBudget(long perEncounterCount, long aliveInWorld, int worldCap) {
+        return Math.max(0, Math.min(perEncounterCount, worldCap - aliveInWorld));
+    }
+
     double speed(double base) {
         return base * Math.min(MAX_SPEED, factor());
     }

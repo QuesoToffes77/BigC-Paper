@@ -105,4 +105,26 @@ class DonPollosRouletteDeliveryTest {
         assertEquals(1, dropped.size());
         assertEquals(List.of("insert", "drop", "limit"), order);
     }
+
+    @Test
+    void winningSettlementDeliversThePayoutAndLimitsOnce() {
+        List<Player> limited = new ArrayList<>();
+
+        int paid = DonPollosRouletteDelivery.settle(player, stackOf(Material.DIAMOND), 40, limited::add);
+
+        assertEquals(40, paid);
+        assertEquals(40, inserted.stream().mapToInt(ItemStack::getAmount).sum());
+        assertEquals(List.of(player), limited);
+    }
+
+    @Test
+    void losingSettlementDeliversNothingAndDoesNotLimit() {
+        List<Player> limited = new ArrayList<>();
+
+        int paid = DonPollosRouletteDelivery.settle(player, stackOf(Material.DIAMOND), 0, limited::add);
+
+        assertEquals(0, paid);
+        assertEquals(0, inserted.size());
+        assertEquals(0, limited.size());
+    }
 }
