@@ -154,4 +154,36 @@ class DonPollosSettingsLoaderTest {
             throw new IllegalStateException(exception);
         }
     }
+
+    @Test
+    void bundledBossHasAbsoluteEntityCeilings() {
+        DonPollosBossSettings boss = new DonPollosSettingsLoader().load(bundled()).boss();
+        assertEquals(24, boss.hardMaxChickens());
+        assertEquals(12, boss.phase4().hardMaxColonels());
+        assertEquals(40, boss.phase3().hardMaxLabubus());
+    }
+
+    @Test
+    void missingCeilingsFallBackToTheDefaultsAndCanBeOverridden() {
+        YamlConfiguration without = bundled();
+        without.set("boss.fase-2.hard-max-chickens", null);
+        without.set("boss.fase-final.hard-max-sanders", null);
+        without.set("boss.fase-3.batallas-del-cubo.hard-max-labubus", null);
+        DonPollosBossSettings defaults = new DonPollosSettingsLoader().load(without).boss();
+        assertEquals(DonPollosBossSettings.DEFAULT_HARD_MAX_CHICKENS, defaults.hardMaxChickens());
+        assertEquals(DonPollosBossPhase4Settings.DEFAULT_HARD_MAX_COLONELS, defaults.phase4().hardMaxColonels());
+        assertEquals(DonPollosBossPhase3Settings.DEFAULT_HARD_MAX_LABUBUS, defaults.phase3().hardMaxLabubus());
+
+        YamlConfiguration config = bundled();
+        config.set("boss.fase-2.hard-max-chickens", 5);
+        config.set("boss.fase-final.hard-max-sanders", 3);
+        config.set("boss.fase-3.batallas-del-cubo.hard-max-labubus", 7);
+        DonPollosBossSettings custom = new DonPollosSettingsLoader().load(config).boss();
+        assertEquals(5, custom.hardMaxChickens());
+        assertEquals(3, custom.phase4().hardMaxColonels());
+        assertEquals(7, custom.phase3().hardMaxLabubus());
+
+        config.set("boss.fase-2.hard-max-chickens", 0);
+        assertThrows(IllegalArgumentException.class, () -> new DonPollosSettingsLoader().load(config));
+    }
 }

@@ -17,8 +17,6 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import static dev.linqfy.bigCasares.modules.donpollos.DonPollosBossSupport.*;
@@ -158,7 +156,7 @@ final class DonPollosCubeBattles {
         DonPollosBossPhase3Settings phase3 = settings.phase3();
         // la primera ronda arranca justo cuando termina de elevarse (la pausa inicial dura hasta ahi)
         boss.cube = new DonPollosCubeBattle(phase3.rounds().stream().map(boss.difficulty::round).toList(),
-            boss.difficulty.count(phase3.maxAlive()), phase3.roundPauseTicks(),
+            Math.min(boss.difficulty.count(phase3.maxAlive()), phase3.hardMaxLabubus()), phase3.roundPauseTicks(),
             Math.max(now, boss.levitateEnd) - phase3.roundPauseTicks());
         boss.cubeBar = BossBar.bossBar(cubeTitle(boss.cube), 1f, BossBar.Color.YELLOW, BossBar.Overlay.PROGRESS);
         plugin.getLogger().info("Batallas del Cubo: " + boss.pits.size() + " cubo(s), " + phase3.rounds().size() + " rondas");
@@ -227,8 +225,7 @@ final class DonPollosCubeBattles {
      * del Cubo: se rellenan los pozos y Don Pollo baja a pelear. Asi el encuentro nunca queda trabado.
      */
     boolean abandonCubeIfEmpty(DonPollosBoss boss, long now) {
-        boolean anyoneInside = boss.pits.stream().anyMatch(pit -> pit.world().getPlayers().stream()
-            .anyMatch(p -> attackable(p) && pit.contains(p.getLocation())));
+        boolean anyoneInside = !DonPollosBossTerrain.occupants(boss).isEmpty();
         if (anyoneInside) {
             boss.cubeEmptySince = -1;
             return false;
@@ -277,18 +274,9 @@ final class DonPollosCubeBattles {
 
     /** A quien le salen los bichos: va rotando entre todos los que estan en un cubo (si no hay, el mas cercano). */
     Player nextCubeFighter(DonPollosBoss boss) {
-        List<Player> fighters = new ArrayList<>();
-        for (UUID viewer : boss.viewers) {
-            Player player = Bukkit.getPlayer(viewer);
-            if (player != null && attackable(player) && DonPollosBossTerrain.inAnyPit(boss, player.getLocation())) {
-                fighters.add(player);
-            }
-        }
-        if (fighters.isEmpty()) {
-            return nearestPlayer(boss.ravager.getLocation(), BAR_RADIUS * 2);
-        }
-        fighters.sort(java.util.Comparator.comparing(Player::getUniqueId));
-        return fighters.get((int) (boss.fighterTurn % fighters.size()));
+        // los ocupantes reales de los cubos, sin importar a cuanto esta el Ravager (un cubo reubicado puede quedar lejos)
+        Player fighter = DonPollosBossTerrain.pickFighter(DonPollosBossTerrain.occupants(boss), boss.fighterTurn);
+        return fighter != null ? fighter : nearestPlayer(boss.ravager.getLocation(), BAR_RADIUS * 2);
     }
 
     void announceRound(DonPollosBoss boss, int round) {

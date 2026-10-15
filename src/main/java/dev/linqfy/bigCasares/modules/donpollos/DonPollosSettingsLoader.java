@@ -91,6 +91,7 @@ public final class DonPollosSettingsLoader {
             config.getInt("boss.fase-2.max-chickens", d.maxChickens()),
             config.getDouble("boss.fase-2.chicken-health", d.chickenHealth()),
             config.getDouble("boss.fase-2.chicken-damage", d.chickenDamage()),
+            config.getInt("boss.fase-2.hard-max-chickens", d.hardMaxChickens()),
             phase3(config, d.phase3()),
             phase4(config, d.phase4()));
     }
@@ -109,6 +110,7 @@ public final class DonPollosSettingsLoader {
             config.getDouble(p + "sanders-seconds", d.colonelSeconds()),
             config.getInt(p + "sanders-per-wave", d.colonelsPerWave()),
             config.getInt(p + "max-sanders", d.maxColonels()),
+            config.getInt(p + "hard-max-sanders", d.hardMaxColonels()),
             config.getDouble(p + "sanders-speed", d.colonelSpeed()),
             config.getDouble(p + "sanders-damage-extra", d.colonelDamage()),
             config.getDouble(p + "sanders-health", d.colonelHealth()));
@@ -128,6 +130,7 @@ public final class DonPollosSettingsLoader {
             config.getDouble("boss.fase-3.levitate-height", d.levitateHeight()),
             config.getInt("boss.fase-3.pit-depth", d.pitDepth()),
             config.getInt("boss.fase-3.batallas-del-cubo.max-labubus-vivos", d.maxAlive()),
+            config.getInt("boss.fase-3.batallas-del-cubo.hard-max-labubus", d.hardMaxLabubus()),
             config.getDouble("boss.fase-3.batallas-del-cubo.pausa-segundos", d.roundPauseSeconds()),
             rounds.isEmpty() ? d.rounds() : rounds);
     }

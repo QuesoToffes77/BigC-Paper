@@ -13,6 +13,7 @@ import java.util.Objects;
  * @param maxChickens            tope de gallinas vivas por boss
  * @param chickenHealth          vida de cada gallina
  * @param chickenDamage          dano de cada gallina (el de un zombie: 3)
+ * @param hardMaxChickens        techo absoluto de gallinas vivas por encuentro (no escala con la dificultad)
  * @param phase3                 la FASE 3 (levitar, pozo e invocaciones)
  * @param phase4                 la FASE FINAL (rayo de warden, mega saltos y Sanders fase final)
  */
@@ -32,9 +33,24 @@ public record DonPollosBossSettings(
     int maxChickens,
     double chickenHealth,
     double chickenDamage,
+    int hardMaxChickens,
     DonPollosBossPhase3Settings phase3,
     DonPollosBossPhase4Settings phase4
 ) {
+
+    /** Techo absoluto de gallinas por defecto. */
+    public static final int DEFAULT_HARD_MAX_CHICKENS = 24;
+
+    /** Sin techo absoluto propio: usa el de por defecto. */
+    public DonPollosBossSettings(double health, double scale, double meleeDamage, double laserDamage, double laserRange,
+                                 int laserCooldownSeconds, DonPollosItem reward, double keepDistance, double meteorDamage,
+                                 double meteorCooldownSeconds, double chickenWaveSeconds, int chickensPerWave,
+                                 int maxChickens, double chickenHealth, double chickenDamage,
+                                 DonPollosBossPhase3Settings phase3, DonPollosBossPhase4Settings phase4) {
+        this(health, scale, meleeDamage, laserDamage, laserRange, laserCooldownSeconds, reward, keepDistance,
+            meteorDamage, meteorCooldownSeconds, chickenWaveSeconds, chickensPerWave, maxChickens, chickenHealth,
+            chickenDamage, DEFAULT_HARD_MAX_CHICKENS, phase3, phase4);
+    }
 
     public DonPollosBossSettings {
         Objects.requireNonNull(reward, "reward");
@@ -52,10 +68,13 @@ public record DonPollosBossSettings(
         if (chickenWaveSeconds < 1 || chickensPerWave < 0 || maxChickens < 0 || chickenHealth < 1 || chickenDamage < 0) {
             throw new IllegalArgumentException("boss: gallinas con chicken-wave-seconds >= 1, cantidades >= 0, vida >= 1 y dano >= 0");
         }
+        if (hardMaxChickens < 1) {
+            throw new IllegalArgumentException("boss: hard-max-chickens >= 1");
+        }
     }
 
     public static DonPollosBossSettings defaults() {
         return new DonPollosBossSettings(600, 1.8, 14, 3, 28, 7, new DonPollosItem("DIAMOND", 16),
-            10, 6, 2.5, 7.5, 2, 8, 8, 3, DonPollosBossPhase3Settings.defaults(), DonPollosBossPhase4Settings.defaults());
+            10, 6, 2.5, 7.5, 2, 8, 8, 3, DEFAULT_HARD_MAX_CHICKENS, DonPollosBossPhase3Settings.defaults(), DonPollosBossPhase4Settings.defaults());
     }
 }

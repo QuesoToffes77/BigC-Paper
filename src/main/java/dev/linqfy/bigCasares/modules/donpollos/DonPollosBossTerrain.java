@@ -96,6 +96,49 @@ final class DonPollosBossTerrain implements Listener {
         return false;
     }
 
+    /** Si el bloque es parte (paredes, piso o interior) del cubo de cualquier boss vivo. */
+    boolean isCubeBlock(Block block) {
+        for (DonPollosBoss boss : bosses.values()) {
+            for (DonPollosBossPit pit : boss.pits) {
+                if (pit.containsBlock(block)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Los jugadores atacables que estan realmente adentro de algun cubo de este boss, lejos o cerca del Ravager. */
+    static List<Player> occupants(DonPollosBoss boss) {
+        List<Player> inside = new ArrayList<>();
+        for (DonPollosBossPit pit : boss.pits) {
+            for (Player p : pit.world().getPlayers()) {
+                if (attackable(p) && pit.contains(p.getLocation()) && !inside.contains(p)) {
+                    inside.add(p);
+                }
+            }
+        }
+        return inside;
+    }
+
+    /** A quien le toca el turno entre los que estan adentro (rotando de a uno, orden estable); null si no hay nadie. */
+    static Player pickFighter(List<Player> occupants, long turn) {
+        if (occupants.isEmpty()) {
+            return null;
+        }
+        List<Player> sorted = new ArrayList<>(occupants);
+        sorted.sort(java.util.Comparator.comparing(Player::getUniqueId));
+        return sorted.get((int) (turn % sorted.size()));
+    }
+
+    /** Cuanto puede diferir en vertical la superficie de un chunk de reemplazo de la altura del jugador. */
+    static final int MAX_RELOCATE_VERTICAL = 24;
+
+    /** Si la superficie del chunk candidato esta a una altura razonable de donde estaba el jugador. */
+    static boolean reasonableRelocation(int candidateFeet, int playerFeet) {
+        return Math.abs(candidateFeet - playerFeet) <= MAX_RELOCATE_VERTICAL;
+    }
+
     static boolean inAnyPit(DonPollosBoss boss, Location location) {
         return boss.pits.stream().anyMatch(pit -> pit.contains(location));
     }
@@ -157,6 +200,11 @@ final class DonPollosBossTerrain implements Listener {
             }
             int feet = world.getHighestBlockYAt(chunkX * 16 + 8, chunkZ * 16 + 8,
                 org.bukkit.HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1;
+            // Cambio de comportamiento: si el unico chunk permitido esta a mas de MAX_RELOCATE_VERTICAL de altura se lo
+            // descarta; sin ningun pozo lejano valido (digPit devuelve null) se pelea en la superficie.
+            if (!reasonableRelocation(feet, feetHere)) {
+                continue;  // una meseta o un valle muy lejos en vertical: no se lo manda ahi
+            }
             int bottom = pitBottom(feet, depth, world.getMinHeight());
             if (canDig(owner, world, chunkX, chunkZ, bottom, feet)) {
                 return dig(world, world.getChunkAt(chunkX, chunkZ), player, feet, bottom, depth, true);
