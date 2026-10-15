@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 
 /** Casino de Don Pollo Fino: apuesta un objeto a rojo, negro o verde y gira la ruleta. */
 final class DonPollosRouletteMenu implements Listener {
@@ -52,9 +53,13 @@ final class DonPollosRouletteMenu implements Listener {
     private final String title;
     private final Map<UUID, DonPollosRouletteColor> choices = new HashMap<>();
     private final Map<UUID, Spin> spins = new HashMap<>();
+    /** Aplica los limites de inventario del plugin despues de cada entrega (pago, liquidacion, devolucion). */
+    private final Consumer<Player> inventoryLimiter;
 
-    DonPollosRouletteMenu(JavaPlugin plugin, DonPollosRoulette roulette, String title) {
+    DonPollosRouletteMenu(JavaPlugin plugin, DonPollosRoulette roulette, String title,
+                          Consumer<Player> inventoryLimiter) {
         this.plugin = plugin;
+        this.inventoryLimiter = inventoryLimiter;
         this.roulette = roulette;
         this.title = title;
     }
@@ -163,6 +168,12 @@ final class DonPollosRouletteMenu implements Listener {
         }
         if (isEmpty(bet)) {
             fail(player, "Pone un objeto para apostar.");
+            return;
+        }
+        if (!allowedBet(bet)) {
+            betInventory.setItem(BET_SLOT, null);
+            give(player, bet, bet.getAmount());
+            fail(player, "Ese objeto no se puede apostar (cajas de shulker, bundles y objetos con nombre o datos especiales).");
             return;
         }
         betInventory.setItem(BET_SLOT, null);
@@ -355,16 +366,19 @@ final class DonPollosRouletteMenu implements Listener {
 
     // ------------------------------------------------------------ utilidades
 
-    private static void give(Player player, ItemStack template, int amount) {
-        int max = Math.max(1, template.getMaxStackSize());
-        int remaining = amount;
-        while (remaining > 0) {
-            ItemStack stack = template.clone();
-            stack.setAmount(Math.min(max, remaining));
-            remaining -= stack.getAmount();
-            player.getInventory().addItem(stack).values()
-                .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
+    private void give(Player player, ItemStack template, int amount) {
+        DonPollosRouletteDelivery.give(player, template, amount, inventoryLimiter);
+    }
+
+    private static boolean allowedBet(ItemStack bet) {
+        boolean pluginData = false;
+        boolean customName = false;
+        if (bet.hasItemMeta()) {
+            var meta = bet.getItemMeta();
+            pluginData = !meta.getPersistentDataContainer().isEmpty();
+            customName = meta.hasDisplayName();
         }
+        return DonPollosRouletteBets.allowed(bet.getType().name(), pluginData, customName);
     }
 
     private static void fail(Player player, String message) {
