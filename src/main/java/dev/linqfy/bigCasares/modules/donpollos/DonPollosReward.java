@@ -17,7 +17,7 @@ final class DonPollosReward {
     static final List<String> SECRET_PHRASES = List.of(
         "Yo se cosas...",
         "Queres saberlas...",
-        "Dame Salsa y Picante");
+        "Dame Salsa, Picante, pollo frito y diamantes");
     /** La historia que cuenta el bloque del secreto antes de volverse malo. */
     static final List<String> BLOCK_STORY = List.of(
         "Era una vez...",

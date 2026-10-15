@@ -23,7 +23,7 @@ class DonPollosRewardTest {
 
     @Test
     void gorditoSaysHisSecretPhrasesInOrder() {
-        assertEquals(List.of("Yo se cosas...", "Queres saberlas...", "Dame Salsa y Picante"),
+        assertEquals(List.of("Yo se cosas...", "Queres saberlas...", "Dame Salsa, Picante, pollo frito y diamantes"),
             DonPollosReward.SECRET_PHRASES);
     }
 

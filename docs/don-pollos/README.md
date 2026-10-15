@@ -84,8 +84,10 @@ Al alejarte, cada uno se despide con su frase, salvo el Común. La primera vez q
 
 ## El secreto del Gordito
 
-1. Hacé click derecho al Gordito. Dice "Yo se cosas...", "Queres saberlas..." y "Dame Salsa y Picante".
-2. Con otro click abre su menú. Poné una Salsa y un Picante, que se sacan de tu inventario.
+1. Hacé click derecho al Gordito. Dice "Yo se cosas...", "Queres saberlas..." y "Dame Salsa, Picante, pollo frito y
+   diamantes".
+2. Con otro click abre su menú. Poné una Salsa, un Picante, un stack de pollo frito (64) y 5 diamantes, que se sacan de
+   tu inventario. Si cerrás el menú sin terminar, te devuelve todo.
 3. Tocá la estrella **Secreto**. Te da el **Secreto del Don Pollo**, que es un beacon.
 4. Ponelo en el piso. El bloque cuenta su historia con las fotos del bloque: "Era una vez...", "En el auto...",
    y sigue hasta "Desde ese dia algo cambio en Don Pollo...".

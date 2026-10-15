@@ -48,7 +48,8 @@ import java.util.function.Consumer;
 
 /**
  * El secreto del Don Pollo Gordito: al hacerle click derecho dice "Yo se cosas..." / "Queres saberlas..." /
- * "Dame Salsa y Picante"; con otro click abre un menu donde le das una salsa y un picante y a cambio, con la
+ * "Dame Salsa, Picante, pollo frito y diamantes"; con otro click abre un menu donde le das una salsa, un picante,
+ * un stack de pollo frito y 5 diamantes y a cambio, con la
  * estrella "Secreto", te da un bloque con la cara de Don Pollo. Al ponerlo en el piso cuenta la historia ("Era una
  * vez..."), se vuelve el Don Pollo malo, salen particulas rojas y blancas, explota una esfera de particulas, el
  * bloque desaparece y del medio sale el Don Pollo Boss.
@@ -69,9 +70,11 @@ final class DonPollosSecret implements Listener {
     private static final String EVIL_MODEL = "bloque_don_pollo_malo";
     private static final long RITUAL_TICKS = 100;
     private static final long SPHERE_TICKS = 10;
-    private static final int SALSA_SLOT = 11;
     private static final int SECRET_SLOT = 13;
-    private static final int PICANTE_SLOT = 15;
+    /** Donde va cada cosa que pide: salsa y picante a la izquierda de la estrella, pollo y diamantes a la derecha. */
+    private static final java.util.Map<Integer, DonPollosSecretOffering> OFFERING_SLOTS = java.util.Map.of(
+        10, DonPollosSecretOffering.SALSA, 11, DonPollosSecretOffering.PICANTE,
+        15, DonPollosSecretOffering.POLLO_FRITO, 16, DonPollosSecretOffering.DIAMANTES);
     private static final int TRADES_SLOT = 22;
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
 
@@ -172,16 +175,42 @@ final class DonPollosSecret implements Listener {
 
     private void refresh(SecretHolder holder) {
         Inventory inventory = holder.inventory;
-        inventory.setItem(SALSA_SLOT, holder.salsa
-            ? items.menuIcon(DonPollosProduct.SALSA, 1, "§f§lSalsa §a✔", List.of("§7Click para sacarla"))
-            : icon(Material.WHITE_STAINED_GLASS_PANE, "§fPone una §lSalsa", "§7Click para poner una de tu inventario"));
-        inventory.setItem(PICANTE_SLOT, holder.picante
-            ? items.menuIcon(DonPollosProduct.PICANTE, 1, "§c§lPicante §a✔", List.of("§7Click para sacarlo"))
-            : icon(Material.RED_STAINED_GLASS_PANE, "§cPone un §lPicante", "§7Click para poner uno de tu inventario"));
-        boolean ready = holder.salsa && holder.picante;
+        OFFERING_SLOTS.forEach((slot, offering) -> inventory.setItem(slot, holder.placed.contains(offering)
+            ? placedIcon(offering)
+            : icon(Material.LIGHT_GRAY_STAINED_GLASS_PANE, "§7Pone " + offering.amount + " " + offering.label,
+                "§7Click para ponerlo desde tu inventario")));
+        boolean ready = DonPollosSecretOffering.ready(holder.placed);
         ItemStack star = icon(Material.NETHER_STAR, ready ? "§d§lSecreto" : "§8§lSecreto",
-            ready ? "§eClick para saber el secreto" : "§7Primero dale Salsa y Picante");
+            ready ? "§eClick para saber el secreto" : "§7Primero dale Salsa, Picante,", "§7un stack de pollo frito y 5 diamantes");
         inventory.setItem(SECRET_SLOT, star);
+    }
+
+    private ItemStack placedIcon(DonPollosSecretOffering offering) {
+        String name = offering.label + " x" + offering.amount + " §a✔";
+        if (offering.product != null) {
+            return items.menuIcon(offering.product, offering.amount, name, List.of("§7Click para sacarlo"));
+        }
+        ItemStack stack = icon(Material.valueOf(offering.material), name, "§7Click para sacarlo");
+        stack.setAmount(offering.amount);
+        return stack;
+    }
+
+    private ItemStack offeringStack(DonPollosSecretOffering offering) {
+        return offering.product != null
+            ? items.create(offering.product, offering.amount)
+            : new ItemStack(Material.valueOf(offering.material), offering.amount);
+    }
+
+    private boolean matches(DonPollosSecretOffering offering, ItemStack stack) {
+        if (stack == null || stack.getType().isAir()) {
+            return false;
+        }
+        if (offering.product != null) {
+            return items.productOf(stack).filter(offering.product::equals).isPresent();
+        }
+        // los diamantes tienen que ser de vanilla (no un item custom con el material de diamante)
+        return stack.getType() == Material.valueOf(offering.material) && items.productOf(stack).isEmpty()
+            && !stack.hasItemMeta();
     }
 
     @EventHandler
@@ -194,56 +223,69 @@ final class DonPollosSecret implements Listener {
             || event.getClickedInventory() != event.getView().getTopInventory()) {
             return;
         }
+        DonPollosSecretOffering offering = OFFERING_SLOTS.get(event.getSlot());
+        if (offering != null) {
+            toggle(player, holder, offering);
+            refresh(holder);
+            return;
+        }
         switch (event.getSlot()) {
-            case SALSA_SLOT -> holder.salsa = toggle(player, DonPollosProduct.SALSA, holder.salsa);
-            case PICANTE_SLOT -> holder.picante = toggle(player, DonPollosProduct.PICANTE, holder.picante);
             case SECRET_SLOT -> {
-                if (!holder.salsa || !holder.picante) {
+                if (!DonPollosSecretOffering.ready(holder.placed)) {
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
                     return;
                 }
-                holder.salsa = false;
-                holder.picante = false;
+                holder.placed.clear();
                 holder.done = true;
                 player.closeInventory();
                 give(player, secretBlock());
                 player.sendMessage(LEGACY.deserialize("§6Don Pollo Gordito: §e§oPonelo en el piso... si te animas."));
                 player.playSound(player.getLocation(), Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1f, 0.8f);
-                return;
             }
             case TRADES_SLOT -> {
                 player.closeInventory();
                 openTrades.accept(player);
-                return;
             }
             default -> {
-                return;
             }
         }
-        refresh(holder);
     }
 
-    /** Pone (saca uno del inventario) o saca (lo devuelve) la salsa o el picante. Devuelve si quedo puesto. */
-    private boolean toggle(Player player, DonPollosProduct product, boolean placed) {
-        if (placed) {
-            give(player, items.create(product, 1));
+    /**
+     * Pone (saca la cantidad pedida del inventario, aunque este repartida en varios stacks) o saca (lo devuelve) una de
+     * las cosas que pide el Gordito. Si no tenes suficiente no se saca nada.
+     */
+    private void toggle(Player player, SecretHolder holder, DonPollosSecretOffering offering) {
+        if (holder.placed.remove(offering)) {
+            give(player, offeringStack(offering));
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 1f);
-            return false;
+            return;
         }
         ItemStack[] contents = player.getInventory().getStorageContents();
-        for (int slot = 0; slot < contents.length; slot++) {
-            ItemStack stack = contents[slot];
-            if (items.productOf(stack).filter(product::equals).isPresent()) {
-                stack.setAmount(stack.getAmount() - 1);
-                player.getInventory().setItem(slot, stack.getAmount() <= 0 ? null : stack);
-                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_FRAME_ADD_ITEM, 1f, 1f);
-                return true;
+        int have = 0;
+        for (ItemStack stack : contents) {
+            if (matches(offering, stack)) {
+                have += stack.getAmount();
             }
         }
-        player.sendMessage(LEGACY.deserialize("§cNo tenes " + (product == DonPollosProduct.SALSA ? "Salsa" : "Picante")
-            + ". §7Compralo en la polleria del Don Pollo Aura 67."));
-        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
-        return false;
+        if (have < offering.amount) {
+            player.sendMessage(LEGACY.deserialize("§cTe falta: necesitas §f" + offering.plain() + "§c y tenes §f" + have
+                + "§c." + (offering.product != null ? " §7Compralo en la polleria del Don Pollo Aura 67." : "")));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
+            return;
+        }
+        int missing = offering.amount;
+        for (int slot = 0; slot < contents.length && missing > 0; slot++) {
+            ItemStack stack = contents[slot];
+            if (matches(offering, stack)) {
+                int take = Math.min(missing, stack.getAmount());
+                stack.setAmount(stack.getAmount() - take);
+                player.getInventory().setItem(slot, stack.getAmount() <= 0 ? null : stack);
+                missing -= take;
+            }
+        }
+        holder.placed.add(offering);
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_FRAME_ADD_ITEM, 1f, 1f);
     }
 
     @EventHandler
@@ -261,14 +303,10 @@ final class DonPollosSecret implements Listener {
         }
         if (event.getInventory().getHolder() instanceof SecretHolder holder && event.getPlayer() instanceof Player player
             && !holder.done) {
-            if (holder.salsa) {
-                give(player, items.create(DonPollosProduct.SALSA, 1));
+            for (DonPollosSecretOffering offering : holder.placed) {
+                give(player, offeringStack(offering));
             }
-            if (holder.picante) {
-                give(player, items.create(DonPollosProduct.PICANTE, 1));
-            }
-            holder.salsa = false;
-            holder.picante = false;
+            holder.placed.clear();
         }
     }
 
@@ -485,8 +523,8 @@ final class DonPollosSecret implements Listener {
 
     private static final class SecretHolder implements InventoryHolder {
         private Inventory inventory;
-        private boolean salsa;
-        private boolean picante;
+        /** Lo que ya le diste (sacado de tu inventario; si cerras sin terminar se devuelve). */
+        private final java.util.Set<DonPollosSecretOffering> placed = java.util.EnumSet.noneOf(DonPollosSecretOffering.class);
         private boolean done;
 
         @Override
