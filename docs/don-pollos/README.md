@@ -10,6 +10,7 @@ generar el mundo y el Don Pollo Boss, una pelea en cuatro fases con premio al fi
 - Items, texturas y sonidos de Java: `resourcepack/java/assets/donpollos/` (van dentro del pack de BigCasares)
 - Generadores de modelos y assets: `tools/donpollos/` (ver su `README.md`)
 - Bedrock: [compatibilidad-bedrock.md](compatibilidad-bedrock.md)
+- Errores que corregimos en la revisión (para no repetirlos en otros módulos): [errores-comunes.md](errores-comunes.md)
 - Diseño y plan: `docs/superpowers/specs/2026-10-04-don-pollos-design.md` y
   `docs/superpowers/plans/2026-10-04-don-pollos.md`
 
