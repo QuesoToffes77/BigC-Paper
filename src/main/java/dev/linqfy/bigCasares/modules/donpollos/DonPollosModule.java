@@ -1,7 +1,9 @@
 package dev.linqfy.bigCasares.modules.donpollos;
 
+import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.RuntimeCleanupAction;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -12,6 +14,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
+import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -96,7 +99,7 @@ public final class DonPollosModule implements PluginModule {
         this.settings = new DonPollosSettingsLoader().load(configuration);
         this.service = new DonPollosService();
         this.roulette = new DonPollosRouletteMenu(plugin, settings.roulette(),
-            settings.variant(DonPolloVariant.FINO).menuTitle());
+            settings.variant(DonPolloVariant.FINO).menuTitle(), this::enforceInventoryLimits);
         this.salseroPolicy = new DonPollosSalseroPolicy(settings.salseroFollowRadius(), settings.salseroStopDistance());
         this.factory = new DonPollosEntityFactory(plugin);
         this.bedrock = new DonPollosBedrock();
@@ -129,14 +132,9 @@ public final class DonPollosModule implements PluginModule {
             bedrock::isBedrock);
 
         registrations.ownCleanup("don-pollos-runtime", this::shutdown);
-        registrations.registerListener("don-pollos-listener", new DonPollosListener(this, factory));
-        registrations.registerListener("don-pollos-menus", menus);
-        registrations.registerListener("don-pollos-roulette", roulette);
-        registrations.registerListener("don-pollos-battles", battles);
         battles.startTicking();
         try {
             cities = DonPollosCityManager.create(plugin, this::spawn, settings.cities());
-            registrations.registerListener("don-pollos-cities", cities);
             cities.useGuard(registrations::guard);
             cities.start();
         } catch (IOException exception) {
@@ -144,11 +142,9 @@ public final class DonPollosModule implements PluginModule {
         }
         DonPollosProtection protection = protectedZones();
         bosses = new DonPollosBossManager(plugin, binder, sounds, settings.boss(), protection);
-        registrations.registerListener("don-pollos-bosses", bosses);
         bosses.start();
         secret = new DonPollosSecret(plugin, items, bosses,
             player -> menus.openTrades(player, settings.variant(DonPolloVariant.GORDITO)), protection);
-        registrations.registerListener("don-pollos-secret", secret);
         secret.start();
         registrations.scheduleRepeating("don-pollos-salseros", this::tickSalseros, 20L, settings.salseroUpdateTicks());
         menus.onMenuClosed(this::farewell);
@@ -163,9 +159,9 @@ public final class DonPollosModule implements PluginModule {
         }
         DonPollosCommand command = new DonPollosCommand(this);
         registrations.bindCommand("don-pollos-command", pluginCommand, command, command);
-        // Las limpiezas corren en orden inverso: esta, registrada al final, cierra los menus antes de que se
-        // saquen los listeners (don-pollos-runtime corre ultima, cuando ya no estan).
-        registrations.ownCleanup("don-pollos-close-menus", this::closeMenus);
+        registerListenersThenMenuCleanup(registrations, new ModuleListeners(
+            new DonPollosListener(this, factory), menus, roulette, battles, cities, bosses, secret),
+            this::closeMenus);
 
         for (World world : plugin.getServer().getWorlds()) {
             for (Villager villager : world.getEntitiesByClass(Villager.class)) {
@@ -182,6 +178,37 @@ public final class DonPollosModule implements PluginModule {
         compatibilityScope = null;
         if (scope != null) {
             scope.close();
+        }
+    }
+
+    /**
+     * Registra los listeners y, al final, la limpieza que cierra los menus. Las limpiezas corren en orden inverso:
+     * esta, registrada despues de todos los listeners, cierra los menus antes de que se saquen (don-pollos-runtime
+     * corre ultima, cuando ya no estan). {@code cities} es null si las ciudades quedaron desactivadas.
+     */
+    static void registerListenersThenMenuCleanup(BukkitRuntimeRegistrations registrations, ModuleListeners listeners,
+                                                 RuntimeCleanupAction closeMenus) {
+        registrations.registerListener("don-pollos-listener", listeners.listener());
+        registrations.registerListener("don-pollos-menus", listeners.menus());
+        registrations.registerListener("don-pollos-roulette", listeners.roulette());
+        registrations.registerListener("don-pollos-battles", listeners.battles());
+        if (listeners.cities() != null) {
+            registrations.registerListener("don-pollos-cities", listeners.cities());
+        }
+        registrations.registerListener("don-pollos-bosses", listeners.bosses());
+        registrations.registerListener("don-pollos-secret", listeners.secret());
+        registrations.ownCleanup("don-pollos-close-menus", closeMenus);
+    }
+
+    /** Los listeners del modulo, con nombre para que no se puedan cruzar al registrarlos. */
+    record ModuleListeners(Listener listener, Listener menus, Listener roulette, Listener battles, Listener cities,
+                           Listener bosses, Listener secret) {
+    }
+
+    /** Limites de inventario de BigCasares; se resuelve al usarse (el modulo de limites puede estar apagado). */
+    private void enforceInventoryLimits(Player player) {
+        if (plugin instanceof BigCasares bigCasares) {
+            bigCasares.enforceInventoryLimits(player);
         }
     }
 

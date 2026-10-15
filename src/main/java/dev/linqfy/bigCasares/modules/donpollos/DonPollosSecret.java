@@ -102,6 +102,7 @@ final class DonPollosSecret implements Listener {
     private final Map<UUID, Long> readyUntil = new HashMap<>();
     private final List<Ritual> rituals = new ArrayList<>();
     private BukkitTask task;
+    private final DonPollosSecretMenuCloser closer = new DonPollosSecretMenuCloser(altar);
     private Consumer<Player> closed = player -> { };
 
     DonPollosSecret(JavaPlugin plugin, DonPollosItems items, DonPollosBossManager bosses, Consumer<Player> openTrades,
@@ -294,13 +295,7 @@ final class DonPollosSecret implements Listener {
     /** Si cerras sin terminar, te devuelve lo que habias puesto. */
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
-        if (event.getInventory().getHolder() instanceof SecretHolder && event.getPlayer() instanceof Player player) {
-            closed.accept(player);
-        }
-        if (event.getInventory().getHolder() instanceof SecretHolder holder && event.getPlayer() instanceof Player player
-            && !holder.done) {
-            altar.returnAll(player.getInventory(), holder.placed, leftover -> drop(player, leftover));
-        }
+        closer.handle(event, closed, DonPollosSecret::drop);
     }
 
     private static void drop(Player player, ItemStack leftover) {
@@ -537,7 +532,7 @@ final class DonPollosSecret implements Listener {
         return stack;
     }
 
-    private static final class SecretHolder implements InventoryHolder {
+    private static final class SecretHolder implements DonPollosSecretMenuCloser.Session {
         private Inventory inventory;
         /** Lo que ya le diste (sacado de tu inventario; si cerras sin terminar se devuelve). */
         private final java.util.Set<DonPollosSecretOffering> placed = java.util.EnumSet.noneOf(DonPollosSecretOffering.class);
@@ -546,6 +541,16 @@ final class DonPollosSecret implements Listener {
         @Override
         public Inventory getInventory() {
             return inventory;
+        }
+
+        @Override
+        public boolean done() {
+            return done;
+        }
+
+        @Override
+        public java.util.Set<DonPollosSecretOffering> placed() {
+            return placed;
         }
     }
 
