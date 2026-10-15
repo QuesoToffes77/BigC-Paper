@@ -19,6 +19,10 @@ interface DonPollosModelGateway {
         boolean playOnce(String animation, Runnable onEnd);
 
         void close();
+
+        /** Brillo de encantamiento en todo el modelo (bichos con armadura encantada). */
+        default void glint(boolean on) {
+        }
     }
 
     static DonPollosModelGateway unavailable() {

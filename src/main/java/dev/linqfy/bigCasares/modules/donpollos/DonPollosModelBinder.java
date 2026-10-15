@@ -92,6 +92,13 @@ final class DonPollosModelBinder {
         }
     }
 
+    void glint(UUID anchorId, boolean on) {
+        DonPollosModelGateway.ModelHandle handle = handles.get(anchorId);
+        if (handle != null) {
+            handle.glint(on);
+        }
+    }
+
     void release(UUID anchorId) {
         DonPollosModelGateway.ModelHandle handle = handles.remove(anchorId);
         if (handle != null) {

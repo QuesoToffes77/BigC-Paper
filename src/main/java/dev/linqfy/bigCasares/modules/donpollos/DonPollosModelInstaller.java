@@ -36,6 +36,7 @@ final class DonPollosModelInstaller {
         List<String> all = new java.util.ArrayList<>(MODELS);
         all.add(DonPollosBossManager.MODEL);
         all.addAll(EXTRA_MODELS);
+        all.addAll(DonPollosMinionArmor.armoredModels());
         return all;
     }
 

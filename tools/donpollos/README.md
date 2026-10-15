@@ -9,6 +9,7 @@ BigC-Paper, por ejemplo `python tools/donpollos/generar_modelos.py`.
 | `generar_boss.py` | El Don Pollo Boss |
 | `generar_wsp.py` | Gallina WhatsApp, logo de WhatsApp y el item del meteorito |
 | `generar_labubus.py`, `generar_coronel.py` | Los 4 Labubus y el Coronel |
+| `generar_armaduras.py` | Las versiones con armadura (cobre, hierro, diamante, netherite) de la gallina y los Labubus. Correrlo despues de regenerar esos modelos, y despues `generar_geysermodelengine.py` |
 | `bailes_salsero.py` (+ `bailes/`) | Las 5 coreografias del Salsero (dentro del modelo del Salsero) |
 | `generar_balde_casco.py` | Balde de KFC dado vuelta (`resourcepack/java/assets/donpollos/`) |
 | `generar_bloque_secreto.py` | Bloque del secreto (caras de `fuentes/fotosbloque/`) |

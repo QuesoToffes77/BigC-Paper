@@ -66,6 +66,11 @@ final class BetterModelDonPollosModelGateway implements DonPollosModelGateway {
             public void close() {
                 tracker.close();
             }
+
+            @Override
+            public void glint(boolean on) {
+                tracker.update(kr.toxicity.model.api.tracker.TrackerUpdateAction.enchant(on));
+            }
         };
     }
 }

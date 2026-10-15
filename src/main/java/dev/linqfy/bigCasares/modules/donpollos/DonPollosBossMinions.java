@@ -128,11 +128,20 @@ final class DonPollosBossMinions implements Listener {
 
     /** Spawnea un bicho; si {@code target} no es null va derecho a el. */
     Zombie spawn(Kind kind, Location location, Player target) {
-        return spawn(kind, location, target, zombie -> { });
+        return spawn(kind, location, target, 0, zombie -> { });
+    }
+
+    Zombie spawn(Kind kind, Location location, Player target, java.util.function.Consumer<Zombie> tweak) {
+        return spawn(kind, location, target, 0, tweak);
+    }
+
+    /** Con la armadura del nivel del boss (victorias de quien lo invoco, ver DonPollosMinionArmor). */
+    Zombie spawn(Kind kind, Location location, Player target, int level) {
+        return spawn(kind, location, target, level, zombie -> { });
     }
 
     /** Igual, con un retoque extra antes de que aparezca (por ejemplo el Coronel mas fuerte en cada ronda). */
-    Zombie spawn(Kind kind, Location location, Player target, java.util.function.Consumer<Zombie> tweak) {
+    Zombie spawn(Kind kind, Location location, Player target, int level, java.util.function.Consumer<Zombie> tweak) {
         World world = location.getWorld();
         Zombie minion = world.spawn(location, Zombie.class, false, zombie -> {
             zombie.getPersistentDataContainer().set(key, PersistentDataType.STRING, kind.id());
@@ -163,9 +172,14 @@ final class DonPollosBossMinions implements Listener {
                     zombie.setHealth(SILVERFISH_HEALTH);
                 }
             }
+            armor(zombie, kind, level);
             tweak.accept(zombie);
         });
-        binder.bindModel(minion, kind.model, kind.modelFollowsScale);
+        binder.bindModel(minion, DonPollosMinionArmor.model(kind.model, level), kind.modelFollowsScale);
+        boolean colonel = kind == Kind.CORONEL || kind == Kind.CORONEL_FINAL;
+        if (DonPollosMinionArmor.protection(level, colonel) > 0) {
+            binder.glint(minion.getUniqueId(), true);
+        }
         if (target != null) {
             minion.setTarget(target);
         }
@@ -196,6 +210,39 @@ final class DonPollosBossMinions implements Listener {
         equipment.setChestplate(leather(Material.LEATHER_CHESTPLATE, color));
         equipment.setHelmetDropChance(0);
         equipment.setChestplateDropChance(0);
+    }
+
+    /**
+     * Armadura segun el nivel. Gallinas y Labubus: cobre, hierro, diamante o netherite en pechera, pantalones y botas;
+     * el casco sigue siendo el de cuero de su color, que en Bedrock (sin modelos) es como se los reconoce. Coronel y
+     * Sanders ya tienen netherite. Con netherite, los encantamientos mejoran en cada nivel.
+     */
+    private static void armor(Zombie zombie, Kind kind, int level) {
+        boolean colonel = kind == Kind.CORONEL || kind == Kind.CORONEL_FINAL;
+        EntityEquipment equipment = zombie.getEquipment();
+        DonPollosMinionArmor.Tier tier = DonPollosMinionArmor.tier(level);
+        if (!colonel && tier != DonPollosMinionArmor.Tier.NONE) {
+            equipment.setChestplate(new ItemStack(Material.valueOf(tier.piece("CHESTPLATE"))));
+            equipment.setLeggings(new ItemStack(Material.valueOf(tier.piece("LEGGINGS"))));
+            equipment.setBoots(new ItemStack(Material.valueOf(tier.piece("BOOTS"))));
+            equipment.setLeggingsDropChance(0);
+            equipment.setBootsDropChance(0);
+        }
+        int protection = DonPollosMinionArmor.protection(level, colonel);
+        int thorns = DonPollosMinionArmor.thorns(level, colonel);
+        if (protection == 0) {
+            return;
+        }
+        ItemStack[] pieces = equipment.getArmorContents();
+        for (ItemStack piece : pieces) {
+            if (piece != null && !piece.getType().isAir()) {
+                piece.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.PROTECTION, protection);
+                if (thorns > 0) {
+                    piece.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.THORNS, thorns);
+                }
+            }
+        }
+        equipment.setArmorContents(pieces);
     }
 
     private static ItemStack leather(Material material, org.bukkit.Color color) {

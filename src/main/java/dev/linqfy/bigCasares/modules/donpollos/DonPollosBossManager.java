@@ -755,7 +755,7 @@ final class DonPollosBossManager implements Listener {
         for (int i = 0; i < count; i++) {
             Location location = DonPollosBossMinions.around(ravager.getLocation(), 2 * scale(ravager));
             boss.minions.add(toughen(boss, minions.spawn(DonPollosBossMinions.Kind.CORONEL_FINAL, location,
-                nearestPlayer(location, CHASE_RANGE), colonel -> {
+                nearestPlayer(location, CHASE_RANGE), boss.difficulty.level(), colonel -> {
                     DonPollosBossMinions.setAttribute(colonel, Attribute.MOVEMENT_SPEED, ZOMBIE_SPEED * phase4.colonelSpeed());
                     DonPollosBossMinions.setAttribute(colonel, Attribute.ATTACK_DAMAGE, ZOMBIE_DAMAGE + phase4.colonelDamage());
                     DonPollosBossMinions.setAttribute(colonel, Attribute.MAX_HEALTH, phase4.colonelHealth());
@@ -1025,7 +1025,7 @@ final class DonPollosBossManager implements Listener {
         if (step.spawnColonel()) {
             DonPollosCubeRound round = cube.current();
             boss.minions.add(toughen(boss, minions.spawn(DonPollosBossMinions.Kind.CORONEL,
-                DonPollosBossMinions.around(player.getLocation(), 4), player, colonel -> {
+                DonPollosBossMinions.around(player.getLocation(), 4), player, boss.difficulty.level(), colonel -> {
                     // cada ronda mas rapido y mas fuerte
                     DonPollosBossMinions.setAttribute(colonel, Attribute.MOVEMENT_SPEED, ZOMBIE_SPEED * round.colonelSpeed());
                     DonPollosBossMinions.setAttribute(colonel, Attribute.ATTACK_DAMAGE, ZOMBIE_DAMAGE + round.colonelDamage());
@@ -1034,8 +1034,8 @@ final class DonPollosBossManager implements Listener {
         }
         if (step.spawnLabubu()) {
             DonPollosBossMinions.Kind kind = DonPollosBossMinions.Kind.LABUBUS[(cube.labubuIndex() - 1) % 4];
-            boss.minions.add(toughen(boss, minions.spawn(kind, DonPollosBossMinions.around(player.getLocation(), 3), player))
-                .getUniqueId());
+            boss.minions.add(toughen(boss, minions.spawn(kind, DonPollosBossMinions.around(player.getLocation(), 3), player,
+                boss.difficulty.level())).getUniqueId());
             labubus++;
         }
         boss.cubeBar.name(cubeTitle(cube));
@@ -1300,7 +1300,7 @@ final class DonPollosBossManager implements Listener {
         for (int i = 0; i < count; i++) {
             Location location = DonPollosBossMinions.around(ravager.getLocation(), 1.6 * scale(ravager));
             boss.minions.add(toughen(boss, minions.spawn(DonPollosBossMinions.Kind.GALLINA, location,
-                nearestPlayer(location, CHASE_RANGE))).getUniqueId());
+                nearestPlayer(location, CHASE_RANGE), boss.difficulty.level())).getUniqueId());
         }
     }
 

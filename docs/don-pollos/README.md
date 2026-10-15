@@ -149,6 +149,12 @@ bloque del secreto o con `/donpollo boss`), sale un 50% más fuerte por cada vic
 pega más, ataca más seguido, invoca más bichos y los bichos son más rápidos y pegan más. Los ataques nunca se repiten
 más de una vez por segundo y los bichos no pasan del doble de velocidad. Desde la consola sale con la fuerza normal.
 
+Sus bichos también se blindan: la primera vez salen como siempre; después con armadura de cobre, de hierro, de
+diamante y de netherite, y con netherite cada vez con mejores encantamientos (Protección hasta V y después Espinas
+hasta III). La armadura se ve en el modelo (`tools/donpollos/generar_armaduras.py` arma una versión de la gallina y
+de cada Labubu por material) y en Bedrock sin modelos se ve la armadura real, con el casco de cuero de su color. El
+Coronel y los Sanders ya pelean con netherite: a ellos los encantamientos les arrancan desde la segunda vez.
+
 ### Cuando le ganás
 
 Don Pollo no muere: el golpe final lo deja con 1 de vida. Te mira, llora y dice "Ya no hay video mi gente...",
