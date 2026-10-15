@@ -80,6 +80,18 @@ final class DonPollosSecret implements Listener {
 
     private final JavaPlugin plugin;
     private final DonPollosItems items;
+    /** Sacar y devolver lo que pide el Gordito (lo de inventario, sin Paper: se prueba en DonPollosSecretAltarTest). */
+    private final DonPollosSecretAltar altar = new DonPollosSecretAltar(new DonPollosSecretAltar.Goods() {
+        @Override
+        public boolean matches(DonPollosSecretOffering offering, ItemStack stack) {
+            return DonPollosSecret.this.matches(offering, stack);
+        }
+
+        @Override
+        public ItemStack stack(DonPollosSecretOffering offering) {
+            return offeringStack(offering);
+        }
+    });
     private final DonPollosBossManager bosses;
     private final Consumer<Player> openTrades;
     private final NamespacedKey secretKey;
@@ -256,36 +268,16 @@ final class DonPollosSecret implements Listener {
      * las cosas que pide el Gordito. Si no tenes suficiente no se saca nada.
      */
     private void toggle(Player player, SecretHolder holder, DonPollosSecretOffering offering) {
-        if (holder.placed.remove(offering)) {
-            give(player, offeringStack(offering));
-            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 1f);
-            return;
-        }
-        ItemStack[] contents = player.getInventory().getStorageContents();
-        int have = 0;
-        for (ItemStack stack : contents) {
-            if (matches(offering, stack)) {
-                have += stack.getAmount();
+        switch (altar.toggle(player.getInventory(), holder.placed, offering, leftover -> drop(player, leftover))) {
+            case RETURNED -> player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 1f);
+            case PLACED -> player.playSound(player.getLocation(), Sound.ENTITY_ITEM_FRAME_ADD_ITEM, 1f, 1f);
+            case MISSING -> {
+                int have = altar.count(player.getInventory(), offering);
+                player.sendMessage(LEGACY.deserialize("§cTe falta: necesitas §f" + offering.plain() + "§c y tenes §f"
+                    + have + "§c." + (offering.product != null ? " §7Compralo en la polleria del Don Pollo Aura 67." : "")));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
             }
         }
-        if (have < offering.amount) {
-            player.sendMessage(LEGACY.deserialize("§cTe falta: necesitas §f" + offering.plain() + "§c y tenes §f" + have
-                + "§c." + (offering.product != null ? " §7Compralo en la polleria del Don Pollo Aura 67." : "")));
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
-            return;
-        }
-        int missing = offering.amount;
-        for (int slot = 0; slot < contents.length && missing > 0; slot++) {
-            ItemStack stack = contents[slot];
-            if (matches(offering, stack)) {
-                int take = Math.min(missing, stack.getAmount());
-                stack.setAmount(stack.getAmount() - take);
-                player.getInventory().setItem(slot, stack.getAmount() <= 0 ? null : stack);
-                missing -= take;
-            }
-        }
-        holder.placed.add(offering);
-        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_FRAME_ADD_ITEM, 1f, 1f);
     }
 
     @EventHandler
@@ -303,11 +295,12 @@ final class DonPollosSecret implements Listener {
         }
         if (event.getInventory().getHolder() instanceof SecretHolder holder && event.getPlayer() instanceof Player player
             && !holder.done) {
-            for (DonPollosSecretOffering offering : holder.placed) {
-                give(player, offeringStack(offering));
-            }
-            holder.placed.clear();
+            altar.returnAll(player.getInventory(), holder.placed, leftover -> drop(player, leftover));
         }
+    }
+
+    private static void drop(Player player, ItemStack leftover) {
+        player.getWorld().dropItemNaturally(player.getLocation(), leftover);
     }
 
     private static void give(Player player, ItemStack stack) {
