@@ -26,6 +26,8 @@ salsero:
     pause-ticks: 12          # pausa entre pasos
     reward: { material: DIAMOND, amount: 2 }   # las primeras 2 victorias de cada jugador; despues da 1
     max-distance: 16.0       # si te alejas mas, la batalla se corta
+    min-human-window-ticks: 6   # piso de tiempo por paso aunque ganes mil veces (6 ticks = 0.3 s); evita ventanas imposibles para humanos
+    reward-cooldown-minutes: 30 # tras cobrar, el Salsero no vuelve a pagar hasta pasado este tiempo (la batalla igual cuenta); 0 = sin limite
 
 # Ciudades de Don Pollo: aparecen solas al generar terreno nuevo. El mundo se divide en celdas de
 # spacing x spacing bloques con (como mucho) una ciudad por celda. 1400 = mas o menos una cada

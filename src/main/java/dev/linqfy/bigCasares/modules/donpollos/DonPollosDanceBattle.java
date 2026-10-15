@@ -70,6 +70,11 @@ public final class DonPollosDanceBattle {
         if (isOver() || current == null || pressed.isEmpty()) {
             return Outcome.NONE;
         }
+        if (now >= deadline) {
+            // la respuesta llego a (o despues de) el vencimiento: cuenta como tarde, aunque tick() no haya corrido todavia
+            current = null;
+            return loseLife(now, Outcome.TIMEOUT);
+        }
         if (pressed.size() == 1 && pressed.contains(current)) {
             current = null;
             hitsLeft--;
@@ -88,21 +93,22 @@ public final class DonPollosDanceBattle {
 
     /**
      * Ventana para hacer el paso: arranca en window-ticks y baja hasta min-window-ticks, dividida por las victorias
-     * anteriores del jugador (sin victorias se divide por 1). Nunca baja de 1 tick.
+     * anteriores del jugador (sin victorias se divide por 1). Nunca baja de min-human-window-ticks.
      */
     public int windowTicks() {
         double done = 1 - hitsLeft / (double) settings.hitsToWin();
         double base = settings.startWindowTicks() - (settings.startWindowTicks() - settings.minWindowTicks()) * done;
-        return windowFor(base, previousWins);
+        return windowFor(settings, base, previousWins);
     }
 
     /** Tiempo para cada paso al empezar, en ticks, para quien ya le gano previousWins veces. */
     public static int startWindowTicks(DonPollosBattleSettings settings, int previousWins) {
-        return windowFor(settings.startWindowTicks(), previousWins);
+        return windowFor(settings, settings.startWindowTicks(), previousWins);
     }
 
-    private static int windowFor(double baseTicks, int previousWins) {
-        return Math.max(1, (int) Math.round(baseTicks / Math.max(1, previousWins)));
+    private static int windowFor(DonPollosBattleSettings settings, double baseTicks, int previousWins) {
+        int divided = (int) Math.round(baseTicks / Math.max(1, previousWins));
+        return Math.max(settings.minHumanWindowTicks(), divided);
     }
 
     public DonPollosDanceMove current() {
