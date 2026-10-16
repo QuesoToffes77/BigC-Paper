@@ -112,4 +112,26 @@ class DonPollosBossPhaseTest {
         assertTrue(Double.isNaN(DonPollosBossPhase.overshootFix(phases, 600, 600, landing)));
         assertTrue(Double.isNaN(DonPollosBossPhase.overshootFix(phases, 600, 100, 10)));
     }
+
+    @Test
+    void hitsBeforeTheCoordinatorRunsCannotCrossAnotherPhase() {
+        List<DonPollosBossPhase> phases = DonPollosBossPhase.defaults();
+        double health = 600;
+        for (int phase = 0; phase < 3; phase++) {
+            DonPollosBossPhase active = phases.get(phase);
+            for (int hit = 0; hit < 3; hit++) {
+                health -= DonPollosBossPhase.allowedDamage(phases, active, 600, health, 1000);
+            }
+            assertEquals(phases.get(phase + 1).startsAt() * 600 - DonPollosBossPhase.PHASE_EPSILON,
+                health, 1e-9, "No avanza hasta que el coordinador ejecuta la siguiente fase");
+        }
+        assertEquals(1000, DonPollosBossPhase.allowedDamage(phases, phases.getLast(), 600, health, 1000));
+    }
+
+    @Test
+    void damageWaitsUntilTheFirstCoordinatorTickInitializesThePhase() {
+        List<DonPollosBossPhase> phases = DonPollosBossPhase.defaults();
+        assertEquals(0, DonPollosBossPhase.allowedDamage(phases, null, 600, 600, 1000));
+        assertTrue(Double.isNaN(DonPollosBossPhase.overshootFix(phases, null, 600, 600, 300)));
+    }
 }

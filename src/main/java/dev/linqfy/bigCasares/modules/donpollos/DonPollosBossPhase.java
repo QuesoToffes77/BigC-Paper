@@ -103,18 +103,21 @@ public record DonPollosBossPhase(int number, String title, double startsAt, Stri
      * umbral de la fase que sigue (un golpe por fase). Desde la ultima fase no hay tope: ahi se puede derrotar.
      */
     public static double allowedDamage(List<DonPollosBossPhase> phases, double maxHealth, double health, double damage) {
-        DonPollosBossPhase current = forHealth(phases, health / maxHealth);
-        DonPollosBossPhase next = null;
-        for (DonPollosBossPhase phase : phases) {
-            if (phase.startsAt() < current.startsAt() && (next == null || phase.startsAt() > next.startsAt())) {
-                next = phase;
-            }
+        return allowedDamage(phases, forHealth(phases, health / maxHealth), maxHealth, health, damage);
+    }
+
+    /** La fase activa solo avanza cuando el coordinador ejecuta su transicion, no con cada golpe del mismo tick. */
+    public static double allowedDamage(List<DonPollosBossPhase> phases, DonPollosBossPhase activePhase,
+                                       double maxHealth, double health, double damage) {
+        if (activePhase == null) {
+            return 0;
         }
+        DonPollosBossPhase next = nextPhase(phases, activePhase);
         if (next == null) {
             return damage;
         }
-        double threshold = next.startsAt() * maxHealth;
-        return Math.min(damage, Math.max(0, health - threshold) + PHASE_EPSILON);
+        double landing = next.startsAt() * maxHealth - PHASE_EPSILON;
+        return Math.min(damage, Math.max(0, health - landing));
     }
 
     /**
@@ -123,18 +126,30 @@ public record DonPollosBossPhase(int number, String title, double startsAt, Stri
      */
     public static double overshootFix(List<DonPollosBossPhase> phases, double maxHealth, double healthBefore,
                                       double healthAfter) {
-        DonPollosBossPhase current = forHealth(phases, healthBefore / maxHealth);
+        return overshootFix(phases, forHealth(phases, healthBefore / maxHealth), maxHealth, healthBefore, healthAfter);
+    }
+
+    public static double overshootFix(List<DonPollosBossPhase> phases, DonPollosBossPhase activePhase,
+                                      double maxHealth, double healthBefore, double healthAfter) {
+        if (activePhase == null) {
+            return Double.NaN;
+        }
+        DonPollosBossPhase next = nextPhase(phases, activePhase);
+        if (next == null) {
+            return Double.NaN;
+        }
+        double landing = next.startsAt() * maxHealth - PHASE_EPSILON;
+        return healthAfter < landing - 1e-6 && healthAfter > 0 ? landing : Double.NaN;
+    }
+
+    private static DonPollosBossPhase nextPhase(List<DonPollosBossPhase> phases, DonPollosBossPhase current) {
         DonPollosBossPhase next = null;
         for (DonPollosBossPhase phase : phases) {
             if (phase.startsAt() < current.startsAt() && (next == null || phase.startsAt() > next.startsAt())) {
                 next = phase;
             }
         }
-        if (next == null) {
-            return Double.NaN;
-        }
-        double landing = next.startsAt() * maxHealth - PHASE_EPSILON;
-        return healthAfter < landing - 1e-6 && healthAfter > 0 ? landing : Double.NaN;
+        return next;
     }
 
     /**

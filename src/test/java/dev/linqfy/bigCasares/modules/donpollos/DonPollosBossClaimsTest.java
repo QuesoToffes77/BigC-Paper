@@ -4,11 +4,16 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -16,6 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** El cobro del premio se guarda en el boss: sobrevive a una instancia nueva (reinicio) antes de la despedida. */
 class DonPollosBossClaimsTest {
+
+    @TempDir
+    Path directory;
 
     private final NamespacedKey defeated = NamespacedKey.fromString("test:derrotado");
     private final NamespacedKey claimed = NamespacedKey.fromString("test:cobrado");
@@ -27,12 +35,9 @@ class DonPollosBossClaimsTest {
             return ledgerSet.contains(id);
         }
 
-        public void add(UUID id) {
+        public boolean add(UUID id) {
             ledgerSet.add(id);
-        }
-
-        public void remove(UUID id) {
-            ledgerSet.remove(id);
+            return true;
         }
     };
     private final Map<NamespacedKey, Object> store = new HashMap<>();
@@ -94,5 +99,45 @@ class DonPollosBossClaimsTest {
         pdc.set(defeated, PersistentDataType.STRING, winner.toString());
         assertTrue(DonPollosBossClaims.claim(new DonPollosBoss.Defeat(winner, 0), winner, pdc, claimed, ledger, bossId));
         assertTrue(ledger.contains(bossId));
+    }
+
+    @Test
+    void failedPersistenceDoesNotConsumeTheClaimAndCanBeRetried() throws IOException {
+        Path parent = directory.resolve("blocked");
+        Files.writeString(parent, "not a directory");
+        Path file = parent.resolve("claims.yml");
+        DonPollosClaimLedger durable = new DonPollosClaimLedger(file.toFile(), Logger.getAnonymousLogger());
+        DonPollosBoss.Defeat defeat = new DonPollosBoss.Defeat(winner, 0);
+        pdc.set(defeated, PersistentDataType.STRING, winner.toString());
+
+        assertFalse(DonPollosBossClaims.claim(defeat, winner, pdc, claimed, durable, bossId));
+        assertFalse(defeat.claimed);
+        assertFalse(pdc.has(claimed, PersistentDataType.BYTE));
+        assertFalse(durable.contains(bossId));
+
+        Files.delete(parent);
+        assertTrue(DonPollosBossClaims.claim(defeat, winner, pdc, claimed, durable, bossId));
+        DonPollosClaimLedger reloaded = new DonPollosClaimLedger(file.toFile(), Logger.getAnonymousLogger());
+        assertEquals(DonPollosBossClaims.Restore.CLAIMED,
+            DonPollosBossClaims.restore(pdc, defeated, claimed, reloaded, bossId));
+    }
+
+    @Test
+    void anotherClaimSurvivesReloadWithoutTheEntityMarker() {
+        Path file = directory.resolve("claims.yml");
+        DonPollosClaimLedger durable = new DonPollosClaimLedger(file.toFile(), Logger.getAnonymousLogger());
+        pdc.set(defeated, PersistentDataType.STRING, winner.toString());
+        assertTrue(DonPollosBossClaims.claim(new DonPollosBoss.Defeat(winner, 0), winner, pdc, claimed, durable, bossId));
+
+        UUID anotherBoss = UUID.randomUUID();
+        store.remove(claimed);
+        assertTrue(DonPollosBossClaims.claim(new DonPollosBoss.Defeat(winner, 0), winner, pdc, claimed,
+            durable, anotherBoss));
+        store.remove(claimed); // El chunk conserva un snapshot anterior al cobro.
+        DonPollosClaimLedger reloaded = new DonPollosClaimLedger(file.toFile(), Logger.getAnonymousLogger());
+        assertEquals(DonPollosBossClaims.Restore.CLAIMED,
+            DonPollosBossClaims.restore(pdc, defeated, claimed, reloaded, bossId));
+        assertEquals(DonPollosBossClaims.Restore.CLAIMED,
+            DonPollosBossClaims.restore(pdc, defeated, claimed, reloaded, anotherBoss));
     }
 }

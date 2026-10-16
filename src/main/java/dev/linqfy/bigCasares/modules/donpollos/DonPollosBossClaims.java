@@ -26,9 +26,8 @@ final class DonPollosBossClaims {
     interface Ledger {
         boolean contains(UUID bossId);
 
-        void add(UUID bossId);
-
-        void remove(UUID bossId);
+        /** False si no se pudo guardar; el cobro no debe consumirse ni entregarse. */
+        boolean add(UUID bossId);
     }
 
     private DonPollosBossClaims() {
@@ -54,10 +53,13 @@ final class DonPollosBossClaims {
      */
     static boolean claim(DonPollosBoss.Defeat defeat, UUID player, PersistentDataContainer boss,
                          NamespacedKey claimedKey, Ledger ledger, UUID bossId) {
-        if (isClaimed(boss, claimedKey, ledger, bossId) || !defeat.tryClaim(player)) {
+        if (isClaimed(boss, claimedKey, ledger, bossId) || defeat.claimed
+            || !DonPollosReward.canClaim(defeat.winner, player)) {
             return false;
         }
-        ledger.add(bossId);
+        if (!ledger.add(bossId) || !defeat.tryClaim(player)) {
+            return false;
+        }
         boss.set(claimedKey, PersistentDataType.BYTE, (byte) 1);
         return true;
     }

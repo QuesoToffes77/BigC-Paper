@@ -159,6 +159,7 @@ public final class DonPollosSettingsLoader {
     private DonPollosBattleSettings battle(ConfigurationSection config) {
         DonPollosBattleSettings d = DonPollosBattleSettings.defaults();
         String p = "salsero.pvp.";
+        int startWindowTicks = config.getInt(p + "window-ticks", d.startWindowTicks());
         DonPollosItem reward = config.isConfigurationSection(p + "reward")
             ? new DonPollosItem(
                 validMaterial(config.getString(p + "reward.material", "DIAMOND"), p + "reward"),
@@ -167,12 +168,12 @@ public final class DonPollosSettingsLoader {
         return new DonPollosBattleSettings(
             config.getInt(p + "hits-to-win", d.hitsToWin()),
             config.getInt(p + "lives", d.lives()),
-            config.getInt(p + "window-ticks", d.startWindowTicks()),
+            startWindowTicks,
             config.getInt(p + "min-window-ticks", d.minWindowTicks()),
             config.getInt(p + "pause-ticks", d.pauseTicks()),
             reward,
             config.getDouble(p + "max-distance", d.maxDistance()),
-            config.getInt(p + "min-human-window-ticks", d.minHumanWindowTicks()),
+            config.getInt(p + "min-human-window-ticks", Math.min(d.minHumanWindowTicks(), startWindowTicks)),
             config.getInt(p + "reward-cooldown-minutes", d.rewardCooldownMinutes()));
     }
 

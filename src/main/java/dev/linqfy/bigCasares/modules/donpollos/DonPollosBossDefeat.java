@@ -124,7 +124,6 @@ final class DonPollosBossDefeat implements Listener {
             // ya cobro el premio: no se ofrece otra vez, el boss se retira (la despedida es solo visual)
             untrack.accept(ravager.getUniqueId());
             ravager.remove();
-            ledger.remove(ravager.getUniqueId());
             return;
         }
         String winner = ravager.getPersistentDataContainer().get(defeatedKey, PersistentDataType.STRING);
@@ -167,14 +166,20 @@ final class DonPollosBossDefeat implements Listener {
             double health = boss.ravager.getHealth();
             double max = boss.ravager.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
             double finalDamage = event.getFinalDamage();
-            double allowed = DonPollosBossPhase.allowedDamage(PHASES, max, health, finalDamage);
+            DonPollosBossPhase activePhase = boss.phase;
+            double allowed = DonPollosBossPhase.allowedDamage(PHASES, activePhase, max, health, finalDamage);
+            if (allowed <= 0) {
+                event.setCancelled(true);
+                return;
+            }
             UUID id = boss.ravager.getUniqueId();
             int serial = hitSerial.merge(id, 1, Integer::sum);
             if (allowed < finalDamage && finalDamage > 0) {
                 event.setDamage(event.getDamage() * allowed / finalDamage);
                 finalDamage = event.getFinalDamage();
                 if (finalDamage < health) {
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> fixOvershoot(boss, id, serial, max, health), 1L);
+                    Bukkit.getScheduler().runTaskLater(plugin,
+                        () -> fixOvershoot(boss, id, serial, activePhase, max, health), 1L);
                 }
             }
             if (finalDamage >= health) {
@@ -198,12 +203,14 @@ final class DonPollosBossDefeat implements Listener {
     }
 
     /** Red de seguridad: si con armadura o absorcion el golpe freno mas abajo del umbral, devuelve la vida a su lugar. */
-    private void fixOvershoot(DonPollosBoss boss, UUID id, int serial, double max, double healthBefore) {
+    private void fixOvershoot(DonPollosBoss boss, UUID id, int serial, DonPollosBossPhase activePhase,
+                              double max, double healthBefore) {
         if (bosses.get(id) != boss || boss.defeat != null || !boss.ravager.isValid()
             || hitSerial.getOrDefault(id, 0) != serial) {
             return;
         }
-        double fixed = DonPollosBossPhase.overshootFix(PHASES, max, healthBefore, boss.ravager.getHealth());
+        double fixed = DonPollosBossPhase.overshootFix(PHASES, activePhase, max, healthBefore,
+            boss.ravager.getHealth());
         if (!Double.isNaN(fixed)) {
             boss.ravager.setHealth(Math.min(max, fixed));
         }
@@ -366,7 +373,6 @@ final class DonPollosBossDefeat implements Listener {
         Bukkit.broadcast(LEGACY.deserialize("§6§l¡" + player.getName() + " le gano al Don Pollo Boss! §7Se fue llorando..."));
         untrack.accept(ravager.getUniqueId());
         ravager.remove();
-        ledger.remove(ravager.getUniqueId());
     }
 
     /** Cuantas veces le gano este jugador al boss (guardado en el jugador). */

@@ -72,6 +72,29 @@ class DonPollosSettingsLoaderTest {
     }
 
     @Test
+    void legacyFiveTickBattleWithoutHumanFloorStillLoads() {
+        YamlConfiguration config = bundled();
+        config.set("salsero.pvp.window-ticks", 5);
+        config.set("salsero.pvp.min-window-ticks", 5);
+        config.set("salsero.pvp.min-human-window-ticks", null);
+
+        DonPollosBattleSettings battle = new DonPollosSettingsLoader().load(config).battle();
+
+        assertEquals(5, battle.startWindowTicks());
+        assertEquals(5, battle.minHumanWindowTicks());
+    }
+
+    @Test
+    void explicitHumanFloorAboveTheStartWindowIsRejected() {
+        YamlConfiguration config = bundled();
+        config.set("salsero.pvp.window-ticks", 5);
+        config.set("salsero.pvp.min-window-ticks", 5);
+        config.set("salsero.pvp.min-human-window-ticks", 6);
+
+        assertThrows(IllegalArgumentException.class, () -> new DonPollosSettingsLoader().load(config));
+    }
+
+    @Test
     void citiesSpawnSeveralOfEveryDonPollo() {
         DonPollosCitySettings cities = new DonPollosSettingsLoader().load(bundled()).cities();
 
