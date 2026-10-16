@@ -60,6 +60,134 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// Plugins del servidor (no se compilan con BigCasares): runServer los pone en build/run-server/plugins.
+// Bedrock (Geyser + Floodgate) y GeyserModelEngine para que los de Bedrock vean los modelos de BetterModel.
+// Ver docs/don-pollos/compatibilidad-bedrock.md.
+//
+// Todas las descargas estan fijadas a una version que no cambia y se verifican con el checksum oficial:
+// - Modrinth: id de version fijo; run-paper verifica el sha512 que publica Modrinth.
+// - El resto: URL fija + sha256 oficial (GeyserMC o el "digest" de GitHub). Se bajan a un archivo temporal, se
+//   verifica el checksum y recien ahi se mueven al destino: una descarga cortada nunca queda como valida.
+// Los de GeyserExtensionists solo publican estos archivos en el tag "latest", que se republica: por eso se fija el
+// id del archivo (asset) y su digest. Si upstream lo republica, el build falla en vez de cambiar en silencio; para
+// actualizar, poner el id y el digest nuevos de https://api.github.com/repos/<repo>/releases/tags/latest.
+def modrinthPlugins = [
+    // BetterModel: obligatorio (plugin.yml depend). El servidor usa 3.5.0 aunque se compile contra la API 3.2.0.
+    [project: "bettermodel", version: "QTU9HP83"],   // 3.5.0
+    // Geyser: deja entrar a los jugadores de Bedrock.
+    [project: "geyser", version: "sT6fWVgD"],        // 2.11.3-b1249 (26.2)
+    // packetevents: GeyserModelEngine no carga sin el.
+    [project: "packetevents", version: "m78nFxYg"],  // 2.14.0 (26.2)
+]
+
+// dest es relativo a build/. plugin: true = va a plugins/ por runServer; si no, es una extension o pack de Geyser.
+def verifiedArtifacts = [
+    // Floodgate: los de Bedrock entran sin cuenta de Java.
+    floodgate: [url: "https://download.geysermc.org/v2/projects/floodgate/versions/2.2.5/builds/141/downloads/spigot",
+                sha256: "21570aff9ce17d6983928e8552777760e1ede5050026b04c686b0ae112e6fd7e",
+                dest: "verified-plugins/floodgate-spigot-2.2.5-b141.jar", plugin: true],
+    // GeyserUtils (lado servidor) y GeyserModelEngine: modelos 3D para Bedrock.
+    geyserUtilsSpigot: [url: "https://api.github.com/repos/GeyserExtensionists/GeyserUtils/releases/assets/528940887",
+                sha256: "b39677308d320c00be2a5bf8058296f39789b836cfb448d0c13437b2ecbdec43",
+                dest: "verified-plugins/geyserutils-spigot-1.0-SNAPSHOT.jar", plugin: true],
+    geyserModelEngine: [url: "https://api.github.com/repos/GeyserExtensionists/GeyserModelEngine/releases/assets/641444897",
+                sha256: "6e777d569d7f7c2b8583ba21ba8ac7c451c265089bd34aefdb7f00c2fe8957a2",
+                dest: "verified-plugins/GeyserModelEngine-1.0.9.jar", plugin: true],
+    // Extensiones de Geyser (plugins/Geyser-Spigot/extensions) y el pack de GeyserDisplayEntity (packs/).
+    geyserModelEngineExtension: [url: "https://api.github.com/repos/GeyserExtensionists/GeyserModelEngine/releases/assets/641444959",
+                sha256: "9b5e6c9b6e20f5f5aa7516cd32eb635f1a99d4458bd6327b828859cbb2aa4f18",
+                dest: "run-server/plugins/Geyser-Spigot/extensions/GeyserModelEngineExtension-1.0.9.jar"],
+    geyserUtilsExtension: [url: "https://api.github.com/repos/GeyserExtensionists/GeyserUtils/releases/assets/528940916",
+                sha256: "50120094bd46fefbb1672737540e3a66a483391e062625676805b4bb08e79ea9",
+                dest: "run-server/plugins/Geyser-Spigot/extensions/geyserutils-geyser-1.0-SNAPSHOT.jar"],
+    // Opcional: meteoritos de WhatsApp y cara del bloque del secreto (item displays) para Bedrock.
+    geyserDisplayEntity: [url: "https://api.github.com/repos/GeyserExtensionists/GeyserDisplayEntity/releases/assets/510239319",
+                sha256: "eb05806386dc9a614def3cb71b559d1f0d0f5b5b0e1fff51c063a3515832addf",
+                dest: "run-server/plugins/Geyser-Spigot/extensions/GeyserDisplayEntity-1.0.12.jar"],
+    geyserDisplayEntityPack: [url: "https://api.github.com/repos/GeyserExtensionists/GeyserDisplayEntity/releases/assets/368620700",
+                sha256: "7b9b69dbbbc8d2a43e85393a2e1f77118412ad788e5a9298bb64fcc65cbea4fa",
+                dest: "run-server/plugins/Geyser-Spigot/packs/GeyserDisplayEntityPack.mcpack"],
+]
+
+/** Baja un archivo a un temporal, verifica su sha256 y recien ahi lo mueve al destino (de una sola vez). */
+abstract class VerifiedDownload extends DefaultTask {
+    @Input
+    abstract Property<String> getSourceUrl()
+
+    @Input
+    abstract Property<String> getSha256()
+
+    @OutputFile
+    abstract RegularFileProperty getDestination()
+
+    @TaskAction
+    void download() {
+        java.nio.file.Path target = destination.get().asFile.toPath()
+        java.nio.file.Files.createDirectories(target.parent)
+        if (java.nio.file.Files.isRegularFile(target) && digest(target).equalsIgnoreCase(sha256.get())) {
+            return
+        }
+        java.nio.file.Path temp = java.nio.file.Files.createTempFile(temporaryDir.toPath(), "download-", ".part")
+        try {
+            def client = java.net.http.HttpClient.newBuilder()
+                .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
+                .connectTimeout(java.time.Duration.ofSeconds(30))
+                .build()
+            def request = java.net.http.HttpRequest.newBuilder(URI.create(sourceUrl.get()))
+                .header("Accept", "application/octet-stream")
+                .header("User-Agent", "BigCasares-build")
+                .timeout(java.time.Duration.ofMinutes(5))
+                .GET()
+                .build()
+            def response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofFile(temp))
+            if (response.statusCode() != 200) {
+                throw new GradleException("HTTP ${response.statusCode()} al bajar ${sourceUrl.get()}")
+            }
+            String actual = digest(temp)
+            if (!actual.equalsIgnoreCase(sha256.get())) {
+                throw new GradleException("Checksum distinto para ${sourceUrl.get()}: se esperaba sha256 ${sha256.get()}"
+                    + " y llego ${actual}. Si upstream publico una version nueva, actualizar el id y el sha256.")
+            }
+            try {
+                java.nio.file.Files.move(temp, target, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+                java.nio.file.Files.move(temp, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            }
+        } finally {
+            java.nio.file.Files.deleteIfExists(temp)
+        }
+    }
+
+    private static String digest(java.nio.file.Path file) {
+        def md = java.security.MessageDigest.getInstance("SHA-256")
+        file.withInputStream { input ->
+            byte[] buffer = new byte[65536]
+            int read
+            while ((read = input.read(buffer)) != -1) {
+                md.update(buffer, 0, read)
+            }
+        }
+        return java.util.HexFormat.of().formatHex(md.digest())
+    }
+}
+
+def verifiedTasks = verifiedArtifacts.collectEntries { name, artifact ->
+    [(name): tasks.register("download${name.capitalize()}", VerifiedDownload) {
+        group = "run paper"
+        description = "Downloads ${artifact.dest} and verifies its sha256."
+        sourceUrl = artifact.url
+        sha256 = artifact.sha256
+        destination = layout.buildDirectory.file(artifact.dest)
+    }]
+}
+
+tasks.register("downloadGeyserExtensions") {
+    group = "run paper"
+    description = "Downloads the verified Geyser extensions and resource pack used for Bedrock players."
+    dependsOn(verifiedArtifacts.findAll { !it.value.plugin }.keySet().collect { verifiedTasks[it] })
+}
+
 tasks {
     runServer {
         // Configure the Minecraft version for our task.
@@ -67,6 +195,14 @@ tasks {
         // Your plugin's jar (or shadowJar if present) will be used automatically.
         minecraftVersion("26.2")
         runDirectory.set(layout.buildDirectory.dir("run-server"))
+        dependsOn(tasks.named("downloadGeyserExtensions"))
+        // los plugins verificados que no estan en Modrinth (Gradle sabe que dependen de su tarea de descarga)
+        verifiedArtifacts.findAll { it.value.plugin }.each { name, artifact ->
+            pluginJars(verifiedTasks[name].flatMap { it.destination })
+        }
+        downloadPlugins {
+            modrinthPlugins.each { modrinth(it.project, it.version) }
+        }
     }
 }
 
