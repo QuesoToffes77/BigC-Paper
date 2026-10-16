@@ -43,7 +43,8 @@ Con Q el juego saca el ítem de la mano antes de preguntar, y eso hacía la anim
 Los jugadores de Bedrock entran con **Geyser + Floodgate**. Para ellos:
 
 - El celu se ve en **3D en la mano**, con **"Pobre"** escrito en la pantalla, y con su ícono en el inventario.
-- **No pasa videos ni tiene controles:** Bedrock no tiene texturas animadas para ítems.
+- **No pasa videos ni tiene controles:** la presentación Bedrock de este módulo usa una textura fija; no convierte
+  los videos de Java en animaciones Bedrock.
 - Si lo craftean, les sale en el chat: **"Dale bobi, no tenes java?, bancatela pibe"**.
 
 Qué tiene que tener el servidor:
@@ -51,16 +52,16 @@ Qué tiene que tener el servidor:
 | Qué | Dónde | Para qué |
 |---|---|---|
 | **Geyser-Spigot** | `plugins/` | Deja entrar a los de Bedrock |
-| **Floodgate** | `plugins/` | Entran con su cuenta de Bedrock. BigC lo usa para saber quién es de Bedrock |
+| **Floodgate** | `plugins/` | Entran con su cuenta de Bedrock; BigC resuelve la plataforma mediante sus gateways de Geyser/Floodgate |
 | `geyser-integration.custom-items: true` y `bedrock-resource-pack: true` | `config.yml` de BigC | Vienen así por defecto |
 
-No hace falta instalar nada a mano: el módulo `geyser-integration` registra en Geyser un ítem de Bedrock por cada
-modelo del celu, y el pack de Bedrock de BigC (el que ya les manda Geyser) trae el modelo, la textura y el ícono.
-GeyserModelEngine no hace falta para el celu (es para los modelos de mobs).
+Con `geyser-integration` y `resource-pack-system` habilitados, BigC registra en Geyser un ítem de Bedrock por cada
+modelo del celu, y publica el pack con el modelo, la textura y el ícono. No requiere GeyserModelEngine.
 
-Probado en un servidor Paper 26.2 con Geyser 2.11.3 y Floodgate 2.2.5: Geyser registra los 16 ítems del celu sin
-errores (la consola dice `Registered 27 custom items`: 1 de Geyser, 10 de BigC y 16 del celu). Si ves
-`Registered 1 custom items`, el plugin de BigC es una versión vieja, de antes del arreglo para Floodgate.
+Prueba de registro documentada con Paper 26.2, Geyser 2.11.3 y Floodgate 2.2.5: 16 ítems del celu
+(modelo base + 15 videos). El total de `Registered ... custom items` también incluye otros módulos y cambia con el
+catálogo; no sirve por sí solo para identificar una versión vieja. Si faltan ítems, revisá la configuración y los
+avisos de compatibilidad de Geyser. La API de registro y el renderizado en un cliente son verificaciones distintas.
 
 **No probado con un cliente de Bedrock.** El modelo y su posición en la mano se pasaron de Java a Bedrock con las
 reglas de java2bedrock. Si se ve espejado o mal ubicado, se corrige en `tools/celular/generar_bedrock.py`.
@@ -88,8 +89,9 @@ Permiso: `bigcasares.celular.admin` (OP por defecto, incluido en `bigcasares.*`)
 - Vienen 15 videos verticales, pixelados a **72x128**, a **10 cuadros por segundo**, de hasta **60 segundos** cada uno.
 - **No tienen sonido** y, al cambiar de video, **no arranca desde el principio**: las texturas animadas corren en loop en
   el juego de cada jugador desde que se carga el pack, y el servidor no sabe en qué cuadro van.
-- Ocupan unos **170 MB de memoria** en el Minecraft de cada jugador y unos **28 MB** en el pack de Java. Por eso van a
-  10 fps y cortados a 60 segundos.
+- La estimación original es de unos **170 MB de memoria** por cliente y **28 MB** de assets de Java para los 15 videos.
+  El consumo real y la compresión del ZIP dependen del cliente y del contenido; no se vuelven a medir con cada build.
+  Por eso van a 10 fps y cortados a 60 segundos.
 
 ### Agregar o cambiar videos
 
@@ -104,10 +106,16 @@ Necesita Python 3 con Pillow y NumPy, y ffmpeg en el PATH.
    ```
 
 3. `.\gradlew.bat clean build` y subí el jar nuevo.
+4. En servidores existentes, actualizá también los assets correspondientes en
+   `plugins/BigCasares/content/pack/`, preservando las ediciones locales. El seed del JAR copia archivos faltantes,
+   pero **no sobrescribe** fuentes ya instaladas. Reiniciá para cargar la nueva lista de videos y registrar de nuevo
+   los ítems y el pack Bedrock.
 
-Los videos se ordenan por cuándo se agregaron a la carpeta (los nuevos van al final) y el título sale del nombre del
+Los videos se ordenan por fecha de modificación del archivo (`mtime`), con el nombre como desempate; copiarlos o
+modificarlos puede cambiar el orden. El título sale del nombre del
 archivo, sin el `[id]` de YouTube, los #hashtags ni los emojis. El id de cada video (`video_` + 10 letras) también sale
-del nombre del archivo: si renombrás un archivo, para el celu es un video nuevo.
+del nombre del archivo sin extensión (10 caracteres hexadecimales de SHA-1): si renombrás un archivo, para el celu
+es un video nuevo.
 
 El script convierte todo primero en una carpeta temporal y recién al final reemplaza los archivos del pack. Si falta
 ffmpeg, si un video está roto o si algo falla en el medio, el pack queda como estaba. Si no son verticales (por ejemplo 3:4), entran enteros
@@ -129,8 +137,12 @@ con barras negras.
 Si cambiás el diseño del celu, editá `tools/celular/generar_celular.py` y corré los tres scripts en orden:
 `generar_celular.py`, `convertir_videos.py` y `generar_bedrock.py`.
 
+Los scripts son las fuentes de autoría; modelos, texturas, attachables y `videos.yml` son salidas generadas que sí
+se versionan. Conservá los originales de video fuera del repo: `.gitignore` los excluye y hacen falta para volver a
+generarlos. `build/generated-resourcepacks/` contiene los ZIP/MCPACK derivados; no es el lugar para editar contenido.
+
 Tests del módulo:
 
 ```bash
-./gradlew test --tests "dev.linqfy.bigCasares.modules.celular.*"
+bash gradlew test --tests "dev.linqfy.bigCasares.modules.celular.*"
 ```
