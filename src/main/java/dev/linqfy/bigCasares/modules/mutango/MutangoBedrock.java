@@ -27,13 +27,13 @@ import java.util.zip.ZipInputStream;
  *   <li>Sabe quien es de Bedrock (con la API de Floodgate o de Geyser si estan; si no, por la UUID de Floodgate).</li>
  *   <li>Bedrock no dibuja los modelos de BetterModel: sin GeyserModelEngine a los de Bedrock no se les manda el modelo,
  *       asi BetterModel tampoco les esconde la vaca de abajo y ven vacas en vez de nada.</li>
- *   <li>Con GeyserModelEngine instala los modelos convertidos (tools/generar_bedrock_mutango.py) en la
+ *   <li>Con GeyserModelEngine instala los modelos convertidos (mutango/bedrock/geysermodelengine.zip) en la
  *       carpeta input de GeyserModelEngineExtension. Geyser los carga al reiniciar.</li>
  * </ul>
  */
 final class MutangoBedrock {
 
-    /** Los modelos convertidos para GeyserModelEngine (tools/generar_bedrock_mutango.py). */
+    /** Los modelos convertidos para GeyserModelEngine. */
     static final String MODEL_ENGINE_RESOURCE = "mutango/bedrock/geysermodelengine.zip";
     /** Plugin que dibuja los modelos de BetterModel para Bedrock. */
     static final String MODEL_ENGINE_PLUGIN = "GeyserModelEngine";
@@ -121,7 +121,7 @@ final class MutangoBedrock {
         Logger logger = plugin.getLogger();
         byte[] models = read(plugin, MODEL_ENGINE_RESOURCE);
         if (models == null) {
-            logger.warning("Faltan los modelos de Bedrock en el plugin (python tools/generar_bedrock_mutango.py).");
+            logger.warning("Faltan los modelos de Bedrock en el plugin (mutango/bedrock/geysermodelengine.zip).");
             return false;
         }
         write(plugin.getDataFolder().toPath().resolve("mutango").resolve("bedrock")

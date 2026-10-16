@@ -12,7 +12,7 @@ y soporte completo para Bedrock. Nacio como un plugin aparte y se integro a BigC
 - **Datos que persisten:** `plugins/BigCasares/data/mutango/` (`pendientes.yml`: victorias y premios por entregar,
   `bloques-por-devolver.yml`: el diario de bloques, `ruinas.yml`: que ruinas se hicieron, con version).
 - **Modelos 3D:** `src/main/resources/bettermodel/models/` (28 `.bbmodel`); `MutangoModelInstaller` los copia a BetterModel
-  y lo recarga. Sus generadores estan en `tools/mutango/`.
+  y lo recarga. Los `.bbmodel` se editan en Blockbench.
 - **Pack de recursos (Java):** el de BigC ya manda el pack de BetterModel mezclado con el suyo, asi que los modelos llegan
   por ahi. Las texturas de las botas y la cruz estan en `resourcepack/java/assets/mutango/`. **No hay servidor de packs
   propio.**
@@ -95,8 +95,7 @@ Todos los numeros estan arriba de todo en `MutangoPhaseOne.java`.
 
 Con dos vivos se apilan los dos y el de abajo lanza al otro; con uno solo ya no se apila. Cuando mueren los tres,
 2 segundos despues aparece Neguechen donde cayo el ultimo: la fase 3.
-Los numeros estan arriba de todo en `MutangoPhaseTwo.java`. Video de la coreografia: `mutango_apilar.mp4`
-(`python tools/mutango/video_mutango_apilar.py` lo vuelve a hacer; necesita ffmpeg).
+Los numeros estan arriba de todo en `MutangoPhaseTwo.java`. Video de la coreografia: `mutango_apilar.mp4`.
 
 ## Fase 3: Neguechen
 
@@ -203,7 +202,7 @@ armadura de **cobre**, **hierro**, **diamante** y **netherite**; y con netherite
 flecha no, como las espinas de Minecraft).
 
 - Se ve en el modelo: los Mutangos con casco (sin tapar los ojos), brazales, grebas y botas; Neguechen con hombreras
-  y pechera. Los arma `tools/generar_armaduras_mutango.py` (16 modelos, en la grilla de pixeles de cada uno).
+  y pechera. Son 16 modelos aparte (`*_cobre`, `*_hierro`, `*_diamante`, `*_netherite`), en la grilla de pixeles de cada uno.
 - Protege de verdad: puntos de armadura y dureza como un juego completo de ese material (netherite tambien resiste el
   empuje), y la Proteccion frena como en Minecraft (hasta 80%).
 - El caballo invocado lleva su armadura de caballo; los demas animales la llevan sin que se vea.
@@ -264,7 +263,7 @@ botas_neguechen.json`) de **botas de vaquero de piedra con un poco de musgo** (c
 arriba, taco). Atras tienen una **espuela roja** y su rueda, una estrella de ocho puntas que es **el Sol (amarillo) en
 una bota y la Luna (blanca) en la otra**. Puestas se ven con un modelo propio (`equipment/neguechen_boots.json` + una
 textura de 64x32: piedra y musgo, y atras la espuela roja con el Sol y la Luna; la espuela no sobresale puesta porque ese
-modelo es solo una textura). Se regeneran con `python tools/mutango/generar_botas.py [vista_previa.png]`. En Bedrock
+modelo es solo una textura). En Bedrock
 siguen con el icono plano (Geyser no tiene este modelo puesto).
 
 ## Intentos de cheat: se los pasamos a BigC
@@ -354,8 +353,7 @@ sacan la pelea con `/mutango quitar`), el cubo vuelve solo a su lugar cerrado (a
 estatuas siguen ahi: se puede volver a abrir.
 Las estatuas y el cubo no se pueden lastimar. Despues de despertarlos, el cubo ya no se mueve.
 
-Para cambiar las ruinas: `python tools/mutango/convertir_litematic.py` pasa el litematic a
-`src/main/resources/mutango/structures/ruinas.json.gz`. Los numeros (separacion, probabilidad, mezcla de piedra) estan arriba
+La estructura esta en `src/main/resources/mutango/structures/ruinas.json.gz`. Los numeros (separacion, probabilidad, mezcla de piedra) estan arriba
 de todo en `MutangoRuins.java`.
 
 ## Tests
@@ -400,7 +398,7 @@ Igual que Don Pollos en BigC (`docs/don-pollos/compatibilidad-bedrock.md`):
   ahi se mueve, asi una descarga cortada no queda como valida y lo que ya esta y coincide no se vuelve a bajar. Son los
   mismos archivos que BigC, salvo GeyserModelEngine y su extension: BigC fijo unos que ya dan 404 (GeyserExtensionists
   republico el tag `latest` el 2026-10-15), asi que aca estan los vigentes de la misma version 1.0.9. Desde Bedrock: `localhost`, puerto `19132`.
-- Si cambias un modelo: `python tools/mutango/generar_bedrock_mutango.py` (el test avisa si te olvidaste).
+- Si cambias un modelo hay que volver a convertir el zip de GeyserModelEngine (`src/main/resources/mutango/bedrock/geysermodelengine.zip`); el test avisa si quedo viejo.
 - El aviso "reinicia el servidor para que Geyser cargue los modelos" solo sale cuando de verdad cambio algo. La extension
   de GeyserModelEngine modifica el `config.json` de cada modelo al cargarlo (llena `binding_bones` y agrega campos): si
   el que ya esta tiene todo lo que Mutango quiere poner, no se lo pisa (antes se lo pisaba en cada arranque y avisaba siempre).
@@ -413,7 +411,6 @@ Igual que Don Pollos en BigC (`docs/don-pollos/compatibilidad-bedrock.md`):
 
 ## Cambiar los modelos
 
-`python tools/mutango/generar_mutango.py`, `python tools/mutango/generar_neguechen.py`, `python tools/mutango/generar_sol_luna.py` y
-`python tools/mutango/generar_bloque_ruinas.py` regeneran los `.bbmodel` (en `tools/mutango/`, escriben en `src/main/resources/bettermodel/models/`); despues
-`python tools/mutango/generar_armaduras_mutango.py` para las versiones con armadura (ver `tools/README.md`). Al reiniciar el servidor el modulo los copia
-a BetterModel y lo recarga. Despues corre `python tools/mutango/generar_bedrock_mutango.py` para Bedrock.
+Los `.bbmodel` estan en `src/main/resources/bettermodel/models/`. Al reiniciar el servidor el modulo los copia a
+BetterModel y lo recarga. Si cambias uno, el zip de Bedrock tiene que volver a convertirse (los tests `MutangoModelsTest` y
+`MutangoBedrockTest` avisan si quedo viejo). Los scripts de Python que generaron los modelos no van en este repo.

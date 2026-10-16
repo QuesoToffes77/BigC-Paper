@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 /**
- * Una estructura convertida desde un litematic (tools/convertir_litematic.py), como la ciudad de Don
+ * Una estructura convertida desde un litematic, como la ciudad de Don
  * Pollos. Orden de los bloques: y, z, x.
  */
 final class MutangoStructure {

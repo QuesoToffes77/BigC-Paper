@@ -121,7 +121,7 @@ class MutangoBedrockTest {
 
     @Test
     void losModelosConvertidosEstanAlDiaConLosDeJava() throws IOException, URISyntaxException {
-        // si se regenera un modelo y no se corre generar_bedrock_mutango.py, Bedrock ve el viejo
+        // si se cambia un modelo y no se vuelve a convertir el zip de Bedrock, Bedrock ve el viejo
         Map<String, byte[]> zip = modelEngineZip();
         for (String model : jarModels()) {
             JsonObject java = bbmodel(model);
@@ -279,7 +279,7 @@ class MutangoBedrockTest {
 
     private static byte[] resource(String name) throws IOException {
         try (InputStream stream = MutangoBedrockTest.class.getClassLoader().getResourceAsStream(name)) {
-            assertNotNull(stream, "falta " + name + " (python tools/generar_bedrock_mutango.py)");
+            assertNotNull(stream, "falta " + name + " (mutango/bedrock/geysermodelengine.zip)");
             return stream.readAllBytes();
         }
     }

@@ -54,7 +54,7 @@ version changes.
 
 - New: `modules/mutango/` (main and test), `src/main/resources/mutango.yml`, `src/main/resources/mutango/` (Bedrock
   models, relic icons pack, ruins structure), `src/main/resources/bettermodel/models/` (28 models),
-  `resourcepack/java/assets/mutango/`, `tools/mutango/`, `docs/mutango/README.md`, this spec and its plan.
+  `resourcepack/java/assets/mutango/`, `docs/mutango/README.md`, this spec and its plan.
 - Modified: `BigCasares.java` (construct, register, expose the module), `config.yml`, `plugin.yml` (command, permission,
   `GeyserModelEngine` softdepend so it loads first).
 

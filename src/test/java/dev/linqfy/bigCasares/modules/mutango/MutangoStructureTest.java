@@ -20,7 +20,7 @@ class MutangoStructureTest {
     private static MutangoStructure ruinas() throws IOException {
         try (InputStream stream = MutangoStructureTest.class.getClassLoader()
             .getResourceAsStream("mutango/structures/ruinas.json.gz")) {
-            assertNotNull(stream, "falta structures/ruinas.json.gz (python tools/convertir_litematic.py)");
+            assertNotNull(stream, "falta mutango/structures/ruinas.json.gz");
             return MutangoStructure.load(stream);
         }
     }
