@@ -18,10 +18,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerToggleFlightEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
@@ -50,6 +52,8 @@ final class MutangoRelics implements Listener {
 
     static final String BOOTS = "botas_neguechen";
     static final String CROSS = "cruz_andina";
+    /** El modelo de las botas puestas: assets/mutango/equipment/neguechen_boots.json. */
+    static final String WORN_MODEL = "neguechen_boots";
     /** Archivos del pack de Bedrock con los iconos (en el jar, carpeta mutango/relics-bedrock/). */
     static final List<String> BEDROCK_PACK_FILES = List.of("manifest.json", "textures/item_texture.json",
         "textures/item/botas_neguechen.png", "textures/item/cruz_andina.png");
@@ -86,6 +90,11 @@ final class MutangoRelics implements Listener {
             leather.setColor(Color.fromRGB(150, 95, 45));
         }
         meta.setItemModel(new NamespacedKey("mutango", BOOTS));
+        // puestas se ven con su propio modelo (resourcepack/java/assets/mutango/equipment/neguechen_boots.json)
+        EquippableComponent worn = meta.getEquippable();
+        worn.setSlot(EquipmentSlot.FEET);
+        worn.setModel(new NamespacedKey("mutango", WORN_MODEL));
+        meta.setEquippable(worn);
         meta.setDisplayName("§6§lBotas de Neguechen");
         meta.setLore(List.of(
             "§7Saltá en el aire para saltar otra vez.",

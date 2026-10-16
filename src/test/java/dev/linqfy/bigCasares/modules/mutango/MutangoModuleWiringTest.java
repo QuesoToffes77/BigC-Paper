@@ -1,8 +1,12 @@
 package dev.linqfy.bigCasares.modules.mutango;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -66,6 +70,25 @@ class MutangoModuleWiringTest {
             assertTrue(Files.isRegularFile(assets.resolve("models/item/" + relic + ".json")), relic + " model");
             assertTrue(Files.isRegularFile(assets.resolve("textures/item/" + relic + ".png")), relic + " texture");
         }
+    }
+
+    @Test
+    void theBootsHaveA3dItemModelAndAWornModel() throws IOException {
+        Path assets = Path.of("resourcepack/java/assets/mutango");
+        JsonObject model = JsonParser
+            .parseString(Files.readString(assets.resolve("models/item/botas_neguechen.json"))).getAsJsonObject();
+        assertTrue(model.getAsJsonArray("elements").size() >= 10, "the boots are a 3D model, not a flat icon");
+        assertTrue(Files.isRegularFile(assets.resolve("textures/item/botas_neguechen_modelo.png")));
+        JsonObject worn = JsonParser
+            .parseString(Files.readString(assets.resolve("equipment/" + MutangoRelics.WORN_MODEL + ".json")))
+            .getAsJsonObject();
+        assertEquals("mutango:neguechen_boots",
+            worn.getAsJsonObject("layers").getAsJsonArray("humanoid").get(0).getAsJsonObject().get("texture")
+                .getAsString());
+        BufferedImage texture = ImageIO.read(assets
+            .resolve("textures/entity/equipment/humanoid/neguechen_boots.png").toFile());
+        assertEquals(64, texture.getWidth());
+        assertEquals(32, texture.getHeight());
     }
 
     @Test

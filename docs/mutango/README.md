@@ -257,6 +257,16 @@ alguno; lo que no entra cae al piso a sus pies, brilla, no desaparece y es solo 
   medio corazon) y con mas efectos que duran mas: Regeneracion III 60 s, Absorcion IV 60 s, Resistencia al fuego
   120 s, Resistencia II 30 s, Velocidad II 30 s, Fuerza I 30 s y Respiracion acuatica 60 s.
 
+## Las botas: modelo 3D y modelo puesto
+
+Las Botas de Neguechen no son un icono plano: el item es un modelo 3D (`resourcepack/java/assets/mutango/models/item/
+botas_neguechen.json`) de **botas de vaquero de piedra con un poco de musgo** (cana alta con borde oscuro y una pestana
+arriba, taco). Atras tienen una **espuela roja** y su rueda, una estrella de ocho puntas que es **el Sol (amarillo) en
+una bota y la Luna (blanca) en la otra**. Puestas se ven con un modelo propio (`equipment/neguechen_boots.json` + una
+textura de 64x32: piedra y musgo, y atras la espuela roja con el Sol y la Luna; la espuela no sobresale puesta porque ese
+modelo es solo una textura). Se regeneran con `python tools/mutango/generar_botas.py [vista_previa.png]`. En Bedrock
+siguen con el icono plano (Geyser no tiene este modelo puesto).
+
 ## Intentos de cheat: se los pasamos a BigC
 
 Mutango **no resuelve** los intentos de cheat que ve: se los manda al sistema de moderacion de BigC (el modulo

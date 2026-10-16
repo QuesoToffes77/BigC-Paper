@@ -13,6 +13,7 @@ tambien). Las fuentes que leen (texturas de referencia y el litematic) estan en 
 | `python tools/mutango/generar_sol_luna.py` | El Sol y la Luna (las caras estan en `caras_sol_luna.py`; las referencias en `fuentes/sol.jpg` y `fuentes/luna.jpg`). |
 | `python tools/mutango/generar_bloque_ruinas.py` | El cubo del santuario (con `fuentes/TEXTURA.png`). |
 | `python tools/mutango/generar_armaduras_mutango.py` | Las 16 versiones con armadura (cobre, hierro, diamante, netherite) de los tres Mutangos y de Neguechen. Va **despues** de los dos primeros. |
+| `python tools/mutango/generar_botas.py [vista.png]` | El modelo 3D de las Botas de Neguechen, su textura y el modelo puesto (en `resourcepack/java/assets/mutango/`). |
 
 `modelo_base.py` es lo comun (colores, uuid estables, la clase `Model` que arma la textura y escribe el `.bbmodel`). Los
 uuid salen del prefijo `donpollos/` a proposito: de ahi vienen los que ya tienen los modelos; si se cambia, cambian todos.
