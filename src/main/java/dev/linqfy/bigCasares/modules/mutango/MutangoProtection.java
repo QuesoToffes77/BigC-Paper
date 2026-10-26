@@ -14,6 +14,12 @@ final class MutangoProtection {
     private MutangoProtection() {
     }
 
+    /** Los primeros max corrimientos de offsetsByDistance(radius): los mas cercanos (el trabajo de una busqueda tiene tope). */
+    static List<int[]> nearest(int radius, int max) {
+        List<int[]> all = offsetsByDistance(radius);
+        return all.subList(0, Math.min(max, all.size()));
+    }
+
     /**
      * Todos los corrimientos (x, z) de hasta radius bloques en cada eje, del mas cercano al mas lejano: primero (0, 0)
      * (donde iba a ser), despues los de alrededor, y asi.

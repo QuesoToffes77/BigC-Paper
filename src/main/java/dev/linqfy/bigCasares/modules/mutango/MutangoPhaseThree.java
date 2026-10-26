@@ -57,6 +57,14 @@ final class MutangoPhaseThree {
     private static final double TARGET_RADIUS = 48.0;
     /** Hasta donde busca (bloques en cada eje) un lugar donde la grieta no toque bloques protegidos. */
     private static final int RIFT_SEARCH = 12;
+    /**
+     * Tope de la busqueda de lugar para la grieta (en el hilo del servidor, un tick): candidatos mirados (de a un bloque:
+     * una consulta de proteccion cada uno) y grietas completas armadas. Sin tope eran 625 candidatos y unas 22.000
+     * consultas de altura cuando toda el area esta protegida. Si no aparece un lugar permitido, la grieta abre donde iba y
+     * deja sin tocar lo protegido (carvable pregunta por cada bloque).
+     */
+    private static final int RIFT_MAX_CANDIDATES = 96;
+    private static final int RIFT_MAX_FULL_PROBES = 16;
 
     // saltitos: cada tanto se mueve un poco, sin irse lejos de donde aparecio
     private static final int HOP_EVERY_TICKS = 50;
@@ -314,11 +322,20 @@ final class MutangoPhaseThree {
      */
     private Location allowedRiftSpot() {
         boolean alongX = riftAlongX();
-        World world = home.getWorld();
-        for (int[] offset : MutangoProtection.offsetsByDistance(RIFT_SEARCH)) {
+        int fullProbes = 0;
+        for (int[] offset : MutangoProtection.nearest(RIFT_SEARCH, RIFT_MAX_CANDIDATES)) {
             Location candidate = home.clone().add(offset[0], 0, offset[1]);
-            candidate.setY(MutangoGround.y(candidate) + 1 + FLOAT_HEIGHT);
-            MutangoRift probe = new MutangoRift(MutangoGround.block(candidate), alongX,
+            Block surface = MutangoGround.block(candidate);
+            // lo barato primero: si ni el bloque del medio se puede tocar, no se arma la grieta entera (sus 33 columnas, cada
+            // una con su altura) solo para descartarla
+            if (!allowed(surface)) {
+                continue;
+            }
+            if (++fullProbes > RIFT_MAX_FULL_PROBES) {
+                break; // tope de trabajo por busqueda: mas alla no se sigue mirando en este tick
+            }
+            candidate.setY(surface.getY() + 1 + FLOAT_HEIGHT);
+            MutangoRift probe = new MutangoRift(surface, alongX,
                 candidate.getBlockX() * 31L + candidate.getBlockZ(), host.journal(), this::allowed);
             if (probe.allAllowed()) {
                 return offset[0] == 0 && offset[1] == 0 ? null : candidate;
@@ -746,7 +763,7 @@ final class MutangoPhaseThree {
     private Player nearestTarget() {
         Player nearest = null;
         double best = TARGET_RADIUS * TARGET_RADIUS;
-        for (Player player : home.getWorld().getPlayers()) {
+        for (Player player : home.getWorld().getNearbyPlayers(home, TARGET_RADIUS)) {
             if (!MutangoTargets.targetable(player)) {
                 continue;
             }

@@ -25,8 +25,21 @@ final class MutangoPending {
 
     static final int VERSION = 2;
 
-    /** Una adjudicacion: cuantas victorias y cuantos juegos de premios le tocan a ese jugador. */
-    record Award(UUID id, UUID player, int wins, int rewards) {
+    /**
+     * Una adjudicacion: cuantas victorias y cuantos juegos de premios le tocan a ese jugador. applied: ya se le aplico y se
+     * guardo al jugador, pero todavia no hay prueba de que el archivo del jugador la tenga (ver MutangoAwardClaim): se
+     * confirma al volver a entrar con el recibo en los datos que leyo del disco.
+     */
+    record Award(UUID id, UUID player, int wins, int rewards, boolean applied) {
+    }
+
+    /**
+     * La identidad estable de la resolucion de una pelea para un jugador: la misma pelea y el mismo jugador dan siempre el
+     * mismo id, asi resolver dos veces la misma pelea (un boss recuperado con su estado anterior) no genera otra adjudicacion
+     * que los recibos viejos no reconozcan.
+     */
+    static UUID idFor(UUID fight, UUID player) {
+        return UUID.nameUUIDFromBytes(("mutango-victoria:" + fight + ":" + player).getBytes(StandardCharsets.UTF_8));
     }
 
     private final File file;
@@ -38,11 +51,16 @@ final class MutangoPending {
     }
 
     /**
-     * Anota una adjudicacion nueva y la guarda en el archivo antes de devolverla. Si no se puede guardar queda en la cola
-     * de esta corrida igual (se va a entregar) y se avisa con IllegalStateException.
+     * Anota una adjudicacion (victoria y premios juntos, en UNA sola operacion) y la guarda en el archivo antes de
+     * devolverla. Es idempotente por id: si ya estaba anotada se devuelve la que habia. Si no se puede guardar queda en la
+     * cola de esta corrida igual (se va a entregar) y se avisa con IllegalStateException.
      */
-    Award add(UUID player, int wins, int rewards) {
-        Award award = new Award(UUID.randomUUID(), player, Math.max(0, wins), Math.max(0, rewards));
+    Award add(UUID id, UUID player, int wins, int rewards) {
+        Award existing = awards.get(id);
+        if (existing != null) {
+            return existing;
+        }
+        Award award = new Award(id, player, Math.max(0, wins), Math.max(0, rewards), false);
         awards.put(award.id(), award);
         save();
         return award;
@@ -59,16 +77,45 @@ final class MutangoPending {
         return list;
     }
 
+    /** Lo que ese jugador tiene por aplicar (sin contar lo que ya se aplico y espera confirmacion). */
+    List<Award> pendingOf(UUID player) {
+        return of(player).stream().filter(award -> !award.applied()).toList();
+    }
+
+    /** Lo que ya se le aplico y espera la prueba de que su archivo lo tiene. */
+    List<Award> appliedOf(UUID player) {
+        return of(player).stream().filter(Award::applied).toList();
+    }
+
+    /** Tiene algo por aplicar. */
     boolean has(UUID player) {
-        return awards.values().stream().anyMatch(award -> award.player().equals(player));
+        return awards.values().stream().anyMatch(award -> award.player().equals(player) && !award.applied());
     }
 
     int size() {
         return awards.size();
     }
 
-    /** Ya esta entregada y guardada en el jugador: sale de la cola (y del archivo). */
-    void confirm(UUID awardId) {
+    /** Se le aplico al jugador y se lo guardo: queda en la cola, aplicada, hasta que se confirme con la prueba del disco. */
+    void markApplied(UUID awardId) {
+        setApplied(awardId, true);
+    }
+
+    /** No esta en el archivo del jugador (el guardado fallo): vuelve a estar por aplicar. */
+    void markPending(UUID awardId) {
+        setApplied(awardId, false);
+    }
+
+    private void setApplied(UUID awardId, boolean applied) {
+        Award award = awards.get(awardId);
+        if (award != null && award.applied() != applied) {
+            awards.put(awardId, new Award(award.id(), award.player(), award.wins(), award.rewards(), applied));
+            save();
+        }
+    }
+
+    /** Ya hay prueba de que el jugador lo tiene guardado: sale de la cola (y del archivo). */
+    void remove(UUID awardId) {
         if (awards.remove(awardId) != null) {
             save();
         }
@@ -82,8 +129,9 @@ final class MutangoPending {
                 UUID player = UUID.fromString(String.valueOf(raw.get("jugador")));
                 int wins = Math.max(0, number(raw.get("victorias")));
                 int rewards = Math.max(0, number(raw.get("premios")));
+                boolean applied = Boolean.parseBoolean(String.valueOf(raw.get("aplicada")));
                 if (wins > 0 || rewards > 0) {
-                    awards.put(id, new Award(id, player, wins, rewards));
+                    awards.put(id, new Award(id, player, wins, rewards, applied));
                 }
             } catch (IllegalArgumentException invalid) {
                 // un registro roto no puede impedir cargar los demas
@@ -108,7 +156,7 @@ final class MutangoPending {
                 int rewards = Math.max(0, section.getInt(key + ".premios"));
                 UUID id = UUID.nameUUIDFromBytes(("mutango-pendiente-viejo:" + player).getBytes(StandardCharsets.UTF_8));
                 if (wins + rewards > 0 && !awards.containsKey(id)) {
-                    awards.put(id, new Award(id, player, wins, rewards));
+                    awards.put(id, new Award(id, player, wins, rewards, false));
                 }
             } catch (IllegalArgumentException invalid) {
                 // un registro roto no puede impedir cargar los demas
@@ -131,6 +179,7 @@ final class MutangoPending {
             entry.put("jugador", award.player().toString());
             entry.put("victorias", award.wins());
             entry.put("premios", award.rewards());
+            entry.put("aplicada", award.applied());
             list.add(entry);
         }
         yaml.set("adjudicaciones", list);

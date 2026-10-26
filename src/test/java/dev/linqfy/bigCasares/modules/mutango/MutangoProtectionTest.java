@@ -41,4 +41,24 @@ class MutangoProtectionTest {
             assertArrayEquals(first.get(i), second.get(i));
         }
     }
+
+    @Test
+    void laBusquedaAcotadaDaLosMasCercanosEnElMismoOrdenYConTope() {
+        List<int[]> all = MutangoProtection.offsetsByDistance(12);
+        List<int[]> few = MutangoProtection.nearest(12, 96);
+
+        assertEquals(96, few.size(), "un tope de candidatos por busqueda (antes eran 625)");
+        assertEquals(625, all.size());
+        for (int i = 0; i < few.size(); i++) {
+            assertEquals(all.get(i)[0], few.get(i)[0]);
+            assertEquals(all.get(i)[1], few.get(i)[1]);
+        }
+        assertEquals(0, few.get(0)[0]);
+        assertEquals(0, few.get(0)[1]);
+    }
+
+    @Test
+    void conUnTopeMayorQueLaListaDevuelveTodo() {
+        assertEquals(9, MutangoProtection.nearest(1, 1000).size());
+    }
 }

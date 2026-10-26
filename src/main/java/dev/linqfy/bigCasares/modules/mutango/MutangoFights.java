@@ -51,6 +51,8 @@ final class MutangoFights implements Listener {
     private final JavaPlugin plugin;
     private final MutangoKeys keys;
     private final MutangoBlockJournal journal;
+    /** El roster de cada pelea, guardado fuera de las entidades (las bajas no se pierden si el sobreviviente esta descargado). */
+    private final MutangoRosterStore rosters;
     private final MutangoCinematic.Display display;
     private final MutangoBedrock bedrock;
     private final boolean bedrockModels;
@@ -101,11 +103,13 @@ final class MutangoFights implements Listener {
         }
     };
 
-    MutangoFights(JavaPlugin plugin, MutangoKeys keys, MutangoBlockJournal journal, MutangoCinematic.Display display,
+    MutangoFights(JavaPlugin plugin, MutangoKeys keys, MutangoBlockJournal journal, MutangoRosterStore rosters,
+                  MutangoCinematic.Display display,
                   MutangoBedrock bedrock, boolean bedrockModels) {
         this.plugin = plugin;
         this.keys = keys;
         this.journal = journal;
+        this.rosters = rosters;
         this.display = display;
         this.bedrock = bedrock;
         this.bedrockModels = bedrockModels;
@@ -292,6 +296,7 @@ final class MutangoFights implements Listener {
                 }
             }
         }
+        new ArrayList<>(fights.keySet()).forEach(this::forgetRoster);
         fights.clear();
         return removed;
     }
@@ -310,11 +315,21 @@ final class MutangoFights implements Listener {
         }
     }
 
-    /** Guarda en cada Mutango cargado quienes forman su pelea (para saber quienes faltan cargar despues de un reinicio). */
+    /** Guarda el roster de la pelea (quienes la forman y quienes murieron) fuera de las entidades. */
     private void saveRoster(MutangoFight fight) {
-        String saved = fight.roster.serialize();
-        for (Mob mutango : aliveOf(fight)) {
-            mutango.getPersistentDataContainer().set(keys.roster, PersistentDataType.STRING, saved);
+        try {
+            rosters.put(fight.id, fight.roster.members(), fight.roster.dead());
+        } catch (IllegalStateException unsaved) {
+            plugin.getLogger().log(Level.WARNING, "[Mutango] No se pudo guardar el roster de la pelea", unsaved);
+        }
+    }
+
+    /** La pelea ya no existe: se olvida su roster. */
+    private void forgetRoster(UUID fightId) {
+        try {
+            rosters.remove(fightId);
+        } catch (IllegalStateException unsaved) {
+            plugin.getLogger().log(Level.WARNING, "[Mutango] No se pudo guardar el roster de la pelea", unsaved);
         }
     }
 
@@ -330,6 +345,11 @@ final class MutangoFights implements Listener {
     private MutangoFight newFight(UUID id, int level) {
         MutangoFight fight = new MutangoFight(id, level, this::playOnce, animations, this::fightHost, battleStore,
             display);
+        MutangoRosterStore.Record saved = rosters.get(id);
+        if (saved != null) {
+            // quienes la forman y quienes ya murieron, de lo guardado (no de lo que haya cargado)
+            fight.roster.restore(saved.members(), saved.dead());
+        }
         fights.put(id, fight);
         return fight;
     }
@@ -544,9 +564,6 @@ final class MutangoFights implements Listener {
             () -> plugin.getLogger().warning("BetterModel no tiene cargado el modelo " + shown));
         if (MutangoModels.MODELS.contains(model)) {
             fight.roster.add(mutango.getUniqueId());
-            // los que todavia no cargaron (otro chunk, despues de un reinicio) tambien forman la pelea
-            fight.roster.adopt(MutangoRoster.parse(
-                mutango.getPersistentDataContainer().get(keys.roster, PersistentDataType.STRING)));
         }
         if (!spawned) {
             restoreState(fight, mutango, model, resume);
@@ -647,6 +664,7 @@ final class MutangoFights implements Listener {
             }
             if (fight.over()) {
                 fights.remove(fight.id);
+                forgetRoster(fight.id);
             }
         }
     }

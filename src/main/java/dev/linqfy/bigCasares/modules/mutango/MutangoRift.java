@@ -240,7 +240,8 @@ final class MutangoRift {
         Block surface = columns.get(index).surface();
         BoundingBox box = new BoundingBox(surface.getX(), surface.getY() - MutangoRiftShape.MAX_DEPTH - 1,
             surface.getZ(), surface.getX() + 1, surface.getY() + 1, surface.getZ() + 1);
-        for (Player player : world.getPlayers()) {
+        for (Player player : world.getNearbyPlayers(surface.getLocation().add(0.5, 0, 0.5), 3,
+            MutangoRiftShape.MAX_DEPTH + 3, 3)) {
             if (player.getBoundingBox().overlaps(box)) {
                 Location out = player.getLocation();
                 out.setY(surface.getY() + 1.1);

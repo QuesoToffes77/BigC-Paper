@@ -140,8 +140,10 @@ final class MutangoCombat implements Listener {
      * y despues se deshace en luz y deja las Botas de Neguechen y la Cruz Andina para reclamar.
      */
     private void defeatNeguechen(MutangoFight fight, Mob neguechen) {
-        rewards.registerVictory(fight);
+        // la marca de fase 3 sale ANTES de anotar la victoria; igual la adjudicacion es idempotente por pelea y jugador: si el
+        // boss se recupera con su estado anterior y lo vencen de nuevo, no se anota otra
         neguechen.getPersistentDataContainer().remove(keys.phase);
+        rewards.registerVictory(fight);
         neguechen.setHealth(1.0);
         fight.phaseThree.beginDeath();
         // la barra se va ya: si no, queda vacia todo el rato que habla y parece que ya murio

@@ -52,6 +52,7 @@ public final class MutangoModule implements PluginModule {
     private MutangoFights fights;
     private MutangoShrine shrine;
     private MutangoRelics relics;
+    private MutangoRecovery recovery;
     private MutangoRewards rewards;
     private MutangoBedrockItems bedrockItems;
     private MutangoRuins ruins;
@@ -111,7 +112,8 @@ public final class MutangoModule implements PluginModule {
         bedrockItems = new MutangoBedrockItems(plugin);
         bedrockItems.start(config.getBoolean("bedrock.items-personalizados", true));
 
-        fights = new MutangoFights(plugin, keys, journal, display, bedrock, bedrockModels);
+        MutangoRosterStore rosters = new MutangoRosterStore(new File(plugin.getDataFolder(), "data/mutango/peleas.yml"));
+        fights = new MutangoFights(plugin, keys, journal, rosters, display, bedrock, bedrockModels);
         shrine = new MutangoShrine(shrineHost(fights), new NamespacedKey(plugin, "santuario"),
             new NamespacedKey(plugin, "santuario_izq"), new NamespacedKey(plugin, "santuario_cerrado"));
         relics = new MutangoRelics(plugin, new MutangoModeration(this::moderationSink, plugin.getLogger()), tasks);
@@ -121,7 +123,7 @@ public final class MutangoModule implements PluginModule {
         registrations.registerListener("mutango-fights", fights);
         registrations.registerListener("mutango-rewards", rewards);
         registrations.registerListener("mutango-combat", new MutangoCombat(plugin, keys, fights, rewards, shrine, tasks));
-        MutangoRecovery recovery = new MutangoRecovery(plugin, journal, tasks);
+        recovery = new MutangoRecovery(plugin, journal, tasks);
         registrations.registerListener("mutango-recovery", recovery);
         registrations.registerListener("mutango-relics", relics);
 
@@ -177,6 +179,7 @@ public final class MutangoModule implements PluginModule {
             relics.shutdown();
             relics = null;
         rewards = null;
+        recovery = null;
         }
         flushJournal();
         journal = null;
@@ -203,6 +206,7 @@ public final class MutangoModule implements PluginModule {
         }
         if (now % 100 == 0) {
             rewards.retryOnline(); // a quien le faltaba lugar en el inventario
+            recovery.tickSave(); // el guardado con flush que da evidencia para tachar los bloques devueltos
         }
     }
 

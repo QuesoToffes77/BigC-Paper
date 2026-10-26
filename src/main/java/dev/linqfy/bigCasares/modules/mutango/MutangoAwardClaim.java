@@ -6,11 +6,14 @@ import java.util.function.Consumer;
 /**
  * Entrega una adjudicacion a un jugador, en el orden que no pierde ni duplica nada (sin Bukkit):
  * <ol>
- *   <li>si el jugador ya tiene el recibo de esa adjudicacion, ya se aplico (la cola quedo sin borrar por un corte): solo
- *   se confirma;</li>
+ *   <li>si el jugador ya tiene el recibo de esa adjudicacion, ya se aplico (un corte dejo la cola sin marcar): solo se
+ *   marca como aplicada;</li>
  *   <li>si no entran los items, sigue pendiente y no se toca nada (no se deja un drop en el mundo);</li>
  *   <li>se aplican las victorias y los items, se anota el recibo y se guarda el jugador;</li>
- *   <li>recien ahi se confirma (se borra de la cola).</li>
+ *   <li>se marca como <b>aplicada</b>, pero NO se borra de la cola: Player#saveData no avisa si fallo (Paper captura la
+ *   excepcion de escritura y vuelve normal), asi que "guarde al jugador" no prueba nada. La prueba es el disco: al volver a
+ *   entrar el jugador, si los datos que se leyeron traen el recibo se confirma (se borra de la cola) y si no, la
+ *   adjudicacion vuelve a estar por aplicar (verifyAtJoin).</li>
  * </ol>
  * Si cualquier paso falla a mitad, se <b>deshace todo lo aplicado en memoria</b> (victorias, items y recibo) antes de
  * relanzar el error: un reintento en la misma sesion (sin reinicio) no puede sumar dos veces lo que la primera vuelta ya
@@ -54,9 +57,20 @@ final class MutangoAwardClaim {
     private MutangoAwardClaim() {
     }
 
-    static Result claim(MutangoPending.Award award, Receipts receipts, Target target, Consumer<UUID> confirm) {
+    /** Que hacer con una adjudicacion aplicada cuando el jugador vuelve a entrar. */
+    enum Verdict { CONFIRM, REAPPLY }
+
+    /**
+     * El jugador entro y sus datos vienen del disco: con el recibo, la adjudicacion quedo guardada de verdad (se confirma);
+     * sin el, el guardado fallo en silencio o se perdio (vuelve a estar por aplicar).
+     */
+    static Verdict verifyAtJoin(MutangoPending.Award award, Receipts receipts) {
+        return receipts.has(award.id()) ? Verdict.CONFIRM : Verdict.REAPPLY;
+    }
+
+    static Result claim(MutangoPending.Award award, Receipts receipts, Target target, Consumer<UUID> markApplied) {
         if (receipts.has(award.id())) {
-            confirm.accept(award.id());
+            markApplied.accept(award.id());
             return Result.ALREADY_APPLIED;
         }
         if (award.rewards() > 0 && !target.hasRoom(award.rewards())) {
@@ -77,7 +91,7 @@ final class MutangoAwardClaim {
             target.rollback();
             throw failure;
         }
-        confirm.accept(award.id());
+        markApplied.accept(award.id());
         return Result.CLAIMED;
     }
 }

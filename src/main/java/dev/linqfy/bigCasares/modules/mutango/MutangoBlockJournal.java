@@ -116,8 +116,10 @@ final class MutangoBlockJournal {
     }
 
     /**
-     * El bloque ya se devolvio al mundo, pero el mundo todavia no se guardo con el bloque devuelto: sigue anotado hasta
-     * worldSaved. Si el servidor se cae antes de guardar, al arrancar se vuelve a devolver.
+     * El bloque ya se devolvio al mundo en memoria, pero todavia no hay evidencia de que el chunk se guardo asi: sigue
+     * anotado. Se suelta con releaseSaved (despues de un guardado del mundo que espera a que terminen las escrituras) o
+     * cuando el chunk vuelve a cargar y se comprueba lo que quedo (MutangoRecovery). Si el servidor se cae antes, al
+     * arrancar se vuelve a comprobar.
      */
     void restored(UUID world, int x, int y, int z) {
         String key = key(world, x, y, z);
@@ -126,16 +128,44 @@ final class MutangoBlockJournal {
         }
     }
 
-    /** El mundo se guardo: los bloques devueltos hasta ahora ya estan guardados, se tachan (y se compacta si hace falta). */
-    void worldSaved(UUID world) {
-        boolean any = false;
-        for (String key : new ArrayList<>(awaitingSave)) {
+    /** Los bloques de ese mundo que ya se devolvieron en memoria y siguen anotados (esperan evidencia de guardado). */
+    List<Entry> awaiting(UUID world) {
+        List<Entry> out = new ArrayList<>();
+        for (String key : awaitingSave) {
             Entry entry = entries.get(key);
-            if (entry == null) {
-                awaitingSave.remove(key);
-            } else if (entry.world().equals(world)) {
-                entries.remove(key);
-                awaitingSave.remove(key);
+            if (entry != null && entry.world().equals(world)) {
+                out.add(entry);
+            }
+        }
+        return out;
+    }
+
+    /** Los bloques devueltos que estan en ese chunk y siguen anotados (el chunk acaba de cargar: se comprueba que quedo). */
+    List<Entry> awaitingInChunk(UUID world, int chunkX, int chunkZ) {
+        List<Entry> out = new ArrayList<>();
+        for (String key : awaitingSave) {
+            Entry entry = entries.get(key);
+            if (entry != null && entry.world().equals(world) && entry.x() >> 4 == chunkX && entry.z() >> 4 == chunkZ) {
+                out.add(entry);
+            }
+        }
+        return out;
+    }
+
+    boolean hasAwaiting() {
+        return !awaitingSave.isEmpty();
+    }
+
+    /**
+     * Hay evidencia de que esos bloques quedaron guardados (un guardado del mundo que espero a que terminen las
+     * escrituras, sacado DESPUES de devolverlos): se tachan. Los que se volvieron a tocar mientras tanto no (siguen
+     * anotados con su original).
+     */
+    void releaseSaved(Collection<Entry> saved) {
+        boolean any = false;
+        for (Entry entry : saved) {
+            String key = entry.id();
+            if (awaitingSave.remove(key) && entries.remove(key) != null) {
                 pending.add(removeLine(entry));
                 any = true;
             }

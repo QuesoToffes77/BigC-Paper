@@ -30,7 +30,7 @@ final class MutangoProtectedZone {
     /** Cuanto tiene para salir de una zona protegida antes del rayo (5 segundos). */
     private static final int WARNING_TICKS = 100;
     /** Dano del mega rayo de Warden (no lo frena la armadura); solo le pega a quien se quedo en la zona protegida. */
-    private static final double MEGA_RAY_DAMAGE = 200.0;
+    private static final double MEGA_RAY_DAMAGE = 20.0;
     private static final Particle.DustOptions WARDEN_BLUE = new Particle.DustOptions(Color.fromRGB(40, 220, 200), 1.6f);
 
     private final Predicate<Block> allowed;
@@ -68,8 +68,8 @@ final class MutangoProtectedZone {
         for (Iterator<Map.Entry<UUID, Integer>> it = warnings.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<UUID, Integer> entry = it.next();
             Player player = Bukkit.getPlayer(entry.getKey());
-            if (player == null || boss == null || !MutangoTargets.targetable(player)) {
-                it.remove();
+            if (player == null || boss == null || !MutangoTargets.targetable(player) || !inFight(player, boss)) {
+                it.remove(); // se desconecto, murio, o se fue de la pelea (otro mundo o lejos): la cuenta ya no corre
                 continue;
             }
             int left = entry.getValue() - now;
@@ -81,11 +81,20 @@ final class MutangoProtectedZone {
             }
             if (left <= 0) {
                 it.remove();
-                megaRay(player, boss);
+                // se revalida justo antes de disparar: sigue en la pelea y sigue metido en la zona protegida
+                if (inFight(player, boss) && contains(player)) {
+                    megaRay(player, boss);
+                }
             } else if (left % 20 == 0) {
                 showCountdown(player, left / 20);
             }
         }
+    }
+
+    private static boolean inFight(Player player, Entity boss) {
+        boolean sameWorld = player.getWorld().equals(boss.getWorld());
+        return MutangoZoneRules.inFight(sameWorld,
+            sameWorld ? player.getLocation().distanceSquared(boss.getLocation()) : Double.MAX_VALUE);
     }
 
     /** Se cancelan todas las cuentas (termino la pelea o la vencieron). */

@@ -1,10 +1,8 @@
 package dev.linqfy.bigCasares.modules.mutango;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -26,6 +24,27 @@ final class MutangoRoster {
 
     boolean isEmpty() {
         return members.isEmpty();
+    }
+
+    /** Los que ya murieron (no vuelven aunque aparezca una entidad vieja con su id). */
+    Set<UUID> dead() {
+        return dead;
+    }
+
+    /** Retoma lo guardado de esta pelea (quienes la forman y quienes ya murieron). */
+    void restore(Collection<UUID> savedMembers, Collection<UUID> savedDead) {
+        dead.addAll(savedDead);
+        for (UUID id : savedMembers) {
+            add(id);
+        }
+    }
+
+    /**
+     * La fase 1 se cierra solo con los tres caidos Y los tres cargados: un caido que sigue descargado se saltearia su
+     * transicion a la fase 2 (volveria con 1 de vida y en fase 1), asi que se espera a tener el roster completo.
+     */
+    boolean canCloseFirstPhase(Set<UUID> downed, Collection<UUID> loaded) {
+        return allDowned(downed) && missing(loaded) == 0;
     }
 
     /** Suma a uno (si ya se confirmo su muerte, no). */
@@ -62,26 +81,4 @@ final class MutangoRoster {
         return !members.isEmpty() && downed.containsAll(members);
     }
 
-    /** Para guardarlo en la ficha de cada miembro. */
-    String serialize() {
-        List<String> ids = new ArrayList<>();
-        members.forEach(id -> ids.add(id.toString()));
-        return String.join(",", ids);
-    }
-
-    /** Lo guardado en una ficha; un id que no se entiende no impide leer los demas. */
-    static List<UUID> parse(String raw) {
-        List<UUID> ids = new ArrayList<>();
-        if (raw == null || raw.isBlank()) {
-            return ids;
-        }
-        for (String part : raw.split(",")) {
-            try {
-                ids.add(UUID.fromString(part.trim()));
-            } catch (IllegalArgumentException invalid) {
-                // se ignora
-            }
-        }
-        return ids;
-    }
 }

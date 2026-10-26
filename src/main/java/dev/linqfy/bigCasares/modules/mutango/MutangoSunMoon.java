@@ -32,6 +32,8 @@ final class MutangoSunMoon {
     private static final double ORBIT_WAVE = 0.7;
     private static final int ORBIT_PERIOD_TICKS = 100;
     private static final double FLIGHT_SPEED = 1.3;
+    /** Radio donde se buscan jugadores en cada subpaso del vuelo (la caja de golpe es de 1.5 como mucho). */
+    private static final double HIT_SEARCH_RADIUS = 4.0;
     private static final double FLIGHT_STEP = 0.4;
     private static final int FLIGHT_MAX_TICKS = 80;
     private static final int RETURN_TICKS = 20;
@@ -249,7 +251,7 @@ final class MutangoSunMoon {
             orb.center = next;
             if (!orb.hit) {
                 BoundingBox body = BoundingBox.of(next, orb.hitRadius, orb.hitRadius, orb.hitRadius);
-                for (Player player : next.getWorld().getPlayers()) {
+                for (Player player : next.getWorld().getNearbyPlayers(next, HIT_SEARCH_RADIUS)) {
                     if (MutangoTargets.targetable(player) && player.getBoundingBox().overlaps(body)) {
                         orb.hit = true;
                         hit(orb, player);

@@ -144,7 +144,7 @@ class MutangoBlockJournalTest {
     // ---- devolver: se tacha recien cuando el mundo se guarda ----
 
     @Test
-    void unBloqueDevueltoSigueAnotadoHastaQueElMundoSeGuarda() {
+    void unBloqueDevueltoSigueAnotadoHastaQueHayEvidenciaDeGuardado() {
         MutangoBlockJournal journal = new MutangoBlockJournal(file());
         journal.commit(List.of(new MutangoBlockJournal.Entry(world, 1, 2, 3, "minecraft:stone")));
 
@@ -153,7 +153,7 @@ class MutangoBlockJournalTest {
         // se cae antes de guardar el mundo: el bloque devuelto puede no haberse guardado, sigue anotado
         assertEquals(1, new MutangoBlockJournal(file()).entries().size());
 
-        journal.worldSaved(world);
+        journal.releaseSaved(journal.awaiting(world));
         assertTrue(new MutangoBlockJournal(file()).isEmpty());
     }
 
@@ -166,7 +166,7 @@ class MutangoBlockJournalTest {
         journal.restored(world, 1, 2, 3);
         journal.restored(other, 4, 5, 6);
 
-        journal.worldSaved(other);
+        journal.releaseSaved(journal.awaiting(other));
 
         List<MutangoBlockJournal.Entry> left = new MutangoBlockJournal(file()).entries();
         assertEquals(1, left.size());
@@ -179,9 +179,10 @@ class MutangoBlockJournalTest {
         journal.commit(List.of(new MutangoBlockJournal.Entry(world, 1, 2, 3, "minecraft:stone")));
         journal.restored(world, 1, 2, 3);
 
-        // otra onda arranca el mismo bloque antes de que el mundo se guarde
+        // el guardado del mundo empieza con este bloque devuelto... y otra onda lo arranca otra vez antes de que termine
+        List<MutangoBlockJournal.Entry> snapshot = journal.awaiting(world);
         journal.commit(List.of(new MutangoBlockJournal.Entry(world, 1, 2, 3, "minecraft:stone")));
-        journal.worldSaved(world);
+        journal.releaseSaved(snapshot);
 
         assertEquals(1, new MutangoBlockJournal(file()).entries().size());
     }
@@ -190,7 +191,7 @@ class MutangoBlockJournalTest {
     void restoredDeAlgoQueNoEstabaAnotadoNoHaceNada() {
         MutangoBlockJournal journal = new MutangoBlockJournal(file());
         journal.restored(world, 1, 2, 3);
-        journal.worldSaved(world);
+        journal.releaseSaved(journal.awaiting(world));
         assertTrue(journal.isEmpty());
     }
 
@@ -246,7 +247,7 @@ class MutangoBlockJournalTest {
             journal.commit(List.of(new MutangoBlockJournal.Entry(world, i, 0, 0, "minecraft:stone")));
             journal.restored(world, i, 0, 0);
         }
-        journal.worldSaved(world); // se tachan los 12 y el log tiene 24 lineas para 0 vivas
+        journal.releaseSaved(journal.awaiting(world)); // se tachan los 12 y el log tiene 24 lineas para 0 vivas
 
         assertEquals(1, Files.readAllLines(file().toPath()).size(), "solo el encabezado: se compacto");
         assertTrue(new MutangoBlockJournal(file()).isEmpty());
@@ -261,7 +262,7 @@ class MutangoBlockJournalTest {
         for (int i = 0; i < 5; i++) {
             journal.restored(world, i, 0, 0);
         }
-        journal.worldSaved(world);
+        journal.releaseSaved(journal.awaiting(world));
 
         List<MutangoBlockJournal.Entry> left = new MutangoBlockJournal(file()).entries();
         assertEquals(1, left.size());
@@ -293,5 +294,52 @@ class MutangoBlockJournalTest {
         journal.commit(List.of(new MutangoBlockJournal.Entry(world, 1, 1, 1, "minecraft:stone")));
 
         assertEquals(1, new MutangoBlockJournal(file).entries().size());
+    }
+
+    @Test
+    void elEventoDeGuardadoNoEsEvidenciaElOriginalSigueHastaQueSeConfirmaElGuardado() {
+        // chunk persistido con el hueco -> se devuelve en memoria -> empieza un guardado (el evento llega ANTES de
+        // escribir) -> el servidor se cae antes de que el chunk se escriba: el diario todavia tiene el original
+        MutangoBlockJournal journal = new MutangoBlockJournal(file());
+        journal.commit(List.of(new MutangoBlockJournal.Entry(world, 1, 2, 3, "minecraft:stone")));
+        journal.restored(world, 1, 2, 3);
+        journal.flush();
+        // (aca llegaria el WorldSaveEvent: no hace nada con el diario)
+
+        MutangoBlockJournal afterCrash = new MutangoBlockJournal(file());
+        assertEquals(1, afterCrash.entries().size());
+        assertEquals("minecraft:stone", afterCrash.entries().get(0).data());
+    }
+
+    @Test
+    void awaitingInChunkDevuelveSoloLosDevueltosDeEseChunk() {
+        MutangoBlockJournal journal = new MutangoBlockJournal(file());
+        journal.commit(List.of(new MutangoBlockJournal.Entry(world, 1, 2, 3, "minecraft:stone"),
+            new MutangoBlockJournal.Entry(world, 40, 2, 3, "minecraft:dirt"),
+            new MutangoBlockJournal.Entry(world, 2, 2, 4, "minecraft:sand")));
+        journal.restored(world, 1, 2, 3);
+        journal.restored(world, 40, 2, 3);
+
+        List<MutangoBlockJournal.Entry> inChunk = journal.awaitingInChunk(world, 0, 0);
+        assertEquals(1, inChunk.size());
+        assertEquals(1, inChunk.get(0).x(), "el del chunk 2 y el que no se devolvio quedan afuera");
+        assertTrue(journal.hasAwaiting());
+    }
+
+    @Test
+    void sinEvidenciaNadaSeTachaYConEllaSoloLoQueSeSnapshoteoAntes() {
+        MutangoBlockJournal journal = new MutangoBlockJournal(file());
+        journal.commit(List.of(new MutangoBlockJournal.Entry(world, 1, 2, 3, "minecraft:stone"),
+            new MutangoBlockJournal.Entry(world, 4, 5, 6, "minecraft:dirt")));
+        journal.restored(world, 1, 2, 3);
+        assertEquals(2, journal.entries().size(), "devuelto en memoria no alcanza para tachar");
+
+        List<MutangoBlockJournal.Entry> snapshot = journal.awaiting(world);
+        journal.restored(world, 4, 5, 6); // se devuelve otro DESPUES de empezar el guardado
+        journal.releaseSaved(snapshot);
+
+        List<MutangoBlockJournal.Entry> left = new MutangoBlockJournal(file()).entries();
+        assertEquals(1, left.size());
+        assertEquals(4, left.get(0).x(), "el devuelto despues del snapshot sigue anotado");
     }
 }

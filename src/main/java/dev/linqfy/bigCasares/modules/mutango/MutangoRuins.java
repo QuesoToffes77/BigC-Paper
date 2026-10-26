@@ -55,6 +55,8 @@ final class MutangoRuins implements Listener {
     private static final int MIN_DISTANCE_FROM_SPAWN = 250;
     /** Lo que se le deja a la construccion en cada tick (milisegundos de reloj, no cantidad de bloques). */
     private static final long BUILD_NANOS_PER_TICK = 2_000_000L;
+    /** Tope de ruinas en vuelo a la vez (cargando chunks + en la cola): cada una retiene unos 16 chunks con tickets. */
+    private static final int MAX_IN_FLIGHT = 2;
     /** Del relleno, que parte es piedra (el resto, piedra musgosa). */
     private static final int STONE_OUT_OF_10 = 6;
     /** Lo mas que se rellena debajo de una columna: si abajo hay mas vacio que esto (cueva o barranco), no se construye. */
@@ -75,6 +77,10 @@ final class MutangoRuins implements Listener {
     private final Map<String, MutangoRuinsLayout> layouts = new HashMap<>();
     private final BlockData[][] palette = new BlockData[4][];
     private final Deque<Job> queue = new ArrayDeque<>();
+    /** Ruinas que esperan su turno para preparar chunks (hay un tope de trabajos en vuelo). */
+    private final Deque<Runnable> deferred = new ArrayDeque<>();
+    /** Cuantas ruinas estan cargando sus chunks ahora. */
+    private int preparing;
     /** Plantas en la capa de abajo de cada columna (x + z * ancho): ahi el relleno de arriba es pasto. */
     private final boolean[] plantOnBottom;
     private BukkitTask task;
@@ -215,6 +221,22 @@ final class MutangoRuins implements Listener {
         }
         status.put(key, "pendiente");
         saveStatus();
+        if (inFlight() >= MAX_IN_FLIGHT) {
+            // ya hay unas preparando chunks o construyendose: esta espera su turno (sigue "pendiente": si el servidor se apaga
+            // se retoma al arrancar) y no retiene chunks ni suma a la cola hasta que haya lugar
+            deferred.add(() -> startPrepare(world, plan, key, notify));
+            return;
+        }
+        startPrepare(world, plan, key, notify);
+    }
+
+    /** Las ruinas con los chunks cargandose mas las que esperan en la cola de construccion. */
+    private int inFlight() {
+        return preparing + queue.size();
+    }
+
+    private void startPrepare(World world, MutangoRuinsLayout.Plan plan, String key, Player notify) {
+        preparing++;
         List<CompletableFuture<Chunk>> chunks = new ArrayList<>();
         for (int cx = Math.floorDiv(plan.x() - 2, 16); cx <= Math.floorDiv(plan.x() + plan.sizeX() + 1, 16); cx++) {
             for (int cz = Math.floorDiv(plan.z() - 2, 16); cz <= Math.floorDiv(plan.z() + plan.sizeZ() + 1, 16); cz++) {
@@ -229,6 +251,7 @@ final class MutangoRuins implements Listener {
                 if (stopped) {
                     return;
                 }
+                preparing--; // los chunks ya cargaron: esta pasa de "preparando" a la cola (o se descarta)
                 if (error != null) {
                     plugin.getLogger().warning("No se pudo cargar el terreno de las ruinas " + key + ": " + error);
                     return;
@@ -301,6 +324,9 @@ final class MutangoRuins implements Listener {
     // ------------------------------------------------------------ construccion por tandas
 
     private void work() {
+        while (!deferred.isEmpty() && inFlight() < MAX_IN_FLIGHT) {
+            deferred.poll().run();
+        }
         if (queue.isEmpty()) {
             return;
         }
@@ -529,5 +555,6 @@ final class MutangoRuins implements Listener {
             job.chunks.forEach(chunk -> chunk.removePluginChunkTicket(plugin));
         }
         queue.clear();
+        deferred.clear();
     }
 }

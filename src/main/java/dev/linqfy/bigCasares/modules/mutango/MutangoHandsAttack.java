@@ -67,6 +67,8 @@ final class MutangoHandsAttack {
     private static final double WAVE_MAX = 9.0;
     /** Separacion entre las particulas del anillo (antes 0.6: un tercio mas de llamadas por tick). */
     private static final double WAVE_POINT_SPACING = 0.9;
+    /** Tope de puntos del anillo (con el radio maximo ya no crece). */
+    private static final int WAVE_MAX_POINTS = 36;
     private static final double WAVE_BAND = 0.6;
     /** Si tenes los pies a mas de esto del piso (saltando), la onda te pasa por abajo. */
     private static final double WAVE_DAMAGE = 3.0;
@@ -317,8 +319,10 @@ final class MutangoHandsAttack {
         double r = hand.radius;
         World world = hand.wave.getWorld();
         ThreadLocalRandom rng = ThreadLocalRandom.current();
-        int points = Math.max(8, (int) (2 * Math.PI * r / WAVE_POINT_SPACING));
-        for (int k = 0; k < points; k++) {
+        int points = Math.max(8, Math.min(WAVE_MAX_POINTS, (int) (2 * Math.PI * r / WAVE_POINT_SPACING)));
+        // el anillo se dibuja cada 2 ticks (con las dos manos a la vez eran ~170 llamadas de particula en un tick); el dano, el
+        // empuje y los bloques que vuelan siguen corriendo en cada tick
+        for (int k = 0; k < points && ((int) (r / WAVE_SPEED) & 1) == 0; k++) {
             double angle = 2 * Math.PI * k / points;
             Location point = hand.wave.clone().add(Math.cos(angle) * r, 0, Math.sin(angle) * r);
             Block top = MutangoGround.block(point);

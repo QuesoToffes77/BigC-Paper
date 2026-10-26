@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.mutango;
 
+import net.kyori.adventure.util.TriState;
 import org.bukkit.Color;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -66,6 +67,8 @@ final class MutangoRelics implements Listener {
     private final NamespacedKey relicKey;
     /** En el jugador: el permiso de volar se lo dieron las botas (asi se le saca aunque se reinicie el servidor). */
     private final NamespacedKey flightKey;
+    /** En el jugador: como estaba el dano de caida con permiso de volar antes de que las botas lo cambiaran. */
+    private final NamespacedKey previousFallDamageKey;
     private final MutangoJumpLedger jumps = new MutangoJumpLedger();
     /** En el jugador: gasto el doble salto y todavia no aterrizo (sobrevive a desconectarse y a recargar). */
     private final NamespacedKey jumpSpentKey;
@@ -78,6 +81,7 @@ final class MutangoRelics implements Listener {
         this.moderation = moderation;
         this.relicKey = new NamespacedKey(plugin, "premio");
         this.flightKey = new NamespacedKey(plugin, "vuelo_botas");
+        this.previousFallDamageKey = new NamespacedKey(plugin, "caida_previa");
         this.jumpSpentKey = new NamespacedKey(plugin, "salto_gastado");
     }
 
@@ -206,6 +210,7 @@ final class MutangoRelics implements Listener {
             if (!player.getAllowFlight()) {
                 player.setAllowFlight(true);
                 player.getPersistentDataContainer().set(flightKey, PersistentDataType.BYTE, (byte) 1);
+                keepFallDamage(player);
             }
             if (player.isFlying() && granted) {
                 // volando de verdad con las botas puestas: no lo resuelve el plugin, se avisa a moderacion
@@ -285,6 +290,33 @@ final class MutangoRelics implements Listener {
             player.getPersistentDataContainer().remove(flightKey);
             player.setFlying(false);
             player.setAllowFlight(false);
+            restoreFallDamage(player);
+        }
+    }
+
+    /**
+     * Con permiso de volar, Paper omite el dano de caida aunque no estes volando: las botas darian inmunidad total a las
+     * caidas sin gastar el doble salto. Se le pide a Paper que conserve el dano (TriState.TRUE) mientras las botas tienen el
+     * permiso, y se guarda lo que tenia antes para devolverselo al quitarlas (sin pisar lo de otros sistemas).
+     */
+    private void keepFallDamage(Player player) {
+        TriState before = player.hasFlyingFallDamage();
+        if (before != TriState.TRUE) {
+            player.getPersistentDataContainer().set(previousFallDamageKey, PersistentDataType.STRING, before.name());
+            player.setFlyingFallDamage(TriState.TRUE);
+        }
+    }
+
+    private void restoreFallDamage(Player player) {
+        String saved = player.getPersistentDataContainer().get(previousFallDamageKey, PersistentDataType.STRING);
+        if (saved == null) {
+            return; // las botas no lo cambiaron: no se toca
+        }
+        player.getPersistentDataContainer().remove(previousFallDamageKey);
+        try {
+            player.setFlyingFallDamage(TriState.valueOf(saved));
+        } catch (IllegalArgumentException unknown) {
+            player.setFlyingFallDamage(TriState.NOT_SET);
         }
     }
 

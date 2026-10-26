@@ -438,6 +438,27 @@ Igual que Don Pollos en BigC (`docs/don-pollos/compatibilidad-bedrock.md`):
   de forma sincrona.
 - La onda de las manos dibuja menos particulas (separacion de 0.9) y la esferita del santuario se dibuja cada 2 ticks.
 
+## Revision del 26/10 (cambios)
+
+- **Diario de bloques:** `WorldSaveEvent` llega ANTES de que Paper escriba los chunks, asi que ya no tacha nada. Lo devuelto
+  sigue anotado hasta que hay evidencia: un guardado del mundo con flush (`World#save(true)`, que espera a las escrituras)
+  hecho DESPUES de devolverlo (1 minuto despues de lo primero devuelto y no mas de uno cada 5 minutos por mundo), o el chunk
+  recargado del disco sin el hueco. Al cargar un chunk con bloques anotados se comprueba lo que trajo el disco.
+- **Premios:** una sola adjudicacion por pelea y jugador (victoria + premios, id estable `idFor(pelea, jugador)`): resolver
+  dos veces la misma pelea no genera otra. `Player#saveData()` no avisa si falla, asi que la adjudicacion queda **aplicada**
+  (no borrada) y se confirma al volver a entrar el jugador, cuando sus datos leidos del disco traen el recibo; si no lo
+  traen, vuelve a estar por aplicar. La victoria se entrega junto con los premios al cerrarse la grieta.
+- **Roster:** las bajas se guardan por pelea en `data/mutango/peleas.yml` (no en las entidades): un sobreviviente descargado
+  ya no vuelve a contar a los muertos tras un reinicio. La fase 1 solo se cierra con los tres caidos **y** cargados.
+- **Pila de la fase 2:** abortar la pila saca la invulnerabilidad del UUID aunque la entidad este descargada.
+- **Botas:** con el permiso de volar Paper omitia el dano de caida; se le pide conservarlo (`setFlyingFallDamage(TRUE)`)
+  mientras las botas tienen el permiso y se devuelve lo que habia al quitarlas.
+- **Mega rayo:** la cuenta se cancela si el jugador sale del mundo o a mas de 64 bloques de Neguechen y se revalida antes de
+  disparar; el dano base es 20 (como decia esta guia: el codigo tenia 200).
+- **Rendimiento:** la busqueda de lugar para la grieta tiene tope (96 candidatos, 16 grietas completas, lo barato primero);
+  el vuelo del Sol y la Luna, `nearestTarget` y el cierre de la grieta buscan jugadores cercanos; el anillo de la onda tiene
+  tope de puntos y se dibuja cada 2 ticks; las ruinas tienen un tope de 2 trabajos en vuelo (los demas esperan).
+
 ## Cambiar los modelos
 
 Los `.bbmodel` estan en `src/main/resources/bettermodel/models/`. Al reiniciar el servidor el modulo los copia a

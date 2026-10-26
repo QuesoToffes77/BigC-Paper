@@ -531,7 +531,13 @@ final class MutangoPhaseTwo {
 
     private void abort() {
         for (Mob mutango : order) {
-            if (mutango.isValid() && !flights.containsKey(mutango.getUniqueId())) {
+            if (!mutango.isValid()) {
+                // descargado (o muerto): no se puede tocar la entidad, pero la invulnerabilidad de la pila no puede quedar
+                // pegada a su UUID (al cargar de nuevo en esta misma fase seguiria protegido)
+                protectedIds.remove(mutango.getUniqueId());
+                continue;
+            }
+            if (!flights.containsKey(mutango.getUniqueId())) {
                 animations.stop(mutango.getUniqueId(), "sostener");
                 restore(mutango);
             }

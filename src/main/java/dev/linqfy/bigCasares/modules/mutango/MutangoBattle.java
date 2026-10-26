@@ -67,7 +67,7 @@ final class MutangoBattle {
                     phaseOne.tick(mutango);
                 }
             }
-            if (roster.allDowned(downed)) {
+            if (roster.canCloseFirstPhase(downed, alive.stream().map(Mob::getUniqueId).toList())) {
                 cinematic.endOfPhaseOne(alive.get(0).getLocation());
                 setPhase(2, alive);
             }

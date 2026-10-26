@@ -28,8 +28,6 @@ final class MutangoKeys {
     final NamespacedKey systemMob;
     /** En el jugador: los ids de las adjudicaciones que ya se le aplicaron (los recibos). */
     final NamespacedKey receipts;
-    /** En cada Mutango: los ids de los tres de su pelea (para saber quienes faltan cargar tras un reinicio). */
-    final NamespacedKey roster;
     /** En cada entidad de una pelea: quienes pelearon (ids separados por coma), para sumarles la victoria. */
     final NamespacedKey fighters;
 
@@ -50,7 +48,6 @@ final class MutangoKeys {
         downed = new NamespacedKey(plugin, "caido");
         fighters = new NamespacedKey(plugin, "peleadores");
         systemMob = new NamespacedKey(plugin, MutangoModule.SYSTEM_MOB_KEY);
-        roster = new NamespacedKey(plugin, "equipo");
         receipts = new NamespacedKey(plugin, "premios_recibidos");
     }
 }

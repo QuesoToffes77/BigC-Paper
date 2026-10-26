@@ -70,29 +70,24 @@ class MutangoRosterTest {
     }
 
     @Test
-    void afterARestartOnlyOneMemberLoadsButItKnowsWhoElseBelongs() {
-        MutangoRoster saved = trio();
-        String onTheirSheet = saved.serialize();
-
-        MutangoRoster afterRestart = new MutangoRoster();
-        afterRestart.add(lihuen); // el primero que carga
-        afterRestart.adopt(MutangoRoster.parse(onTheirSheet));
-        assertEquals(3, afterRestart.members().size());
-        assertEquals(2, afterRestart.missing(List.of(lihuen)));
-        assertFalse(afterRestart.allDowned(Set.of(lihuen)), "un caido de tres no cierra la fase 1");
-    }
-
-    @Test
-    void aBrokenIdOnTheSheetDoesNotStopTheOthers() {
-        List<UUID> parsed = MutangoRoster.parse(lef + ",no-es-un-id," + lican + ", ");
-        assertEquals(List.of(lef, lican), parsed);
-        assertTrue(MutangoRoster.parse(null).isEmpty());
-        assertTrue(MutangoRoster.parse("  ").isEmpty());
-    }
-
-    @Test
-    void theSerializedRosterKeepsTheOrderTheyAppearedIn() {
+    void theFirstPhaseDoesNotCloseWhileADownedMemberIsStillUnloaded() {
         MutangoRoster roster = trio();
-        assertEquals(List.of(lef, lihuen, lican), MutangoRoster.parse(roster.serialize()));
+        Set<UUID> downed = Set.of(lef, lihuen, lican);
+        // A cayo y su chunk se descargo; despues cayeron B y C: los tres estan caidos pero A no esta cargado
+        assertTrue(roster.allDowned(downed));
+        assertFalse(roster.canCloseFirstPhase(downed, List.of(lihuen, lican)));
+        // cuando A vuelve a cargar, recien ahi se cierra (y se le aplica la transicion con los demas)
+        assertTrue(roster.canCloseFirstPhase(downed, List.of(lef, lihuen, lican)));
+    }
+
+    @Test
+    void restoringASavedRosterKeepsTheMembersAndRemembersTheDead() {
+        MutangoRoster roster = new MutangoRoster();
+        roster.restore(List.of(lican), List.of(lef, lihuen));
+        assertEquals(Set.of(lican), roster.members());
+        roster.add(lef); // una entidad vieja con ese id aparece de nuevo: no vuelve
+        assertEquals(Set.of(lican), roster.members());
+        roster.confirmDeath(lican);
+        assertTrue(roster.isEmpty());
     }
 }

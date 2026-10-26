@@ -29,7 +29,7 @@ import java.util.logging.Level;
 final class MutangoRewards implements Listener {
 
     /** Los recibos que se recuerdan por jugador (los mas nuevos). */
-    private static final int MAX_RECEIPTS = 64;
+    private static final int MAX_RECEIPTS = 128;
 
     private final JavaPlugin plugin;
     private final MutangoKeys keys;
@@ -55,22 +55,18 @@ final class MutangoRewards implements Listener {
 
     /**
      * Vencieron a Neguechen: a cada uno que peleo en esa pelea (el que la empezo y los que le pegaron a alguno) le anota
-     * una victoria y un juego de premios (los que miraban de lejos no). Las dos cosas se guardan en el archivo antes de
-     * tocar a nadie; la victoria se aplica ya mismo a los conectados y los premios se entregan al cerrarse la grieta
-     * (deliverRewards) o, a quien no esta, cuando vuelva.
+     * UNA adjudicacion con la victoria y el juego de premios juntos (los que miraban de lejos no), con un id que sale de la
+     * pelea y del jugador: un corte no puede dejar la victoria sin premio y resolver dos veces la misma pelea no genera otra
+     * adjudicacion. Se guarda en el archivo antes de tocar a nadie y se entrega al cerrarse la grieta (deliverRewards) o,
+     * a quien no esta, cuando vuelva.
      */
     void registerVictory(MutangoFight fight) {
         for (UUID id : fight.fighters) {
             try {
-                pending.add(id, 1, 0);
-                pending.add(id, 0, 1);
+                pending.add(MutangoPending.idFor(fight.id, id), id, 1, 1);
             } catch (IllegalStateException unsaved) {
-                // quedan en la cola de esta corrida igual; se avisa que no se pudo guardar el archivo
+                // queda en la cola de esta corrida igual; se avisa que no se pudo guardar el archivo
                 plugin.getLogger().log(Level.SEVERE, "[Mutango] No se pudo guardar la adjudicacion", unsaved);
-            }
-            Player player = plugin.getServer().getPlayer(id);
-            if (player != null) {
-                claim(player, false, false);
             }
         }
         fight.rewardsPending = true;
@@ -106,7 +102,23 @@ final class MutangoRewards implements Listener {
 
     /** Entrega todo lo que le falta a este jugador (con aviso si algo no entra en el inventario). */
     void claimPending(Player player) {
-        claim(player, true, true);
+        claim(player, true);
+    }
+
+    /**
+     * El jugador entro y sus datos vienen del disco: confirma las adjudicaciones aplicadas que el archivo trae con su recibo
+     * y devuelve a pendientes las que no (el guardado fallo en silencio). Va ANTES de entregar lo pendiente.
+     */
+    void verifyAtJoin(Player player) {
+        for (MutangoPending.Award award : pending.appliedOf(player.getUniqueId())) {
+            if (MutangoAwardClaim.verifyAtJoin(award, receiptsOf(player)) == MutangoAwardClaim.Verdict.CONFIRM) {
+                confirm(award.id());
+            } else {
+                plugin.getLogger().warning("[Mutango] " + player.getName() + " no trae el recibo de una adjudicacion que se "
+                    + "habia guardado: se vuelve a aplicar.");
+                markPending(award.id());
+            }
+        }
     }
 
     /** Reintenta a los conectados a quienes les falto lugar (sin avisar de nuevo cada vez). */
@@ -116,29 +128,26 @@ final class MutangoRewards implements Listener {
             if (player == null) {
                 waitingForRoom.remove(id);
             } else {
-                claim(player, false, true);
+                claim(player, false);
             }
         }
     }
 
     /**
-     * Entrega las adjudicaciones de ese jugador. includeRewards: tambien las de premios (si no, solo las victorias).
-     * notify: avisa cuando los premios no entran. Si esta muerto o desconectado espera.
+     * Entrega las adjudicaciones por aplicar de ese jugador. notify: avisa cuando los premios no entran. Si esta muerto o
+     * desconectado espera.
      */
-    private void claim(Player player, boolean notify, boolean includeRewards) {
+    private void claim(Player player, boolean notify) {
         if (!player.isOnline() || player.isDead() || !pending.has(player.getUniqueId())) {
             waitingForRoom.remove(player.getUniqueId());
             return;
         }
         boolean gave = false;
         boolean noRoom = false;
-        for (MutangoPending.Award award : pending.of(player.getUniqueId())) {
-            if (!includeRewards && award.rewards() > 0) {
-                continue;
-            }
+        for (MutangoPending.Award award : pending.pendingOf(player.getUniqueId())) {
             MutangoAwardClaim.Result result;
             try {
-                result = MutangoAwardClaim.claim(award, receiptsOf(player), targetOf(player), this::confirm);
+                result = MutangoAwardClaim.claim(award, receiptsOf(player), targetOf(player), this::markApplied);
             } catch (RuntimeException failure) {
                 // algo fallo a mitad: la adjudicacion sigue en la cola y se reintenta (el recibo evita repetirla)
                 plugin.getLogger().log(Level.WARNING, "[Mutango] No se pudo entregar una adjudicacion de "
@@ -162,11 +171,28 @@ final class MutangoRewards implements Listener {
         }
     }
 
+    private void markApplied(UUID awardId) {
+        try {
+            pending.markApplied(awardId);
+        } catch (IllegalStateException unsaved) {
+            // ya esta aplicada y con recibo en el jugador: si la cola no se pudo guardar, al volver a claimear se re-marca
+            plugin.getLogger().log(Level.WARNING, "[Mutango] No se pudo guardar la cola de premios", unsaved);
+        }
+    }
+
+    private void markPending(UUID awardId) {
+        try {
+            pending.markPending(awardId);
+        } catch (IllegalStateException unsaved) {
+            plugin.getLogger().log(Level.WARNING, "[Mutango] No se pudo guardar la cola de premios", unsaved);
+        }
+    }
+
     private void confirm(UUID awardId) {
         try {
-            pending.confirm(awardId);
+            pending.remove(awardId);
         } catch (IllegalStateException unsaved) {
-            // ya esta aplicada y con recibo en el jugador: si la cola no se pudo guardar, al reiniciar solo se reconfirma
+            // ya hay prueba de que el jugador la tiene: si la cola no se pudo guardar, en el proximo ingreso se reconfirma
             plugin.getLogger().log(Level.WARNING, "[Mutango] No se pudo guardar la cola de premios", unsaved);
         }
     }
@@ -272,6 +298,7 @@ final class MutangoRewards implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        verifyAtJoin(player); // los datos recien leidos del disco son la prueba de lo que se guardo
         tasks.later("claim-on-join", () -> claimPending(player), 40L);
     }
 }
