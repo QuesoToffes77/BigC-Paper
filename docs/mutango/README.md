@@ -410,7 +410,7 @@ Igual que Don Pollos en BigC (`docs/don-pollos/compatibilidad-bedrock.md`):
   Si Geyser esta en un proxy, el zip queda en `plugins/BigCasares/mutango/bedrock/` para copiarlo a mano.
 - `plugins/BigCasares/mutango.yml`: `bedrock.modelos-3d: auto` (se prende solo con GeyserModelEngine), `true` o `false`.
 - Para probarlo: `gradlew.bat runServer` baja Geyser, Floodgate, packetevents, GeyserUtils y
-  GeyserModelEngine con la tarea `downloadBedrockPlugins`. Las versiones estan **fijadas** y se **verifican con su
+  GeyserModelEngine con las tareas de descarga de BigC (`downloadGeyserExtensions` y las `download<Nombre>`). Las versiones estan **fijadas** y se **verifican con su
   checksum** (sha256, o sha512 para los de Modrinth), como en BigC: se baja a un archivo temporal, se verifica y recien
   ahi se mueve, asi una descarga cortada no queda como valida y lo que ya esta y coincide no se vuelve a bajar. Son los
   mismos archivos que BigC, salvo GeyserModelEngine y su extension: BigC fijo unos que ya dan 404 (GeyserExtensionists

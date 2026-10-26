@@ -42,15 +42,16 @@ final class MutangoGeyserBridge implements EventRegistrar {
     }
 
     private void onDefineItems(GeyserDefineCustomItemsEvent event) {
-        register(event, "minecraft:leather_boots", MutangoRelics.BOOTS, "Botas de Neguechen");
-        register(event, "minecraft:totem_of_undying", MutangoRelics.CROSS, "Cruz Andina");
+        register(event, "minecraft:leather_boots", MutangoRelics.BOOTS, "Botas de Neguechen", false);
+        register(event, "minecraft:totem_of_undying", MutangoRelics.CROSS, "Cruz Andina", true);
     }
 
-    private static void register(GeyserDefineCustomItemsEvent event, String base, String key, String name) {
+    private static void register(GeyserDefineCustomItemsEvent event, String base, String key, String name,
+                                 boolean allowOffhand) {
         CustomItemDefinition definition = CustomItemDefinition.builder(
                 Identifier.of("mutango:" + key), Identifier.of("mutango:" + key))
             .displayName(name)
-            .bedrockOptions(CustomItemBedrockOptions.builder().icon("mutango." + key).allowOffhand(true))
+            .bedrockOptions(CustomItemBedrockOptions.builder().icon("mutango." + key).allowOffhand(allowOffhand))
             .build();
         event.register(Identifier.of(base), definition);
     }

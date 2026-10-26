@@ -178,9 +178,9 @@ public final class MutangoModule implements PluginModule {
         if (relics != null) {
             relics.shutdown();
             relics = null;
+        }
         rewards = null;
         recovery = null;
-        }
         flushJournal();
         journal = null;
         shrine = null;

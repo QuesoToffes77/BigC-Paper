@@ -61,6 +61,7 @@ final class MutangoFights implements Listener {
     /** Las peleas en curso: una por invocacion, cada una con su dificultad, sus Mutangos, su fase y sus versos. */
     private final Map<UUID, MutangoFight> fights = new LinkedHashMap<>();
     private MutangoShrine shrine;
+    private boolean spawnConditionWarned;
     private MutangoRewards rewards;
     /** BetterModel tiene los modelos cargados (si no, los Mutangos se ven como vacas). */
     private boolean modelsReady;
@@ -622,7 +623,13 @@ final class MutangoFights implements Listener {
         try {
             tracker.getClass().getMethod("spawnCondition", Predicate.class).invoke(tracker, condition);
         } catch (ReflectiveOperationException | RuntimeException unavailable) {
-            // BetterModel sin spawnCondition
+            // BetterModel sin spawnCondition (es de la 3.5.0): todos ven el modelo, tambien los de Bedrock sin
+            // GeyserModelEngine, que entonces no veran ni el modelo ni la vaca. Se avisa una sola vez.
+            if (!spawnConditionWarned) {
+                spawnConditionWarned = true;
+                plugin.getLogger().warning("[Mutango] BetterModel no tiene spawnCondition (hace falta la 3.5.0): los jugadores "
+                    + "de Bedrock sin GeyserModelEngine no veran a los Mutangos (" + unavailable + ").");
+            }
         }
     }
 

@@ -1,6 +1,5 @@
 package dev.linqfy.bigCasares.modules.mutango;
 
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
@@ -75,7 +74,7 @@ final class MutangoProtectedZone {
             int left = entry.getValue() - now;
             if (now % 5 == 0 && !contains(player)) {
                 it.remove();
-                player.sendActionBar(Component.text("§aSaliste a tiempo"));
+                player.sendActionBar(LegacyComponentSerializer.legacySection().deserialize("§aSaliste a tiempo"));
                 player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.4f);
                 continue;
             }
