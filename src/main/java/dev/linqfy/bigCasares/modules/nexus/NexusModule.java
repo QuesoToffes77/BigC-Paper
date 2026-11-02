@@ -469,6 +469,34 @@ public final class NexusModule implements PluginModule {
         return true;
     }
 
+    /**
+     * Si la caja [minX..maxX] x [minY..maxY] x [minZ..maxZ] de ese mundo toca el volumen protegido de algun nexus
+     * activo. Para modulos que modifican terreno (por ejemplo los pozos de Don Pollos). Con el modulo apagado no hay
+     * nada que proteger.
+     */
+    public boolean intersectsProtectedVolume(UUID worldId, int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
+        NexusService currentService = service;
+        NexusSettings currentSettings = settings;
+        if (currentService == null || currentSettings == null) {
+            return false;
+        }
+        int horizontal = currentSettings.placement().containerClearanceHorizontal();
+        int vertical = currentSettings.placement().containerClearanceVertical();
+        return currentService.activePositions().stream()
+                .filter(position -> position.worldId().equals(worldId))
+                .map(NexusPosition::blockPosition)
+                .anyMatch(nexus -> volumeTouches(nexus.x(), nexus.y(), nexus.z(), horizontal, vertical,
+                        minX, maxX, minY, maxY, minZ, maxZ));
+    }
+
+    /** El volumen de un nexus (su posicion +- horizontal/vertical) toca la caja. */
+    static boolean volumeTouches(int nexusX, int nexusY, int nexusZ, int horizontal, int vertical,
+                                 int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
+        return nexusX >= minX - horizontal && nexusX <= maxX + horizontal
+                && nexusY >= minY - vertical && nexusY <= maxY + vertical
+                && nexusZ >= minZ - horizontal && nexusZ <= maxZ + horizontal;
+    }
+
     public boolean isProtectedContainer(org.bukkit.block.Block block) { return findContainer(block).isPresent(); }
     public boolean canUseContainer(UUID playerId, org.bukkit.block.Block block) {
         return findContainer(block).map(value -> playerTeamLookup.apply(playerId).filter(value.teamId()::equals).isPresent()).orElse(true);
