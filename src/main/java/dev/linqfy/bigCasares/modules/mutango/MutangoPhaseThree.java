@@ -118,6 +118,9 @@ final class MutangoPhaseThree {
         /** Marca de los animales invocados (no sueltan nada y no se los puede montar ni alimentar). */
         NamespacedKey summonKey();
 
+        /** Donde se guarda el nivel (victorias) de la pelea: lo leen la Proteccion y las Espinas de cada uno. */
+        NamespacedKey levelKey();
+
         /** Neguechen ya esta peleando (salio de la grieta): se guarda para retomarla si se reinicia el servidor. */
         void fighting(UUID neguechen);
 
@@ -418,6 +421,19 @@ final class MutangoPhaseThree {
 
     /** Saca a Neguechen, al Sol y a la Luna. */
     void stop() {
+        halt(true);
+    }
+
+    /**
+     * El plugin se apaga (o recarga) con la fase 3 en curso: se corta todo lo que dibuja o cambia el mundo (ataques, Sol y
+     * Luna, grieta) pero Neguechen se queda en el mundo con su vida y su fase guardadas, asi al volver a habilitar el
+     * modulo se retoma (resume) en vez de perder la pelea.
+     */
+    void suspend() {
+        halt(false);
+    }
+
+    private void halt(boolean removeBoss) {
         protectedZone.clear();
         dyingStart = -1;
         emergeStart = -1;
@@ -431,7 +447,7 @@ final class MutangoPhaseThree {
         hands.restoreAll();
         animals.stop();
         sunAndMoon.discard();
-        if (neguechen != null && Bukkit.getEntity(neguechen) instanceof Mob mob) {
+        if (removeBoss && neguechen != null && Bukkit.getEntity(neguechen) instanceof Mob mob) {
             mob.remove();
         }
         neguechen = null;

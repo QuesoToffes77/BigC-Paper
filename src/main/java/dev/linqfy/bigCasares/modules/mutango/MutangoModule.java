@@ -116,7 +116,7 @@ public final class MutangoModule implements PluginModule {
         fights = new MutangoFights(plugin, keys, journal, rosters, display, bedrock, bedrockModels);
         shrine = new MutangoShrine(shrineHost(fights), new NamespacedKey(plugin, "santuario"),
             new NamespacedKey(plugin, "santuario_izq"), new NamespacedKey(plugin, "santuario_cerrado"));
-        relics = new MutangoRelics(plugin, new MutangoModeration(this::moderationSink, plugin.getLogger()), tasks);
+        relics = new MutangoRelics(plugin, new MutangoModeration(this::moderationSink, plugin::getModerationModule, plugin.getLogger()), tasks);
         rewards = new MutangoRewards(plugin, keys, pending, relics, tasks);
         fights.wire(shrine, rewards, modelsReady);
 

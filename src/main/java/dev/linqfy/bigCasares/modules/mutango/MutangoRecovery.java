@@ -5,8 +5,19 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.entity.Cow;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockBurnEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
@@ -53,7 +64,11 @@ final class MutangoRecovery implements Listener {
         for (MutangoBlockJournal.Entry entry : journal.entries()) {
             World world = plugin.getServer().getWorld(entry.world());
             if (world == null) {
-                continue; // ese mundo no esta cargado ahora: queda anotado
+                // ese mundo no esta cargado ahora: queda anotado y se comprueba cuando cargue (otro plugin lo puede cargar
+                // despues de este modulo); su chunk se identifica por mundo, asi que no se confunde con otros
+                waiting.computeIfAbsent(chunkKey(entry.world(), entry.x() >> 4, entry.z() >> 4),
+                    key -> new ArrayList<>()).add(entry);
+                continue;
             }
             if (!world.isChunkLoaded(entry.x() >> 4, entry.z() >> 4)) {
                 waiting.computeIfAbsent(chunkKey(entry.world(), entry.x() >> 4, entry.z() >> 4),
@@ -145,6 +160,67 @@ final class MutangoRecovery implements Listener {
             }
             savePolicy.saved(id, now);
             journal.releaseSaved(snapshot);
+        }
+    }
+
+    // ---- cambios legitimos despues de devolver un bloque (no son huecos de la pelea: no se vuelven a reponer)
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBreak(BlockBreakEvent event) {
+        touched(event.getBlock());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlace(BlockPlaceEvent event) {
+        touched(event.getBlock());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonExtend(BlockPistonExtendEvent event) {
+        touchedAll(event.getBlocks(), event.getDirection());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonRetract(BlockPistonRetractEvent event) {
+        touchedAll(event.getBlocks(), event.getDirection());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityExplode(EntityExplodeEvent event) {
+        event.blockList().forEach(this::touched);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockExplode(BlockExplodeEvent event) {
+        event.blockList().forEach(this::touched);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityChange(EntityChangeBlockEvent event) {
+        if (event.getEntity() instanceof Cow) {
+            return; // Neguechen (una vaca) lanza este evento solo para preguntar a las protecciones: no cambia nada
+        }
+        touched(event.getBlock());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBurn(BlockBurnEvent event) {
+        touched(event.getBlock());
+    }
+
+    private void touchedAll(List<Block> blocks, BlockFace direction) {
+        if (!journal.hasAwaiting()) {
+            return;
+        }
+        for (Block block : blocks) {
+            touched(block);
+            touched(block.getRelative(direction));
+        }
+    }
+
+    private void touched(Block block) {
+        if (journal.hasAwaiting()) {
+            journal.touched(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
         }
     }
 

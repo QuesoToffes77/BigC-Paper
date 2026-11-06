@@ -342,4 +342,35 @@ class MutangoBlockJournalTest {
         assertEquals(1, left.size());
         assertEquals(4, left.get(0).x(), "el devuelto despues del snapshot sigue anotado");
     }
+
+    @Test
+    void unBloqueDevueltoQueDespuesSeMinaYaNoSeReponeNiTrasUnaCaida() {
+        MutangoBlockJournal journal = new MutangoBlockJournal(file());
+        journal.record(world, 7, 64, 7, "minecraft:diamond_block");
+        journal.flush();
+        journal.restored(world, 7, 64, 7); // devuelto en memoria, esperando evidencia de guardado
+
+        assertTrue(journal.touched(world, 7, 64, 7), "minarlo es un cambio legitimo");
+        assertTrue(journal.isEmpty());
+        assertTrue(journal.awaitingInChunk(world, 0, 0).isEmpty());
+        assertTrue(new MutangoBlockJournal(file()).isEmpty(), "ya esta tachado en el archivo");
+    }
+
+    @Test
+    void unBloqueQueSigueSacadoNoSeTachaPorQueAlguienLoToque() {
+        MutangoBlockJournal journal = new MutangoBlockJournal(file());
+        journal.record(world, 1, 2, 3, "minecraft:stone");
+        journal.flush();
+        assertFalse(journal.touched(world, 1, 2, 3), "todavia es un hueco de la pelea");
+        assertEquals(1, journal.entries().size());
+    }
+
+    @Test
+    void tacharUnBloqueDevueltoLoSacaDeLosQueEsperanEvidencia() {
+        MutangoBlockJournal journal = new MutangoBlockJournal(file());
+        journal.record(world, 1, 2, 3, "minecraft:stone");
+        journal.restored(world, 1, 2, 3);
+        journal.release(world, 1, 2, 3);
+        assertFalse(journal.hasAwaiting(), "no queda la clave colgada");
+    }
 }

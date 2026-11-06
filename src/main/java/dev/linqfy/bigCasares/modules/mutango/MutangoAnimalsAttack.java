@@ -96,6 +96,9 @@ final class MutangoAnimalsAttack {
                     mob.getPersistentDataContainer().set(new NamespacedKey(key.getNamespace(),
                         MutangoModule.SYSTEM_MOB_KEY), PersistentDataType.STRING, MutangoModule.SYSTEM_MOB_VALUE);
                     mob.getPersistentDataContainer().set(key, PersistentDataType.BYTE, (byte) 1);
+                    // el nivel de la pelea: Proteccion y Espinas lo leen de ahi (MutangoCombat), igual que en los Mutangos
+                    mob.getPersistentDataContainer().set(host.levelKey(), PersistentDataType.INTEGER,
+                        difficulty.level());
                     mob.setPersistent(false);
                     mob.setRemoveWhenFarAway(false);
                     if (mob instanceof Ageable ageable) {

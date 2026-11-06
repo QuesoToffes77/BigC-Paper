@@ -179,12 +179,35 @@ final class MutangoBlockJournal {
         }
     }
 
-    /** Ya se devolvio ese bloque: se tacha. */
+    /** Ya se devolvio ese bloque: se tacha (tambien de los que esperan evidencia, aunque ya no estuviera anotado). */
     void release(UUID world, int x, int y, int z) {
-        Entry removed = entries.remove(key(world, x, y, z));
+        String id = key(world, x, y, z);
+        awaitingSave.remove(id);
+        Entry removed = entries.remove(id);
         if (removed != null) {
             pending.add(removeLine(removed));
         }
+    }
+
+    /**
+     * Alguien (un jugador, un piston, una explosion...) cambio ese bloque DESPUES de que se devolvio en memoria: lo que hay
+     * ahora es un cambio legitimo y no un hueco de la pelea, asi que se tacha (si no, al cargar el chunk el aire de una
+     * mineria normal se repondria otra vez: bloques duplicados). Solo afecta a los ya devueltos y esperando evidencia: los
+     * que siguen sacados (la grieta o las ondas todavia abiertas) conservan su original. Se guarda ya en el archivo, asi
+     * esa distincion tambien sobrevive a una caida. Devuelve true si tacho uno.
+     */
+    boolean touched(UUID world, int x, int y, int z) {
+        String id = key(world, x, y, z);
+        if (!awaitingSave.contains(id)) {
+            return false;
+        }
+        release(world, x, y, z);
+        try {
+            flush();
+        } catch (IllegalStateException failed) {
+            // se reintenta en el proximo flush
+        }
+        return true;
     }
 
     /** Lo que falta devolver. */

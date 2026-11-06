@@ -68,6 +68,36 @@ final class MutangoAwardClaim {
         return receipts.has(award.id()) ? Verdict.CONFIRM : Verdict.REAPPLY;
     }
 
+    /**
+     * Las victorias que cuentan para la dificultad de la proxima pelea: las ya aplicadas (en el jugador) mas las ganadas que
+     * todavia no se aplicaron (por ejemplo sin lugar en el inventario). Las aplicadas esperando confirmacion ya estan en
+     * {@code appliedWins}: no se suman otra vez.
+     */
+    static int difficultyWins(int appliedWins, java.util.Collection<MutangoPending.Award> notApplied) {
+        int total = appliedWins;
+        for (MutangoPending.Award award : notApplied) {
+            total += award.wins();
+        }
+        return total;
+    }
+
+    /**
+     * Recorta los recibos mas viejos hasta quedar en max, pero NUNCA uno que una adjudicacion sin confirmar todavia necesita
+     * (verifyAtJoin lo busca: sin el recibo creeria que el guardado fallo y entregaria otra vez). Si todos hacen falta, no
+     * se recorta de mas. {@code receipts} va del mas viejo al mas nuevo.
+     */
+    static java.util.Set<String> trimReceipts(java.util.Collection<String> receipts, java.util.Set<String> needed, int max) {
+        java.util.Set<String> kept = new java.util.LinkedHashSet<>(receipts);
+        int excess = kept.size() - max;
+        for (java.util.Iterator<String> it = kept.iterator(); it.hasNext() && excess > 0; ) {
+            if (!needed.contains(it.next())) {
+                it.remove();
+                excess--;
+            }
+        }
+        return kept;
+    }
+
     static Result claim(MutangoPending.Award award, Receipts receipts, Target target, Consumer<UUID> markApplied) {
         if (receipts.has(award.id())) {
             markApplied.accept(award.id());

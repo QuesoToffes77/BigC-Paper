@@ -17,6 +17,7 @@ import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -162,10 +163,13 @@ final class MutangoFights implements Listener {
         }
     }
 
-    /** Al apagar el plugin: frena todas las peleas y suelta los modelos y las barras. */
+    /**
+     * Al apagar el plugin: frena todas las peleas y suelta los modelos y las barras. Neguechen NO se borra (solo se la
+     * suspende): se retoma al habilitar el modulo de nuevo. Sacar la pelea es de /mutango quitar (removeAll).
+     */
     void shutdown() {
         for (MutangoFight fight : fights.values()) {
-            fight.phaseThree.stop();
+            fight.phaseThree.suspend();
             fight.cinematic.clear();
         }
         fights.clear();
@@ -336,7 +340,7 @@ final class MutangoFights implements Listener {
 
     /** Una pelea nueva, de quien la empieza: con su dificultad y avisandole (cada invocacion es independiente). */
     MutangoFight beginFight(Player summoner) {
-        int level = rewards.wins(summoner);
+        int level = rewards.difficultyWins(summoner);
         MutangoFight fight = newFight(UUID.randomUUID(), level);
         fight.fighters.add(summoner.getUniqueId());
         summoner.sendMessage(MutangoDifficulty.summonMessage(level));
@@ -438,6 +442,11 @@ final class MutangoFights implements Listener {
             @Override
             public NamespacedKey summonKey() {
                 return keys.summon;
+            }
+
+            @Override
+            public NamespacedKey levelKey() {
+                return keys.level;
             }
 
             @Override
@@ -657,7 +666,12 @@ final class MutangoFights implements Listener {
         });
         for (MutangoFight fight : new ArrayList<>(fights.values())) {
             List<Mob> alive = aliveOf(fight);
-            fight.battle.tick(alive);
+            try {
+                fight.battle.tick(alive);
+            } catch (RuntimeException exception) {
+                // un error en una pelea no corta el tick de las demas (ni el del santuario y el mantenimiento)
+                plugin.getLogger().log(Level.WARNING, "[Mutango] Error en la pelea " + fight.id, exception);
+            }
             alive.forEach(mutango -> bossBars.update(mutango, fight.battle.isDowned(mutango.getUniqueId())));
             fight.cinematic.tick();
             try {
@@ -673,6 +687,14 @@ final class MutangoFights implements Listener {
                 fights.remove(fight.id);
                 forgetRoster(fight.id);
             }
+        }
+    }
+
+    /** Los Mutangos, las estatuas y Neguechen no cruzan portales: la pelea es de un solo mundo (se mide y se junta ahi). */
+    @EventHandler(ignoreCancelled = true)
+    public void onPortal(EntityPortalEvent event) {
+        if (event.getEntity().getPersistentDataContainer().has(keys.model, PersistentDataType.STRING)) {
+            event.setCancelled(true);
         }
     }
 

@@ -71,6 +71,11 @@ final class MutangoCombat implements Listener {
      */
     @EventHandler(ignoreCancelled = true)
     public void onDamage(EntityDamageEvent event) {
+        if (isSummoned(event.getEntity())) {
+            // los animales de Neguechen: solo la Proteccion de su nivel (no son de la pelea ni se anotan en ella)
+            protect(event, event.getEntity());
+            return;
+        }
         if (!isMutango(event.getEntity())) {
             return;
         }
@@ -320,7 +325,7 @@ final class MutangoCombat implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onThorns(EntityDamageByEntityEvent event) {
         Entity mutango = event.getEntity();
-        if (!isMutango(mutango) || shrine.isPart(mutango)) {
+        if (!(isMutango(mutango) && !shrine.isPart(mutango)) && !isSummoned(mutango)) {
             return;
         }
         Integer level = mutango.getPersistentDataContainer().get(keys.level, PersistentDataType.INTEGER);
@@ -337,6 +342,12 @@ final class MutangoCombat implements Listener {
     private static Entity attacker(Entity damager) {
         return damager instanceof Projectile projectile && projectile.getShooter() instanceof Entity shooter
             ? shooter : damager;
+    }
+
+    /** Un animal que invoca Neguechen (lleva la marca de invocado y el nivel de la pelea). */
+    private boolean isSummoned(Entity entity) {
+        return entity instanceof Mob
+            && entity.getPersistentDataContainer().has(keys.summon, PersistentDataType.BYTE);
     }
 
     private boolean isMutango(Entity entity) {

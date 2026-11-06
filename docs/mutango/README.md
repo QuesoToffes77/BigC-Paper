@@ -145,8 +145,8 @@ Los numeros estan arriba de todo en `MutangoPhaseThree.java` (primer ataque), `M
   ultimas palabras) no se retoma: la victoria y los premios ya estan guardados (ver "El final y los premios").
 - **Descargar un chunk no mata a nadie.** Los tres Mutangos siguen formando la pelea aunque alguno este en un chunk
   descargado: la fase 1 no se cierra, la fase 2 no se da por terminada y no aparece Neguechen mientras falte alguno por
-  cargar. Cada Mutango guarda en su ficha quienes forman su pelea (`equipo`), asi despues de un reinicio los que todavia no
-  cargaron tambien cuentan. Solo una muerte confirmada saca a alguien de la pelea; si un chunk vuelve a cargar, se lo
+  cargar. El roster de cada pelea (quienes la forman y quienes ya murieron) se guarda fuera de las entidades, en
+  `data/mutango/peleas.yml`, asi despues de un reinicio los que todavia no cargaron tambien cuentan. Solo una muerte confirmada saca a alguien de la pelea; si un chunk vuelve a cargar, se lo
   vuelve a enlazar pero no se lo revive.
 - Lo que no se guarda: cuanto daño llevan para la proxima pila de la fase 2.
 
@@ -246,15 +246,16 @@ Cuando le sacas la ultima vida a Neguechen **no muere**: frena (se cortan los at
 unos 2.5 bloques despacio y se queda flotando y mirandote, con luz que le cae, mientras salen los versos 4 y 5. Ya no
 se le puede pegar y se va su barra. Cuando terminan se abre otra grieta debajo suyo, se hunde por ahi y, cuando la
 grieta se cierra, **cada uno que peleo recibe los dos premios en el inventario** (el que la empezo y los que le pegaron a
-alguno; lo que no entra cae al piso a sus pies, brilla, no desaparece y es solo suyo):
+alguno; si no te entran los items, la victoria y los premios quedan pendientes hasta que hagas lugar):
 
 - **Aviso global.** En el momento en que le sacas la ultima vida, todo el servidor ve en el chat "(Jugador) le ha
   ganado a la diosa mapuche Neguechen" (si ganaron varios: "A, B y C le han ganado..."; si son mas de 4, nombra a 4 y
   cuenta el resto). Es el unico aviso de la pelea que ve todo el mundo; el resto lo ven los que estan cerca.
 - **La victoria y los premios no se pierden ni se duplican.** Al ganar, la victoria y los premios se anotan como
   adjudicaciones (cada una con su id) en `plugins/BigCasares/data/mutango/pendientes.yml` ANTES de tocar al jugador. Al
-  entregarlas se aplican la victoria y los items, se anota un recibo en el propio jugador, se guarda al jugador y recien
-  ahi se borra la adjudicacion de la cola. Un corte antes del recibo la reintenta; despues del recibo no se repite. Si no
+  entregarlas se aplican la victoria y los items, se anota un recibo en el propio jugador y se guarda al jugador; la
+  adjudicacion queda **aplicada** y solo se borra de la cola cuando el jugador vuelve a entrar y sus datos leidos del disco
+  traen el recibo (`Player#saveData()` no avisa si fallo). Un corte antes del recibo la reintenta; despues no se repite. Si no
   te entran los items (necesitan 2 casilleros libres por juego) quedan pendientes (no se tiran al piso) y los recibis solos
   cuando hagas lugar. Si estabas desconectado o muerto los recibis al entrar o al revivir.
 
@@ -458,6 +459,28 @@ Igual que Don Pollos en BigC (`docs/don-pollos/compatibilidad-bedrock.md`):
 - **Rendimiento:** la busqueda de lugar para la grieta tiene tope (96 candidatos, 16 grietas completas, lo barato primero);
   el vuelo del Sol y la Luna, `nearestTarget` y el cierre de la grieta buscan jugadores cercanos; el anillo de la onda tiene
   tope de puntos y se dibuja cada 2 ticks; las ruinas tienen un tope de 2 trabajos en vuelo (los demas esperan).
+
+## Revision del 06/11 (cambios)
+
+- **Diario de bloques:** un bloque devuelto en memoria que despues cambia alguien (minarlo, ponerle algo, un piston, una
+  explosion, fuego) se tacha del diario en el momento (tambien en el archivo): ya no se vuelve a reponer al recargar el chunk
+  (duplicaba bloques). Tachar un bloque tambien lo saca de los que esperan evidencia de guardado (antes quedaba la clave
+  colgada). Los bloques anotados de un mundo que todavia no estaba cargado al arrancar se comprueban cuando ese mundo y su
+  chunk cargan.
+- **Dificultad:** las victorias ganadas que siguen pendientes (por ejemplo con el inventario lleno) cuentan para la
+  dificultad de la proxima pelea (las ya aplicadas no se suman dos veces).
+- **Recibos:** el limite de 128 recibos por jugador no recorta los que todavia necesita una adjudicacion sin confirmar.
+- **Apagado:** apagar o recargar el modulo con la fase 3 en curso **suspende** la pelea (corta ataques, Sol, Luna y grieta y
+  devuelve el terreno) pero Neguechen queda en el mundo y se retoma al volver a habilitarlo; sacarla es de `/mutango quitar`.
+- **Mundos:** los Mutangos no cruzan portales; si alguno queda en otro mundo, vuelve donde esta el primero. Un error en una
+  pelea no corta el tick de las demas.
+- **Santuario:** al cerrarse el despertar se reunen las tres estatuas antes de sacar ninguna; si falta una (chunk sin
+  cargar) se espera hasta 30 s y despues se cancela sin tocar ninguna.
+- **Botas y moderacion:** el permiso de volar de las botas es solo tecnico: ya no exime todo el tiempo del detector de
+  movimiento (`ModerationModule#setTechnicalFlight`); el impulso del doble salto tiene una exencion corta de 2 s.
+- **Ruinas:** antes de construir se revisa todo el volumen y no se pisan cofres ni otros bloques con datos (la estructura
+  no se construye: queda `ocupada`); se vuelve a comprobar al escribir cada bloque.
+- **Animales invocados:** llevan el nivel de la pelea, asi la Proteccion y las Espinas de su nivel tambien los afectan.
 
 ## Cambiar los modelos
 

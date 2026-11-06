@@ -374,4 +374,47 @@ class MutangoAwardClaimTest {
         assertEquals(1, reopened.get(0).wins());
         assertEquals(1, reopened.get(0).rewards());
     }
+
+    @Test
+    void lasVictoriasPendientesCuentanParaLaDificultad() {
+        MutangoPending pending = new MutangoPending(new File(folder, "data/dif.yml"));
+        pending.add(UUID.randomUUID(), player, 1, 1);
+        pending.add(UUID.randomUUID(), player, 1, 1);
+        // 0 aplicadas, 2 ganadas con el inventario lleno: la proxima pelea ya es de nivel 2
+        assertEquals(2, MutangoAwardClaim.difficultyWins(0, pending.pendingOf(player)));
+    }
+
+    @Test
+    void unaVictoriaAplicadaNoSeCuentaDosVeces() {
+        MutangoPending pending = new MutangoPending(new File(folder, "data/dif2.yml"));
+        MutangoPending.Award applied = pending.add(UUID.randomUUID(), player, 1, 1);
+        pending.markApplied(applied.id());
+        // la aplicada ya esta en las victorias del jugador (1) y sigue en la cola esperando confirmacion
+        assertEquals(1, MutangoAwardClaim.difficultyWins(1, pending.pendingOf(player)));
+    }
+
+    @Test
+    void losRecibosDeAdjudicacionesSinConfirmarNoSeRecortan() {
+        List<String> receipts = new java.util.ArrayList<>();
+        for (int i = 0; i < 130; i++) {
+            receipts.add("r" + i);
+        }
+        Set<String> needed = new HashSet<>(List.of("r0", "r1"));
+        Set<String> kept = MutangoAwardClaim.trimReceipts(receipts, needed, 128);
+        assertEquals(128, kept.size());
+        assertTrue(kept.contains("r0") && kept.contains("r1"), "los necesarios se conservan aunque sean los mas viejos");
+        assertFalse(kept.contains("r2") || kept.contains("r3"));
+    }
+
+    @Test
+    void sinNadaQueConservarSeRecortanLosMasViejos() {
+        List<String> receipts = new java.util.ArrayList<>();
+        for (int i = 0; i < 130; i++) {
+            receipts.add("r" + i);
+        }
+        Set<String> kept = MutangoAwardClaim.trimReceipts(receipts, Set.of(), 128);
+        assertEquals(128, kept.size());
+        assertFalse(kept.contains("r0") || kept.contains("r1"));
+        assertTrue(kept.contains("r129"));
+    }
 }

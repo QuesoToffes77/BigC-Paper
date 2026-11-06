@@ -45,6 +45,8 @@ final class MutangoShrine {
     private static final int SPLIT_AT = MutangoShrineTimeline.SPLIT_AT;
     private static final int ARRIVE_AT = MutangoShrineTimeline.ARRIVE_AT;
     private static final int CLOSE_END = MutangoShrineTimeline.CLOSE_END;
+    /** Cuanto se espera (30 s) a que cargue una estatua descargada antes de cancelar el despertar sin tocar ninguna. */
+    private static final int STATUE_WAIT_TICKS = 600;
     /** Cuanto sube la esferita desde el fondo del agujero antes de dividirse. */
     private static final double RISE_HEIGHT = 3.0;
     private static final double STATUE_SPACING = 2.0;
@@ -84,6 +86,8 @@ final class MutangoShrine {
         UUID fight;
         final List<Location> targets = new ArrayList<>();
         int ticks;
+        /** Ticks que lleva esperando a una estatua que no esta cargada. */
+        int waitedForStatues;
 
         Awakening(UUID cube, List<UUID> statues, Location closed, Location open, Location hole) {
             this.cube = cube;
@@ -316,30 +320,43 @@ final class MutangoShrine {
         }
         // 5) cobran vida: arranca la pelea
         if (t == CLOSE_END) {
-            cube.getPersistentDataContainer().remove(closedKey);
             if (!host.isWaiting(run.fight)) {
                 // sacaron la pelea (/mutango quitar) mientras despertaba: las estatuas quedan y se puede volver a abrir
+                cube.getPersistentDataContainer().remove(closedKey);
                 running.remove(run.cube);
                 return;
             }
+            // primero se reunen las tres: no se saca ninguna hasta tenerlas todas (si una esta en un chunk sin cargar, las
+            // otras dos se borraban y el santuario quedaba con una sola estatua, inutilizable)
+            List<Entity> statues = new ArrayList<>();
+            for (UUID id : run.statues) {
+                if (Bukkit.getEntity(id) instanceof Entity statue && statue.isValid()) {
+                    statues.add(statue);
+                }
+            }
+            if (statues.size() < STATUES.size()) {
+                if (++run.waitedForStatues <= STATUE_WAIT_TICKS) {
+                    run.ticks = CLOSE_END - 1; // se espera en este paso a que carguen (las estatuas no se tocan)
+                    return;
+                }
+                // no volvieron a tiempo: se cancela sin tocar ninguna (el santuario sigue entero y se puede abrir de nuevo)
+                cube.getPersistentDataContainer().remove(closedKey);
+                running.remove(run.cube);
+                host.cancelAwakening(run.fight);
+                return;
+            }
+            cube.getPersistentDataContainer().remove(closedKey);
             world.playSound(run.closed, Sound.BLOCK_STONE_PLACE, 1.5f, 0.5f);
             List<Location> spots = new ArrayList<>();
-            for (UUID id : run.statues) {
-                Entity statue = Bukkit.getEntity(id);
-                if (statue != null) {
-                    spots.add(statue.getLocation());
-                    world.spawnParticle(Particle.BLOCK, statue.getLocation().add(0, 0.8, 0), 40, 0.4, 0.6, 0.4, 0,
-                        Material.STONE.createBlockData());
-                    statue.remove();
-                }
+            for (Entity statue : statues) {
+                spots.add(statue.getLocation());
+                world.spawnParticle(Particle.BLOCK, statue.getLocation().add(0, 0.8, 0), 40, 0.4, 0.6, 0.4, 0,
+                    Material.STONE.createBlockData());
+                statue.remove();
             }
             world.playSound(run.closed, Sound.ENTITY_ZOMBIE_VILLAGER_CURE, 1.2f, 0.6f);
             running.remove(run.cube);
-            if (spots.size() == STATUES.size()) {
-                host.awaken(run.fight, spots);
-            } else {
-                host.cancelAwakening(run.fight);
-            }
+            host.awaken(run.fight, spots);
         }
     }
 

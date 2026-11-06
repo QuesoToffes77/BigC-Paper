@@ -193,6 +193,7 @@ final class MutangoRelics implements Listener {
                 if (granted) {
                     revokeFlight(player);
                 }
+                moderation.technicalFlight(player, false);
                 // sin botas el salto gastado no se renueva: recien se olvida al aterrizar
                 if (jumps.tick(player.getUniqueId(), false, player.isOnGround())
                     && player.getPersistentDataContainer().has(jumpSpentKey, PersistentDataType.BYTE)) {
@@ -212,6 +213,7 @@ final class MutangoRelics implements Listener {
                 player.getPersistentDataContainer().set(flightKey, PersistentDataType.BYTE, (byte) 1);
                 keepFallDamage(player);
             }
+            moderation.technicalFlight(player, true);
             if (player.isFlying() && granted) {
                 // volando de verdad con las botas puestas: no lo resuelve el plugin, se avisa a moderacion
                 reportFlight(player, "Volando con las Botas de Neguechen puestas");
@@ -257,6 +259,7 @@ final class MutangoRelics implements Listener {
         if (forward.lengthSquared() > 1e-4) {
             forward.normalize().multiply(MutangoBootsJump.JUMP_FORWARD);
         }
+        moderation.exemptJump(player); // el impulso del salto no cuenta como movimiento anomalo
         player.setVelocity(new Vector(forward.getX(), MutangoBootsJump.JUMP_UP, forward.getZ()));
         player.setFallDistance(0);
         Location feet = player.getLocation();
@@ -270,6 +273,7 @@ final class MutangoRelics implements Listener {
         // el salto gastado queda en el jugador (jumpSpentKey): solo se suelta la memoria
         jumps.forget(event.getPlayer().getUniqueId());
         flightWatch.forget(event.getPlayer().getUniqueId());
+        moderation.technicalFlight(event.getPlayer(), false);
     }
 
     /**
@@ -281,6 +285,7 @@ final class MutangoRelics implements Listener {
             if (player.getPersistentDataContainer().has(flightKey, PersistentDataType.BYTE)) {
                 revokeFlight(player);
             }
+            moderation.technicalFlight(player, false);
         }
         jumps.clear();
     }

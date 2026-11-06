@@ -54,6 +54,15 @@ final class MutangoRewards implements Listener {
     }
 
     /**
+     * Las victorias que cuentan para la dificultad de la proxima pelea: las ya aplicadas (en el jugador) mas las ganadas que
+     * siguen por aplicar (por ejemplo sin lugar en el inventario). Las aplicadas esperando confirmacion ya estan en
+     * wins(), asi que no se suman otra vez.
+     */
+    int difficultyWins(Player player) {
+        return MutangoAwardClaim.difficultyWins(wins(player), pending.pendingOf(player.getUniqueId()));
+    }
+
+    /**
      * Vencieron a Neguechen: a cada uno que peleo en esa pelea (el que la empezo y los que le pegaron a alguno) le anota
      * UNA adjudicacion con la victoria y el juego de premios juntos (los que miraban de lejos no), con un id que sale de la
      * pelea y del jugador: un corte no puede dejar la victoria sin premio y resolver dos veces la misma pelea no genera otra
@@ -209,11 +218,14 @@ final class MutangoRewards implements Listener {
             public void add(UUID award) {
                 Set<String> all = read();
                 all.add(award.toString());
-                List<String> list = new ArrayList<>(all);
-                if (list.size() > MAX_RECEIPTS) {
-                    list = list.subList(list.size() - MAX_RECEIPTS, list.size());
+                // solo se recortan los recibos que ninguna adjudicacion sin confirmar necesita (verifyAtJoin los busca)
+                Set<String> needed = new HashSet<>();
+                for (MutangoPending.Award applied : pending.appliedOf(player.getUniqueId())) {
+                    needed.add(applied.id().toString());
                 }
-                data.set(keys.receipts, PersistentDataType.STRING, String.join(",", list));
+                needed.add(award.toString());
+                data.set(keys.receipts, PersistentDataType.STRING,
+                    String.join(",", MutangoAwardClaim.trimReceipts(all, needed, MAX_RECEIPTS)));
             }
 
             @Override

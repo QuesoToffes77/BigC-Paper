@@ -1,8 +1,10 @@
 package dev.linqfy.bigCasares.modules.mutango;
 
 import dev.linqfy.bigCasares.modules.moderation.AbuseSignal;
+import dev.linqfy.bigCasares.modules.moderation.ModerationModule;
 import org.bukkit.entity.Player;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -18,12 +20,34 @@ import java.util.logging.Logger;
 final class MutangoModeration {
 
     private final Supplier<Consumer<AbuseSignal>> sink;
+    private final Supplier<ModerationModule> module;
     private final Logger logger;
     private boolean failedOnce;
 
-    MutangoModeration(Supplier<Consumer<AbuseSignal>> sink, Logger logger) {
+    MutangoModeration(Supplier<Consumer<AbuseSignal>> sink, Supplier<ModerationModule> module, Logger logger) {
         this.sink = sink;
+        this.module = module;
         this.logger = logger;
+    }
+
+    /**
+     * El permiso de volar de las botas es solo el mecanismo para detectar el doble salto: se le dice a moderacion para que
+     * ese permiso no exima al jugador del detector de movimiento (el vuelo de verdad, isFlying, sigue exento y se avisa
+     * aparte).
+     */
+    void technicalFlight(Player player, boolean technical) {
+        ModerationModule moderation = module.get();
+        if (moderation != null) {
+            moderation.setTechnicalFlight(player.getUniqueId(), technical);
+        }
+    }
+
+    /** El impulso del doble salto no es un movimiento anomalo: se exime solo esa ventana corta. */
+    void exemptJump(Player player) {
+        ModerationModule moderation = module.get();
+        if (moderation != null) {
+            moderation.exemptMovement(player.getUniqueId(), Duration.ofSeconds(2));
+        }
     }
 
     /**

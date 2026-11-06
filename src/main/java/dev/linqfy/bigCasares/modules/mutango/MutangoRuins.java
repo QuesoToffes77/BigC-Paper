@@ -8,6 +8,7 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.TileState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Waterlogged;
 import org.bukkit.block.structure.StructureRotation;
@@ -334,9 +335,27 @@ final class MutangoRuins implements Listener {
         while (!budget.exhausted() && !queue.isEmpty()) {
             Job job = queue.peek();
             job.step(budget);
-            if (job.done()) {
+            if (job.blocked) {
+                queue.poll();
+                abandon(job);
+            } else if (job.done()) {
                 queue.poll();
                 finish(job);
+            }
+        }
+    }
+
+    /** En el lugar hay bloques con datos (cofres, hornos, carteles...): no se construye nada (no se pierde lo que tienen). */
+    private void abandon(Job job) {
+        job.chunks.forEach(chunk -> chunk.removePluginChunkTicket(plugin));
+        status.put(job.key, "ocupada");
+        saveStatus();
+        plugin.getLogger().info("Ruinas " + job.key + " salteadas: el lugar tiene bloques con datos (cofres u otros) que no se "
+            + "pueden pisar.");
+        if (job.notify != null) {
+            Player player = Bukkit.getPlayer(job.notify);
+            if (player != null) {
+                player.sendMessage("§cAhi hay cofres u otros bloques con datos: las ruinas no se construyeron para no pisarlos.");
             }
         }
     }
@@ -399,6 +418,11 @@ final class MutangoRuins implements Listener {
         return MutangoRotation.toTemplate(rotation, template.width(), template.length(), dx, dz);
     }
 
+    /** Un bloque con datos propios (cofre, horno, cartel, spawner...): pisarlo los pierde. */
+    private static boolean hasData(Block block) {
+        return block.getState(false) instanceof TileState;
+    }
+
     private static boolean isGround(Material material) {
         return material.isSolid() && !Tag.LEAVES.isTagged(material) && !Tag.LOGS.isTagged(material);
     }
@@ -419,6 +443,10 @@ final class MutangoRuins implements Listener {
         private final List<Chunk> chunks;
         private int column;
         private int index;
+        /** Cuantos bloques del volumen ya se revisaron antes de construir (que no haya cofres ni otros con datos). */
+        private int scanned;
+        /** Se encontro algo que no se puede pisar: no se construye. */
+        private boolean blocked;
 
         private Job(World world, MutangoRuinsLayout.Plan plan, String key, int ground, UUID notify,
                     List<Chunk> chunks) {
@@ -430,12 +458,49 @@ final class MutangoRuins implements Listener {
             this.chunks = chunks;
         }
 
+        /** El bloque del mundo donde va el bloque numero i de la plantilla (en el orden en que se construye). */
+        private Block volumeBlock(int i) {
+            int w = template.width();
+            int l = template.length();
+            int[] off = offset(plan.rotation(), i % w, (i / w) % l);
+            return world.getBlockAt(plan.x() + off[0], ground + 1 + i / (w * l), plan.z() + off[1]);
+        }
+
+        /**
+         * Tiene datos propios y no es lo que las ruinas ponen ahi (si una vuelta anterior, cortada por una caida, ya puso la
+         * baliza o un cartel en ese lugar, se vuelve a escribir sin problema).
+         */
+        private boolean foreign(int i, Block block) {
+            if (!hasData(block)) {
+                return false;
+            }
+            int w = template.width();
+            int l = template.length();
+            int state = template.stateAt(i % w, i / (w * l), (i / w) % l);
+            return block.getType() != data(plan.rotation(), state).getMaterial();
+        }
+
         boolean done() {
             return index >= template.width() * template.height() * template.length();
         }
 
         /** Construye hasta que se acabe el tiempo del tick (budget). */
         void step(MutangoWorkBudget budget) {
+            // 0) antes de tocar nada se revisa todo el volumen: el ancla es un chunk nuevo, pero los vecinos pueden traer
+            //    construcciones ya hechas (o cambiar mientras el trabajo esperaba su turno) y un cofre pisado pierde lo que
+            //    tiene. Se revisa de nuevo al escribir cada bloque (ver abajo).
+            int volume = template.width() * template.height() * template.length();
+            while (!budget.exhausted() && scanned < volume) {
+                if (foreign(scanned, volumeBlock(scanned))) {
+                    blocked = true;
+                    return;
+                }
+                scanned++;
+                budget.charge(1);
+            }
+            if (scanned < volume) {
+                return;
+            }
             int columns = plan.sizeX() * plan.sizeZ();
             // 1) relleno: cada columna, desde el piso para abajo hasta tocar suelo firme, con piedra y piedra
             //    musgosa (hasta MAX_FILL_DEPTH; si hay mas vacio, hollowBelow ya las descarto). Si arriba va una planta, el
@@ -471,8 +536,12 @@ final class MutangoRuins implements Listener {
                 int tz = (index / w) % l;
                 int ty = index / (w * l);
                 int state = template.stateAt(tx, ty, tz);
-                int[] off = offset(plan.rotation(), tx, tz);
-                Block block = world.getBlockAt(plan.x() + off[0], ground + 1 + ty, plan.z() + off[1]);
+                Block block = volumeBlock(index);
+                if (foreign(index, block)) {
+                    // aparecio algo con datos despues de revisar: se lo deja (un hueco es mejor que perder un cofre)
+                    index++;
+                    continue;
+                }
                 if (!(template.isAir(state) && block.getType().isAir())) {
                     block.setBlockData(data(plan.rotation(), state), false);
                     budget.charge(2);

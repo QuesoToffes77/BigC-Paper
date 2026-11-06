@@ -172,6 +172,7 @@ final class MutangoPhaseTwo {
 
     void tick(List<Mob> alive) {
         ticks++;
+        regroupWorlds(alive);
         stackThreshold = STACK_EVERY * maxHealthEach(alive) * MutangoModels.MODELS.size();
         for (Flight flight : new ArrayList<>(flights.values())) {
             if (flight.mutango.isValid()) {
@@ -281,6 +282,11 @@ final class MutangoPhaseTwo {
         for (Mob mutango : order) {
             UUID id = mutango.getUniqueId();
             Location spot = spots.get(id);
+            if (!mutango.getWorld().equals(spot.getWorld())) {
+                // en otro mundo no se puede medir ni caminar hasta el lugar: se lo trae (regroupWorlds ya lo evita de
+                // entrada, esto cubre un cambio de mundo en medio de este mismo tick)
+                mutango.teleport(spot);
+            }
             double distance = mutango.getLocation().distance(spot);
             if (distance > GATHER_ARRIVED) {
                 arrived = false;
@@ -547,6 +553,23 @@ final class MutangoPhaseTwo {
         mode = Mode.MELEE;
         ticks = 0;
         damageTaken = 0;
+    }
+
+    /**
+     * Los tres de una pelea tienen que estar en el mismo mundo (no se pueden medir distancias ni juntar entre mundos): si
+     * alguno quedo en otro (portal, /tp), vuelve donde esta el primero. Los portales ya no los dejan pasar
+     * (MutangoFights.onPortal); esto cubre cualquier otro traslado.
+     */
+    private static void regroupWorlds(List<Mob> alive) {
+        if (alive.size() < 2) {
+            return;
+        }
+        Mob reference = alive.get(0);
+        for (Mob mutango : alive) {
+            if (!mutango.getWorld().equals(reference.getWorld())) {
+                mutango.teleport(reference.getLocation());
+            }
+        }
     }
 
     private boolean allValid() {
