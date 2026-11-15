@@ -43,7 +43,17 @@ class DefaultItemCatalogTest {
             "glider_tier_4.yml",
             "glider_tier_5.yml",
             "glider_tier_6.yml",
-            "keep_inventory_totem.yml"
+            "keep_inventory_totem.yml",
+            "hate_fragment_greek.yml",
+            "boss_summoner_greek.yml",
+            "hate_fragment_norse.yml",
+            "boss_summoner_norse.yml",
+            "hate_fragment_medieval.yml",
+            "boss_summoner_medieval.yml",
+            "hate_fragment_egyptian.yml",
+            "boss_summoner_egyptian.yml",
+            "hate_fragment_mesopotamian.yml",
+            "boss_summoner_mesopotamian.yml"
         );
         ItemCatalogSeeder seeder = new ItemCatalogSeeder(names);
         seeder.seed(name -> resource("content/items/" + name), tempDir.resolve("items"));
@@ -51,7 +61,7 @@ class DefaultItemCatalogTest {
         CustomItemCatalog catalog = new ItemCatalogLoader().load(tempDir.resolve("items"));
         new ItemCatalogValidator().validate(catalog, Path.of("resourcepack"));
 
-        assertEquals(24, catalog.size());
+        assertEquals(34, catalog.size());
         assertTrue(catalog.find("copper_apple").isPresent());
         assertTrue(catalog.find("smoke_bomb").isPresent());
         assertTrue(catalog.find("prismarine_arrow").isPresent());

@@ -26,5 +26,15 @@
   "item.bigcasares.glider_tier_4": "Glider IV",
   "item.bigcasares.glider_tier_5": "Glider V",
   "item.bigcasares.glider_tier_6": "Glider VI",
-  "item.bigcasares.keep_inventory_totem": "Tótem de Conservación"
+  "item.bigcasares.keep_inventory_totem": "Tótem de Conservación",
+  "item.bigcasares.hate_fragment_greek": "Fragmento de Odio de Zeus",
+  "item.bigcasares.boss_summoner_greek": "Invocador de Zeus",
+  "item.bigcasares.hate_fragment_norse": "Fragmento de Odio de Odín",
+  "item.bigcasares.boss_summoner_norse": "Invocador de Odín",
+  "item.bigcasares.hate_fragment_medieval": "Fragmento de Odio de Diablo",
+  "item.bigcasares.boss_summoner_medieval": "Invocador de Diablo",
+  "item.bigcasares.hate_fragment_egyptian": "Fragmento de Odio de Horus",
+  "item.bigcasares.boss_summoner_egyptian": "Invocador de Horus",
+  "item.bigcasares.hate_fragment_mesopotamian": "Fragmento de Odio de Enlil",
+  "item.bigcasares.boss_summoner_mesopotamian": "Invocador de Enlil"
 }

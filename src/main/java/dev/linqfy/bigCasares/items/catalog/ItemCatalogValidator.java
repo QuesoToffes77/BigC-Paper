@@ -37,7 +37,17 @@ public final class ItemCatalogValidator {
         Map.entry("glider_tier_4", "glider"),
         Map.entry("glider_tier_5", "glider"),
         Map.entry("glider_tier_6", "glider"),
-        Map.entry("keep_inventory_totem", "keep-inventory-totem")
+        Map.entry("keep_inventory_totem", "keep-inventory-totem"),
+        Map.entry("hate_fragment_greek", "mythic-fragment"),
+        Map.entry("boss_summoner_greek", "mythic-summoner"),
+        Map.entry("hate_fragment_norse", "mythic-fragment"),
+        Map.entry("boss_summoner_norse", "mythic-summoner"),
+        Map.entry("hate_fragment_medieval", "mythic-fragment"),
+        Map.entry("boss_summoner_medieval", "mythic-summoner"),
+        Map.entry("hate_fragment_egyptian", "mythic-fragment"),
+        Map.entry("boss_summoner_egyptian", "mythic-summoner"),
+        Map.entry("hate_fragment_mesopotamian", "mythic-fragment"),
+        Map.entry("boss_summoner_mesopotamian", "mythic-summoner")
     );
 
     private final ItemMaterialValidator materials;
