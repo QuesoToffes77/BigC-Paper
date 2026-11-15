@@ -69,7 +69,9 @@ class MythicDungeonDatapackTest {
             assertEquals("minecraft:jigsaw", structure.get("type").getAsString());
             assertEquals("#bigc_myth:has_structure/" + theme.culture(), structure.get("biomes").getAsString());
             assertTrue(structure.get("size").getAsInt() >= 1 && structure.get("size").getAsInt() <= 20);
-            assertTrue(structure.get("max_distance_from_center").getAsInt() <= 128);
+            // vanilla refuses the whole pack (the server does not start) above 128 including the adaptation margin
+            int adaptationMargin = "none".equals(structure.get("terrain_adaptation").getAsString()) ? 0 : 12;
+            assertTrue(structure.get("max_distance_from_center").getAsInt() + adaptationMargin <= 128);
             assertEquals("WORLD_SURFACE_WG", structure.get("project_start_to_heightmap").getAsString());
             assertTrue(index.pools.containsKey(structure.get("start_pool").getAsString()));
 

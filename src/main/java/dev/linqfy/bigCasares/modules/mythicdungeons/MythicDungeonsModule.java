@@ -133,8 +133,8 @@ public final class MythicDungeonsModule implements PluginModule {
         BedrockStandIns standIns = new BedrockStandIns(plugin, ownedSupport::isBedrock);
         ownedSupport.attachBedrockStandIns(standIns);
         registrations.registerListener("mythic-bedrock-stand-ins", standIns);
-        registrations.scheduleRepeating("mythic-bedrock-stand-ins", standIns::tick, 1L, 1L);
-        registrations.ownCleanup("mythic-bedrock-stand-ins", standIns::clear);
+        registrations.scheduleRepeating("mythic-bedrock-stand-ins-tick", standIns::tick, 1L, 1L);
+        registrations.ownCleanup("mythic-bedrock-stand-ins-entities", standIns::clear);
         registrations.ownCleanup("mythic-boss-entities", ownedSupport::cleanupAll);
         registerBosses(registrations, ownedSupport, settings);
 

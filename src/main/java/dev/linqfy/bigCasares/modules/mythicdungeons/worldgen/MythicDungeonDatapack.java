@@ -50,7 +50,13 @@ public final class MythicDungeonDatapack {
     public static final int SURFACE_ENTRANCE_MAX_CONNECTOR_OFFSET = 4;
     public static final int FULL_DUNGEON_MAX_CONNECTOR_OFFSET = 64;
     public static final int JIGSAW_SIZE = 12;
+    /**
+     * Vanilla rejects a jigsaw structure (and with it the whole datapack: the server does not start) when
+     * {@code max_distance_from_center} plus the terrain-adaptation margin exceeds 128; every adaptation other than
+     * {@code none} adds 12. The chain down to the arena needs the full 128, so the dungeons use no adaptation.
+     */
     public static final int MAX_DISTANCE_FROM_CENTER = 128;
+    public static final String TERRAIN_ADAPTATION = "none";
     static final int MAX_TEMPLATE_SIZE = 48;
     private static final String AIR = "minecraft:air";
 
@@ -193,11 +199,11 @@ public final class MythicDungeonDatapack {
             List.of(new StructureDefinition.PoolElement(startTemplate, null, "rigid", BUILT_IN_WEIGHT)));
         MythicDungeonTheme.Spread spread = theme.spread();
         // Start at the surface (WORLD_SURFACE_WG); start_height 0 puts template layer y = 0 on the
-        // top terrain block. beard_thin levels the ground under the entrance.
+        // top terrain block. No terrain adaptation (see TERRAIN_ADAPTATION).
         return new StructureDefinition(theme.structureId(),
             theme.biomes().stream().map(NamespacedId::parse).toList(),
             pool, List.of(), "surface_structures", JIGSAW_SIZE, VerticalAnchor.absolute(0), "WORLD_SURFACE_WG",
-            MAX_DISTANCE_FROM_CENTER, "beard_thin",
+            MAX_DISTANCE_FROM_CENTER, TERRAIN_ADAPTATION,
             new StructureDefinition.Placement(spread.spacing(), spread.separation(), spread.salt()));
     }
 
