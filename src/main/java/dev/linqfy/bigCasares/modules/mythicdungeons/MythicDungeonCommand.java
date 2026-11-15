@@ -93,7 +93,8 @@ final class MythicDungeonCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§cNo conozco la cultura '" + args[2] + "'. Opciones: " + cultureIds());
             return;
         }
-        if (!culture.get().developed()) {
+        // sin jefe no hay fragmento ni invocador que dar
+        if (!culture.get().hasBoss()) {
             sender.sendMessage(culture.get().notAvailableMessage());
             return;
         }
@@ -153,13 +154,12 @@ final class MythicDungeonCommand implements CommandExecutor, TabCompleter {
         Optional<MythicMobType> type = mobs.catalog().find(args[1]);
         Optional<MythicCulture> culture = MythicCulture.byId(args[1]);
         if (type.isEmpty() && culture.isPresent()) {
-            if (!culture.get().developed()) {
-                sender.sendMessage(culture.get().notAvailableMessage());
+            if (!culture.get().hasMobs()) {
+                sender.sendMessage("§eLa cultura " + culture.get().displayName() + " todavía no tiene mobs.");
                 return;
             }
             // una cultura: un mob sorteado como en sus spawners
-            type = WeightedPicker.pick(mobs.catalog().ofCulture(culture.get()), MythicMobType::weight,
-                ThreadLocalRandom.current().nextDouble());
+            type = MythicDungeonSpawns.pick(mobs.catalog(), culture.get(), ThreadLocalRandom.current().nextDouble());
         }
         if (type.isEmpty()) {
             sender.sendMessage("§cNo existe el mob '" + args[1] + "'.");
@@ -167,8 +167,14 @@ final class MythicDungeonCommand implements CommandExecutor, TabCompleter {
         }
         boolean dungeonSpawn = args.length >= 3 && args[2].equalsIgnoreCase("mazmorra");
         if (mobs.spawn(type.get(), player.getLocation(), dungeonSpawn).isPresent()) {
-            sender.sendMessage("§aApareció " + type.get().displayName()
-                + (dungeonSpawn ? " §7(como de mazmorra: puede soltar su fragmento)." : " §7(no suelta fragmentos)."));
+            String fragment;
+            if (type.get().culture().fragmentItemId().isEmpty()) {
+                fragment = " §7(su cultura todavía no tiene fragmento).";
+            } else {
+                fragment = dungeonSpawn ? " §7(como de mazmorra: puede soltar su fragmento)."
+                    : " §7(no suelta fragmentos).";
+            }
+            sender.sendMessage("§aApareció " + type.get().displayName() + fragment);
         } else {
             sender.sendMessage("§cEl mundo no dejó aparecer a " + type.get().displayName() + ".");
         }
@@ -181,10 +187,10 @@ final class MythicDungeonCommand implements CommandExecutor, TabCompleter {
         }
         Optional<MythicCulture> culture = args.length >= 2 ? MythicCulture.byId(args[1]) : Optional.empty();
         if (culture.isEmpty()) {
-            sender.sendMessage("§eUso: /mazmorra jefe <cultura>  §7(" + developedIds() + ")");
+            sender.sendMessage("§eUso: /mazmorra jefe <cultura>  §7(" + bossCultureIds() + ")");
             return;
         }
-        if (!culture.get().developed()) {
+        if (!culture.get().hasBoss()) {
             sender.sendMessage(culture.get().notAvailableMessage());
             return;
         }
@@ -243,8 +249,10 @@ final class MythicDungeonCommand implements CommandExecutor, TabCompleter {
             + ")");
         sender.sendMessage("§7Caja: " + dungeon.minX() + " " + dungeon.minY() + " " + dungeon.minZ() + " → "
             + dungeon.maxX() + " " + dungeon.maxY() + " " + dungeon.maxZ());
-        if (!dungeon.culture().developed()) {
-            sender.sendMessage("§7Esta cultura todavía no tiene jefe ni mobs: la mazmorra sigue vanilla.");
+        if (!dungeon.culture().hasBoss()) {
+            sender.sendMessage("§7Esta cultura todavía no tiene jefe" + (dungeon.culture().hasMobs()
+                ? " §7| mobs de mazmorra cerca: " + mobs.countNearby(player.getLocation(), 48.0, true)
+                : " ni mobs: la mazmorra sigue vanilla."));
             return;
         }
         boolean alive = summons.alive(dungeon.key(), bosses::isActive).isPresent();
@@ -286,8 +294,8 @@ final class MythicDungeonCommand implements CommandExecutor, TabCompleter {
         return String.join(", ", Arrays.stream(MythicCulture.values()).map(MythicCulture::id).toList());
     }
 
-    private static String developedIds() {
-        return String.join(", ", MythicCulture.developedCultures().stream().map(MythicCulture::id).toList());
+    private static String bossCultureIds() {
+        return String.join(", ", MythicCulture.bossCultures().stream().map(MythicCulture::id).toList());
     }
 
     @Override
@@ -304,19 +312,21 @@ final class MythicDungeonCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
-        Stream<String> developed = MythicCulture.developedCultures().stream().map(MythicCulture::id);
+        // dar y jefe solo ofrecen las culturas con jefe; mob, todos los mobs y las culturas que tienen
+        Stream<String> withBoss = MythicCulture.bossCultures().stream().map(MythicCulture::id);
+        Stream<String> withMobs = MythicCulture.mobCultures().stream().map(MythicCulture::id);
         if (args.length == 2) {
             return switch (sub) {
                 case "dar" -> filter(Stream.of("fragmento", "invocador"), args[1]);
-                case "mob" -> filter(Stream.concat(mobs.catalog().ids().stream(), developed), args[1]);
-                case "jefe" -> filter(developed, args[1]);
+                case "mob" -> filter(Stream.concat(mobs.catalog().ids().stream(), withMobs), args[1]);
+                case "jefe" -> filter(withBoss, args[1]);
                 case "localizar" -> filter(Arrays.stream(MythicCulture.values()).map(MythicCulture::id), args[1]);
                 default -> List.of();
             };
         }
         if (args.length == 3) {
             return switch (sub) {
-                case "dar" -> filter(developed, args[2]);
+                case "dar" -> filter(withBoss, args[2]);
                 case "mob" -> filter(Stream.of("mazmorra"), args[2]);
                 default -> List.of();
             };

@@ -26,6 +26,8 @@ final class DoomlikeBuilder {
     private static final int MAX_SIDE_DOORS = 3;
     private static final int MAX_GATES = 2;
     private static final int MIN_OPENING_GAP = 6;
+    /** Footprint side reserved for the boss arena. */
+    static final int ARENA_SIDE = 35;
 
     private final DoomlikeLayout layout;
     private final MythicDungeonTheme theme;
@@ -65,7 +67,14 @@ final class DoomlikeBuilder {
         }
         minX = loX;
         minZ = loZ;
-        grid = new TemplateGrid(hiX - loX + 1, top + 2, hiZ - loZ + 1);
+        int width = hiX - loX + 1;
+        int depth = hiZ - loZ + 1;
+        if (width == ARENA_SIDE && depth == ARENA_SIDE) {
+            // 35x35 is reserved for the boss arena (the runtime finds the arena by that footprint): one more
+            // column of structure void.
+            width++;
+        }
+        grid = new TemplateGrid(width, top + 2, depth);
     }
 
     /**
@@ -78,9 +87,51 @@ final class DoomlikeBuilder {
         builder.contents();
         builder.openings();
         Room entrance = layout.entrance;
+        builder.stepsToDescent(entrance.midX, entrance.midZ);
         ThirdPartyBlocks.jigsaw(builder.grid, entrance.midX - builder.minX, 0, entrance.midZ - builder.minZ,
             "down_south", ThirdPartyBlocks.DESCENT);
         return builder.grid;
+    }
+
+    /**
+     * The descent hole is cut through the bottom layer (y = 0) while the plan's floor is at
+     * {@link DoomlikeLayout#BASE} - 1: two steps north of the hole bring the floor down to the hole's rim,
+     * so players walk into the shaft (and back out) instead of dropping three blocks. Only cut where the
+     * plan has open floor; otherwise the piece is left to the module's walkability check.
+     */
+    private void stepsToDescent(int midX, int midZ) {
+        MythicDungeonTheme.Palette palette = theme.palette();
+        for (int mx = midX - 1; mx <= midX + 1; mx++) {
+            for (int mz = midZ - 3; mz <= midZ - 2; mz++) {
+                if (!free(mx, mz) || layout.floorY[mx][mz] != DoomlikeLayout.BASE) {
+                    return;
+                }
+            }
+        }
+        for (int mx = midX - 1; mx <= midX + 1; mx++) {
+            int x = mx - minX;
+            int rim = midZ - 2 - minZ;
+            int step = midZ - 3 - minZ;
+            grid.set(x, 0, rim, palette.floor());
+            for (int y = 1; y <= DoomlikeLayout.BASE + 1; y++) {
+                grid.set(x, y, rim, TemplateGrid.AIR);
+            }
+            grid.set(x, 1, step, palette.stairs("north", false));
+            for (int y = 2; y <= DoomlikeLayout.BASE + 1; y++) {
+                grid.set(x, y, step, TemplateGrid.AIR);
+            }
+        }
+    }
+
+    /** Chebyshev distance of the descent connector from the template centre (on the horizontal axes). */
+    static double descentOffset(TemplateGrid grid) {
+        double offset = Double.MAX_VALUE;
+        for (TemplateGrid.Cell cell : grid.cells()) {
+            if (cell.name().equals("minecraft:jigsaw") && ThirdPartyBlocks.DESCENT.equals(cell.nbt().getString("name"))) {
+                offset = Math.max(Math.abs(cell.x() - (grid.sizeX() - 1) / 2.0), Math.abs(cell.z() - (grid.sizeZ() - 1) / 2.0));
+            }
+        }
+        return offset;
     }
 
     /** A single room whose north doorway (opened by {@link DoomlikeLayout#openNorthDoor}) holds the entry. */

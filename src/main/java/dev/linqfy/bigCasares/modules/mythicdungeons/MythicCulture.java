@@ -8,8 +8,8 @@ import java.util.Optional;
 
 /**
  * Las nueve culturas de las mazmorras miticas (sin Bukkit). Todas tienen su mazmorra (la estructura
- * {@code bigc_myth:<id>} del datapack). Solo las {@link #developed() desarrolladas} tienen ademas jefe (del sistema
- * pve-boss), mobs, Fragmento de Odio e Invocador; en las mazmorras de las demas todo sigue vanilla por ahora.
+ * {@code bigc_myth:<id>} del datapack) y sus mobs ({@link #hasMobs()}). Solo las que {@link #hasBoss() tienen jefe}
+ * (del sistema pve-boss) tienen ademas Fragmento de Odio e Invocador; las otras cuatro esperan su jefe.
  * Los ids son estables: los usan los items, los modelos, el datapack y los encuentros de los jefes.
  */
 public enum MythicCulture {
@@ -24,18 +24,20 @@ public enum MythicCulture {
         new MythicBoss("myth-horus", "horus", "Horus"), List.of("ammit", "apophis", "mummy")),
     MESOPOTAMIAN("mesopotamian", "Mesopotámica", "la mazmorra mesopotámica",
         new MythicBoss("myth-enlil", "enlil", "Enlil"), List.of("ereshkigal", "galla")),
-    // Solo mazmorra por ahora: jefe, mobs e items quedan para mas adelante.
-    JAPANESE("japanese", "Japonesa", "la mazmorra japonesa", null, List.of()),
-    MESOAMERICAN("mesoamerican", "Mesoamericana", "la mazmorra mesoamericana", null, List.of()),
-    ARABIAN("arabian", "Árabe", "la mazmorra árabe", null, List.of()),
-    ANDEAN("andean", "Sudamericana", "la mazmorra sudamericana", null, List.of());
+    // Mazmorra y mobs; el jefe, su Fragmento de Odio y su Invocador quedan para mas adelante.
+    JAPANESE("japanese", "Japonesa", "la mazmorra japonesa", null, List.of("oni", "cave_yokai", "shikome")),
+    MESOAMERICAN("mesoamerican", "Mesoamericana", "la mazmorra mesoamericana", null,
+        List.of("xibalba_lord", "xolotl", "camazotz_bat")),
+    ARABIAN("arabian", "Árabe", "la mazmorra árabe", null, List.of("ghul", "djinn")),
+    ANDEAN("andean", "Sudamericana", "la mazmorra sudamericana", null,
+        List.of("supay", "salamanca_viper", "salamanca_goat"));
 
     /** Espacio de nombres de las estructuras del datapack de las mazmorras. */
     public static final String STRUCTURE_NAMESPACE = "bigc_myth";
     /** Prefijo de todas las claves de modelo de BetterModel del modulo. */
     public static final String MODEL_PREFIX = "bigcasares_myth_";
 
-    /** El jefe de una cultura desarrollada: su id en pve-boss ({@code bosses/<id>.yml}), id corto y nombre. */
+    /** El jefe de una cultura que lo tiene: su id en pve-boss ({@code bosses/<id>.yml}), id corto y nombre. */
     public record MythicBoss(String id, String shortId, String displayName) {
 
         public MythicBoss {
@@ -78,16 +80,26 @@ public enum MythicCulture {
         return dungeonName;
     }
 
-    /** Si la cultura ya tiene jefe, mobs e items (las demas solo tienen la mazmorra). */
-    public boolean developed() {
+    /** Si su mazmorra se llena con mobs propios (spawners y spawns naturales); si no, sigue vanilla. */
+    public boolean hasMobs() {
+        return !mobIds.isEmpty();
+    }
+
+    /** Si ya tiene jefe y con el su Fragmento de Odio y su Invocador. */
+    public boolean hasBoss() {
         return boss != null;
+    }
+
+    /** Lo mismo que {@link #hasBoss()}; se mantiene para quien todavia lo llame asi (los encuentros de {@code boss/}). */
+    public boolean developed() {
+        return hasBoss();
     }
 
     public Optional<MythicBoss> boss() {
         return Optional.ofNullable(boss);
     }
 
-    /** El jefe de una cultura desarrollada; falla con las que todavia no lo tienen. */
+    /** El jefe de la cultura; falla con las que todavia no lo tienen. */
     public MythicBoss requireBoss() {
         if (boss == null) {
             throw new IllegalStateException("La cultura " + id + " todavía no tiene jefe");
@@ -95,17 +107,17 @@ public enum MythicCulture {
         return boss;
     }
 
-    /** Los mobs de la cultura (vacio si no esta desarrollada). */
+    /** Los mobs de la cultura, en el orden fijo de la tabla. */
     public List<String> mobIds() {
         return mobIds;
     }
 
     public Optional<String> fragmentItemId() {
-        return developed() ? Optional.of("hate_fragment_" + id) : Optional.empty();
+        return hasBoss() ? Optional.of("hate_fragment_" + id) : Optional.empty();
     }
 
     public Optional<String> summonerItemId() {
-        return developed() ? Optional.of("boss_summoner_" + id) : Optional.empty();
+        return hasBoss() ? Optional.of("boss_summoner_" + id) : Optional.empty();
     }
 
     /** Clave de la estructura del datapack, por ejemplo {@code bigc_myth:greek}. */
@@ -113,17 +125,29 @@ public enum MythicCulture {
         return STRUCTURE_NAMESPACE + ":" + id;
     }
 
-    /** Lo que se le contesta a quien pide algo de una cultura sin desarrollar. */
+    /** Lo que se le contesta a quien pide el jefe, el fragmento o el invocador de una cultura que no tiene jefe. */
     public String notAvailableMessage() {
-        return "§eLa cultura " + displayName + " todavía no está disponible: por ahora solo existe su mazmorra.";
+        return "§eEl jefe de la cultura " + displayName + " todavía no está disponible: por ahora solo existen su"
+            + " mazmorra y sus mobs.";
     }
 
     public static String mobModelKey(String mobId) {
         return MODEL_PREFIX + mobId;
     }
 
+    /** Las culturas con mobs propios (hoy las nueve). */
+    public static List<MythicCulture> mobCultures() {
+        return Arrays.stream(values()).filter(MythicCulture::hasMobs).toList();
+    }
+
+    /** Las culturas con jefe, Fragmento de Odio e Invocador. */
+    public static List<MythicCulture> bossCultures() {
+        return Arrays.stream(values()).filter(MythicCulture::hasBoss).toList();
+    }
+
+    /** Lo mismo que {@link #bossCultures()}; se mantiene para quien todavia lo llame asi. */
     public static List<MythicCulture> developedCultures() {
-        return Arrays.stream(values()).filter(MythicCulture::developed).toList();
+        return bossCultures();
     }
 
     public static Optional<MythicCulture> byId(String id) {

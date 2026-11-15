@@ -1,21 +1,25 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.worldgen;
 
+import dev.linqfy.bigCasares.dimension.nbt.Nbt.IntTag;
 import dev.linqfy.bigCasares.dimension.worldgen.StructureTemplate;
 import dev.linqfy.bigCasares.modules.mythicdungeons.worldgen.MythicTemplateRewriter.Jigsaw;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Deque;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Random;
+import java.util.Set;
 
 /**
- * In-memory model of vanilla {@code JigsawPlacement} for rigid pieces: breadth-first expansion,
- * shuffled weighted pool candidates followed by the fallback pool, all four rotations, jigsaw
- * matching by facing/top/name, and placement only inside the max-distance box without overlapping
- * any earlier piece.
+ * In-memory model of vanilla {@code JigsawPlacement} for rigid pieces: pieces are processed by placement
+ * priority (higher first, in placement order within a priority; the priority of the parent jigsaw a piece
+ * was attached through), each piece's jigsaws by selection priority (higher first, ties shuffled), shuffled
+ * weighted pool candidates followed by the fallback pool, all four rotations, jigsaw matching by
+ * facing/top/name, and placement only inside the max-distance box without overlapping any earlier piece.
  */
 final class MythicJigsawSimulator {
 
@@ -29,9 +33,36 @@ final class MythicJigsawSimulator {
             return minX >= other.minX && maxX <= other.maxX && minY >= other.minY && maxY <= other.maxY
                 && minZ >= other.minZ && maxZ <= other.maxZ;
         }
+
+        boolean contains(int x, int y, int z) {
+            return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;
+        }
     }
 
-    record Placed(StructureTemplate template, int rotation, int originX, int originY, int originZ, Box box, int depth) {
+    /**
+     * A placed piece. {@code parentCell}/{@code childCell} are the world cells of the two jigsaws that joined
+     * it to its parent ({@code null} for the start).
+     */
+    record Placed(StructureTemplate template, int rotation, int originX, int originY, int originZ, Box box, int depth,
+                  int[] parentCell, int[] childCell) {
+        String path() {
+            return template.id().path();
+        }
+
+        /** World position of a template-local cell. */
+        int[] world(int x, int y, int z) {
+            int[] local = rotatePos(x, z, rotation);
+            return new int[]{originX + local[0], originY + y, originZ + local[1]};
+        }
+
+        /** Template-local position of a world cell. */
+        int[] local(int x, int y, int z) {
+            int[] local = rotatePos(x - originX, z - originZ, (4 - rotation) % 4);
+            return new int[]{local[0], y - originY, local[1]};
+        }
+    }
+
+    record Result(List<Placed> pieces, Box limit, int startCentreX, int startCentreZ) {
     }
 
     private static final String[] HORIZONTAL = {"north", "east", "south", "west"};
@@ -39,6 +70,8 @@ final class MythicJigsawSimulator {
     private final MythicPackIndex index;
     private final int maxDepth;
     private final int maxDistance;
+    private final Map<StructureTemplate, List<Jigsaw>> jigsaws = new IdentityHashMap<>();
+    private final Map<StructureTemplate, int[]> sizes = new IdentityHashMap<>();
 
     MythicJigsawSimulator(MythicPackIndex index, int maxDepth, int maxDistance) {
         this.index = index;
@@ -46,29 +79,47 @@ final class MythicJigsawSimulator {
         this.maxDistance = maxDistance;
     }
 
+    List<Jigsaw> jigsaws(StructureTemplate template) {
+        return jigsaws.computeIfAbsent(template, MythicTemplateRewriter::jigsaws);
+    }
+
+    private int[] size(StructureTemplate template) {
+        return sizes.computeIfAbsent(template, MythicTemplateRewriter::size);
+    }
+
     List<Placed> assemble(String startPool, long seed, int surfaceY, int worldMinY) {
+        return run(startPool, seed, surfaceY, worldMinY).pieces();
+    }
+
+    private record Pending(Placed piece, int priority, long order) {
+    }
+
+    Result run(String startPool, long seed, int surfaceY, int worldMinY) {
         Random random = new Random(seed);
         StructureTemplate start = shuffled(startPool, random).getFirst();
         int rotation = random.nextInt(4);
-        Placed first = place(start, rotation, 0, surfaceY, 0, 0);
+        Placed first = place(start, rotation, 0, surfaceY, 0, 0, null, null);
         int centerX = (first.box().minX() + first.box().maxX()) / 2;
         int centerZ = (first.box().minZ() + first.box().maxZ()) / 2;
         Box limit = new Box(centerX - maxDistance, Math.max(worldMinY, surfaceY - maxDistance), centerZ - maxDistance,
             centerX + maxDistance, surfaceY + maxDistance, centerZ + maxDistance);
         List<Placed> placed = new ArrayList<>(List.of(first));
-        Deque<Placed> queue = new ArrayDeque<>(List.of(first));
+        PriorityQueue<Pending> queue = new PriorityQueue<>(Comparator.comparingInt(Pending::priority).reversed()
+            .thenComparingLong(Pending::order));
+        long order = 0;
+        queue.add(new Pending(first, 0, order++));
         while (!queue.isEmpty()) {
-            Placed parent = queue.removeFirst();
-            List<Jigsaw> jigsaws = new ArrayList<>(MythicTemplateRewriter.jigsaws(parent.template()));
-            Collections.shuffle(jigsaws, random);
-            jigsaws.sort(Comparator.comparingInt(MythicJigsawSimulator::priority).reversed());
-            for (Jigsaw jigsaw : jigsaws) {
+            Placed parent = queue.poll().piece();
+            List<Jigsaw> parentJigsaws = new ArrayList<>(jigsaws(parent.template()));
+            Collections.shuffle(parentJigsaws, random);
+            parentJigsaws.sort(Comparator.comparingInt((Jigsaw jigsaw) -> intValue(jigsaw, "selection_priority")).reversed());
+            for (Jigsaw jigsaw : parentJigsaws) {
                 if (jigsaw.pool().equals("minecraft:empty")) {
                     continue;
                 }
                 String front = rotate(jigsaw.front(), parent.rotation());
                 String top = rotate(jigsaw.top(), parent.rotation());
-                int[] world = worldPos(parent, jigsaw);
+                int[] world = parent.world(jigsaw.x(), jigsaw.y(), jigsaw.z());
                 int[] step = step(front);
                 int targetX = world[0] + step[0];
                 int targetY = world[1] + step[1];
@@ -80,13 +131,17 @@ final class MythicJigsawSimulator {
                 }
                 candidates.addAll(shuffled(pool.fallback(), random));
                 Placed child = null;
+                Set<StructureTemplate> failed = Collections.newSetFromMap(new IdentityHashMap<>());
                 for (int c = 0; c < candidates.size() && child == null; c++) {
                     StructureTemplate candidate = candidates.get(c);
+                    if (failed.contains(candidate)) {
+                        continue;
+                    }
                     List<Integer> rotations = new ArrayList<>(List.of(0, 1, 2, 3));
                     Collections.shuffle(rotations, random);
                     for (int r = 0; r < rotations.size() && child == null; r++) {
                         int childRotation = rotations.get(r);
-                        List<Jigsaw> childJigsaws = new ArrayList<>(MythicTemplateRewriter.jigsaws(candidate));
+                        List<Jigsaw> childJigsaws = new ArrayList<>(jigsaws(candidate));
                         Collections.shuffle(childJigsaws, random);
                         for (Jigsaw childJigsaw : childJigsaws) {
                             String childFront = rotate(childJigsaw.front(), childRotation);
@@ -99,28 +154,30 @@ final class MythicJigsawSimulator {
                             }
                             int[] local = rotatePos(childJigsaw.x(), childJigsaw.z(), childRotation);
                             Placed option = place(candidate, childRotation, targetX - local[0], targetY - childJigsaw.y(),
-                                targetZ - local[1], parent.depth() + 1);
+                                targetZ - local[1], parent.depth() + 1, world, new int[]{targetX, targetY, targetZ});
                             if (option.box().within(limit) && placed.stream().noneMatch(p -> p.box().intersects(option.box()))) {
                                 child = option;
                                 break;
                             }
                         }
                     }
+                    if (child == null) {
+                        failed.add(candidate);
+                    }
                 }
                 if (child != null) {
                     placed.add(child);
                     if (child.depth() <= maxDepth) {
-                        queue.addLast(child);
+                        queue.add(new Pending(child, intValue(jigsaw, "placement_priority"), order++));
                     }
                 }
             }
         }
-        return placed;
+        return new Result(placed, limit, centerX, centerZ);
     }
 
-    private static int priority(Jigsaw jigsaw) {
-        return jigsaw.nbt() == null || !(jigsaw.nbt().get("selection_priority") instanceof dev.linqfy.bigCasares.dimension.nbt.Nbt.IntTag tag)
-            ? 0 : tag.value();
+    static int intValue(Jigsaw jigsaw, String key) {
+        return jigsaw.nbt() == null || !(jigsaw.nbt().get(key) instanceof IntTag tag) ? 0 : tag.value();
     }
 
     private static String joint(Jigsaw jigsaw) {
@@ -142,18 +199,14 @@ final class MythicJigsawSimulator {
         return result;
     }
 
-    private static Placed place(StructureTemplate template, int rotation, int x, int y, int z, int depth) {
-        int[] size = MythicTemplateRewriter.size(template);
+    private Placed place(StructureTemplate template, int rotation, int x, int y, int z, int depth, int[] parentCell,
+                         int[] childCell) {
+        int[] size = size(template);
         int[] a = rotatePos(0, 0, rotation);
         int[] b = rotatePos(size[0] - 1, size[2] - 1, rotation);
         Box box = new Box(x + Math.min(a[0], b[0]), y, z + Math.min(a[1], b[1]),
             x + Math.max(a[0], b[0]), y + size[1] - 1, z + Math.max(a[1], b[1]));
-        return new Placed(template, rotation, x, y, z, box, depth);
-    }
-
-    private static int[] worldPos(Placed piece, Jigsaw jigsaw) {
-        int[] local = rotatePos(jigsaw.x(), jigsaw.z(), piece.rotation());
-        return new int[]{piece.originX() + local[0], piece.originY() + jigsaw.y(), piece.originZ() + local[1]};
+        return new Placed(template, rotation, x, y, z, box, depth, parentCell, childCell);
     }
 
     /** Vanilla rotation about the template origin: clockwise 90 maps (x, z) to (-z, x). */

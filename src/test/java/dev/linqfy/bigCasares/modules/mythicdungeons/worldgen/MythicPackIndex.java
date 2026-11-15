@@ -29,7 +29,16 @@ final class MythicPackIndex {
     final Map<String, Pool> pools = new TreeMap<>();
 
     MythicPackIndex(GeneratedDatapack pack) {
+        this(pack, null);
+    }
+
+    /**
+     * Index of one culture only ({@code null}: all). The decoded templates of the whole pack do not fit
+     * the shared test heap next to the other worldgen tests, so tests check cultures one at a time.
+     */
+    MythicPackIndex(GeneratedDatapack pack, String culture) {
         this.pack = pack;
+        String prefix = culture == null ? null : culture + "/";
         for (String path : pack.paths()) {
             String[] parts = path.split("/", 3);
             if (parts.length < 3 || !parts[0].equals("data")) {
@@ -37,6 +46,10 @@ final class MythicPackIndex {
             }
             String namespace = parts[1];
             String rest = parts[2];
+            if (prefix != null && !(namespace.equals(MythicDungeonTheme.NAMESPACE)
+                && (rest.startsWith("structure/" + prefix) || rest.startsWith("worldgen/template_pool/" + prefix)))) {
+                continue;
+            }
             if (rest.startsWith("structure/") && rest.endsWith(".nbt")) {
                 String id = namespace + ":" + rest.substring("structure/".length(), rest.length() - 4);
                 try {

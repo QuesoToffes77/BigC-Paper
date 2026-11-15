@@ -6,7 +6,9 @@ import java.util.function.DoubleSupplier;
 /**
  * Si un mob mitico suelta su Fragmento de Odio (sin servidor). Solo los que nacieron en la mazmorra (marca
  * {@code mythic_dungeon_spawn}) y los mato un jugador; siempre el fragmento de la cultura del propio mob.
- * Cada nivel de Botin suma {@code lootingBonusPerLevel} a la chance (sin pasar de 1).
+ * Cada nivel de Botin suma {@code lootingBonusPerLevel} a la chance (sin pasar de 1). Las culturas que todavia no
+ * tienen jefe no tienen fragmento: para sus mobs la chance es 0 aunque el catalogo o el yml digan otra cosa (sus
+ * drops vanilla y su experiencia no pasan por aca y siguen igual).
  */
 public final class FragmentDropRoll {
 
@@ -22,7 +24,7 @@ public final class FragmentDropRoll {
     }
 
     public double chance(MythicMobType type, int lootingLevel) {
-        if (type.fragmentChance() <= 0.0) {
+        if (type.fragmentChance() <= 0.0 || type.culture().fragmentItemId().isEmpty()) {
             return 0.0;
         }
         return Math.min(1.0, type.fragmentChance() + Math.max(0, lootingLevel) * lootingBonusPerLevel);

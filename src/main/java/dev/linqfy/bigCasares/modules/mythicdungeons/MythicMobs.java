@@ -13,6 +13,7 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.AbstractSkeleton;
+import org.bukkit.entity.Bat;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Explosive;
@@ -97,6 +98,8 @@ public final class MythicMobs implements Listener {
         final MythicMobType type;
         final List<LivingEntity> summons = new ArrayList<>();
         long nextAbilityRun;
+        /** Para los voladores dirigidos, que pegan por contacto (su IA vanilla esta apagada). */
+        long nextContactRun;
 
         Tracked(LivingEntity entity, MythicMobType type) {
             this.entity = entity;
@@ -385,7 +388,23 @@ public final class MythicMobs implements Listener {
     }
 
     Optional<LivingEntity> spawnSummon(MythicMobType type, Location location) {
-        return spawn(type, location, false);
+        return fitNear(type, location, 2, 1).flatMap(spot -> spawn(type, spot, false));
+    }
+
+    /**
+     * El lugar libre mas cercano donde entra la hitbox del mob ({@link MobPlacement}), en una caja de {@code range}
+     * bloques horizontales y {@code vertical} verticales; vacio si no entra en ningun lado.
+     */
+    static Optional<Location> fitNear(MythicMobType type, Location around, int range, int vertical) {
+        World world = around.getWorld();
+        if (world == null) {
+            return Optional.empty();
+        }
+        MobPlacement.Spot center = new MobPlacement.Spot(around.getBlockX(), around.getBlockY(), around.getBlockZ());
+        return MobPlacement.nearestFit(new WorldBlockGrid(world), center, center, range, vertical,
+                type.hitboxWidth(), type.hitboxHeight())
+            .map(spot -> new Location(world, spot.x() + 0.5, spot.y(), spot.z() + 0.5, around.getYaw(),
+                around.getPitch()));
     }
 
     void applyEffects(LivingEntity target, List<MythicEffect> list) {
@@ -444,7 +463,7 @@ public final class MythicMobs implements Listener {
         entity.getPersistentDataContainer().set(keys.mob, PersistentDataType.STRING, type.id());
         entity.getPersistentDataContainer().set(keys.dungeonSpawn, PersistentDataType.BYTE,
             (byte) (dungeonSpawn ? 1 : 0));
-        boolean flyer = type.baseEntity() == EntityType.VEX || type.baseEntity() == EntityType.PHANTOM;
+        boolean flyer = type.baseEntity() == EntityType.VEX || type.steeredFlyer();
         setBase(entity, Attribute.MAX_HEALTH, type.health());
         setBase(entity, Attribute.ATTACK_DAMAGE, type.damage());
         if (!flyer) {
@@ -465,6 +484,14 @@ public final class MythicMobs implements Listener {
         }
         if (type.floating()) {
             entity.setGravity(false);
+        }
+        if (type.steeredFlyer() && entity instanceof Mob mob) {
+            // sin IA vanilla (el phantom daria vueltas en el cielo, el murcielago revolotea al azar): lo dirige
+            // MythicMobBehaviours con velocidad, asi que choca con las paredes como cualquier entidad
+            mob.setAware(false);
+        }
+        if (entity instanceof Bat bat) {
+            bat.setAwake(true);
         }
         configureEquipment(entity, type);
         if (entity instanceof Zombie zombie) {

@@ -19,5 +19,10 @@ public enum MythicBehaviour {
     /** Atrapa y frena al objetivo cuando lo tiene encima. */
     CONSTRICTOR,
     /** Aguanta y golpea el piso: empuja a los que lo rodean. */
-    TANK
+    TANK,
+    /**
+     * Hechicero esquivo: dispara proyectiles ({@link MythicProjectile}) a distancia y, si el objetivo se le pega, se
+     * teletransporta lejos en vez de pelear cuerpo a cuerpo.
+     */
+    BLINK_CASTER
 }

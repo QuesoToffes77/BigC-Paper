@@ -57,8 +57,8 @@ class MythicDungeonsModuleWiringTest {
         MythicDungeonSettings settings = MythicDungeonSettings.load(yaml(MythicDungeonsModule.CONFIG_FILE));
         assertEquals(List.of(), settings.warnings());
         assertEquals(Material.LODESTONE, settings.altarMaterial());
-        assertEquals(16, settings.mobs().all().size());
-        for (MythicCulture culture : MythicCulture.developedCultures()) {
+        assertEquals(27, settings.mobs().all().size());
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
             assertTrue(settings.rewardFor(culture).xp() > 0, culture.id());
             assertTrue(!settings.rewardFor(culture).items().isEmpty(), culture.id());
         }

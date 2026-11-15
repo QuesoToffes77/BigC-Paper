@@ -12,35 +12,37 @@ import java.util.Objects;
  * pool weight next to the built-in pieces ({@link MythicDungeonDatapack#BUILT_IN_WEIGHT} each).
  * Connector names are the {@code name} field of jigsaw blocks inside the template.</p>
  *
- * <p>Roles and how jigsaws are rewritten (horizontal = facing north/south/east/west):</p>
+ * <p>Roles and how jigsaws are rewritten (horizontal = facing north/south/east/west). Where a piece goes
+ * depends on the culture's {@link MythicDungeonTheme.Layout}; extra pieces never join the spine (the
+ * guaranteed path to the arena), only branches and starts:</p>
  * <ul>
- *     <li>{@link Role#SIDE_ROOM}: dead-end room off a hall or room doorway. {@code entryConnector}
- *     must be a horizontal jigsaw; it becomes the entry. Along the face that holds the entry,
- *     the template may extend at most {@link MythicDungeonDatapack#SIDE_ROOM_HALF_WIDTH} blocks to
- *     either side of the connector (so at most 9 wide), which keeps it within the parent's span and
- *     away from the next piece of the main chain. Every other jigsaw is sealed
- *     (its pool becomes the culture's seal pool).</li>
- *     <li>{@link Role#CORRIDOR}: alternative to the code-built halls. {@code entryConnector} and
- *     {@code exitConnector} must be horizontal jigsaws facing opposite ways; the exit continues the
- *     main chain (it is used for both hall stages). Length along the chain at most {@link MythicDungeonDatapack#CORRIDOR_MAX_LENGTH},
- *     exit at most 8 blocks lower and never higher than the entry, lateral offset at most 8 — this
- *     keeps the arena inside the jigsaw distance limit. Other horizontal jigsaws whose position lets a
- *     9-wide side room stay within the corridor's length become side doorways; the rest are sealed.</li>
- *     <li>{@link Role#SURFACE_ENTRANCE}: alternative start piece. {@code entryConnector} must face down
- *     ({@code down_*}) in the bottom layer within
- *     {@link MythicDungeonDatapack#SURFACE_ENTRANCE_MAX_CONNECTOR_OFFSET} blocks of the template centre
- *     on each horizontal axis; the full code-built
- *     dungeon hangs below it. The builder clears a 3x3, 4-tall opening above the connector. Other
- *     jigsaws are neutralised (they just become their final state).</li>
- *     <li>{@link Role#FULL_DUNGEON}: a complete surface building used as alternative start. Its
- *     {@code entryConnector} (facing down, bottom layer, within
- *     {@link MythicDungeonDatapack#FULL_DUNGEON_MAX_CONNECTOR_OFFSET} of the centre) leads to a short
- *     descent straight to the boss arena; its other horizontal jigsaws open onto the culture's side
- *     rooms (sealed when nothing fits), vertical ones are neutralised.</li>
+ *     <li>{@link Role#SIDE_ROOM}: dead-end room in the branch pool. {@code entryConnector} must be a
+ *     horizontal jigsaw; it becomes the entry. Along the face that holds the entry, the template may extend
+ *     at most {@link MythicDungeonDatapack#SIDE_ROOM_HALF_WIDTH} blocks to either side of the connector (so
+ *     at most 9 wide). Every other jigsaw is sealed. Side rooms carry no loot (chests are removed).</li>
+ *     <li>{@link Role#CORRIDOR}: branch corridor. {@code entryConnector} and {@code exitConnector} must be
+ *     horizontal jigsaws facing opposite ways, the exit 0..{@link MythicDungeonDatapack#CORRIDOR_MAX_DROP}
+ *     blocks below the entry; exit and other horizontal jigsaws (not on the entry's face) open onto the
+ *     branch pool. Surface cultures keep one floor level: they skip corridors that drop and only open side
+ *     jigsaws at the entry's level.</li>
+ *     <li>{@link Role#SURFACE_ENTRANCE}: alternative start of an underground culture. {@code entryConnector}
+ *     must face down ({@code down_*}) in the bottom layer within
+ *     {@link MythicDungeonDatapack#SURFACE_ENTRANCE_MAX_CONNECTOR_OFFSET} blocks of the template centre on each
+ *     horizontal axis; the whole underground dungeon hangs below it. The builder clears a 3x3, 4-tall opening
+ *     above the connector; other jigsaws are neutralised. Surface cultures skip these pieces.</li>
+ *     <li>{@link Role#FULL_DUNGEON}: a complete building. Its {@code entryConnector} faces down in the bottom
+ *     layer within {@link MythicDungeonDatapack#FULL_DUNGEON_MAX_CONNECTOR_OFFSET} of the centre. Underground
+ *     cultures use it as an alternative start (like a surface entrance; its horizontal jigsaws become open
+ *     gates). Surface cultures use it as a dead-end wing building in the branch pool: its first horizontal
+ *     jigsaw (template order) is the entry, the others become open gates and the descent closes.</li>
  * </ul>
- * {@code exitConnector} is only used (and required) by {@link Role#CORRIDOR}. Connectors of the
- * surface roles get selection priority 1, so the descent is always placed before anything else.
- * Every template must stay within 48 blocks per axis and use only {@code minecraft:} ids.
+ * {@code exitConnector} is only used (and required) by {@link Role#CORRIDOR}. Every template must stay within
+ * 48 blocks per axis, use only {@code minecraft:} ids, contain no lodestone and not have the arena's 35x35
+ * footprint (all of these throw). After the rewrite every piece is made to follow the playtest rules
+ * ({@link MythicPassability}): connector doorways are opened to 3x4, spawners without room for large mobs and
+ * unreachable spawners or chests are removed, at most one chest stays; a piece whose connectors a player
+ * cannot walk between (or, for a start, whose descent cannot be walked to from its edge), or that has no
+ * 5-wide, 5-high passage between its connectors, is left out of the pack.
  */
 public record MythicExtraPiece(
     String name,

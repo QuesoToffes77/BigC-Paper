@@ -78,7 +78,7 @@ public record MythicDungeonSettings(
         int top = Math.max(1, config.getInt("rewards.top-players", 3));
 
         Map<String, BossReward> rewards = new LinkedHashMap<>();
-        for (MythicCulture culture : MythicCulture.developedCultures()) {
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
             ConfigurationSection section = config.getConfigurationSection("rewards." + culture.requireBoss().id());
             BossReward fallback = defaultReward(culture);
             if (section == null) {

@@ -67,6 +67,10 @@ final class MythicCanvas {
         return this;
     }
 
+    boolean isSet(int x, int y, int z) {
+        return builder.isSet(x, y, z);
+    }
+
     boolean inside(int x, int y, int z) {
         return x >= 0 && y >= 0 && z >= 0 && x < sizeX && y < sizeY && z < sizeZ;
     }
@@ -153,9 +157,15 @@ final class MythicCanvas {
     /** Places a jigsaw block; see {@link MythicPieces} for the naming contract. */
     MythicCanvas jigsaw(int x, int y, int z, String orientation, NamespacedId name, NamespacedId target,
                         NamespacedId pool, BlockStateSpec finalState, int selectionPriority) {
+        return jigsaw(x, y, z, orientation, name, target, pool, finalState, selectionPriority, 0);
+    }
+
+    MythicCanvas jigsaw(int x, int y, int z, String orientation, NamespacedId name, NamespacedId target,
+                        NamespacedId pool, BlockStateSpec finalState, int selectionPriority, int placementPriority) {
         // "aligned" everywhere: for the vertical entrance->shaft link it keeps the shaft rotated
         // like the entrance; horizontal links ignore the joint.
-        CompoundTag nbt = MythicTemplateRewriter.jigsawNbt(name, target, pool, finalState.asString(), selectionPriority);
+        CompoundTag nbt = MythicTemplateRewriter.jigsawNbt(name, target, pool, finalState.asString(), selectionPriority,
+            placementPriority);
         return set(x, y, z, BlockStateSpec.of("minecraft:jigsaw", Map.of("orientation", orientation)), nbt);
     }
 

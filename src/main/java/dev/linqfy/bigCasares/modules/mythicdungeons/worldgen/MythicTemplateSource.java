@@ -16,10 +16,12 @@ import java.util.List;
  *     If a source throws or yields an invalid piece, {@link MythicDatapackInstaller} skips that
  *     source with a warning and still installs the rest of the pack.</li>
  *     <li>Pieces are validated (vanilla-only ids, connector present and correctly oriented,
- *     size limits for their role); an invalid piece rejects its whole source. The pack builder
- *     rewrites every jigsaw block of an extra piece, so the template's original pool names
- *     never matter. The boss arena and its lodestone altar remain code-built and are always
- *     reachable; extra pieces can never replace them.</li>
+ *     size limits for their role, no lodestone, no 35x35 footprint); an invalid piece rejects its
+ *     whole source. The pack builder rewrites every jigsaw block of an extra piece, so the template's
+ *     original pool names never matter. Valid pieces that do not suit the culture's layout family or
+ *     cannot meet the walkability and clearance rules are left out (see {@link MythicExtraPiece}).
+ *     The spine, the boss arena and its lodestone altar remain code-built and are always reachable;
+ *     extra pieces can never replace them.</li>
  * </ul>
  */
 @FunctionalInterface

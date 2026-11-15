@@ -8,6 +8,8 @@ import dev.linqfy.bigCasares.dimension.nbt.Nbt.IntTag;
 import dev.linqfy.bigCasares.dimension.nbt.Nbt.ListTag;
 import dev.linqfy.bigCasares.dimension.nbt.Nbt.Tag;
 import dev.linqfy.bigCasares.dimension.worldgen.StructureTemplate;
+import dev.linqfy.bigCasares.modules.mythicdungeons.AltarRule;
+import dev.linqfy.bigCasares.modules.mythicdungeons.worldgen.MythicDungeonTheme.Layout;
 import dev.linqfy.bigCasares.modules.mythicdungeons.worldgen.MythicTemplateRewriter.Jigsaw;
 import org.bukkit.Material;
 import org.junit.jupiter.api.AfterAll;
@@ -19,7 +21,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,22 +39,25 @@ class MythicDungeonDatapackTest {
         "minecraft:chests/jungle_temple");
     private static final Set<String> VANILLA_HOSTILES = Set.of(
         "minecraft:zombie", "minecraft:skeleton", "minecraft:husk", "minecraft:stray", "minecraft:spider");
-    private static final int MIN_SPAWNERS = 8;
+    private static final Map<String, Layout> FAMILIES = Map.of(
+        "medieval", Layout.SURFACE, "egyptian", Layout.SURFACE, "greek", Layout.SURFACE, "arabian", Layout.SURFACE,
+        "mesoamerican", Layout.SURFACE, "norse", Layout.UNDERGROUND, "mesopotamian", Layout.UNDERGROUND,
+        "japanese", Layout.UNDERGROUND, "andean", Layout.UNDERGROUND);
+    private static final int MIN_TEMPLATES = 12;
+    private static final int MIN_SPAWNER_TEMPLATES = 5;
+    private static final int MIN_CHEST_TEMPLATES = 4;
 
     private static GeneratedDatapack pack;
-    private static MythicPackIndex index;
 
     @BeforeAll
     static void build() {
         pack = MythicDungeonDatapack.build();
-        index = new MythicPackIndex(pack);
     }
 
     /** The decoded pack is large; the whole suite shares one test JVM, so do not keep it alive. */
     @AfterAll
     static void release() {
         pack = null;
-        index = null;
     }
 
     @Test
@@ -61,17 +68,29 @@ class MythicDungeonDatapackTest {
     }
 
     @Test
-    void everyCultureHasStructureSetTagAndPools() {
+    void everyCultureHasItsFamilyStructureSetTagAndPools() {
         Set<Integer> salts = new HashSet<>();
+        assertEquals(FAMILIES.keySet(), MythicDungeonTheme.all().stream().map(MythicDungeonTheme::culture).collect(Collectors.toSet()));
         for (MythicDungeonTheme theme : MythicDungeonTheme.all()) {
+            MythicPackIndex index = new MythicPackIndex(pack, theme.culture());
+            assertEquals(FAMILIES.get(theme.culture()), theme.layout(), theme.culture());
             String id = theme.structureId().asString();
             JsonObject structure = index.json(MythicPackIndex.jsonPath("worldgen/structure", id)).getAsJsonObject();
             assertEquals("minecraft:jigsaw", structure.get("type").getAsString());
             assertEquals("#bigc_myth:has_structure/" + theme.culture(), structure.get("biomes").getAsString());
             assertTrue(structure.get("size").getAsInt() >= 1 && structure.get("size").getAsInt() <= 20);
+            String adaptation = structure.get("terrain_adaptation").getAsString();
+            int maxDistance = structure.get("max_distance_from_center").getAsInt();
             // vanilla refuses the whole pack (the server does not start) above 128 including the adaptation margin
-            int adaptationMargin = "none".equals(structure.get("terrain_adaptation").getAsString()) ? 0 : 12;
-            assertTrue(structure.get("max_distance_from_center").getAsInt() + adaptationMargin <= 128);
+            int adaptationMargin = "none".equals(adaptation) ? 0 : 12;
+            assertTrue(maxDistance + adaptationMargin <= 128, theme.culture());
+            if (theme.layout() == Layout.SURFACE) {
+                assertTrue(List.of("beard_thin", "beard_box").contains(adaptation), theme.culture() + " " + adaptation);
+                assertEquals(116, maxDistance, theme.culture());
+            } else {
+                assertEquals("none", adaptation, theme.culture());
+                assertEquals(128, maxDistance, theme.culture());
+            }
             assertEquals("WORLD_SURFACE_WG", structure.get("project_start_to_heightmap").getAsString());
             assertTrue(index.pools.containsKey(structure.get("start_pool").getAsString()));
 
@@ -79,7 +98,11 @@ class MythicDungeonDatapackTest {
             assertEquals(id, set.getAsJsonArray("structures").get(0).getAsJsonObject().get("structure").getAsString());
             JsonObject placement = set.getAsJsonObject("placement");
             int spacing = placement.get("spacing").getAsInt();
-            assertTrue(spacing >= 40 && spacing <= 60, theme.culture() + " spacing " + spacing);
+            int separation = placement.get("separation").getAsInt();
+            assertTrue(spacing > separation && spacing <= 64, theme.culture() + " spacing " + spacing);
+            // two starts of one set are at least separation + 1 chunks apart; the start piece may sit up to 48 blocks
+            // from its chunk corner: the footprints (max distance each way) never overlap
+            assertTrue(separation * 16 - 48 > 2 * maxDistance, theme.culture() + " separation " + separation);
             assertTrue(salts.add(placement.get("salt").getAsInt()), "salts must differ");
 
             JsonObject tag = index.json(MythicPackIndex.jsonPath("tags/worldgen/biome", "bigc_myth:has_structure/" + theme.culture()))
@@ -88,11 +111,19 @@ class MythicDungeonDatapackTest {
             for (JsonElement biome : tag.getAsJsonArray("values")) {
                 assertTrue(isVanillaBiome(biome.getAsString()), "unknown biome " + biome);
             }
+            String startTemplate = index.pools.get(structure.get("start_pool").getAsString()).elements().getFirst().location();
+            assertTrue(startTemplate.endsWith(theme.layout() == Layout.SURFACE ? "/pieces/plaza" : "/pieces/entrance"), startTemplate);
         }
     }
 
     @Test
     void poolsTemplatesAndJigsawsResolve() {
+        for (MythicDungeonTheme theme : MythicDungeonTheme.all()) {
+            checkReferences(new MythicPackIndex(pack, theme.culture()));
+        }
+    }
+
+    static void checkReferences(MythicPackIndex index) {
         for (MythicPackIndex.Pool pool : index.pools.values()) {
             assertFalse(pool.elements().isEmpty(), pool.id());
             for (MythicPackIndex.Element element : pool.elements()) {
@@ -120,6 +151,12 @@ class MythicDungeonDatapackTest {
 
     @Test
     void templatesUseOnlyVanillaBlocksAndValidBlockEntities() {
+        for (MythicDungeonTheme theme : MythicDungeonTheme.all()) {
+            checkTemplates(new MythicPackIndex(pack, theme.culture()));
+        }
+    }
+
+    static void checkTemplates(MythicPackIndex index) {
         for (var entry : index.templates.entrySet()) {
             StructureTemplate template = entry.getValue();
             int[] size = MythicTemplateRewriter.size(template);
@@ -150,36 +187,65 @@ class MythicDungeonDatapackTest {
         }
     }
 
+    /**
+     * Exactly one lodestone per culture, standing on the arena floor near its centre (the runtime altar rule),
+     * and no other piece with the arena's 35x35 footprint.
+     */
     @Test
-    void eachCultureHasOneAltarInAnOpenArenaAndEnoughSpawners() {
+    void onlyTheArenaHasTheAltarAndTheArenaFootprint() {
         for (MythicDungeonTheme theme : MythicDungeonTheme.all()) {
-            int lodestones = 0;
-            int spawners = 0;
-            int chests = 0;
+            checkAltarAndFootprints(new MythicPackIndex(pack, theme.culture()), theme);
+        }
+    }
+
+    static void checkAltarAndFootprints(MythicPackIndex index, MythicDungeonTheme theme) {
+        int lodestones = 0;
+        for (StructureTemplate template : index.cultureTemplates(theme.culture())) {
+            Grid grid = new Grid(template);
+            int here = grid.count("minecraft:lodestone");
+            lodestones += here;
+            boolean arena = template.id().path().endsWith("/pieces/arena");
+            if (here > 0) {
+                assertTrue(arena, "lodestone outside arena: " + template.id());
+            }
+            boolean arenaFootprint = grid.sizeX == AltarRule.ARENA_SIDE && grid.sizeZ == AltarRule.ARENA_SIDE;
+            assertEquals(arena, arenaFootprint, template.id() + " footprint " + grid.sizeX + "x" + grid.sizeZ);
+        }
+        assertEquals(1, lodestones, theme.culture());
+        Grid arena = new Grid(index.templates.get("bigc_myth:" + theme.culture() + "/pieces/arena"));
+        int altarX = MythicPieces.ALTAR_X;
+        int altarZ = MythicPieces.ALTAR_Z;
+        assertEquals("minecraft:lodestone", arena.name(altarX, 1, altarZ));
+        assertTrue(AltarRule.isAltarSpot(0, 0, 0, arena.sizeX - 1, arena.sizeZ - 1, altarX, 1, altarZ), theme.culture());
+        assertTrue(arena.solid(altarX, 0, altarZ), "altar stands on the floor");
+    }
+
+    @Test
+    void eachCultureHasAnOpenWatertightArenaAndEnoughVariety() {
+        for (MythicDungeonTheme theme : MythicDungeonTheme.all()) {
+            MythicPackIndex index = new MythicPackIndex(pack, theme.culture());
+            int spawnerTemplates = 0;
+            int chestTemplates = 0;
+            Set<String> pieces = new HashSet<>();
             for (StructureTemplate template : index.cultureTemplates(theme.culture())) {
                 Grid grid = new Grid(template);
-                int here = grid.count("minecraft:lodestone");
-                lodestones += here;
-                if (here > 0) {
-                    assertTrue(template.id().path().endsWith("/pieces/arena"), "lodestone outside arena: " + template.id());
-                }
-                spawners += grid.count("minecraft:spawner");
-                chests += grid.count("minecraft:chest");
+                pieces.add(template.id().path());
+                spawnerTemplates += grid.count("minecraft:spawner") > 0 ? 1 : 0;
+                chestTemplates += grid.count("minecraft:chest") > 0 ? 1 : 0;
             }
-            assertEquals(1, lodestones, theme.culture());
-            assertTrue(spawners >= MIN_SPAWNERS, theme.culture() + " spawners " + spawners);
-            assertTrue(chests >= 4, theme.culture() + " chests " + chests);
+            assertTrue(pieces.size() >= MIN_TEMPLATES, theme.culture() + " has " + pieces.size() + " templates");
+            assertTrue(spawnerTemplates >= MIN_SPAWNER_TEMPLATES, theme.culture() + " spawner rooms " + spawnerTemplates);
+            assertTrue(chestTemplates >= MIN_CHEST_TEMPLATES, theme.culture() + " chest rooms " + chestTemplates);
 
             Grid arena = new Grid(index.templates.get("bigc_myth:" + theme.culture() + "/pieces/arena"));
+            assertEquals(MythicPieces.ARENA_SIZE, arena.sizeX);
+            assertEquals(MythicPieces.ARENA_SIZE, arena.sizeZ);
             assertTrue(arena.largestOpenSquare(10) >= 27, theme.culture() + " arena open square " + arena.largestOpenSquare(10));
-            int altarX = MythicPieces.ALTAR_X;
-            int altarZ = MythicPieces.ALTAR_Z;
-            assertEquals("minecraft:lodestone", arena.name(altarX, 1, altarZ));
-            assertTrue(arena.solid(altarX, 0, altarZ), "altar stands on the floor");
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -2; dz <= 2; dz++) {
                     if (dx != 0 || dz != 0) {
-                        assertEquals("minecraft:air", arena.name(altarX + dx, 1, altarZ + dz), "free space around altar");
+                        assertEquals("minecraft:air", arena.name(MythicPieces.ALTAR_X + dx, 1, MythicPieces.ALTAR_Z + dz),
+                            "free space around altar");
                     }
                 }
             }
@@ -187,7 +253,20 @@ class MythicDungeonDatapackTest {
         }
     }
 
-    private static boolean isVanillaBiome(String id) {
+    /** Walkability, doorway size, large-mob passages and spawner clearance, template by template. */
+    @Test
+    void everyTemplateIsWalkableAndRoomyEnough() {
+        for (MythicDungeonTheme theme : MythicDungeonTheme.all()) {
+            MythicPackIndex index = new MythicPackIndex(pack, theme.culture());
+            List<String> problems = new ArrayList<>();
+            for (StructureTemplate template : index.cultureTemplates(theme.culture())) {
+                problems.addAll(MythicTemplateRules.violations(template));
+            }
+            assertEquals(List.of(), problems, theme.culture());
+        }
+    }
+
+    static boolean isVanillaBiome(String id) {
         return declaresConstant("org.bukkit.block.Biome", id);
     }
 
@@ -195,7 +274,7 @@ class MythicDungeonDatapackTest {
      * True when the API type declares a constant for the vanilla id. Read reflectively without
      * initialising the class, which would need a live server registry.
      */
-    private static boolean declaresConstant(String typeName, String id) {
+    static boolean declaresConstant(String typeName, String id) {
         if (!id.startsWith("minecraft:")) {
             return false;
         }

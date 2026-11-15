@@ -1,12 +1,12 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons;
 
+import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.entity.AbstractSkeleton;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
@@ -33,6 +33,14 @@ final class MythicMobBehaviours {
 
     private static final int RUNS_PER_SECOND = (int) (20 / MythicMobs.TICK_PERIOD);
     private static final int MAX_SUMMONS = 3;
+    /** Un {@link MythicBehaviour#BLINK_CASTER} se teletransporta cuando el objetivo esta a menos de esto. */
+    static final double BLINK_TRIGGER = 4.0;
+    /** A que distancia del objetivo reaparece. */
+    static final double BLINK_RANGE = 8.0;
+    /** Velocidad (bloques por tick) de un volador dirigido por cada punto de su {@code speed}. */
+    static final double STEER_FACTOR = 0.5;
+    /** Cada cuantas corridas puede pegar por contacto un volador dirigido (1 s). */
+    private static final int CONTACT_RUNS = RUNS_PER_SECOND;
 
     private final MythicMobs mobs;
 
@@ -48,11 +56,19 @@ final class MythicMobBehaviours {
             ensureTarget(entity);
         }
         LivingEntity target = entity.getTarget();
-        if (target == null || !target.isValid() || target.isDead() || !target.getWorld().equals(entity.getWorld())
-            || run < mob.nextAbilityRun) {
+        if (target == null || !target.isValid() || target.isDead() || !target.getWorld().equals(entity.getWorld())) {
+            if (mob.type.steeredFlyer()) {
+                entity.setVelocity(entity.getVelocity().multiply(0.5)); // sin objetivo se queda flotando
+            }
             return;
         }
         double distance = entity.getLocation().distance(target.getLocation());
+        if (mob.type.steeredFlyer()) {
+            steer(mob, entity, target, distance, run);
+        }
+        if (run < mob.nextAbilityRun) {
+            return;
+        }
         boolean used = switch (mob.type.behaviour()) {
             case MELEE -> false;
             case LEAPER -> leap(mob, entity, target, distance);
@@ -60,9 +76,11 @@ final class MythicMobBehaviours {
             case FLYER_DIVE -> dive(entity, target, distance);
             case CASTER -> aura(mob, entity, distance);
             case SUMMONER -> summon(mob, entity, target);
-            case PHASER -> phase(entity, target, distance);
+            case PHASER -> phase(mob, entity, target, distance);
             case CONSTRICTOR -> constrict(mob, entity, target, distance);
             case TANK -> slam(mob, entity, distance);
+            case BLINK_CASTER -> shouldBlink(distance) ? blinkAway(mob, entity, target)
+                : shoot(mob, entity, target, distance);
         };
         if (used) {
             mob.nextAbilityRun = run + Math.round(cooldownSeconds(mob.type) * RUNS_PER_SECOND);
@@ -80,8 +98,14 @@ final class MythicMobBehaviours {
             case PHASER -> 6.0;
             case CONSTRICTOR -> 6.0;
             case TANK -> 8.0;
+            case BLINK_CASTER -> 4.0;
         };
         return type.elite() ? base * 0.8 : base;
+    }
+
+    /** Si un {@link MythicBehaviour#BLINK_CASTER} a esta distancia del objetivo se aleja (si no, dispara). */
+    static boolean shouldBlink(double distance) {
+        return distance < BLINK_TRIGGER;
     }
 
     private static void ensureTarget(Mob entity) {
@@ -99,8 +123,29 @@ final class MythicMobBehaviours {
         }
     }
 
+    /**
+     * Los voladores dirigidos van hacia el objetivo con velocidad (chocan con las paredes como cualquier entidad: no
+     * hay teletransporte) y pegan por contacto, porque su IA vanilla esta apagada.
+     */
+    private static void steer(MythicMobs.Tracked mob, Mob entity, LivingEntity target, double distance, long run) {
+        Location aim = target.getLocation().add(0, target.getHeight() * 0.6, 0);
+        Vector toward = aim.toVector().subtract(entity.getLocation().toVector());
+        if (toward.lengthSquared() > 1.0E-6) {
+            Vector velocity = toward.normalize().multiply(mob.type.speed() * STEER_FACTOR);
+            entity.setVelocity(velocity);
+            Location facing = entity.getLocation().setDirection(velocity);
+            entity.setRotation(facing.getYaw(), facing.getPitch());
+        }
+        double reach = mob.type.hitboxWidth() / 2.0 + 1.0;
+        if (distance <= reach && run >= mob.nextContactRun && entity.hasLineOfSight(target)) {
+            // el evento de dano aplica los efectos al pegar (MythicMobs#onDamage)
+            target.damage(mob.type.damage(), entity);
+            mob.nextContactRun = run + CONTACT_RUNS;
+        }
+    }
+
     private boolean leap(MythicMobs.Tracked mob, Mob entity, LivingEntity target, double distance) {
-        if (distance < 3.0 || distance > 10.0 || !entity.isOnGround()) {
+        if (distance < 3.0 || distance > 10.0 || !entity.isOnGround() || !entity.hasLineOfSight(target)) {
             return false;
         }
         Vector direction = horizontal(entity, target);
@@ -167,7 +212,8 @@ final class MythicMobBehaviours {
         }
         boolean hit = false;
         for (Player player : entity.getWorld().getPlayers()) {
-            if (MythicMobs.isVulnerable(player) && player.getLocation().distanceSquared(entity.getLocation()) <= 36.0) {
+            if (MythicMobs.isVulnerable(player) && player.getLocation().distanceSquared(entity.getLocation()) <= 36.0
+                && entity.hasLineOfSight(player)) {
                 mobs.applyEffects(player, mob.type.onHit());
                 hit = true;
             }
@@ -204,7 +250,11 @@ final class MythicMobBehaviours {
         return true;
     }
 
-    private static boolean phase(Mob entity, LivingEntity target, double distance) {
+    /**
+     * Solo el Fantasma ({@link MythicMobType#phasesThroughWalls()}): reaparece detras o al costado del objetivo, en un
+     * lugar donde entra su hitbox y desde el que ve al objetivo (nunca adentro de un bloque ni detras de una pared).
+     */
+    private static boolean phase(MythicMobs.Tracked mob, Mob entity, LivingEntity target, double distance) {
         if (distance < 3.0 || distance > 16.0) {
             return false;
         }
@@ -217,7 +267,8 @@ final class MythicMobBehaviours {
         for (Vector offset : List.of(facing.clone().multiply(-2.0), side.clone().multiply(2.0),
             side.clone().multiply(-2.0))) {
             Location destination = target.getLocation().add(offset);
-            if (!passable(destination)) {
+            if (!fits(mob.type, destination) || !clearPath(destination.clone().add(0, 1.0, 0),
+                target.getEyeLocation())) {
                 continue;
             }
             Location from = entity.getLocation();
@@ -227,6 +278,37 @@ final class MythicMobBehaviours {
             world.spawnParticle(Particle.LARGE_SMOKE, from.add(0, 1, 0), 20, 0.3, 0.6, 0.3, 0.01);
             world.spawnParticle(Particle.PORTAL, destination.clone().add(0, 1, 0), 30, 0.3, 0.6, 0.3, 0.2);
             world.playSound(destination, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0F, 0.7F);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Reaparece a {@link #BLINK_RANGE} bloques del objetivo, probando primero del lado opuesto al que esta y despues
+     * girando de a 45 grados. Solo va a lugares donde entra su hitbox y que ve desde donde esta parado (no salta
+     * paredes); si no hay ninguno no hace nada y reintenta en la proxima corrida.
+     */
+    private static boolean blinkAway(MythicMobs.Tracked mob, Mob entity, LivingEntity target) {
+        Vector away = entity.getLocation().toVector().subtract(target.getLocation().toVector()).setY(0);
+        if (away.lengthSquared() < 1.0E-6) {
+            away = new Vector(1, 0, 0);
+        }
+        away.normalize();
+        for (int step = 0; step < 8; step++) {
+            double angle = (step % 2 == 0 ? 1 : -1) * ((step + 1) / 2) * (Math.PI / 4.0);
+            Vector direction = away.clone().rotateAroundY(angle).multiply(BLINK_RANGE);
+            Location destination = target.getLocation().add(direction);
+            if (!fits(mob.type, destination) || !clearPath(entity.getEyeLocation(),
+                destination.clone().add(0, mob.type.hitboxHeight() * 0.85, 0))) {
+                continue;
+            }
+            Location from = entity.getLocation();
+            destination.setDirection(target.getLocation().toVector().subtract(destination.toVector()));
+            entity.teleport(destination);
+            World world = entity.getWorld();
+            world.spawnParticle(Particle.FLAME, from.add(0, 1, 0), 30, 0.3, 0.7, 0.3, 0.03);
+            world.spawnParticle(Particle.LARGE_SMOKE, destination.clone().add(0, 1, 0), 20, 0.3, 0.7, 0.3, 0.01);
+            world.playSound(destination, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0F, 1.3F);
             return true;
         }
         return false;
@@ -266,7 +348,8 @@ final class MythicMobBehaviours {
         world.spawnParticle(Particle.EXPLOSION, center, 3, radius / 2, 0.2, radius / 2, 0.0);
         world.playSound(center, Sound.ENTITY_IRON_GOLEM_ATTACK, 1.2F, 0.5F);
         for (Entity nearby : entity.getNearbyEntities(radius, 2.0, radius)) {
-            if (nearby instanceof Player player && MythicMobs.isVulnerable(player)) {
+            // el golpe al piso no atraviesa paredes
+            if (nearby instanceof Player player && MythicMobs.isVulnerable(player) && entity.hasLineOfSight(player)) {
                 Vector away = player.getLocation().toVector().subtract(center.toVector()).setY(0);
                 if (away.lengthSquared() < 1.0E-6) {
                     away = new Vector(0.1, 0, 0);
@@ -282,9 +365,35 @@ final class MythicMobBehaviours {
         return direction.lengthSquared() < 1.0E-6 ? new Vector() : direction.normalize();
     }
 
-    private static boolean passable(Location location) {
-        Block feet = location.getBlock();
-        return feet.isPassable() && feet.getRelative(0, 1, 0).isPassable()
-            && !feet.getRelative(0, -1, 0).isPassable();
+    /** Si la hitbox del mob entra parada en ese lugar (aire para todo su ancho y alto, piso abajo). */
+    private static boolean fits(MythicMobType type, Location location) {
+        World world = location.getWorld();
+        if (world == null) {
+            return false;
+        }
+        MobPlacement.Spot spot = new MobPlacement.Spot(location.getBlockX(), location.getBlockY(),
+            location.getBlockZ());
+        if (!MobPlacement.fits(new WorldBlockGrid(world), spot, type.hitboxWidth(), type.hitboxHeight())) {
+            return false;
+        }
+        // centrado en el bloque, que es donde la regla comprobo el lugar
+        location.setX(spot.x() + 0.5);
+        location.setY(spot.y());
+        location.setZ(spot.z() + 0.5);
+        return true;
+    }
+
+    /** Si entre los dos puntos no hay ningun bloque que corte la vista. */
+    private static boolean clearPath(Location from, Location to) {
+        World world = from.getWorld();
+        if (world == null || !world.equals(to.getWorld())) {
+            return false;
+        }
+        Vector direction = to.toVector().subtract(from.toVector());
+        double length = direction.length();
+        if (length < 1.0E-6) {
+            return true;
+        }
+        return world.rayTraceBlocks(from, direction.normalize(), length, FluidCollisionMode.NEVER, true) == null;
     }
 }

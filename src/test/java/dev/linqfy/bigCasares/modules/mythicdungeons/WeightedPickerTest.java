@@ -47,7 +47,7 @@ class WeightedPickerTest {
     @Test
     void cultureSpawnPoolsAlwaysYieldOwnMobs() {
         MythicMobCatalog catalog = MythicMobCatalog.defaults();
-        for (MythicCulture culture : MythicCulture.developedCultures()) {
+        for (MythicCulture culture : MythicCulture.values()) {
             for (double roll : new double[] {0.0, 0.5, 0.999}) {
                 MythicMobType picked = WeightedPicker.pick(catalog.ofCulture(culture), MythicMobType::weight, roll)
                     .orElseThrow();

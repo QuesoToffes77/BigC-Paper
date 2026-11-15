@@ -2,10 +2,13 @@ package dev.linqfy.bigCasares.modules.mythicdungeons;
 
 import dev.linqfy.bigCasares.items.CustomItemRegistry;
 import org.bukkit.GameMode;
+import org.bukkit.Keyed;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.block.Crafter;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
@@ -17,10 +20,12 @@ import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.CrafterCraftEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,9 +47,15 @@ final class MythicSummoners implements Listener {
     private final MythicBossHost bosses;
     private final DungeonBossRegistry summons;
     private final Logger logger;
+    private final NamespacedKey moduleRecipe;
 
+    /**
+     * @param moduleRecipe la clave de la receta propia del modulo (cuatro items del material de los fragmentos), la
+     *                     que deja craftear aunque la receta exacta del catalogo no reconozca los fragmentos
+     */
     MythicSummoners(CustomItemRegistry items, DungeonLocator locator, MythicDungeonSettings settings,
-                    MythicBossHost bosses, DungeonBossRegistry summons, Logger logger) {
+                    MythicBossHost bosses, DungeonBossRegistry summons, Logger logger, NamespacedKey moduleRecipe) {
+        this.moduleRecipe = moduleRecipe;
         this.items = items;
         this.locator = locator;
         this.settings = settings;
@@ -154,26 +165,53 @@ final class MythicSummoners implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPrepareCraft(PrepareItemCraftEvent event) {
+        SummonerRecipeRule.Decision decision = decide(event.getInventory().getMatrix(), event.getRecipe(),
+            event.getInventory().getResult());
+        switch (decision.action()) {
+            case KEEP -> {
+            }
+            case CLEAR -> event.getInventory().setResult(null);
+            case SET -> event.getInventory().setResult(summonerStack(decision.culture().orElseThrow()).orElse(null));
+        }
+    }
+
+    /** El crafter (bloque) sigue la misma regla que la mesa. */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCrafterCraft(CrafterCraftEvent event) {
+        if (!(event.getBlock().getState(false) instanceof Crafter crafter)) {
+            return;
+        }
+        SummonerRecipeRule.Decision decision = decide(crafter.getInventory().getContents(), event.getRecipe(),
+            event.getResult());
+        switch (decision.action()) {
+            case KEEP -> {
+            }
+            case CLEAR -> event.setCancelled(true);
+            case SET -> summonerStack(decision.culture().orElseThrow())
+                .ifPresentOrElse(event::setResult, () -> event.setCancelled(true));
+        }
+    }
+
+    private SummonerRecipeRule.Decision decide(ItemStack[] matrix, Recipe recipe, ItemStack result) {
         List<String> grid = new ArrayList<>();
-        boolean mythicIngredient = false;
-        for (ItemStack ingredient : event.getInventory().getMatrix()) {
+        for (ItemStack ingredient : matrix) {
             if (ingredient == null || ingredient.getType().isAir()) {
                 continue;
             }
-            String id = itemId(ingredient).orElse(null);
-            grid.add(id);
-            mythicIngredient |= id != null && SummonerRecipeRule.isMythicItem(id);
+            grid.add(itemId(ingredient).orElse(null));
         }
-        ItemStack result = event.getInventory().getResult();
+        boolean ownRecipe = recipe instanceof Keyed keyed && keyed.getKey().equals(moduleRecipe);
         Optional<MythicCulture> resultSummoner = itemId(result).flatMap(MythicCulture::bySummonerItemId);
-        if (resultSummoner.isPresent()) {
-            if (SummonerRecipeRule.result(grid).filter(resultSummoner.get()::equals).isEmpty()) {
-                event.getInventory().setResult(null);
-            }
-            return;
-        }
-        if (mythicIngredient) {
-            event.getInventory().setResult(null);
+        return SummonerRecipeRule.decide(grid, resultSummoner, ownRecipe);
+    }
+
+    private Optional<ItemStack> summonerStack(MythicCulture culture) {
+        try {
+            return culture.summonerItemId().map(id -> items.createItemStack(id, 1));
+        } catch (RuntimeException unavailable) {
+            logger.warning("[Mazmorras] No se pudo crear el Invocador de " + culture.id() + ": "
+                + unavailable.getMessage());
+            return Optional.empty();
         }
     }
 

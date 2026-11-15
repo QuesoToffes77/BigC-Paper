@@ -68,7 +68,7 @@ final class MythicEntrances {
             canvas.set(x, 0, HOLE_Z - 2, palette.accent2());
         }
         canvas.jigsaw(HOLE_X, 0, HOLE_Z, "down_south", MythicPieces.EMPTY, MythicPieces.shaftTop(theme), shaftPool,
-            MythicCanvas.AIR, 0);
+            MythicCanvas.AIR, MythicPieces.SPINE_SELECTION, MythicPieces.SPINE_PLACEMENT);
     }
 
     private static BlockStateSpec block(String id) {

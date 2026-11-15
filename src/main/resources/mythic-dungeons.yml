@@ -1,5 +1,6 @@
-# Mazmorras míticas: nueve culturas con su mazmorra. Las desarrolladas (griega, nórdica, medieval, egipcia y
-# mesopotámica) tienen además sus mobs, su Fragmento de Odio y el Invocador de su jefe; las demás siguen vanilla.
+# Mazmorras míticas: nueve culturas, cada una con su mazmorra y sus mobs. Las que tienen jefe (griega, nórdica,
+# medieval, egipcia y mesopotámica) suman su Fragmento de Odio y el Invocador; japonesa, mesoamericana, árabe y
+# sudamericana todavía no tienen jefe, así que sus mobs no sueltan fragmentos aunque tengan fragment-chance.
 # Se copia solo si falta; los cambios se aplican con /bc reload. Lo que falte o sea inválido usa el valor por defecto.
 
 altar:
@@ -31,7 +32,8 @@ rewards:
 
 # Para cambiar un mob: mobs.<id>.health|damage|speed|fragment-chance|weight (weight = peso en el sorteo de spawns).
 # Ids: minotaur cerberus erinys draugr dwarf nidhogg hel treasure_dragon kobold goblin ghost ammit apophis mummy
-#      ereshkigal galla
+#      ereshkigal galla oni cave_yokai shikome xibalba_lord xolotl camazotz_bat ghul djinn supay salamanca_viper
+#      salamanca_goat
 # Ejemplo:
 #   minotaur: {health: 50, damage: 8, fragment-chance: 0.1}
 mobs: {}

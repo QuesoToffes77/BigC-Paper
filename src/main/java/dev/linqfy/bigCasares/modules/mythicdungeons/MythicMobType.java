@@ -11,7 +11,9 @@ import java.util.Objects;
  *
  * @param summonId    el mob de la misma cultura que invoca un {@link MythicBehaviour#SUMMONER} ({@code ""} si no invoca)
  * @param scale       atributo {@code scale} de la base (1 = tamano vanilla)
- * @param floating    sin gravedad (fantasmas)
+ * @param floating    sin gravedad (fantasmas y voladores)
+ * @param phasesThroughWalls atraviesa bloques a proposito (solo el Fantasma): su base no choca con los bloques o su
+ *                    conducta lo teletransporta detras del objetivo. Todos los demas chocan con las paredes.
  */
 public record MythicMobType(
     String id,
@@ -33,7 +35,8 @@ public record MythicMobType(
     int xp,
     List<MythicDrop> drops,
     boolean elite,
-    boolean floating
+    boolean floating,
+    boolean phasesThroughWalls
 ) {
 
     public MythicMobType {
@@ -60,10 +63,25 @@ public record MythicMobType(
         return MythicCulture.mobModelKey(id);
     }
 
+    /** Ancho de la hitbox ya escalada (la vanilla de la base por {@link #scale()}). */
+    public double hitboxWidth() {
+        return MythicBody.scaled(baseEntity, scale).width();
+    }
+
+    /** Alto de la hitbox ya escalada. */
+    public double hitboxHeight() {
+        return MythicBody.scaled(baseEntity, scale).height();
+    }
+
+    /** Si el modulo lo dirige volando (base voladora con la IA vanilla apagada). */
+    public boolean steeredFlyer() {
+        return MythicBody.steeredFlyer(baseEntity);
+    }
+
     /** La misma definicion con los numeros que se pueden cambiar desde {@code mythic-dungeons.yml}. */
     public MythicMobType withTuning(double health, double damage, double speed, double fragmentChance, double weight) {
         return new MythicMobType(id, culture, displayName, baseEntity, health, damage, speed, scale, armor,
             knockbackResistance, behaviour, projectile, onHit, summonId, fragmentChance, weight, xp, drops, elite,
-            floating);
+            floating, phasesThroughWalls);
     }
 }

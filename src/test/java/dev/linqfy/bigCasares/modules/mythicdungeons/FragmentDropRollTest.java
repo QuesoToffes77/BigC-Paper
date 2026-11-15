@@ -24,10 +24,30 @@ class FragmentDropRollTest {
     @Test
     void dropsTheFragmentOfTheMobsOwnCulture() {
         for (MythicMobType mob : catalog.all()) {
+            if (!mob.culture().hasBoss()) {
+                continue;
+            }
             Optional<String> drop = rolling(0.0).roll(mob, true, true, 0);
             assertEquals(mob.culture().fragmentItemId(), drop, mob.id());
             assertTrue(drop.isPresent(), mob.id());
         }
+    }
+
+    @Test
+    void mobsOfCulturesWithoutABossNeverDropAFragment() {
+        int checked = 0;
+        for (MythicMobType mob : catalog.all()) {
+            if (mob.culture().hasBoss()) {
+                continue;
+            }
+            checked++;
+            assertTrue(mob.culture().fragmentItemId().isEmpty(), mob.id());
+            MythicMobType sure = withChance(mob.id(), 1.0);
+            assertEquals(0.0, rolling(0.0).chance(sure, 3), mob.id());
+            assertTrue(rolling(0.0).roll(sure, true, true, 3).isEmpty(), mob.id());
+            assertTrue(rolling(0.0).roll(mob, true, true, 0).isEmpty(), mob.id());
+        }
+        assertEquals(11, checked);
     }
 
     @Test

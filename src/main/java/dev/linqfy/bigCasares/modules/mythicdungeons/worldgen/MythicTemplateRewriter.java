@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 
 /** Reads jigsaw blocks of templates and rewrites them (plus forced air cells) for extra pieces. */
@@ -80,10 +81,15 @@ final class MythicTemplateRewriter {
         return result;
     }
 
+    /** True when any palette of the template contains {@code block}. */
+    static boolean containsBlock(StructureTemplate template, String block) {
+        return template.paletteBlocks().contains(block);
+    }
+
     /** Every namespaced id in palettes, block entities and entities that is not {@code minecraft:}. */
     static List<String> nonVanillaIds(StructureTemplate template) {
         CompoundTag root = template.root();
-        Set<String> ids = new java.util.TreeSet<>(template.paletteBlocks());
+        Set<String> ids = new TreeSet<>(template.paletteBlocks());
         for (Tag tag : root.getList("blocks").values()) {
             CompoundTag nbt = ((CompoundTag) tag).getCompound("nbt");
             if (nbt != null && nbt.getString("id") != null) {
@@ -160,6 +166,15 @@ final class MythicTemplateRewriter {
 
     static CompoundTag jigsawNbt(NamespacedId name, NamespacedId target, NamespacedId pool, String finalState,
                                  int selectionPriority) {
+        return jigsawNbt(name, target, pool, finalState, selectionPriority, 0);
+    }
+
+    /**
+     * Jigsaw block entity. {@code placementPriority} orders the processing of the piece attached through
+     * this jigsaw (vanilla processes higher priorities first, in placement order within a priority).
+     */
+    static CompoundTag jigsawNbt(NamespacedId name, NamespacedId target, NamespacedId pool, String finalState,
+                                 int selectionPriority, int placementPriority) {
         return Nbt.compound()
             .putString("id", "minecraft:jigsaw")
             .putString("name", name.asString())
@@ -167,7 +182,7 @@ final class MythicTemplateRewriter {
             .putString("pool", pool.asString())
             .putString("final_state", finalState)
             .putString("joint", "aligned")
-            .putInt("placement_priority", 0)
+            .putInt("placement_priority", placementPriority)
             .putInt("selection_priority", selectionPriority)
             .build();
     }

@@ -31,11 +31,11 @@ final class MythicModelInstaller {
     private MythicModelInstaller() {
     }
 
-    /** Todas las claves que el modulo conoce: los mobs, los jefes y las extra. */
+    /** Todas las claves que el modulo conoce: los mobs de las nueve culturas, los jefes que existen y las extra. */
     static List<String> knownKeys(MythicMobCatalog catalog, Collection<String> extraKeys) {
         Set<String> keys = new LinkedHashSet<>();
         catalog.all().forEach(type -> keys.add(type.modelKey()));
-        for (MythicCulture culture : MythicCulture.developedCultures()) {
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
             keys.add(culture.requireBoss().modelKey());
         }
         keys.addAll(extraKeys);

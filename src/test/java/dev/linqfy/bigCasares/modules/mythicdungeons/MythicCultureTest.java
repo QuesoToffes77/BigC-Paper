@@ -16,10 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** La tabla fija de culturas: otros trabajos (datapack, modelos, encuentros) dependen de estos ids. */
 class MythicCultureTest {
 
-    /** Las desarrolladas: id|jefe|id corto|nombre del jefe -> mobs. */
+    /** Las que tienen jefe: id|jefe|id corto|nombre del jefe -> mobs. */
     private static final Map<String, List<String>> DEVELOPED = new LinkedHashMap<>();
-    /** Solo mazmorra por ahora. */
-    private static final List<String> DUNGEON_ONLY = List.of("japanese", "mesoamerican", "arabian", "andean");
+    /** Mazmorra y mobs, sin jefe todavia: id -> mobs. */
+    private static final Map<String, List<String>> WITHOUT_BOSS = new LinkedHashMap<>();
 
     static {
         DEVELOPED.put("greek|myth-zeus|zeus|Zeus", List.of("minotaur", "cerberus", "erinys"));
@@ -27,15 +27,22 @@ class MythicCultureTest {
         DEVELOPED.put("medieval|myth-diablo|diablo|Diablo", List.of("treasure_dragon", "kobold", "goblin", "ghost"));
         DEVELOPED.put("egyptian|myth-horus|horus|Horus", List.of("ammit", "apophis", "mummy"));
         DEVELOPED.put("mesopotamian|myth-enlil|enlil|Enlil", List.of("ereshkigal", "galla"));
+        WITHOUT_BOSS.put("japanese", List.of("oni", "cave_yokai", "shikome"));
+        WITHOUT_BOSS.put("mesoamerican", List.of("xibalba_lord", "xolotl", "camazotz_bat"));
+        WITHOUT_BOSS.put("arabian", List.of("ghul", "djinn"));
+        WITHOUT_BOSS.put("andean", List.of("supay", "salamanca_viper", "salamanca_goat"));
     }
 
     @Test
-    void theDevelopedCulturesMatchTheFixedIds() {
-        assertEquals(DEVELOPED.size(), MythicCulture.developedCultures().size());
+    void theCulturesWithABossMatchTheFixedIds() {
+        assertEquals(DEVELOPED.size(), MythicCulture.bossCultures().size());
+        assertEquals(MythicCulture.bossCultures(), MythicCulture.developedCultures());
         int index = 0;
         for (Map.Entry<String, List<String>> row : DEVELOPED.entrySet()) {
             String[] columns = row.getKey().split("\\|");
             MythicCulture culture = MythicCulture.values()[index++];
+            assertTrue(culture.hasBoss());
+            assertTrue(culture.hasMobs());
             assertTrue(culture.developed());
             assertEquals(columns[0], culture.id());
             assertEquals(columns[1], culture.requireBoss().id());
@@ -52,13 +59,16 @@ class MythicCultureTest {
     }
 
     @Test
-    void theOtherFourCulturesOnlyHaveTheirDungeon() {
+    void theOtherFourCulturesHaveMobsButNoBossYet() {
         assertEquals(9, MythicCulture.values().length);
-        for (String id : DUNGEON_ONLY) {
+        for (Map.Entry<String, List<String>> row : WITHOUT_BOSS.entrySet()) {
+            String id = row.getKey();
             MythicCulture culture = MythicCulture.byId(id).orElseThrow();
+            assertTrue(culture.hasMobs(), id);
+            assertFalse(culture.hasBoss(), id);
             assertFalse(culture.developed(), id);
             assertTrue(culture.boss().isEmpty(), id);
-            assertTrue(culture.mobIds().isEmpty(), id);
+            assertEquals(row.getValue(), culture.mobIds(), id);
             assertTrue(culture.fragmentItemId().isEmpty(), id);
             assertTrue(culture.summonerItemId().isEmpty(), id);
             assertEquals("bigc_myth:" + id, culture.structureKey());
@@ -68,6 +78,13 @@ class MythicCultureTest {
         }
         assertTrue(MythicCulture.byFragmentItemId("hate_fragment_japanese").isEmpty());
         assertTrue(MythicCulture.bySummonerItemId("boss_summoner_andean").isEmpty());
+    }
+
+    @Test
+    void allNineHaveMobsAndOnlyFiveHaveABoss() {
+        assertEquals(List.of(MythicCulture.values()), MythicCulture.mobCultures());
+        assertEquals(List.of(MythicCulture.GREEK, MythicCulture.NORSE, MythicCulture.MEDIEVAL, MythicCulture.EGYPTIAN,
+            MythicCulture.MESOPOTAMIAN), MythicCulture.bossCultures());
     }
 
     @Test
@@ -88,7 +105,8 @@ class MythicCultureTest {
                 assertTrue(seen.add(MythicCulture.mobModelKey(mob)), "duplicated model " + mob);
             }
         }
-        assertEquals(16, MythicCulture.developedCultures().stream().mapToInt(c -> c.mobIds().size()).sum());
+        assertEquals(16, MythicCulture.bossCultures().stream().mapToInt(c -> c.mobIds().size()).sum());
+        assertEquals(27, MythicCulture.mobCultures().stream().mapToInt(c -> c.mobIds().size()).sum());
     }
 
     @Test

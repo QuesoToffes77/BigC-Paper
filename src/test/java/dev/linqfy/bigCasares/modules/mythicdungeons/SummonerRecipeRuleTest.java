@@ -19,7 +19,7 @@ class SummonerRecipeRuleTest {
 
     @Test
     void fourFragmentsOfTheSameBossMakeItsSummoner() {
-        for (MythicCulture culture : MythicCulture.developedCultures()) {
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
             assertEquals(Optional.of(culture), SummonerRecipeRule.result(fragments(culture, 4)));
         }
     }
@@ -46,6 +46,47 @@ class SummonerRecipeRuleTest {
             "hate_fragment_medieval", "hate_fragment_medieval")).isEmpty());
         // the postponed cultures have no fragments at all
         assertTrue(SummonerRecipeRule.result(Collections.nCopies(4, "hate_fragment_japanese")).isEmpty());
+    }
+
+    @Test
+    void theTableKeepsTheCatalogResultWhenItIsRight() {
+        SummonerRecipeRule.Decision decision = SummonerRecipeRule.decide(fragments(MythicCulture.NORSE, 4),
+            Optional.of(MythicCulture.NORSE), false);
+        assertEquals(SummonerRecipeRule.Action.KEEP, decision.action());
+    }
+
+    @Test
+    void theModuleRecipeAlwaysGetsAFreshSummonerOfTheRightBoss() {
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
+            // la receta propia propone siempre el mismo Invocador de muestra (el griego)
+            SummonerRecipeRule.Decision decision = SummonerRecipeRule.decide(fragments(culture, 4),
+                Optional.of(MythicCulture.GREEK), true);
+            assertEquals(SummonerRecipeRule.Action.SET, decision.action(), culture.id());
+            assertEquals(Optional.of(culture), decision.culture());
+        }
+    }
+
+    @Test
+    void aWrongSummonerFromAnyRecipeIsReplacedOrCleared() {
+        assertEquals(Optional.of(MythicCulture.EGYPTIAN), SummonerRecipeRule.decide(
+            fragments(MythicCulture.EGYPTIAN, 4), Optional.of(MythicCulture.GREEK), false).culture());
+        // cuatro ecos vanilla o fragmentos mezclados en la receta propia: no sale nada
+        assertEquals(SummonerRecipeRule.Action.CLEAR, SummonerRecipeRule.decide(Arrays.asList(null, null, null,
+            null), Optional.of(MythicCulture.GREEK), true).action());
+        assertEquals(SummonerRecipeRule.Action.CLEAR, SummonerRecipeRule.decide(List.of("hate_fragment_greek",
+            "hate_fragment_greek", "hate_fragment_greek", "hate_fragment_norse"), Optional.empty(), true).action());
+        assertEquals(SummonerRecipeRule.Action.CLEAR, SummonerRecipeRule.decide(fragments(MythicCulture.GREEK, 3),
+            Optional.of(MythicCulture.GREEK), false).action());
+    }
+
+    @Test
+    void fragmentsNeverServeAsTheirVanillaBaseInOtherRecipes() {
+        // por ejemplo la brujula de recuperacion, que lleva fragmentos de eco
+        List<String> compass = Arrays.asList(null, "hate_fragment_greek", null, null, null, null, null, null);
+        assertEquals(SummonerRecipeRule.Action.CLEAR,
+            SummonerRecipeRule.decide(compass, Optional.empty(), false).action());
+        assertEquals(SummonerRecipeRule.Action.KEEP,
+            SummonerRecipeRule.decide(Arrays.asList(null, null, null), Optional.empty(), false).action());
     }
 
     @Test

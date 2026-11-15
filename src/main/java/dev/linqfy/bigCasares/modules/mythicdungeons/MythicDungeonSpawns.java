@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.mythicdungeons;
 
 import com.destroystokyo.paper.event.entity.PreSpawnerSpawnEvent;
 import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.block.CreatureSpawner;
 import org.bukkit.entity.Monster;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -13,11 +15,20 @@ import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Llena las mazmorras de las culturas desarrolladas con sus mobs: los spawners que estan adentro crean mobs de su
- * cultura (sorteo con pesos) en vez del vanilla, y los hostiles naturales que nacen adentro se reemplazan con cierta
- * probabilidad. Los dos respetan un tope de mobs de mazmorra cerca. Las demas mazmorras siguen vanilla.
+ * Llena las mazmorras de las culturas con mobs ({@link MythicCulture#hasMobs()}, hoy las nueve, tengan jefe o no): los
+ * spawners que estan adentro crean mobs de su cultura (sorteo con pesos) en vez del vanilla, y los hostiles naturales
+ * que nacen adentro se reemplazan con cierta probabilidad. Los dos respetan un tope de mobs de mazmorra cerca y solo
+ * ponen un mob donde entra entero ({@link MobPlacement}): si el sorteado no entra prueban con uno mas chico de la
+ * cultura y, si ninguno entra, ese intento se pierde. Una cultura sin mobs seguiria con los spawns vanilla.
  */
 final class MythicDungeonSpawns implements Listener {
+
+    /** El alcance vanilla de un spawner cuando no se puede leer el suyo. */
+    private static final int DEFAULT_SPAWN_RANGE = 4;
+    /** Los spawners vanilla ponen mobs entre un bloque abajo y uno arriba del spawner. */
+    private static final int SPAWN_VERTICAL = 1;
+    /** Cuanto se corre un reemplazo de spawn natural buscando lugar. */
+    private static final int NATURAL_RANGE = 2;
 
     private final MythicMobs mobs;
     private final DungeonLocator locator;
@@ -35,13 +46,18 @@ final class MythicDungeonSpawns implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPreSpawner(PreSpawnerSpawnEvent event) {
-        Optional<MythicCulture> culture = developedAt(event.getSpawnerLocation());
+        Optional<MythicCulture> culture = populatedAt(event.getSpawnerLocation());
         if (culture.isEmpty()) {
             return;
         }
         event.setCancelled(true);
         event.setShouldAbortSpawn(true);
-        spawnFor(culture.get(), event.getSpawnLocation());
+        Location spawner = event.getSpawnerLocation();
+        int range = DEFAULT_SPAWN_RANGE;
+        if (spawner.getBlock().getState(false) instanceof CreatureSpawner state) {
+            range = Math.max(1, state.getSpawnRange());
+        }
+        spawnFor(culture.get(), event.getSpawnLocation(), spawner, range);
     }
 
     /** Red de seguridad: si un mob vanilla de un spawner de la mazmorra se coló igual, no nace. */
@@ -50,7 +66,7 @@ final class MythicDungeonSpawns implements Listener {
         if (mobs.keys().isOwnEntity(event.getEntity()) || event.getSpawner() == null) {
             return;
         }
-        if (developedAt(event.getSpawner().getLocation()).isPresent()) {
+        if (populatedAt(event.getSpawner().getLocation()).isPresent()) {
             event.setCancelled(true);
         }
     }
@@ -63,28 +79,46 @@ final class MythicDungeonSpawns implements Listener {
             return;
         }
         Location location = event.getLocation();
-        Optional<MythicCulture> culture = developedAt(location);
+        Optional<MythicCulture> culture = populatedAt(location);
         if (culture.isEmpty()) {
             return;
         }
         // adentro de la mazmorra no nacen hostiles vanilla: o se reemplazan o no nacen
         event.setCancelled(true);
         if (ThreadLocalRandom.current().nextDouble() < settings.naturalReplaceChance()) {
-            spawnFor(culture.get(), location);
+            spawnFor(culture.get(), location, location, NATURAL_RANGE);
         }
     }
 
-    /** Las mazmorras de culturas sin desarrollar siguen con los spawns vanilla. */
-    private Optional<MythicCulture> developedAt(Location location) {
-        return locator.cultureAt(location).filter(MythicCulture::developed);
+    /** La cultura de la mazmorra en ese lugar, si tiene mobs propios; las que no tengan siguen vanilla. */
+    private Optional<MythicCulture> populatedAt(Location location) {
+        return locator.cultureAt(location).filter(MythicCulture::hasMobs);
     }
 
-    private void spawnFor(MythicCulture culture, Location location) {
-        if (mobs.countNearby(location, settings.capRadius(), true) >= settings.spawnerCap()) {
+    private void spawnFor(MythicCulture culture, Location preferred, Location center, int range) {
+        World world = center.getWorld();
+        if (world == null || mobs.countNearby(center, settings.capRadius(), true) >= settings.spawnerCap()) {
             return;
         }
-        WeightedPicker.pick(mobs.catalog().ofCulture(culture), MythicMobType::weight,
-                ThreadLocalRandom.current().nextDouble())
-            .ifPresent(type -> mobs.spawn(type, location, true));
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        MobPlacement.place(mobs.catalog().ofCulture(culture), random.nextDouble(), new WorldBlockGrid(world),
+                spot(preferred), spot(center), range, SPAWN_VERTICAL)
+            .ifPresent(placement -> mobs.spawn(placement.mob(), new Location(world, placement.spot().x() + 0.5,
+                placement.spot().y(), placement.spot().z() + 0.5, random.nextFloat() * 360.0F, 0.0F), true));
+    }
+
+    private static MobPlacement.Spot spot(Location location) {
+        return new MobPlacement.Spot(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+    }
+
+    /**
+     * El mob que nace en la mazmorra de una cultura con una tirada uniforme en [0, 1): sorteo con los pesos de sus mobs.
+     * Vacio si la cultura no tiene mobs (o todos tienen peso 0).
+     */
+    static Optional<MythicMobType> pick(MythicMobCatalog catalog, MythicCulture culture, double roll) {
+        if (!culture.hasMobs()) {
+            return Optional.empty();
+        }
+        return WeightedPicker.pick(catalog.ofCulture(culture), MythicMobType::weight, roll);
     }
 }

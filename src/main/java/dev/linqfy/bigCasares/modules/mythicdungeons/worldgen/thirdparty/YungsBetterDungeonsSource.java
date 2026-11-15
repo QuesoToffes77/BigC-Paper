@@ -37,6 +37,9 @@ import java.util.function.Function;
  *     <li>Small dungeons have no doorway: a 3x3 opening is carved in the middle of one face.</li>
  *     <li>Blocks are re-themed per culture with {@link StructureTemplate#remapPalette}.</li>
  * </ul>
+ * The module then applies its walkability and clearance rules (see {@code MythicExtraPiece}): the
+ * crypt rooms offered as corridors are only 4 blocks high inside and are left out, the small rooms lose
+ * their spawners (no room for large mobs) and their loot.
  */
 public final class YungsBetterDungeonsSource implements MythicTemplateSource {
 
@@ -54,13 +57,13 @@ public final class YungsBetterDungeonsSource implements MythicTemplateSource {
         }
     }
 
-    static final Spec SMALL_5X5 = new Spec("small_dungeon/shells/small_shell_5x5", Kind.SMALL, Role.SIDE_ROOM, "north", null, 3);
-    static final Spec SMALL_7X5 = new Spec("small_dungeon/shells/small_shell_7x5", Kind.SMALL, Role.SIDE_ROOM, "north", null, 3);
-    static final Spec SMALL_7X7 = new Spec("small_dungeon/shells/small_shell_7x7", Kind.SMALL, Role.SIDE_ROOM, "north", null, 3);
-    static final Spec SMALL_9X5 = new Spec("small_dungeon/shells/small_shell_9x5", Kind.SMALL, Role.SIDE_ROOM, "west", null, 3);
-    static final Spec NETHER_9X9 = new Spec("small_nether_dungeon/shells/nether_shell_9x9", Kind.NETHER, Role.SIDE_ROOM, null, null, 3);
-    static final Spec NETHER_9X11 = new Spec("small_nether_dungeon/shells/nether_shell_9x11", Kind.NETHER, Role.SIDE_ROOM, null, null, 3);
-    static final Spec NETHER_9X13 = new Spec("small_nether_dungeon/shells/nether_shell_9x13", Kind.NETHER, Role.SIDE_ROOM, null, null, 2);
+    static final Spec SMALL_5X5 = new Spec("small_dungeon/shells/small_shell_5x5", Kind.SMALL, Role.SIDE_ROOM, "north", null, 1);
+    static final Spec SMALL_7X5 = new Spec("small_dungeon/shells/small_shell_7x5", Kind.SMALL, Role.SIDE_ROOM, "north", null, 1);
+    static final Spec SMALL_7X7 = new Spec("small_dungeon/shells/small_shell_7x7", Kind.SMALL, Role.SIDE_ROOM, "north", null, 1);
+    static final Spec SMALL_9X5 = new Spec("small_dungeon/shells/small_shell_9x5", Kind.SMALL, Role.SIDE_ROOM, "west", null, 1);
+    static final Spec NETHER_9X9 = new Spec("small_nether_dungeon/shells/nether_shell_9x9", Kind.NETHER, Role.SIDE_ROOM, null, null, 1);
+    static final Spec NETHER_9X11 = new Spec("small_nether_dungeon/shells/nether_shell_9x11", Kind.NETHER, Role.SIDE_ROOM, null, null, 1);
+    static final Spec NETHER_9X13 = new Spec("small_nether_dungeon/shells/nether_shell_9x13", Kind.NETHER, Role.SIDE_ROOM, null, null, 1);
     static final Spec CRYPT_0 = new Spec("zombie_dungeon/floor2/room/floor2_room_0", Kind.ZOMBIE, Role.CORRIDOR, "north", "south", 2);
     static final Spec CRYPT_1 = new Spec("zombie_dungeon/floor2/room/floor2_room_1", Kind.ZOMBIE, Role.CORRIDOR, "north", "south", 2);
     static final Spec CRYPT_2 = new Spec("zombie_dungeon/floor2/room/floor2_room_2", Kind.ZOMBIE, Role.CORRIDOR, "north", "south", 2);

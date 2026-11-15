@@ -7,6 +7,7 @@ import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.BedrockStandIns;
+import dev.linqfy.bigCasares.modules.mythicdungeons.boss.BossSoulBridge;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.MythicBossRegistry;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.MythicBossRewards;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.MythicBossSupport;
@@ -17,10 +18,14 @@ import dev.linqfy.bigCasares.modules.pveboss.BossDamageStanding;
 import dev.linqfy.bigCasares.modules.pveboss.PveBossModule;
 import dev.linqfy.bigCasares.platform.ClientPlatformGateway;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.RecipeChoice;
+import org.bukkit.inventory.ShapelessRecipe;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -35,8 +40,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 
 /**
- * Mazmorras miticas: nueve culturas, cada una con su mazmorra (estructura {@code bigc_myth:<cultura>}), sus mobs, su
- * Fragmento de Odio y el Invocador de su jefe (un jefe externo del sistema pve-boss). Este es el cableado:
+ * Mazmorras miticas: nueve culturas, cada una con su mazmorra (estructura {@code bigc_myth:<cultura>}) y sus mobs; las
+ * que ya tienen jefe (un jefe externo del sistema pve-boss) suman su Fragmento de Odio y su Invocador. Este es el
+ * cableado:
  * <ul>
  *   <li>{@link MythicMobs}: los mobs (spawn, modelos, conductas, drops) y {@link MythicDungeonSpawns}: quien nace adentro;</li>
  *   <li>{@link MythicSummoners}: el Invocador sobre el altar y la mesa de crafteo;</li>
@@ -51,6 +57,8 @@ public final class MythicDungeonsModule implements PluginModule {
     public static final String MODULE_ID = "mythic-dungeons";
     static final String CONFIG_FILE = "mythic-dungeons.yml";
     static final String COMMAND = "mazmorra";
+    /** La receta propia del Invocador: cuatro items del material de los fragmentos, decidida por id en la mesa. */
+    static final String SUMMONER_RECIPE = "mythic_summoner_by_fragment_id";
 
     private final BigCasares plugin;
     private final JavaModelGateway javaModels;
@@ -124,8 +132,10 @@ public final class MythicDungeonsModule implements PluginModule {
 
         registrations.registerListener("mythic-mobs", ownedMobs);
         registrations.registerListener("mythic-spawns", new MythicDungeonSpawns(ownedMobs, ownedLocator, settings));
+        NamespacedKey summonerRecipe = new NamespacedKey(plugin, SUMMONER_RECIPE);
         registrations.registerListener("mythic-summoners", new MythicSummoners(customItems, ownedLocator, settings,
-            host, summons, plugin.getLogger()));
+            host, summons, plugin.getLogger(), summonerRecipe));
+        registerSummonerRecipe(registrations, summonerRecipe);
 
         MythicBossSupport ownedSupport = new MythicBossSupport(plugin, ownedMobs, javaModels, ownedLocator, scheduler,
             platforms);
@@ -248,8 +258,43 @@ public final class MythicDungeonsModule implements PluginModule {
             player.sendMessage("§6Puesto #" + grant.placement() + " contra " + culture.requireBoss().displayName()
                 + "§6: §a+" + grant.xp() + " de experiencia§6 y el botín del jefe.");
         }
+        // el alma del jefe para el podio (sistema de misiones de netherita, si esta version lo trae)
+        new BossSoulBridge(plugin, (message, cause) -> plugin.getLogger().log(Level.WARNING, "[Mazmorras] " + message,
+            cause)).award(culture.requireBoss().id(), culture.requireBoss().displayName(), standings);
         plugin.getServer().broadcastMessage("§5§l[Mazmorra] §f" + culture.requireBoss().displayName() + " §7cayó en "
             + culture.dungeonName() + "." + (podium.isEmpty() ? "" : " Mejores: " + String.join("§7, ", podium)));
+    }
+
+    /**
+     * La receta exacta del catalogo solo reconoce fragmentos creados con la misma revision del catalogo (cualquier
+     * cambio en cualquier item la cambia, y los fragmentos guardados en cofres no se actualizan). Esta receta acepta
+     * cuatro items del material de los fragmentos y {@link MythicSummoners} decide por id de catalogo que Invocador
+     * sale (o que no sale nada, por ejemplo con cuatro fragmentos de jefes distintos o items vanilla).
+     */
+    private void registerSummonerRecipe(BukkitRuntimeRegistrations registrations, NamespacedKey key) {
+        Set<Material> materials = new LinkedHashSet<>();
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
+            culture.fragmentItemId().flatMap(this::catalogItem).map(ItemStack::getType).ifPresent(materials::add);
+        }
+        if (materials.isEmpty()) {
+            plugin.getLogger().warning("[Mazmorras] El catálogo no tiene Fragmentos de Odio: los Invocadores solo se"
+                + " craftean con la receta del catálogo.");
+            return;
+        }
+        ItemStack placeholder = MythicCulture.bossCultures().getFirst().summonerItemId().flatMap(this::catalogItem)
+            .orElseGet(() -> new ItemStack(Material.NETHER_STAR));
+        ShapelessRecipe recipe = new ShapelessRecipe(key, placeholder);
+        for (int slot = 0; slot < SummonerRecipeRule.FRAGMENTS_PER_SUMMONER; slot++) {
+            recipe.addIngredient(new RecipeChoice.MaterialChoice(List.copyOf(materials)));
+        }
+        try {
+            if (!registrations.registerRecipe("mythic-summoner-recipe", key, recipe)) {
+                plugin.getLogger().warning("[Mazmorras] No se pudo registrar la receta propia del Invocador.");
+            }
+        } catch (RuntimeException failure) {
+            plugin.getLogger().log(Level.WARNING, "[Mazmorras] No se pudo registrar la receta propia del Invocador",
+                failure);
+        }
     }
 
     private Optional<ItemStack> catalogItem(String itemId) {

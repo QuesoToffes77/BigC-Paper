@@ -31,7 +31,7 @@ class MythicItemCatalogTest {
     @Test
     void theDevelopedCulturesShipAFragmentAndASummoner() {
         CustomItemCatalog catalog = catalog();
-        for (MythicCulture culture : MythicCulture.developedCultures()) {
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
             String boss = culture.requireBoss().displayName();
             CustomItemDefinition fragment = catalog.require(culture.fragmentItemId().orElseThrow());
             assertEquals("mythic-fragment", fragment.mechanic());
@@ -49,7 +49,7 @@ class MythicItemCatalogTest {
     @Test
     void fourExactFragmentsOfTheSameBossCraftTheSummoner() {
         CustomItemCatalog catalog = catalog();
-        for (MythicCulture culture : MythicCulture.developedCultures()) {
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
             ItemRecipeDefinition recipe = catalog.require(culture.summonerItemId().orElseThrow())
                 .recipeDefinition().orElseThrow();
             assertEquals(RecipeType.SHAPELESS, recipe.type());
@@ -58,6 +58,18 @@ class MythicItemCatalogTest {
             // a catalog reference ("bigcasares:<id>") becomes an exact choice: plain vanilla shards never match
             assertEquals(Collections.nCopies(4, "bigcasares:" + culture.fragmentItemId().orElseThrow()),
                 recipe.shapelessIngredients());
+        }
+    }
+
+    @Test
+    void theModuleRecipeCoversEveryFragmentMaterialAndNeverASummonerMaterial() {
+        CustomItemCatalog catalog = catalog();
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
+            CustomItemDefinition fragment = catalog.require(culture.fragmentItemId().orElseThrow());
+            CustomItemDefinition summoner = catalog.require(culture.summonerItemId().orElseThrow());
+            // el Invocador sale de cuatro casillas con fragmentos apilados de a muchos: se gasta uno de cada una
+            assertTrue(fragment.maxStackSize() >= SummonerRecipeRule.FRAGMENTS_PER_SUMMONER, culture.id());
+            assertFalse(fragment.material().equalsIgnoreCase(summoner.material()), culture.id());
         }
     }
 
@@ -75,7 +87,7 @@ class MythicItemCatalogTest {
     @Test
     void namesAreTranslatedInTheJavaPack() throws Exception {
         String spanish = Files.readString(Path.of("resourcepack/java/assets/bigcasares/lang/es_es.json"));
-        for (MythicCulture culture : MythicCulture.developedCultures()) {
+        for (MythicCulture culture : MythicCulture.bossCultures()) {
             assertTrue(spanish.contains("\"item.bigcasares." + culture.fragmentItemId().orElseThrow() + "\""));
             assertTrue(spanish.contains("\"item.bigcasares." + culture.summonerItemId().orElseThrow() + "\""));
         }
