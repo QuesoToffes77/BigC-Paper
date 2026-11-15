@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -70,17 +69,6 @@ class MythicItemCatalogTest {
             // el Invocador sale de cuatro casillas con fragmentos apilados de a muchos: se gasta uno de cada una
             assertTrue(fragment.maxStackSize() >= SummonerRecipeRule.FRAGMENTS_PER_SUMMONER, culture.id());
             assertFalse(fragment.material().equalsIgnoreCase(summoner.material()), culture.id());
-        }
-    }
-
-    @Test
-    void thePostponedCulturesHaveNoItems() {
-        CustomItemCatalog catalog = catalog();
-        for (String id : List.of("japanese", "mesoamerican", "arabian", "andean")) {
-            assertTrue(catalog.find("hate_fragment_" + id).isEmpty(), id);
-            assertTrue(catalog.find("boss_summoner_" + id).isEmpty(), id);
-            assertFalse(Files.exists(ITEMS.resolve("hate_fragment_" + id + ".yml")), id);
-            assertFalse(Files.exists(ITEMS.resolve("boss_summoner_" + id + ".yml")), id);
         }
     }
 

@@ -44,8 +44,8 @@ class SummonerRecipeRuleTest {
             .isEmpty());
         assertTrue(SummonerRecipeRule.result(List.of("boss_summoner_medieval", "hate_fragment_medieval",
             "hate_fragment_medieval", "hate_fragment_medieval")).isEmpty());
-        // the postponed cultures have no fragments at all
-        assertTrue(SummonerRecipeRule.result(Collections.nCopies(4, "hate_fragment_japanese")).isEmpty());
+        // a culture that does not exist has no fragments at all
+        assertTrue(SummonerRecipeRule.result(Collections.nCopies(4, "hate_fragment_atlantean")).isEmpty());
     }
 
     @Test
@@ -93,7 +93,7 @@ class SummonerRecipeRuleTest {
     void recognisesTheModuleItems() {
         assertTrue(SummonerRecipeRule.isMythicItem("hate_fragment_greek"));
         assertTrue(SummonerRecipeRule.isMythicItem("boss_summoner_mesopotamian"));
-        assertFalse(SummonerRecipeRule.isMythicItem("hate_fragment_japanese"));
+        assertFalse(SummonerRecipeRule.isMythicItem("hate_fragment_atlantean"));
         assertFalse(SummonerRecipeRule.isMythicItem("keep_inventory_totem"));
         assertFalse(SummonerRecipeRule.isMythicItem(null));
     }

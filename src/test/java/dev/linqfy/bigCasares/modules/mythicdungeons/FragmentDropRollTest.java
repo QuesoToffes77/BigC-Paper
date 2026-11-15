@@ -47,7 +47,8 @@ class FragmentDropRollTest {
             assertTrue(rolling(0.0).roll(sure, true, true, 3).isEmpty(), mob.id());
             assertTrue(rolling(0.0).roll(mob, true, true, 0).isEmpty(), mob.id());
         }
-        assertEquals(11, checked);
+        // hoy las nueve culturas tienen jefe: la regla queda cubierta para cuando se agregue una sin el
+        assertEquals(0, checked);
     }
 
     @Test

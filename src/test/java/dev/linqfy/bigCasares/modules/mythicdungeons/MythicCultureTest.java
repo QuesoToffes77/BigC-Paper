@@ -27,10 +27,11 @@ class MythicCultureTest {
         DEVELOPED.put("medieval|myth-diablo|diablo|Diablo", List.of("treasure_dragon", "kobold", "goblin", "ghost"));
         DEVELOPED.put("egyptian|myth-horus|horus|Horus", List.of("ammit", "apophis", "mummy"));
         DEVELOPED.put("mesopotamian|myth-enlil|enlil|Enlil", List.of("ereshkigal", "galla"));
-        WITHOUT_BOSS.put("japanese", List.of("oni", "cave_yokai", "shikome"));
-        WITHOUT_BOSS.put("mesoamerican", List.of("xibalba_lord", "xolotl", "camazotz_bat"));
-        WITHOUT_BOSS.put("arabian", List.of("ghul", "djinn"));
-        WITHOUT_BOSS.put("andean", List.of("supay", "salamanca_viper", "salamanca_goat"));
+        DEVELOPED.put("japanese|myth-enma|enma|Enma", List.of("oni", "cave_yokai", "shikome"));
+        DEVELOPED.put("mesoamerican|myth-came|came|Hun Camé y Vucub Camé",
+            List.of("xibalba_lord", "xolotl", "camazotz_bat"));
+        DEVELOPED.put("arabian|myth-iblis|iblis|Iblís", List.of("ghul", "djinn"));
+        DEVELOPED.put("andean|myth-pachamama|pachamama|Pachamama", List.of("supay", "salamanca_viper", "salamanca_goat"));
     }
 
     @Test
@@ -76,15 +77,12 @@ class MythicCultureTest {
             assertThrows(IllegalStateException.class, culture::requireBoss);
             assertTrue(culture.notAvailableMessage().contains("todavía no está disponible"));
         }
-        assertTrue(MythicCulture.byFragmentItemId("hate_fragment_japanese").isEmpty());
-        assertTrue(MythicCulture.bySummonerItemId("boss_summoner_andean").isEmpty());
     }
 
     @Test
     void allNineHaveMobsAndOnlyFiveHaveABoss() {
         assertEquals(List.of(MythicCulture.values()), MythicCulture.mobCultures());
-        assertEquals(List.of(MythicCulture.GREEK, MythicCulture.NORSE, MythicCulture.MEDIEVAL, MythicCulture.EGYPTIAN,
-            MythicCulture.MESOPOTAMIAN), MythicCulture.bossCultures());
+        assertEquals(List.of(MythicCulture.values()), MythicCulture.bossCultures());
     }
 
     @Test
@@ -105,7 +103,7 @@ class MythicCultureTest {
                 assertTrue(seen.add(MythicCulture.mobModelKey(mob)), "duplicated model " + mob);
             }
         }
-        assertEquals(16, MythicCulture.bossCultures().stream().mapToInt(c -> c.mobIds().size()).sum());
+        assertEquals(27, MythicCulture.bossCultures().stream().mapToInt(c -> c.mobIds().size()).sum());
         assertEquals(27, MythicCulture.mobCultures().stream().mapToInt(c -> c.mobIds().size()).sum());
     }
 

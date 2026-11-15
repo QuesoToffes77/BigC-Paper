@@ -29,6 +29,10 @@ rewards:
   myth-diablo: {xp: 1500, items: ["DIAMOND:4", "GOLDEN_APPLE:2", "NETHERITE_SCRAP:1", "GOLD_BLOCK:3"]}
   myth-horus: {xp: 1500, items: ["DIAMOND:4", "GOLDEN_APPLE:2", "NETHERITE_SCRAP:1", "ENCHANTED_GOLDEN_APPLE:1"]}
   myth-enlil: {xp: 1500, items: ["DIAMOND:4", "GOLDEN_APPLE:2", "NETHERITE_SCRAP:1", "LAPIS_BLOCK:4"]}
+  myth-enma: {xp: 1500, items: ["DIAMOND:4", "GOLDEN_APPLE:2", "NETHERITE_SCRAP:1", "IRON_BLOCK:4"]}
+  myth-came: {xp: 1500, items: ["DIAMOND:4", "GOLDEN_APPLE:2", "NETHERITE_SCRAP:1", "EMERALD_BLOCK:2"]}
+  myth-iblis: {xp: 1500, items: ["DIAMOND:4", "GOLDEN_APPLE:2", "NETHERITE_SCRAP:1", "BLAZE_ROD:8"]}
+  myth-pachamama: {xp: 1500, items: ["DIAMOND:4", "GOLDEN_APPLE:2", "NETHERITE_SCRAP:1", "AMETHYST_BLOCK:4"]}
 
 # Para cambiar un mob: mobs.<id>.health|damage|speed|fragment-chance|weight (weight = peso en el sorteo de spawns).
 # Ids: minotaur cerberus erinys draugr dwarf nidhogg hel treasure_dragon kobold goblin ghost ammit apophis mummy

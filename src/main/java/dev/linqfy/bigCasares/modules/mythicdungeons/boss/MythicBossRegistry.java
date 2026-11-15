@@ -1,10 +1,14 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.boss;
 
 import dev.linqfy.bigCasares.modules.mythicdungeons.MythicCulture;
+import dev.linqfy.bigCasares.modules.mythicdungeons.boss.came.CameEncounter;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.diablo.DiabloEncounter;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.enlil.EnlilEncounter;
+import dev.linqfy.bigCasares.modules.mythicdungeons.boss.enma.EnmaEncounter;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.horus.HorusEncounter;
+import dev.linqfy.bigCasares.modules.mythicdungeons.boss.iblis.IblisEncounter;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.odin.OdinEncounter;
+import dev.linqfy.bigCasares.modules.mythicdungeons.boss.pachamama.PachamamaEncounter;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.zeus.ZeusEncounter;
 import dev.linqfy.bigCasares.modules.pveboss.BossEncounterControllerFactory;
 
@@ -43,7 +47,11 @@ public final class MythicBossRegistry {
         new Entry(MythicCulture.NORSE, OdinEncounter::factory, OdinEncounter::extraModelKeys),
         new Entry(MythicCulture.MEDIEVAL, DiabloEncounter::factory, DiabloEncounter::extraModelKeys),
         new Entry(MythicCulture.EGYPTIAN, HorusEncounter::factory, HorusEncounter::extraModelKeys),
-        new Entry(MythicCulture.MESOPOTAMIAN, EnlilEncounter::factory, EnlilEncounter::extraModelKeys)
+        new Entry(MythicCulture.MESOPOTAMIAN, EnlilEncounter::factory, EnlilEncounter::extraModelKeys),
+        new Entry(MythicCulture.JAPANESE, EnmaEncounter::factory, EnmaEncounter::extraModelKeys),
+        new Entry(MythicCulture.MESOAMERICAN, CameEncounter::factory, CameEncounter::extraModelKeys),
+        new Entry(MythicCulture.ARABIAN, IblisEncounter::factory, IblisEncounter::extraModelKeys),
+        new Entry(MythicCulture.ANDEAN, PachamamaEncounter::factory, PachamamaEncounter::extraModelKeys)
     );
 
     private MythicBossRegistry() {

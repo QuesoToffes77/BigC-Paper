@@ -47,7 +47,16 @@ public final class ItemCatalogValidator {
         Map.entry("hate_fragment_egyptian", "mythic-fragment"),
         Map.entry("boss_summoner_egyptian", "mythic-summoner"),
         Map.entry("hate_fragment_mesopotamian", "mythic-fragment"),
-        Map.entry("boss_summoner_mesopotamian", "mythic-summoner")
+        Map.entry("boss_summoner_mesopotamian", "mythic-summoner"),
+        Map.entry("hate_fragment_japanese", "mythic-fragment"),
+        Map.entry("boss_summoner_japanese", "mythic-summoner"),
+        Map.entry("hate_fragment_mesoamerican", "mythic-fragment"),
+        Map.entry("boss_summoner_mesoamerican", "mythic-summoner"),
+        Map.entry("hate_fragment_arabian", "mythic-fragment"),
+        Map.entry("boss_summoner_arabian", "mythic-summoner"),
+        Map.entry("hate_fragment_andean", "mythic-fragment"),
+        Map.entry("boss_summoner_andean", "mythic-summoner"),
+        Map.entry("mandinga_guitar", "mythic-guitar")
     );
 
     private final ItemMaterialValidator materials;

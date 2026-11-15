@@ -9,7 +9,7 @@ import java.util.Optional;
 /**
  * Las nueve culturas de las mazmorras miticas (sin Bukkit). Todas tienen su mazmorra (la estructura
  * {@code bigc_myth:<id>} del datapack) y sus mobs ({@link #hasMobs()}). Solo las que {@link #hasBoss() tienen jefe}
- * (del sistema pve-boss) tienen ademas Fragmento de Odio e Invocador; las otras cuatro esperan su jefe.
+ * (del sistema pve-boss, hoy las nueve) tienen ademas Fragmento de Odio e Invocador.
  * Los ids son estables: los usan los items, los modelos, el datapack y los encuentros de los jefes.
  */
 public enum MythicCulture {
@@ -24,13 +24,14 @@ public enum MythicCulture {
         new MythicBoss("myth-horus", "horus", "Horus"), List.of("ammit", "apophis", "mummy")),
     MESOPOTAMIAN("mesopotamian", "Mesopotámica", "la mazmorra mesopotámica",
         new MythicBoss("myth-enlil", "enlil", "Enlil"), List.of("ereshkigal", "galla")),
-    // Mazmorra y mobs; el jefe, su Fragmento de Odio y su Invocador quedan para mas adelante.
-    JAPANESE("japanese", "Japonesa", "la mazmorra japonesa", null, List.of("oni", "cave_yokai", "shikome")),
-    MESOAMERICAN("mesoamerican", "Mesoamericana", "la mazmorra mesoamericana", null,
-        List.of("xibalba_lord", "xolotl", "camazotz_bat")),
-    ARABIAN("arabian", "Árabe", "la mazmorra árabe", null, List.of("ghul", "djinn")),
-    ANDEAN("andean", "Sudamericana", "la mazmorra sudamericana", null,
-        List.of("supay", "salamanca_viper", "salamanca_goat"));
+    JAPANESE("japanese", "Japonesa", "la mazmorra japonesa",
+        new MythicBoss("myth-enma", "enma", "Enma"), List.of("oni", "cave_yokai", "shikome")),
+    MESOAMERICAN("mesoamerican", "Mesoamericana", "la mazmorra mesoamericana",
+        new MythicBoss("myth-came", "came", "Hun Camé y Vucub Camé"), List.of("xibalba_lord", "xolotl", "camazotz_bat")),
+    ARABIAN("arabian", "Árabe", "la mazmorra árabe",
+        new MythicBoss("myth-iblis", "iblis", "Iblís"), List.of("ghul", "djinn")),
+    ANDEAN("andean", "Sudamericana", "la mazmorra sudamericana",
+        new MythicBoss("myth-pachamama", "pachamama", "Pachamama"), List.of("supay", "salamanca_viper", "salamanca_goat"));
 
     /** Espacio de nombres de las estructuras del datapack de las mazmorras. */
     public static final String STRUCTURE_NAMESPACE = "bigc_myth";

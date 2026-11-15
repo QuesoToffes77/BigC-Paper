@@ -12,6 +12,7 @@ import dev.linqfy.bigCasares.modules.mythicdungeons.boss.MythicBossRegistry;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.MythicBossRewards;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.MythicBossSupport;
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.enlil.EnlilEncounter;
+import dev.linqfy.bigCasares.modules.mythicdungeons.boss.pachamama.PachamamaEncounter;
 import dev.linqfy.bigCasares.modules.mythicdungeons.worldgen.MythicWorldgen;
 import dev.linqfy.bigCasares.modules.mythicdungeons.worldgen.thirdparty.ThirdPartySources;
 import dev.linqfy.bigCasares.modules.pveboss.BossDamageStanding;
@@ -136,6 +137,8 @@ public final class MythicDungeonsModule implements PluginModule {
         registrations.registerListener("mythic-summoners", new MythicSummoners(customItems, ownedLocator, settings,
             host, summons, plugin.getLogger(), summonerRecipe));
         registerSummonerRecipe(registrations, summonerRecipe);
+        registrations.registerListener("mythic-guitar",
+            new MandingaGuitarListener(plugin, customItems, scheduler));
 
         MythicBossSupport ownedSupport = new MythicBossSupport(plugin, ownedMobs, javaModels, ownedLocator, scheduler,
             platforms);
@@ -163,6 +166,12 @@ public final class MythicDungeonsModule implements PluginModule {
             EnlilEncounter.recoverOrphanFloods(plugin);
         } catch (RuntimeException failure) {
             plugin.getLogger().log(Level.WARNING, "[Mazmorras] No se pudo revisar el agua de Enlil", failure);
+        }
+        try {
+            // piso pintado o agua de Pachamama que quedo en el mundo si el servidor se cayo en plena pelea
+            PachamamaEncounter.recoverOrphans(plugin);
+        } catch (RuntimeException failure) {
+            plugin.getLogger().log(Level.WARNING, "[Mazmorras] No se pudo revisar el piso de Pachamama", failure);
         }
         MythicWorldgen.install(plugin, registrations, ThirdPartySources.all());
         plugin.getLogger().info("[Mazmorras] Mazmorras míticas listas: " + settings.mobs().all().size() + " mobs, "

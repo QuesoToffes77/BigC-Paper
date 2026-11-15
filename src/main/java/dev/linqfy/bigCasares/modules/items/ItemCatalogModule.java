@@ -59,7 +59,16 @@ public final class ItemCatalogModule implements PluginModule {
         "hate_fragment_egyptian.yml",
         "boss_summoner_egyptian.yml",
         "hate_fragment_mesopotamian.yml",
-        "boss_summoner_mesopotamian.yml"
+        "boss_summoner_mesopotamian.yml",
+        "hate_fragment_japanese.yml",
+        "boss_summoner_japanese.yml",
+        "hate_fragment_mesoamerican.yml",
+        "boss_summoner_mesoamerican.yml",
+        "hate_fragment_arabian.yml",
+        "boss_summoner_arabian.yml",
+        "hate_fragment_andean.yml",
+        "boss_summoner_andean.yml",
+        "mandinga_guitar.yml"
     );
 
     private final BigCasares plugin;
