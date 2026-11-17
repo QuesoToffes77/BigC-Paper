@@ -4,6 +4,7 @@ import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.modules.caichet.CaiChetBedrockItems;
 import dev.linqfy.bigCasares.modules.celular.CelularModule;
 
 import java.io.IOException;
@@ -83,6 +84,7 @@ public final class GeyserIntegrationModule implements PluginModule {
             if (settings.customItems()) {
                 customItemDefinitions().forEach(runtime::registerCustomItem);
                 celularItemDefinitions().forEach(runtime::registerCustomItem);
+                GeyserCaiChetItems.definitions(CaiChetBedrockItems.all()).forEach(runtime::registerCustomItem);
                 GeyserSiftContent.items().forEach(runtime::registerCustomItem);
             }
             if (settings.customBlocks()) {

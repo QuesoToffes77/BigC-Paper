@@ -35,6 +35,12 @@ class CaiChetCommandTest {
     }
 
     @Test
+    void pozoIsASubcommandWithoutArguments() {
+        assertEquals(List.of("pozo"), CaiChetCommand.complete(new String[] {"p"}));
+        assertEquals(List.of(), CaiChetCommand.complete(new String[] {"pozo", ""}));
+    }
+
+    @Test
     void otherPositionsOfferNothing() {
         assertEquals(List.of(), CaiChetCommand.complete(new String[] {"tp", "x"}));
         assertEquals(List.of(), CaiChetCommand.complete(new String[] {"give", "reloj", ""}));

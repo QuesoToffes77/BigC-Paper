@@ -116,6 +116,6 @@ public final class DespertarListener implements Listener {
     }
 
     static void leave(Player player) {
-        player.teleportAsync(PortalListener.loadReturn(player, HOTEL_RETURN));
+        player.teleportAsync(PortalListener.safe(PortalListener.loadReturn(player, HOTEL_RETURN)));
     }
 }

@@ -127,6 +127,11 @@ public final class PortalListener implements Listener {
     }
 
     public static void enter(Player player) {
+        enter(player, player.getLocation());
+    }
+
+    /** Igual, pero guarda returnTo como lugar de regreso (por ejemplo el borde del pozo, no su fondo). */
+    public static void enter(Player player, Location returnTo) {
         World target = dimension();
         if (target == null) {
             player.sendMessage("La dimensión no está cargada (reinicia el servidor).");
@@ -135,7 +140,7 @@ public final class PortalListener implements Listener {
         if (player.getWorld().equals(target)) {
             return;
         }
-        saveReturn(player, RETURN_KEY);
+        saveReturn(player, returnTo, RETURN_KEY);
         // el chunk del origen se carga sin frenar el servidor; recien despues se arma la llegada y se viaja
         target.getChunkAtAsync(0, 0).thenAccept(chunk -> {
             if (player.isOnline() && !player.getWorld().equals(target)) {
@@ -149,7 +154,26 @@ public final class PortalListener implements Listener {
         if (dimension == null || !player.getWorld().equals(dimension)) {
             return;
         }
-        player.teleport(loadReturn(player, RETURN_KEY));
+        player.teleport(safe(loadReturn(player, RETURN_KEY)));
+    }
+
+    /**
+     * El lugar de regreso puede haber cambiado desde que se guardo (por ejemplo rompieron el borde del pozo y se
+     * volveria a caer al fondo negro, en bucle): si ya no se puede estar parado ahi, se vuelve arriba de lo mas alto de
+     * esa columna.
+     */
+    static Location safe(Location target) {
+        World world = target.getWorld();
+        Block feet = target.getBlock();
+        Block floor = feet.getRelative(BlockFace.DOWN);
+        if (feet.isPassable() && feet.getRelative(BlockFace.UP).isPassable() && floor.getType().isSolid()
+                && !feet.isLiquid() && !floor.isLiquid()) {
+            return target;
+        }
+        Location top = world.getHighestBlockAt(target).getLocation().add(0.5, 1, 0.5);
+        top.setYaw(target.getYaw());
+        top.setPitch(target.getPitch());
+        return top;
     }
 
     /**
@@ -186,7 +210,10 @@ public final class PortalListener implements Listener {
     }
 
     static void saveReturn(Player player, NamespacedKey key) {
-        Location l = player.getLocation();
+        saveReturn(player, player.getLocation(), key);
+    }
+
+    static void saveReturn(Player player, Location l, NamespacedKey key) {
         String value = l.getWorld().getKey() + "|" + l.getX() + "|" + l.getY() + "|" + l.getZ()
                 + "|" + l.getYaw() + "|" + l.getPitch();
         player.getPersistentDataContainer().set(key, PersistentDataType.STRING, value);

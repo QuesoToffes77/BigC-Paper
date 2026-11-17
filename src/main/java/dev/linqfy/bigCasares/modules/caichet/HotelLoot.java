@@ -6,8 +6,10 @@ import io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.ShadowColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
+import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -56,7 +58,7 @@ import java.util.UUID;
  * <ul>
  *   <li>Arma de Fuego: dispara un rayo rojo como el del warden (atraviesa paredes); 5 usos;</li>
  *   <li>Botella de Agua de Almendras: se bebe y da 1 muslito de hambre;</li>
- *   <li>Jarra de Memorias: se bebe, muestra 10 imagenes rapidas (flashback) y despues da 3 muslitos.</li>
+ *   <li>Jarra de Memorias: se bebe, muestra 8 imagenes rapidas a pantalla completa (flashback) y despues da 3 muslitos.</li>
  * </ul>
  * Los cofres aparecen solos en las partes nuevas del hotel.
  */
@@ -78,11 +80,7 @@ public final class HotelLoot implements Listener {
     // ---- comida ("muslitos" = iconos de la barra de hambre; cada uno son 2 puntos)
     private static final int BOTTLE_FOOD = 2;
     private static final int JAR_FOOD = 6;
-    private static final int MEMORIES = 10;
     private static final long MEMORY_TICKS = 4;
-    private static final List<String> MEMORY_TEXT = List.of("una puerta abierta", "una habitación blanca",
-            "el zumbido de las luces", "alguien detrás tuyo", "la pileta vacía", "un pasillo sin fin",
-            "una cara conocida", "el sonido de un tren", "¿quién eras?", "ya te acordás");
     private static final Key MEMORY_FONT = Key.key("caichet", "memorias");
 
     // ---- cofres
@@ -93,6 +91,8 @@ public final class HotelLoot implements Listener {
     private static final int DOOR_PERCENT = 4;
 
     private final Map<UUID, Long> lastShot = new HashMap<>();
+    /** Comida de jarras ya bebidas que todavia no se entrego (llega al terminar el flashback, o al desconectarse). */
+    private final Map<UUID, Integer> owedFood = new HashMap<>();
     private Watchers watchers;
     private KeyDoors doors;
 
@@ -190,9 +190,25 @@ public final class HotelLoot implements Listener {
         spendUse(player, event.getHand());
     }
 
+    /** Al apagar el modulo: la comida de las jarras ya bebidas se entrega ahora (las tareas pendientes se cancelan). */
+    void settleOwedFood() {
+        owedFood.forEach((id, food) -> {
+            Player player = Bukkit.getPlayer(id);
+            if (player != null) {
+                feed(player, food);
+            }
+        });
+        owedFood.clear();
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         lastShot.remove(event.getPlayer().getUniqueId());
+        // la jarra ya se gasto: si se va en medio del flashback, la comida se entrega ahora y no se pierde
+        Integer owed = owedFood.remove(event.getPlayer().getUniqueId());
+        if (owed != null) {
+            feed(event.getPlayer(), owed);
+        }
     }
 
     private void shoot(Player player) {
@@ -281,31 +297,42 @@ public final class HotelLoot implements Listener {
         player.setSaturation(Math.min(player.getFoodLevel(), player.getSaturation() + food * 0.6f));
     }
 
-    /** 10 imagenes seguidas en pantalla (cada una dura 0,2 s) y recien despues la comida. */
+    /** Las fotos seguidas en pantalla (cada una dura 0,2 s) y recien despues la comida. */
     private void flashback(Player player) {
         Title.Times times = Title.Times.times(Duration.ZERO, Duration.ofMillis(MEMORY_TICKS * 50 + 100), Duration.ZERO);
         boolean bedrock = Bedrock.is(player); // Bedrock no tiene la fuente con las imagenes: se muestran frases
         player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 1f, 0.6f);
-        for (int i = 0; i < MEMORIES; i++) {
+        for (int i = 0; i < MemoryFrames.COUNT; i++) {
             int frame = i;
             CaiChetRuntime.tasks().later(() -> {
                 if (!player.isOnline()) {
                     return;
                 }
                 Component image = bedrock
-                        ? Component.text(MEMORY_TEXT.get(frame), NamedTextColor.LIGHT_PURPLE)
-                        : Component.text(String.valueOf((char) (0xE000 + frame))).font(MEMORY_FONT);
+                        ? Component.text(MemoryFrames.BEDROCK_TEXT.get(frame), NamedTextColor.LIGHT_PURPLE)
+                        // sin sombra: la del titulo dibujaria la foto dos veces, corrida
+                        : Component.text(MemoryFrames.glyphs(frame)).font(MEMORY_FONT).shadowColor(ShadowColor.none());
                 player.showTitle(Title.title(image, Component.empty(), times));
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.5f, 0.5f + frame * 0.1f);
             }, 2 + i * MEMORY_TICKS);
         }
+        UUID id = player.getUniqueId();
+        owedFood.merge(id, JAR_FOOD, Integer::sum);
         CaiChetRuntime.tasks().later(() -> {
-            if (player.isOnline()) {
-                player.clearTitle();
-                feed(player, JAR_FOOD);
-                player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BURP, 1f, 1f);
+            // si se desconecto, la comida ya se entrego al salir
+            Integer owed = owedFood.get(id);
+            if (owed == null || !player.isOnline()) {
+                return;
             }
-        }, 2 + MEMORIES * MEMORY_TICKS + 2);
+            if (owed <= JAR_FOOD) {
+                owedFood.remove(id);
+            } else {
+                owedFood.put(id, owed - JAR_FOOD);
+            }
+            player.clearTitle();
+            feed(player, JAR_FOOD);
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BURP, 1f, 1f);
+        }, 2 + MemoryFrames.COUNT * MEMORY_TICKS + 2);
     }
 
     // ------------------------------------------------------------------ cofres

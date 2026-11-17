@@ -9,35 +9,42 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
 /**
  * /caichet, para administradores: entregar los objetos del modulo, viajar entre sus mundos sin bloque ni totem y
- * mandar el tren.
+ * mandar el tren y levantar un pozo.
  */
 final class CaiChetCommand implements CommandExecutor, TabCompleter {
 
-    static final List<String> SUBCOMMANDS = List.of("give", "tp", "tren", "hotel", "sueno");
+    static final List<String> SUBCOMMANDS = List.of("give", "tp", "tren", "hotel", "sueno", "pozo");
     static final List<String> ITEMS = List.of("dimension", "mundo", "reloj", "despertar", "arma", "botella", "jarra",
         "llave");
     private static final String USAGE = "Uso: /caichet give <" + String.join("|", ITEMS)
-        + "> [cantidad] | tp | tren [aqui] | hotel | sueno";
+        + "> [cantidad] | tp | tren [aqui] | hotel | sueno | pozo";
 
     private final TrainDirector director;
+    private final PitStructure pits;
 
-    CaiChetCommand(TrainDirector director) {
+    CaiChetCommand(TrainDirector director, PitStructure pits) {
         this.director = director;
+        this.pits = pits;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // con "execute as <jugador> run caichet ..." el que actua es ese jugador aunque lo mande la consola
         Player player = sender instanceof ProxiedCommandSender proxied && proxied.getCallee() instanceof Player callee
             ? callee : sender instanceof Player self ? self : null;
         if (player == null) {
-            sender.sendMessage("Solo jugadores.");
-            return true;
+            // desde la consola: el ultimo argumento dice sobre que jugador actua
+            player = args.length == 0 ? null : Bukkit.getPlayerExact(args[args.length - 1]);
+            if (player == null) {
+                sender.sendMessage("Desde la consola, agrega al final el nombre de un jugador conectado.");
+                return true;
+            }
+            args = Arrays.copyOf(args, args.length - 1);
         }
         String sub = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
@@ -54,6 +61,13 @@ final class CaiChetCommand implements CommandExecutor, TabCompleter {
             case "sueno" -> {
                 if (DreamWorld.get() != null) {
                     player.teleportAsync(DreamWorld.spawn(DreamWorld.get()));
+                }
+            }
+            case "pozo" -> {
+                String result = pits.buildAt(player.getChunk());
+                player.sendMessage(result);
+                if (sender != player) {
+                    sender.sendMessage(result);
                 }
             }
             case "tp" -> travel(player);

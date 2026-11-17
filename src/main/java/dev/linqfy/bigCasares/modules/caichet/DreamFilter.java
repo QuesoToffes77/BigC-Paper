@@ -4,7 +4,9 @@ import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.Equippable;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
@@ -27,6 +29,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.time.Duration;
+import java.util.List;
+
 /**
  * El filtro del Sueño (VHS nostalgico: bruma rosada, viñeta, grano, "▶ PLAY"): es un "overlay" de camara, como el
  * de la calabaza. Al entrar al Sueño se pone un item invisible en la cabeza (y se guarda el casco); al salir se
@@ -39,6 +44,11 @@ public final class DreamFilter implements Listener {
     /** Marca que el plugin le puso la hora fija del Sueño (para devolverla solo si fue el plugin). */
     private static final NamespacedKey BEDROCK_TIME = new NamespacedKey("caichet", "bedrock_dream_time");
     private static final byte[] NO_HELMET = new byte[0];
+    /** Lo que piensa quien entra con casco (el casco queda guardado hasta que sale). */
+    private static final List<String> HELMET_LINES = List.of("No siento nada en la cabeza", "¿Mi casco?",
+        "Capaz lo tenga cuando salga de este maldito lugar");
+    private static final long HELMET_FIRST_LINE_TICKS = 40;
+    private static final long HELMET_LINE_TICKS = 50;
 
     static ItemStack filter() {
         ItemStack item = new ItemStack(Material.PAPER);
@@ -81,8 +91,27 @@ public final class DreamFilter implements Listener {
             }
         } else {
             pdc.set(SAVED_HELMET, PersistentDataType.BYTE_ARRAY, wearing ? helmet.serializeAsBytes() : NO_HELMET);
+            if (wearing) {
+                missHelmet(player);
+            }
         }
         player.getInventory().setHelmet(filter());
+    }
+
+    /** Entro con casco y ya no lo siente: lo dice en tres frases, una atras de la otra. */
+    private static void missHelmet(Player player) {
+        Title.Times times = Title.Times.times(Duration.ofMillis(300), Duration.ofMillis(1900), Duration.ofMillis(300));
+        for (int i = 0; i < HELMET_LINES.size(); i++) {
+            Component line = Component.text(HELMET_LINES.get(i), NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, true);
+            CaiChetRuntime.tasks().later(() -> {
+                // solo si sigue adentro y con el filtro puesto (si ya salio, el casco volvio)
+                if (player.isOnline() && DreamWorld.isDream(player.getWorld())
+                        && isFilter(player.getInventory().getHelmet())) {
+                    player.showTitle(Title.title(Component.empty(), line, times));
+                }
+            }, HELMET_FIRST_LINE_TICKS + i * HELMET_LINE_TICKS);
+        }
     }
 
     static void unequip(Player player) {
@@ -196,31 +225,37 @@ public final class DreamFilter implements Listener {
         CaiChetRuntime.tasks().next(() -> sync(player));
     }
 
-    /** El filtro nunca cae al piso al morir. */
-    @EventHandler
+    /**
+     * Morir en el Sueño: antes de que nadie mas mire el inventario (la tumba y el totem de conservacion de BigCasares
+     * lo leen directo, y vanilla lo vacia despues del evento), el filtro sale y el casco guardado vuelve a la cabeza. Asi
+     * el casco corre la misma suerte que el resto del equipo: cae, va a la tumba o se conserva, pero nunca se pierde ni
+     * se duplica, y el filtro nunca sale del Sueño como item.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onDeath(PlayerDeathEvent event) {
+        Player player = event.getPlayer();
         event.getDrops().removeIf(DreamFilter::isFilter);
-        if (event.getKeepInventory()) {
-            return; // con keepInventory el casco se devuelve al salir, como siempre
-        }
-        // el casco guardado muere con el jugador igual que el resto de su equipo: no es una caja fuerte
-        PersistentDataContainer pdc = event.getPlayer().getPersistentDataContainer();
+        PersistentDataContainer pdc = player.getPersistentDataContainer();
         byte[] saved = pdc.get(SAVED_HELMET, PersistentDataType.BYTE_ARRAY);
-        if (saved == null) {
-            return;
-        }
         pdc.remove(SAVED_HELMET);
-        if (saved.length == 0) {
+        if (isFilter(player.getInventory().getHelmet())) {
+            player.getInventory().setHelmet(null);
+        }
+        removeStray(player);
+        if (saved == null || saved.length == 0) {
             return;
         }
+        ItemStack helmet;
         try {
-            ItemStack helmet = ItemStack.deserializeBytes(saved);
-            // la maldicion de desaparicion se respeta: ese casco no cae
-            if (!helmet.containsEnchantment(Enchantment.VANISHING_CURSE)) {
-                event.getDrops().add(helmet);
-            }
+            helmet = ItemStack.deserializeBytes(saved);
         } catch (RuntimeException ignored) {
-            // casco que ya no se puede leer
+            return; // casco que ya no se puede leer
+        }
+        // vuelve siempre a la cabeza: si el totem o la tumba conservan el inventario, el casco va con el resto
+        player.getInventory().setHelmet(helmet);
+        // como en vanilla, la maldicion de desaparicion no deja caer el casco (el inventario se vacia despues)
+        if (!event.getKeepInventory() && !helmet.containsEnchantment(Enchantment.VANISHING_CURSE)) {
+            event.getDrops().add(helmet.clone());
         }
     }
 

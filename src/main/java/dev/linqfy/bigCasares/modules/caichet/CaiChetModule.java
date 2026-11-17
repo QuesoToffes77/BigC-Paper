@@ -26,6 +26,7 @@ import java.util.logging.Level;
  *   ({@link HotelLoot}, {@link KeyDoors});</li>
  *   <li>el Sueño ({@link DreamWorld}): se llega por una puerta con llave; tiene sus criaturas ({@link DreamEntities}),
  *   su filtro ({@link DreamFilter}) y el ojo con alas ({@link EyeBossManager}), que al vencerlo te despierta.</li>
+ *   <li>el pozo ({@link PitStructure}): una ruina rara en el mundo principal cuyo fondo negro lleva al desierto.</li>
  * </ul>
  * Las texturas y modelos viven en el pack de BigCasares (resourcepack/java/assets/caichet y demon_train).
  */
@@ -54,6 +55,7 @@ public final class CaiChetModule implements PluginModule {
         EYE("caichet-eye"),
         LOOT("caichet-loot"),
         LIGHTS("caichet-lights"),
+        PIT("caichet-pit"),
         COMMAND("caichet-command");
 
         final String id;
@@ -67,12 +69,14 @@ public final class CaiChetModule implements PluginModule {
     private RuntimeRegistrationScope compatibilityScope;
     private boolean running;
     private TrainDirector director;
+    private HotelLoot hotelLoot;
     private Watchers watchers;
     private FlickerLights flicker;
     private KeyDoors keyDoors;
     private DreamProps dreamProps;
     private DreamEntities dreamEntities;
     private EyeBossManager eyeBosses;
+    private PitStructure pits;
 
     public CaiChetModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -127,7 +131,7 @@ public final class CaiChetModule implements PluginModule {
         dreamEntities = new DreamEntities();
         tasks.repeating("dream", dreamEntities, 40L, 1L);
         registrations.registerListener(Resource.DESPERTAR.id, new DespertarListener());
-        HotelLoot hotelLoot = registrations.registerListener(Resource.LOOT.id, new HotelLoot());
+        hotelLoot = registrations.registerListener(Resource.LOOT.id, new HotelLoot());
         watchers = new Watchers();
         hotelLoot.setWatchers(watchers);
         keyDoors = new KeyDoors(plugin.getLogger());
@@ -138,11 +142,15 @@ public final class CaiChetModule implements PluginModule {
         tasks.repeating("lights", flicker, 40L, FlickerLights.PERIOD_TICKS);
         tasks.repeating("watchers", watchers, 40L, 1L);
 
+        // el pozo: aparece en chunks nuevos y su fondo negro lleva al desierto
+        pits = registrations.registerListener(Resource.PIT.id, new PitStructure(PitZoneRules.nexus(plugin)));
+        tasks.repeating("pit-step", pits::step, 40L, PitStructure.STEP_PERIOD_TICKS);
+
         PluginCommand pluginCommand = plugin.getCommand("caichet");
         if (pluginCommand == null) {
             throw new IllegalStateException("Required command is not declared: caichet");
         }
-        CaiChetCommand command = new CaiChetCommand(director);
+        CaiChetCommand command = new CaiChetCommand(director, pits);
         registrations.bindCommand(Resource.COMMAND.id, pluginCommand, command, command);
 
         if (Bukkit.getWorld(DIMENSION) == null) {
@@ -207,8 +215,14 @@ public final class CaiChetModule implements PluginModule {
         if (eyeBosses != null) {
             eyeBosses.removeAll();
         }
+        if (hotelLoot != null) {
+            hotelLoot.settleOwedFood();
+        }
         for (Player online : plugin.getServer().getOnlinePlayers()) {
             DreamFilter.unequip(online);
+        }
+        if (pits != null) {
+            pits.clear();
         }
         LiquidRiser.reset();
         TeamLookup.clear();
@@ -219,6 +233,8 @@ public final class CaiChetModule implements PluginModule {
         dreamProps = null;
         dreamEntities = null;
         eyeBosses = null;
+        hotelLoot = null;
+        pits = null;
         CaiChetRuntime.clear();
     }
 }
