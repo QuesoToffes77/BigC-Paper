@@ -199,6 +199,9 @@ public final class GeyserRuntimeBridge implements GeyserApiFacade, EventRegistra
                 .texture(texture)
                 .renderMethod(definition.renderMethod())
                 .build()));
+            if (definition.lightEmission() > 0) {
+                components.lightEmission(definition.lightEmission());
+            }
             List<Integer> rotation = definition.rotation();
             if (rotation.stream().anyMatch(angle -> angle != 0)) {
                 components.transformation(new TransformationComponent(rotation.get(0), rotation.get(1), rotation.get(2)));
@@ -209,7 +212,10 @@ public final class GeyserRuntimeBridge implements GeyserApiFacade, EventRegistra
                 .components(components.build())
                 .build();
             event.register(block);
-            event.registerOverride(definition.javaState(), block.defaultBlockState());
+            // Geyser finds the Java state by its identifier; a block without properties has no brackets.
+            for (String javaState : definition.javaStates()) {
+                event.registerOverride(javaState, block.defaultBlockState());
+            }
         }
     }
 
