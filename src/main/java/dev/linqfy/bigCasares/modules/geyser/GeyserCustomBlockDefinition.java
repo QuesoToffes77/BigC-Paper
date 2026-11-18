@@ -17,9 +17,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * A Bedrock custom block that Geyser shows in place of one Java block state: a full cube with a texture per face
- * (keys of the Bedrock pack's terrain_texture.json) and a turn in steps of 90 degrees. Content blocks are
- * mushroom-block states on Java, which a Bedrock client would draw as mushroom blocks.
+ * A Bedrock custom block that Geyser shows in place of one or more Java block states: a full cube with a texture per
+ * face (keys of the Bedrock pack's terrain_texture.json) and a turn in steps of 90 degrees. Content blocks are
+ * retextured vanilla states on Java (mushroom blocks, the hotel's waxed copper), which a Bedrock client would
+ * otherwise draw as the vanilla block.
  *
  * @param javaState   the Java block state, e.g. {@code minecraft:brown_mushroom_block[down=true,east=false,...]}, or
  *                    just the block, e.g. {@code minecraft:waxed_copper_block}, when it has no properties

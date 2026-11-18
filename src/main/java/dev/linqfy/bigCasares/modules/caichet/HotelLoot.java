@@ -91,6 +91,8 @@ public final class HotelLoot implements Listener {
     private static final int DOOR_PERCENT = 4;
 
     private final Map<UUID, Long> lastShot = new HashMap<>();
+    /** Para Bedrock: hasta cuando (ms) no puede volver a beber, como si durara el trago de Java. */
+    private final Map<UUID, Long> drinkingUntil = new HashMap<>();
     /** Comida de jarras ya bebidas que todavia no se entrego (llega al terminar el flashback, o al desconectarse). */
     private final Map<UUID, Integer> owedFood = new HashMap<>();
     private Watchers watchers;
@@ -121,7 +123,7 @@ public final class HotelLoot implements Listener {
         ItemStack item = named(Material.PAPER, "botella", "Botella de Agua de Almendras", NamedTextColor.WHITE,
                 "Da un muslito");
         item.setData(DataComponentTypes.MAX_STACK_SIZE, 16);
-        item.setData(DataComponentTypes.CONSUMABLE, drink(1.6f));
+        item.setData(DataComponentTypes.CONSUMABLE, drink(BOTTLE_DRINK_MS / 1000f));
         return item;
     }
 
@@ -129,7 +131,7 @@ public final class HotelLoot implements Listener {
         ItemStack item = named(Material.PAPER, "jarra", "Jarra de Memorias", NamedTextColor.LIGHT_PURPLE,
                 "Da tres muslitos... despues de recordar");
         item.setData(DataComponentTypes.MAX_STACK_SIZE, 16);
-        item.setData(DataComponentTypes.CONSUMABLE, drink(2.4f));
+        item.setData(DataComponentTypes.CONSUMABLE, drink(JAR_DRINK_MS / 1000f));
         return item;
     }
 
@@ -140,6 +142,9 @@ public final class HotelLoot implements Listener {
         item.setData(DataComponentTypes.MAX_STACK_SIZE, 16);
         return item;
     }
+
+    private static final long BOTTLE_DRINK_MS = 1600;
+    private static final long JAR_DRINK_MS = 2400;
 
     private static Consumable drink(float seconds) {
         return Consumable.consumable()
@@ -204,6 +209,7 @@ public final class HotelLoot implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         lastShot.remove(event.getPlayer().getUniqueId());
+        drinkingUntil.remove(event.getPlayer().getUniqueId());
         // la jarra ya se gasto: si se va en medio del flashback, la comida se entrega ahora y no se pierde
         Integer owed = owedFood.remove(event.getPlayer().getUniqueId());
         if (owed != null) {
@@ -288,6 +294,41 @@ public final class HotelLoot implements Listener {
         if ("botella".equals(id)) {
             feed(player, BOTTLE_FOOD);
         } else if ("jarra".equals(id)) {
+            flashback(player);
+        }
+    }
+
+    /**
+     * Bedrock no tiene el componente de consumible de Java sobre un papel, asi que su cliente no empieza a beber: con
+     * click derecho se bebe al instante (y se cancela el uso normal, para que nunca cuente dos veces).
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onBedrockDrink(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
+        String id = idOf(event.getItem());
+        if ((!"botella".equals(id) && !"jarra".equals(id)) || event.getHand() == null
+                || !Bedrock.is(event.getPlayer())) {
+            return;
+        }
+        event.setCancelled(true);
+        Player player = event.getPlayer();
+        long now = System.currentTimeMillis();
+        Long until = drinkingUntil.get(player.getUniqueId());
+        if (until != null && now < until) {
+            return;
+        }
+        drinkingUntil.put(player.getUniqueId(), now + ("jarra".equals(id) ? JAR_DRINK_MS : BOTTLE_DRINK_MS));
+        if (player.getGameMode() != GameMode.CREATIVE) {
+            ItemStack held = player.getInventory().getItem(event.getHand());
+            held.setAmount(held.getAmount() - 1);
+            player.getInventory().setItem(event.getHand(), held.getAmount() > 0 ? held : null);
+        }
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 1f, 1f);
+        if ("botella".equals(id)) {
+            feed(player, BOTTLE_FOOD);
+        } else {
             flashback(player);
         }
     }

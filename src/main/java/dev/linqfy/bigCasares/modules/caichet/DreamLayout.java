@@ -3,7 +3,9 @@ package dev.linqfy.bigCasares.modules.caichet;
 import org.bukkit.Material;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * El Sueño: praderas infinitas de pasto verde intenso bajo un cielo azul, con arcoiris y cosas fuera de lugar.
@@ -321,8 +323,29 @@ final class DreamLayout {
         return new DoorSpot(plot.ox, height(seed, plot.ox, plot.oz) + 1, plot.oz, facing, theme == Theme.COLLAGE);
     }
 
+    /**
+     * Las puertas sueltas ya buscadas, por chunk: salen solo de la semilla, asi que cada chunk se recorre una vez (son
+     * 256 columnas). Se vacia si cambia la semilla o si crece demasiado.
+     */
+    private static final Map<Long, List<DoorSpot>> DOORS_BY_CHUNK = new HashMap<>();
+    private static final int MAX_CACHED_DOOR_CHUNKS = 4096;
+    private static long doorsSeed;
+
     /** Las puertas sueltas de este chunk (para el hueco negro/rojo y el "?"). */
-    static List<DoorSpot> doorsInChunk(long seed, int chunkX, int chunkZ) {
+    static synchronized List<DoorSpot> doorsInChunk(long seed, int chunkX, int chunkZ) {
+        if (seed != doorsSeed || DOORS_BY_CHUNK.size() >= MAX_CACHED_DOOR_CHUNKS) {
+            DOORS_BY_CHUNK.clear();
+            doorsSeed = seed;
+        }
+        long key = (chunkX & 0xFFFFFFFFL) | ((long) chunkZ << 32);
+        return DOORS_BY_CHUNK.computeIfAbsent(key, ignored -> List.copyOf(findDoorsInChunk(seed, chunkX, chunkZ)));
+    }
+
+    static synchronized void clearDoorCache() {
+        DOORS_BY_CHUNK.clear();
+    }
+
+    private static List<DoorSpot> findDoorsInChunk(long seed, int chunkX, int chunkZ) {
         List<DoorSpot> doors = new ArrayList<>();
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {

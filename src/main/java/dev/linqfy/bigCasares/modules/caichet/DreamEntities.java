@@ -99,13 +99,6 @@ final class DreamEntities implements Runnable {
     private final Map<UUID, Integer> nextMusic = new HashMap<>();
     private final Map<UUID, Integer> nextVhs = new HashMap<>();
     private int tick;
-    /**
-     * Las puertas sueltas de cada chunk: salen solo de la semilla, asi que se calculan una vez (buscarlas recorre las
-     * 256 columnas del chunk). Se vacia si cambia la semilla o si crece demasiado.
-     */
-    private final Map<Long, List<DreamLayout.DoorSpot>> doorsByChunk = new HashMap<>();
-    private long doorsSeed;
-    private static final int MAX_CACHED_DOOR_CHUNKS = 4096;
     /** Cada cuanto se redibujan los arcoiris para Bedrock (ticks); el polvo dura lo suficiente para no parpadear. */
     private static final int RAINBOW_PERIOD_TICKS = 20;
     /** Hasta que distancia del arcoiris se le muestra a un jugador de Bedrock. */
@@ -121,6 +114,7 @@ final class DreamEntities implements Runnable {
         move(world);
         if (tick % 40 == 0) {
             populate(world);
+            forgetAbsent(world);
         }
         for (Player player : world.getPlayers()) {
             mood(player);
@@ -362,7 +356,7 @@ final class DreamEntities implements Runnable {
             int cz = player.getLocation().getBlockZ() >> 4;
             for (int x = cx - 2; x <= cx + 2; x++) {
                 for (int z = cz - 2; z <= cz + 2; z++) {
-                    for (DreamLayout.DoorSpot door : doorsIn(seed, x, z)) {
+                    for (DreamLayout.DoorSpot door : DreamLayout.doorsInChunk(seed, x, z)) {
                         player.spawnParticle(Particle.DUST,
                                 new Location(world, door.x() + 0.5, door.y() + 1.0, door.z() + 0.5), 16, 0.4, 0.9, 0.4, 0,
                                 door.red() ? DOOR_RED : DOOR_BLACK);
@@ -372,17 +366,22 @@ final class DreamEntities implements Runnable {
         }
     }
 
-    private List<DreamLayout.DoorSpot> doorsIn(long seed, int chunkX, int chunkZ) {
-        if (seed != doorsSeed || doorsByChunk.size() >= MAX_CACHED_DOOR_CHUNKS) {
-            doorsByChunk.clear();
-            doorsSeed = seed;
+    /** Los tiempos de frases, musica y VHS solo se guardan para quien sigue en el Sueño. */
+    private void forgetAbsent(World world) {
+        Set<UUID> inside = new HashSet<>();
+        for (Player player : world.getPlayers()) {
+            inside.add(player.getUniqueId());
         }
-        long key = (chunkX & 0xFFFFFFFFL) | ((long) chunkZ << 32);
-        return doorsByChunk.computeIfAbsent(key, ignored -> List.copyOf(DreamLayout.doorsInChunk(seed, chunkX, chunkZ)));
+        nextPhrase.keySet().retainAll(inside);
+        nextMusic.keySet().retainAll(inside);
+        nextVhs.keySet().retainAll(inside);
     }
 
     void removeAll() {
-        doorsByChunk.clear();
+        DreamLayout.clearDoorCache();
+        nextPhrase.clear();
+        nextMusic.clear();
+        nextVhs.clear();
         sprites.forEach(DreamEntities::removeSprite);
         sprites.clear();
     }
