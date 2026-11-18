@@ -38,11 +38,12 @@ public final class CaiChetBedrockEntities {
     public static final Entry DREAM_WINDOW = new Entry("ARMOR_STAND", "caichet:dream_window", "caichet_dream_window");
     public static final Entry DREAM_DOOR = new Entry("ARMOR_STAND", "caichet:dream_door", "caichet_dream_door");
     public static final Entry DREAM_VOID = new Entry("SQUID", "caichet:dream_void", "caichet_dream_void");
+    public static final Entry DREAM_RAINBOW = new Entry("ARMOR_STAND", "caichet:dream_rainbow", "caichet_dream_rainbow");
     public static final Entry TRAIN = new Entry("MINECART", "caichet:demon_train", "caichet_demon_train");
 
     private static final List<Entry> ALL = List.of(
         BOSS_EYE, WATCHER_MOYAN, WATCHER_ESTEVO, DREAM_EYE_1, DREAM_EYE_2, DREAM_EYE_3, DREAM_CLOUD, DREAM_WINGED,
-        DREAM_MUSHROOM, DREAM_WINDOW, DREAM_DOOR, DREAM_VOID, TRAIN);
+        DREAM_MUSHROOM, DREAM_WINDOW, DREAM_DOOR, DREAM_VOID, DREAM_RAINBOW, TRAIN);
 
     private static final Set<UUID> PRESENTED = ConcurrentHashMap.newKeySet();
     private static volatile boolean available;

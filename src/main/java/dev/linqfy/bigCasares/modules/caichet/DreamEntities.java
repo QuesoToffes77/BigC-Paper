@@ -35,9 +35,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -73,6 +75,8 @@ final class DreamEntities implements Runnable {
         Entity stand;
         /** Como lo muestra Geyser (el modelo 3D); null si no tiene (el arcoiris). */
         CaiChetBedrockEntities.Entry bedrockEntry;
+        /** Solo el arcoiris: la copia acercada que ve cada jugador de Bedrock (ver {@link RainbowPlacement}). */
+        final Map<UUID, Entity> rainbowStands = new HashMap<>();
 
         Sprite(ItemDisplay display, Kind kind, Location anchor, double radius, double speed, double phase) {
             this.display = display;
@@ -104,6 +108,8 @@ final class DreamEntities implements Runnable {
     private static final int MAX_CACHED_DOOR_CHUNKS = 4096;
     /** Cada cuanto se redibujan los arcoiris para Bedrock (ticks); el polvo dura lo suficiente para no parpadear. */
     private static final int RAINBOW_PERIOD_TICKS = 20;
+    /** Hasta que distancia del arcoiris se le muestra a un jugador de Bedrock. */
+    private static final double RAINBOW_VIEW_DISTANCE = 90;
 
     @Override
     public void run() {
@@ -133,7 +139,7 @@ final class DreamEntities implements Runnable {
             new Particle.DustOptions(Color.fromRGB(0, 120, 255), 4f),
             new Particle.DustOptions(Color.fromRGB(160, 0, 255), 4f)};
 
-    /** Cuerpo vanilla que ve Bedrock en lugar de cada sprite (el arcoiris no tiene: se dibuja con particulas). */
+    /** Cuerpo vanilla que ve Bedrock en lugar de cada sprite (el arcoiris no tiene uno comun: ver {@link #bedrockRainbow}). */
     private static EntityType standType(Kind kind) {
         return switch (kind) {
             // solo mobs que se pueden crear en dificultad Pacifico (los monstruos no)
@@ -156,7 +162,7 @@ final class DreamEntities implements Runnable {
             case WINDOW -> CaiChetBedrockEntities.DREAM_WINDOW;
             case DOOR -> CaiChetBedrockEntities.DREAM_DOOR;
             case VOID -> CaiChetBedrockEntities.DREAM_VOID;
-            case RAINBOW -> null;
+            case RAINBOW -> CaiChetBedrockEntities.DREAM_RAINBOW;
         };
     }
 
@@ -187,6 +193,7 @@ final class DreamEntities implements Runnable {
                     CaiChetBedrockEntities.discard(s.stand);
                     s.stand = null;
                 }
+                discardRainbowStands(s);
             }
             return;
         }
@@ -212,14 +219,97 @@ final class DreamEntities implements Runnable {
                     p.showEntity(plugin, s.stand);
                 }
             }
-            if (s.kind == Kind.RAINBOW && tick % RAINBOW_PERIOD_TICKS == 0) {
-                for (Player p : viewers) {
-                    if (p.getLocation().distanceSquared(s.anchor) < 90 * 90) {
-                        drawRainbow(p, s);
+            if (s.kind == Kind.RAINBOW) {
+                if (CaiChetBedrockEntities.available()) {
+                    bedrockRainbow(s, viewers, plugin);
+                } else {
+                    discardRainbowStands(s);
+                }
+                if (!CaiChetBedrockEntities.available() && tick % RAINBOW_PERIOD_TICKS == 0) {
+                    for (Player p : viewers) {
+                        if (p.getLocation().distanceSquared(s.anchor) < RAINBOW_VIEW_DISTANCE * RAINBOW_VIEW_DISTANCE) {
+                            drawRainbow(p, s);
+                        }
                     }
                 }
             }
         }
+    }
+
+    /**
+     * El arcoiris esta mas lejos de lo que el servidor manda entidades: cada jugador de Bedrock cercano tiene su propia
+     * copia, mas cerca y mas grande en proporcion (ver {@link RainbowPlacement}), que solo ve el. Se coloca de nuevo en
+     * cada pasada y se borra cuando el jugador se aleja, cambia de mundo o se va.
+     */
+    private static void bedrockRainbow(Sprite s, List<Player> viewers, Plugin plugin) {
+        Set<UUID> inRange = new HashSet<>();
+        for (Player p : viewers) {
+            if (p.isOnline() && p.getWorld().equals(s.anchor.getWorld())
+                    && p.getLocation().distanceSquared(s.anchor) < RAINBOW_VIEW_DISTANCE * RAINBOW_VIEW_DISTANCE) {
+                inRange.add(p.getUniqueId());
+            }
+        }
+        for (Iterator<Map.Entry<UUID, Entity>> it = s.rainbowStands.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<UUID, Entity> own = it.next();
+            if (!inRange.contains(own.getKey()) || !own.getValue().isValid()) {
+                CaiChetBedrockEntities.discard(own.getValue());
+                it.remove();
+            }
+        }
+        for (Player p : viewers) {
+            if (!inRange.contains(p.getUniqueId())) {
+                continue;
+            }
+            Location eye = p.getEyeLocation();
+            RainbowPlacement.Placement at = RainbowPlacement.place(eye.getX(), eye.getY(), eye.getZ(),
+                    s.anchor.getX(), s.anchor.getY(), s.anchor.getZ(), s.size);
+            Location where = new Location(s.anchor.getWorld(), at.x(), at.y(), at.z(), at.yaw(), 0f);
+            Entity stand = s.rainbowStands.get(p.getUniqueId());
+            if (stand == null) {
+                try {
+                    stand = spawnRainbowStand(where, at.scale());
+                } catch (RuntimeException e) {
+                    Bedrock.plugin().getLogger().warning("No pude crear el arcoiris de Bedrock: " + e.getMessage());
+                    continue;
+                }
+                s.rainbowStands.put(p.getUniqueId(), stand);
+            } else {
+                stand.teleport(where);
+                setScale(stand, at.scale());
+            }
+            if (!p.canSee(stand)) {
+                p.showEntity(plugin, stand);
+            }
+        }
+    }
+
+    private static Entity spawnRainbowStand(Location where, double scale) {
+        Entity e = where.getWorld().spawnEntity(where, EntityType.valueOf(CaiChetBedrockEntities.DREAM_RAINBOW.javaEntityType()),
+                CreatureSpawnEvent.SpawnReason.CUSTOM, spawned -> {
+                    spawned.setPersistent(false);
+                    spawned.setVisibleByDefault(false);
+                    Bedrock.markStand(spawned);
+                    CaiChetBedrockEntities.present(spawned, CaiChetBedrockEntities.DREAM_RAINBOW);
+                });
+        e.setSilent(true);
+        e.setGravity(false);
+        e.setInvulnerable(true);
+        setScale(e, scale);
+        return e;
+    }
+
+    private static void setScale(Entity e, double scale) {
+        if (e instanceof LivingEntity living) {
+            AttributeInstance attribute = living.getAttribute(Attribute.SCALE);
+            if (attribute != null && attribute.getBaseValue() != scale) {
+                attribute.setBaseValue(scale);
+            }
+        }
+    }
+
+    private static void discardRainbowStands(Sprite s) {
+        s.rainbowStands.values().forEach(CaiChetBedrockEntities::discard);
+        s.rainbowStands.clear();
     }
 
     private static Entity spawnStand(Sprite s, EntityType type) {
@@ -300,6 +390,7 @@ final class DreamEntities implements Runnable {
     private static void removeSprite(Sprite s) {
         s.display.remove();
         CaiChetBedrockEntities.discard(s.stand);
+        discardRainbowStands(s);
     }
 
     // ------------------------------------------------------------------ movimiento

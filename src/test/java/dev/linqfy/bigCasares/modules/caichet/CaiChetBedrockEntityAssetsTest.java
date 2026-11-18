@@ -122,7 +122,7 @@ class CaiChetBedrockEntityAssetsTest {
     @Test
     void flatSpritesAreOneDoubleSidedPlaneAndTheWingedEyeHasBothWingFrames() throws IOException {
         Map<String, JsonObject> geometries = geometries();
-        for (String name : Set.of("watcher", "dream_square_4", "dream_mushroom", "dream_window", "dream_door", "dream_void")) {
+        for (String name : Set.of("watcher", "dream_square_4", "dream_mushroom", "dream_window", "dream_door", "dream_void", "dream_rainbow")) {
             JsonObject geometry = geometries.get("geometry.caichet." + name);
             assertEquals(1, cubes(geometry, "board"), name);
             JsonObject faces = geometry.getAsJsonArray("bones").asList().stream()
@@ -136,6 +136,29 @@ class CaiChetBedrockEntityAssetsTest {
         JsonObject flap = animations().get("animation.caichet.dream_winged.flap");
         assertTrue(flap.get("loop").getAsBoolean());
         assertTrue(flap.getAsJsonObject("bones").has("wing_up") && flap.getAsJsonObject("bones").has("wing_down"));
+    }
+
+    @Test
+    void rainbowBaseSizeKeepsEveryScaleTheServerNeedsInsideTheAttributeLimits() throws IOException {
+        JsonObject geometry = geometries().get("geometry.caichet.dream_rainbow");
+        JsonObject cube = geometry.getAsJsonArray("bones").asList().stream().map(JsonElement::getAsJsonObject)
+            .filter(bone -> bone.has("cubes")).findFirst().orElseThrow().getAsJsonArray("cubes").get(0).getAsJsonObject();
+        double baked = cube.getAsJsonArray("size").get(0).getAsDouble() / 16.0;
+        assertEquals(RainbowPlacement.MODEL_BLOCKS, baked, 1.0e-9);
+        // sizes 70..110 seen from anywhere between 1 and 90 blocks
+        for (double distance : new double[] {1, 20, 48, 90}) {
+            for (double size : new double[] {70, 110}) {
+                double scale = size * RainbowPlacement.placementDistance(distance) / distance / baked;
+                assertTrue(scale >= RainbowPlacement.MIN_SCALE && scale <= RainbowPlacement.MAX_SCALE,
+                    size + " at " + distance + " needs " + scale);
+            }
+        }
+        JsonObject description = geometry.getAsJsonObject("description");
+        assertTrue(description.get("visible_bounds_width").getAsDouble() >= 256);
+        assertTrue(description.get("visible_bounds_height").getAsDouble() >= 256);
+        assertTrue(Files.isRegularFile(PACK.resolve("textures/caichet/entity/dream_rainbow.png")));
+        assertTrue(Files.isRegularFile(Path.of("resourcepack/java/assets/caichet/textures/item/dream_rainbow.png")));
+        assertEquals(1, json(JAVA_ITEM_MODELS.resolve("dream_rainbow.json")).getAsJsonArray("elements").size());
     }
 
     @Test

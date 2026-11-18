@@ -37,7 +37,7 @@ class CaiChetBedrockEntitiesTest {
             assertTrue(identifiers.add(entry.bedrockIdentifier()), "repeated " + entry.bedrockIdentifier());
             assertTrue(markers.add(entry.markerKey()), "repeated " + entry.markerKey());
         }
-        assertEquals(13, CaiChetBedrockEntities.all().size());
+        assertEquals(14, CaiChetBedrockEntities.all().size());
     }
 
     @Test
@@ -55,19 +55,26 @@ class CaiChetBedrockEntitiesTest {
     }
 
     @Test
-    void everyDreamSpriteHasItsOwnBodyExceptTheRainbowWhichIsDrawnWithParticles() {
+    void everyDreamSpriteHasItsOwnBodyEntryAndTheRainbowOwnsAMarkerOnAnArmorStand() {
         Set<CaiChetBedrockEntities.Entry> used = new HashSet<>();
         for (DreamEntities.Kind kind : DreamEntities.Kind.values()) {
             CaiChetBedrockEntities.Entry entry = DreamEntities.bedrockEntry(kind, "dream_eye2");
-            if (kind == DreamEntities.Kind.RAINBOW) {
-                assertNull(entry);
-                continue;
-            }
             assertNotNull(entry, kind.name());
             assertTrue(used.add(entry), kind + " shares its entity");
         }
+        assertEquals(CaiChetBedrockEntities.DREAM_RAINBOW, DreamEntities.bedrockEntry(DreamEntities.Kind.RAINBOW, "dream_rainbow"));
+        assertEquals("caichet_dream_rainbow", CaiChetBedrockEntities.DREAM_RAINBOW.markerKey());
+        assertTrue(CaiChetBedrockEntities.all().contains(CaiChetBedrockEntities.DREAM_RAINBOW));
         assertEquals(CaiChetBedrockEntities.DREAM_EYE_2, DreamEntities.bedrockEntry(DreamEntities.Kind.EYE, "dream_eye2"));
         assertEquals(CaiChetBedrockEntities.DREAM_CLOUD, DreamEntities.bedrockEntry(DreamEntities.Kind.CLOUD, "dream_cloud"));
+    }
+
+    @Test
+    void theRainbowCopiesAreDiscardedAndTheParticlesOnlyDrawnWithoutGeyserEntities() throws IOException {
+        CompiledClass compiled = CompiledClass.of(getClass(), "dev.linqfy.bigCasares.modules.caichet.DreamEntities");
+        assertTrue(compiled.calls(ENTITIES, "discard"));
+        assertTrue(compiled.calls(ENTITIES, "available"));
+        assertTrue(compiled.calls("dev/linqfy/bigCasares/modules/caichet/RainbowPlacement", "place"));
     }
 
     @Test
