@@ -8,7 +8,6 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
@@ -67,7 +66,10 @@ final class Train {
     private final Supplier<Location> target;
     private final ItemDisplay display;
     private final Set<UUID> alreadyHit = new HashSet<>();
-    /** Para Bedrock (no ve el modelo): cuatro vagones comunes que siguen al tren, mas humo. */
+    /**
+     * Para Bedrock (no ve el display): con las entidades de Geyser, una vagoneta que se ve como la locomotora; si no,
+     * cuatro vagones comunes que siguen al tren. En los dos casos, mas humo.
+     */
     private final List<Minecart> carts = new ArrayList<>();
     /** Los de Bedrock en el mundo, consultados cada 10 ticks (no cada tick). */
     private final List<Player> bedrockViewers = new ArrayList<>();
@@ -141,7 +143,7 @@ final class Train {
         finished = true;
         display.remove();
         passengers.remove();
-        carts.forEach(Entity::remove);
+        carts.forEach(CaiChetBedrockEntities::discard);
         carts.clear();
     }
 
@@ -152,7 +154,7 @@ final class Train {
             bedrockViewers.addAll(Bedrock.in(world));
             if (bedrockViewers.isEmpty() && !carts.isEmpty()) {
                 // se fueron todos: los vagones sobran
-                carts.forEach(Entity::remove);
+                carts.forEach(CaiChetBedrockEntities::discard);
                 carts.clear();
             }
         }
@@ -162,11 +164,14 @@ final class Train {
             return;
         }
         Plugin plugin = Bedrock.plugin();
+        // con el modelo de Geyser basta una vagoneta, que es la locomotora entera; si no, cuatro vagones comunes
+        boolean model = CaiChetBedrockEntities.available();
         if (carts.isEmpty()) {
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < (model ? 1 : 4); i++) {
                 carts.add(world.spawn(head(), Minecart.class, m -> {
                     m.setVisibleByDefault(false);
                     Bedrock.markStand(m);
+                    CaiChetBedrockEntities.present(m, CaiChetBedrockEntities.TRAIN);
                     m.setGravity(false);
                     m.setSilent(true);
                     m.setInvulnerable(true);
@@ -184,9 +189,14 @@ final class Train {
                 player.hideEntity(plugin, display); // el modelo del tren no lo ven en Bedrock
             }
         }
-        for (int i = 0; i < carts.size(); i++) {
-            double offset = (1.5 - i) * 2.2; // 3,3 / 1,1 / -1,1 / -3,3 bloques desde la cabeza
-            carts.get(i).teleport(new Location(world, hx - dx * offset, hy + 0.05, hz - dz * offset, yaw + 90f, 0f));
+        if (model) {
+            // el modelo de la locomotora mira igual que el display y tiene los pies en el suelo
+            carts.getFirst().teleport(new Location(world, hx, hy, hz, yaw, 0f));
+        } else {
+            for (int i = 0; i < carts.size(); i++) {
+                double offset = (1.5 - i) * 2.2; // 3,3 / 1,1 / -1,1 / -3,3 bloques desde la cabeza
+                carts.get(i).teleport(new Location(world, hx - dx * offset, hy + 0.05, hz - dz * offset, yaw + 90f, 0f));
+            }
         }
         if (age % 2 == 0) {
             for (Player player : viewers) {

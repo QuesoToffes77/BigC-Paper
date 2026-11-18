@@ -215,6 +215,7 @@ public final class CaiChetModule implements PluginModule {
         if (eyeBosses != null) {
             eyeBosses.removeAll();
         }
+        CaiChetBedrockEntities.releaseAll();
         if (hotelLoot != null) {
             hotelLoot.settleOwedFood();
         }

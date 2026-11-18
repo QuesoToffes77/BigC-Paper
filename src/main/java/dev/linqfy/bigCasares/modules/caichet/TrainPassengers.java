@@ -30,7 +30,9 @@ import java.util.UUID;
  * dos jugadores de teams distintos ven figuras distintas sobre el mismo tren.
  * <ul>
  *   <li>Java: un maniqui con la skin de cada integrante.</li>
- *   <li>Bedrock (no tiene maniquies): un aldeano con el nombre del integrante.</li>
+ *   <li>Bedrock con las entidades custom de Geyser: el mismo maniqui (Geyser lo traduce como un jugador con skin) sobre
+ *   el techo de la locomotora, que ahi si se ve.</li>
+ *   <li>Bedrock sin ellas: un aldeano con el nombre del integrante, sobre los vagones comunes.</li>
  * </ul>
  * Las figuras son entidades que se muestran por jugador (visibles solo para quien corresponde) y se borran con el tren.
  */
@@ -181,7 +183,7 @@ final class TrainPassengers {
             }
             teamOf.put(team.key(), team);
             keyOfPlayer.put(player.getUniqueId(), team.key());
-            (Bedrock.is(player) ? needBedrock : needJava).add(team.key());
+            (separateBedrock(player) ? needBedrock : needJava).add(team.key());
         }
         // teams que ya no tienen a nadie mirando
         for (Iterator<Map.Entry<String, Group>> it = groups.entrySet().iterator(); it.hasNext(); ) {
@@ -205,7 +207,7 @@ final class TrainPassengers {
         // visibilidad: cada jugador ve solo las figuras de su team y de su plataforma
         for (Player player : world.getPlayers()) {
             String key = keyOfPlayer.get(player.getUniqueId());
-            boolean bedrock = Bedrock.is(player);
+            boolean bedrock = separateBedrock(player);
             for (Map.Entry<String, Group> entry : groups.entrySet()) {
                 for (boolean forBedrock : new boolean[]{false, true}) {
                     boolean visible = entry.getKey().equals(key) && forBedrock == bedrock;
@@ -215,6 +217,11 @@ final class TrainPassengers {
                 }
             }
         }
+    }
+
+    /** Quien ve aldeanos sobre vagones comunes: solo Bedrock sin el modelo de la locomotora (ahi ve los maniquies). */
+    private static boolean separateBedrock(Player player) {
+        return Bedrock.is(player) && !CaiChetBedrockEntities.available();
     }
 
     private void setVisible(Player player, Figure f, boolean visible) {

@@ -139,9 +139,12 @@ final class Doppelganger {
         body.setBodyYaw(brain.getBodyYaw());
     }
 
-    /** Muestra a este jugador el cuerpo que puede ver: el maniqui en Java, la gallina en Bedrock. */
+    /**
+     * Muestra a este jugador el cuerpo que puede ver: el maniqui en Java y, en Bedrock, la gallina; con las entidades de
+     * Geyser tambien el maniqui, que Geyser traduce como un jugador con skin.
+     */
     void showTo(Player player) {
-        Entity shown = Bedrock.is(player) ? brain : body;
+        Entity shown = Bedrock.is(player) && !CaiChetBedrockEntities.available() ? brain : body;
         if (!player.canSee(shown)) {
             player.showEntity(Bedrock.plugin(), shown);
         }

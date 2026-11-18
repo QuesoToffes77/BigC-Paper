@@ -77,6 +77,7 @@ final class Watchers implements Runnable {
         final ItemDisplay display;
         final UUID player;
         final float size;
+        final CaiChetBedrockEntities.Entry bedrockEntry;
         int seen;
         int age;
         boolean chasing;
@@ -85,15 +86,14 @@ final class Watchers implements Runnable {
 
         void remove() {
             display.remove();
-            if (stand != null) {
-                stand.remove();
-            }
+            CaiChetBedrockEntities.discard(stand);
         }
 
-        Watcher(ItemDisplay display, UUID player, float size) {
+        Watcher(ItemDisplay display, UUID player, float size, CaiChetBedrockEntities.Entry bedrockEntry) {
             this.display = display;
             this.player = player;
             this.size = size;
+            this.bedrockEntry = bedrockEntry;
         }
     }
 
@@ -231,7 +231,8 @@ final class Watchers implements Runnable {
             d.setViewRange(2f);
             d.setPersistent(false);
         });
-        Watcher watcher = new Watcher(display, player.getUniqueId(), size);
+        Watcher watcher = new Watcher(display, player.getUniqueId(), size,
+                CaiChetBedrockEntities.watcher(figure));
         if (Bedrock.is(player)) {
             Plugin plugin = Bedrock.plugin();
             player.hideEntity(plugin, display);
@@ -244,9 +245,11 @@ final class Watchers implements Runnable {
                 e.setRemoveWhenFarAway(false);
                 e.setVisibleByDefault(false);
                 Bedrock.markStand(e);
+                CaiChetBedrockEntities.present(e, watcher.bedrockEntry);
                 AttributeInstance scale = e.getAttribute(Attribute.SCALE);
                 if (scale != null) {
-                    scale.setBaseValue(Math.max(0.8, size / 2.7));
+                    // el cartel de Bedrock mide 2,7 bloques a escala 1: con el, la escala es el tamaño tal cual
+                    scale.setBaseValue(CaiChetBedrockEntities.available() ? size / 2.7 : Math.max(0.8, size / 2.7));
                 }
             });
             player.showEntity(plugin, watcher.stand);

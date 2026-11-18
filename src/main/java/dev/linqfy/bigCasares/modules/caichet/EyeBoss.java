@@ -113,6 +113,7 @@ final class EyeBoss {
                 g.setRemoveWhenFarAway(false);
                 g.setVisibleByDefault(false);
                 Bedrock.markStand(g);
+                CaiChetBedrockEntities.present(g, CaiChetBedrockEntities.BOSS_EYE);
                 AttributeInstance scale = g.getAttribute(Attribute.SCALE);
                 if (scale != null) {
                     scale.setBaseValue(4.0);
@@ -385,11 +386,10 @@ final class EyeBoss {
     /** Se va sin despedirse (te moriste, te fuiste o te alejaste). */
     void remove() {
         finished = true;
-        for (Entity e : new Entity[]{body, wingL, wingR, hitbox, guardian}) {
-            if (e != null) {
-                e.remove();
-            }
+        for (Entity e : new Entity[]{body, wingL, wingR, hitbox}) {
+            e.remove();
         }
+        CaiChetBedrockEntities.discard(guardian);
         owner.hideBossBar(bar);
     }
 }

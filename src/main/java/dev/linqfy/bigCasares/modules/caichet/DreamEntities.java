@@ -71,6 +71,8 @@ final class DreamEntities implements Runnable {
         boolean standFailed;
         /** Para Bedrock: cuerpo vanilla que lo reemplaza (solo lo ve el). Null si no le toca. */
         Entity stand;
+        /** Como lo muestra Geyser (el modelo 3D); null si no tiene (el arcoiris). */
+        CaiChetBedrockEntities.Entry bedrockEntry;
 
         Sprite(ItemDisplay display, Kind kind, Location anchor, double radius, double speed, double phase) {
             this.display = display;
@@ -135,7 +137,24 @@ final class DreamEntities implements Runnable {
         };
     }
 
+    /** El modelo de Bedrock de cada tipo (el modelo de Java de los ojos y su lado de Bedrock salen del sorteo). */
+    static CaiChetBedrockEntities.Entry bedrockEntry(Kind kind, String model) {
+        return switch (kind) {
+            case EYE -> CaiChetBedrockEntities.dreamEye(model);
+            case CLOUD -> CaiChetBedrockEntities.DREAM_CLOUD;
+            case WINGED -> CaiChetBedrockEntities.DREAM_WINGED;
+            case MUSHROOM -> CaiChetBedrockEntities.DREAM_MUSHROOM;
+            case WINDOW -> CaiChetBedrockEntities.DREAM_WINDOW;
+            case DOOR -> CaiChetBedrockEntities.DREAM_DOOR;
+            case VOID -> CaiChetBedrockEntities.DREAM_VOID;
+            case RAINBOW -> null;
+        };
+    }
+
     private static double standScale(Kind kind, float size) {
+        if (CaiChetBedrockEntities.available() && kind == Kind.MUSHROOM) {
+            return Math.max(0.3, Math.min(16.0, size / 4.0)); // el modelo del hongo mide 4 bloques a escala 1
+        }
         double scale = switch (kind) {
             case EYE, CLOUD -> size / 4.0;
             case WINGED -> size / 1.5;
@@ -156,7 +175,7 @@ final class DreamEntities implements Runnable {
             // nadie de Bedrock: los cuerpos sobran y no se les gasta un teleport por tick
             for (Sprite s : sprites) {
                 if (s.stand != null) {
-                    s.stand.remove();
+                    CaiChetBedrockEntities.discard(s.stand);
                     s.stand = null;
                 }
             }
@@ -201,6 +220,9 @@ final class DreamEntities implements Runnable {
                     spawned.setPersistent(false);
                     spawned.setVisibleByDefault(false);
                     Bedrock.markStand(spawned);
+                    if (s.bedrockEntry != null) {
+                        CaiChetBedrockEntities.present(spawned, s.bedrockEntry);
+                    }
                 });
         e.setSilent(true);
         e.setGravity(false);
@@ -258,9 +280,7 @@ final class DreamEntities implements Runnable {
 
     private static void removeSprite(Sprite s) {
         s.display.remove();
-        if (s.stand != null) {
-            s.stand.remove();
-        }
+        CaiChetBedrockEntities.discard(s.stand);
     }
 
     // ------------------------------------------------------------------ movimiento
@@ -465,6 +485,7 @@ final class DreamEntities implements Runnable {
         });
         Sprite sprite = new Sprite(display, kind, at, radius, speed, r.nextDouble(Math.PI * 2));
         sprite.size = s;
+        sprite.bedrockEntry = bedrockEntry(kind, model);
         sprites.add(sprite);
     }
 
