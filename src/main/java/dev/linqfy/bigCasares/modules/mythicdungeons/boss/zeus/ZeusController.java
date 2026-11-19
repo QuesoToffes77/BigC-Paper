@@ -256,7 +256,7 @@ final class ZeusController implements BossEncounterController {
             case TRANSITION -> transitionStep(boss);
             case SPEARS -> spearStep(boss, players);
         }
-        shockStep();
+        shockStep(players);
     }
 
     // ------------------------------------------------------------------ phase 1: the storm
@@ -636,8 +636,18 @@ final class ZeusController implements BossEncounterController {
         player.playSound(at, Sound.BLOCK_BEACON_DEACTIVATE, SoundCategory.HOSTILE, 1.0F, 2.0F);
     }
 
-    private void shockStep() {
-        for (UUID id : shocks.release(tick)) {
+    /**
+     * {@code players}: los vulnerables de la sala este tick; al paralizado que ya no esta (se fue, murio, cambio de
+     * mundo o de modo) se lo suelta en vez de devolverlo a la baldosa.
+     */
+    private void shockStep(List<Player> players) {
+        List<UUID> inRoom = new ArrayList<>(players.size());
+        for (Player player : players) {
+            inRoom.add(player.getUniqueId());
+        }
+        List<UUID> released = new ArrayList<>(shocks.release(tick));
+        released.addAll(shocks.releaseAbsent(inRoom, tick));
+        for (UUID id : released) {
             shockAnchors.remove(id);
             Player player = support.plugin().getServer().getPlayer(id);
             if (player != null) {

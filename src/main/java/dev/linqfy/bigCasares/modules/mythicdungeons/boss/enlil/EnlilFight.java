@@ -339,8 +339,8 @@ final class EnlilFight implements BossEncounterController {
             }
             boolean braced = player.isSneaking();
             EnlilWind.Push push = EnlilWind.gust(from.getX(), from.getZ(), at.getX(), at.getZ(), braced);
-            player.setVelocity(new Vector(push.x(), push.y(), push.z()));
-            player.damage(braced ? EnlilTuning.GUST_BRACED_DAMAGE : EnlilTuning.GUST_DAMAGE, boss);
+            EnlilTornadoes.hitThenPush(player, braced ? EnlilTuning.GUST_BRACED_DAMAGE : EnlilTuning.GUST_DAMAGE, boss,
+                new Vector(push.x(), push.y(), push.z()));
             world.spawnParticle(Particle.GUST, at.clone().add(0.0, 1.0, 0.0), 1, 0.0, 0.0, 0.0, 0.0);
             Vector step = new Vector(push.x(), 0.0, push.z()).normalize();
             Location trail = at.clone().add(0.0, 1.0, 0.0);
@@ -371,8 +371,8 @@ final class EnlilFight implements BossEncounterController {
             Location p = player.getLocation();
             if (p.distanceSquared(at) <= EnlilTuning.LANDING_RADIUS * EnlilTuning.LANDING_RADIUS) {
                 EnlilWind.Push push = EnlilWind.gust(at.getX(), at.getZ(), p.getX(), p.getZ(), false);
-                player.setVelocity(new Vector(push.x() * 0.55, 0.35, push.z() * 0.55));
-                player.damage(EnlilTuning.LANDING_DAMAGE, boss);
+                EnlilTornadoes.hitThenPush(player, EnlilTuning.LANDING_DAMAGE, boss,
+                    new Vector(push.x() * 0.55, 0.35, push.z() * 0.55));
             }
             player.showTitle(Title.title(LEGACY.deserialize(""),
                 LEGACY.deserialize("§e¡Enlil tocó tierra! §f¡Pegale de cerca!"),
@@ -587,12 +587,15 @@ final class EnlilFight implements BossEncounterController {
         return EnlilArena.probe(at.getBlockX(), at.getBlockZ(), floor, passable);
     }
 
-    /** The audience inside the room (the walls bound the fight; people in the corridors are left alone). */
+    /**
+     * The fighters inside the room in survival/adventure (the walls bound the fight; people in the corridors and
+     * creative/spectator staff are left alone).
+     */
     private List<Player> fighters() {
         List<Player> inside = new ArrayList<>();
         for (Player player : context.players()) {
             Location at = player.getLocation();
-            if (arena.contains(at.getX(), at.getZ()) && at.getY() >= arena.floorY() - 2.0
+            if (EnlilRules.targetable(player.getGameMode(), player.isDead()) && arena.contains(at.getX(), at.getZ()) && at.getY() >= arena.floorY() - 2.0
                 && at.getY() <= arena.floorY() + EnlilArena.HEADROOM) {
                 inside.add(player);
             }

@@ -26,7 +26,7 @@ import java.util.function.Predicate;
  * Lo que ven los jugadores de Bedrock en lugar de un jefe o una pieza con modelo de BetterModel. Bedrock (por Geyser)
  * no dibuja los modelos de BetterModel, asi que sin esto veria un Warden invisible: nada. Cada jefe (o pieza) puede
  * tener un "doble" vanilla que solo ven los de Bedrock (a los de Java se les oculta con {@link Player#hideEntity}),
- * sin IA ni colision, que sigue al ancla cada tick del encuentro y le pasa los golpes que recibe.
+ * sin IA ni colision, que sigue al ancla cada tick del encuentro y le pasa los golpes que le dan los de Bedrock.
  *
  * <p>Limitacion: el doble es un mob vanilla parecido (no el modelo); las animaciones de Java no existen en Bedrock.</p>
  */
@@ -107,21 +107,39 @@ public final class BedrockStandIns implements Listener {
         if (anchor == null) {
             return;
         }
+        // el doble nunca recibe dano propio; solo le pasa al ancla el golpe que le dio un jugador de Bedrock
         event.setCancelled(true);
-        if (!(anchor instanceof LivingEntity living) || !anchor.isValid()) {
+        Entity source = forwardedSource(event, bedrockPlayer);
+        if (source == null || !(anchor instanceof LivingEntity living) || !anchor.isValid()) {
             return;
         }
-        Entity source = event instanceof EntityDamageByEntityEvent byEntity ? byEntity.getDamager() : null;
         // va por el EntityDamageEvent del ancla, asi pveboss aplica filterDamage y el ranking igual que en Java. Un
         // proyectil se pasa como proyectil (no como golpe del tirador): el encuentro decide si lo bloquea.
-        if (source != null) {
-            living.damage(event.getDamage(), source);
-        } else {
-            living.damage(event.getDamage());
-        }
+        living.damage(event.getDamage(), source);
         if (source instanceof Projectile projectile && projectile.isValid()) {
             projectile.remove();
         }
+    }
+
+    /**
+     * Lo que el doble le pasa al ancla: el jugador de Bedrock que le pego cuerpo a cuerpo o el proyectil que tiro uno
+     * de Bedrock; {@code null} para todo lo demas (barrido de espada, explosiones, fuego, asfixia, golpes de Java...).
+     * El doble existe de verdad en el servidor en el mismo lugar que el jefe, asi que ese dano ya le llega al ancla
+     * por su cuenta y pasarlo seria contarlo dos veces.
+     */
+    static Entity forwardedSource(EntityDamageEvent event, Predicate<UUID> bedrockPlayer) {
+        if (!(event instanceof EntityDamageByEntityEvent byEntity)) {
+            return null;
+        }
+        Entity damager = byEntity.getDamager();
+        return switch (event.getCause()) {
+            case ENTITY_ATTACK -> damager instanceof Player player && bedrockPlayer.test(player.getUniqueId())
+                ? damager : null;
+            case PROJECTILE -> damager instanceof Projectile projectile
+                && projectile.getShooter() instanceof Player shooter && bedrockPlayer.test(shooter.getUniqueId())
+                ? damager : null;
+            default -> null;
+        };
     }
 
     @EventHandler(ignoreCancelled = true)

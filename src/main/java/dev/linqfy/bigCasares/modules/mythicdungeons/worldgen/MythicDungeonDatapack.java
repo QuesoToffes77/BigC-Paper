@@ -75,6 +75,18 @@ public final class MythicDungeonDatapack {
     /** Footprint side reserved for the boss arena (runtime {@code AltarRule}); no other piece may have it. */
     public static final int ARENA_FOOTPRINT = MythicPieces.ARENA_SIZE;
     static final int MAX_TEMPLATE_SIZE = 48;
+    /** Biomes of the vanilla 26.2 {@code has_structure/village_*} tags. */
+    static final Set<String> VILLAGE_BIOMES = Set.of("minecraft:plains", "minecraft:meadow", "minecraft:desert",
+        "minecraft:savanna", "minecraft:snowy_plains", "minecraft:taiga");
+    /**
+     * Cultures that share a biome with villages skip any start with a village candidate chunk within 10 chunks:
+     * a complex reaches about 7 chunks from its start and a village about 3. Vanilla counts every candidate cell
+     * whatever its biome, so 16 (the codec maximum) would leave only about a quarter of the starts.
+     */
+    static final StructureDefinition.ExclusionZone VILLAGE_EXCLUSION =
+        new StructureDefinition.ExclusionZone(NamespacedId.of("minecraft", "villages"), 10);
+    /** Folder of the third-party licence files inside the pack (outside {@code data/}, ignored by the game). */
+    public static final String LICENSES_FOLDER = "licenses/";
     private static final String AIR = "minecraft:air";
 
     private MythicDungeonDatapack() {
@@ -98,6 +110,11 @@ public final class MythicDungeonDatapack {
                 extras.addAll(Objects.requireNonNull(source.piecesFor(theme.culture()), "pieces"));
             }
             writeCulture(builder, theme, extras);
+        }
+        for (MythicTemplateSource source : sources) {
+            // the licences travel with the pack, so a distributed world keeps them
+            Objects.requireNonNull(source.licenseFiles(), "licenseFiles").forEach((path, content) ->
+                builder.file(LICENSES_FOLDER + path, content));
         }
         return builder.build(DESCRIPTION);
     }
@@ -306,7 +323,13 @@ public final class MythicDungeonDatapack {
             theme.biomes().stream().map(NamespacedId::parse).toList(),
             pool, List.of(), "surface_structures", JIGSAW_SIZE, VerticalAnchor.absolute(0), "WORLD_SURFACE_WG",
             theme.layout().maxDistanceFromCenter(), theme.layout().terrainAdaptation(),
-            new StructureDefinition.Placement(spread.spacing(), spread.separation(), spread.salt()));
+            new StructureDefinition.Placement(spread.spacing(), spread.separation(), spread.salt(),
+                sharesVillageBiome(theme) ? VILLAGE_EXCLUSION : null));
+    }
+
+    /** True when a vanilla village can start in one of the culture's biomes. */
+    static boolean sharesVillageBiome(MythicDungeonTheme theme) {
+        return theme.biomes().stream().anyMatch(VILLAGE_BIOMES::contains);
     }
 
     private static String lower(Enum<?> value) {

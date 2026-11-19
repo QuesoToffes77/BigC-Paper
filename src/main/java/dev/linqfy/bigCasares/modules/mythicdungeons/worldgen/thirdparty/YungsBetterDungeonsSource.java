@@ -106,6 +106,11 @@ public final class YungsBetterDungeonsSource implements MythicTemplateSource {
     }
 
     @Override
+    public Map<String, byte[]> licenseFiles() {
+        return ThirdPartySources.licenseFiles("yungs_better_dungeons", List.of("COPYING", "LICENSE", "NOTICE"));
+    }
+
+    @Override
     public List<MythicExtraPiece> piecesFor(String culture) {
         MythicDungeonTheme theme = MythicDungeonTheme.all().stream()
             .filter(candidate -> candidate.culture().equals(culture)).findFirst().orElse(null);

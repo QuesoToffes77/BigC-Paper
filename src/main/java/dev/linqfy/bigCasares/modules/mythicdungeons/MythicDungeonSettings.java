@@ -108,8 +108,10 @@ public record MythicDungeonSettings(
             case MEDIEVAL -> new RewardItem(Material.GOLD_BLOCK, 3);
             case EGYPTIAN -> new RewardItem(Material.ENCHANTED_GOLDEN_APPLE, 1);
             case MESOPOTAMIAN -> new RewardItem(Material.LAPIS_BLOCK, 4);
-            // culturas que todavia no tienen jefe
-            case JAPANESE, MESOAMERICAN, ARABIAN, ANDEAN -> new RewardItem(Material.EMERALD_BLOCK, 3);
+            case JAPANESE -> new RewardItem(Material.IRON_BLOCK, 4);
+            case MESOAMERICAN -> new RewardItem(Material.EMERALD_BLOCK, 2);
+            case ARABIAN -> new RewardItem(Material.BLAZE_ROD, 8);
+            case ANDEAN -> new RewardItem(Material.AMETHYST_BLOCK, 4);
         });
         return new BossReward(1500, items);
     }

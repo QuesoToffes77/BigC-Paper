@@ -71,8 +71,8 @@ final class MythicSummoners implements Listener {
         }
         ItemStack item = event.getItem();
         Optional<MythicCulture> summoner = itemId(item).flatMap(MythicCulture::bySummonerItemId);
-        if (summoner.isEmpty()) {
-            return;
+        if (summoner.isEmpty() || MythicInteractions.deniedByOthers(event)) {
+            return; // otro plugin ya nego usar el item (por ejemplo una proteccion de zona)
         }
         // nada de la interaccion vanilla del material de base ni del bloque clickeado
         event.setUseItemInHand(Event.Result.DENY);
@@ -107,7 +107,8 @@ final class MythicSummoners implements Listener {
             return;
         }
         summons.remember(dungeon.get().key(), new DungeonBossRegistry.Summon(boss, culture,
-            spawn.getWorld().getName(), spawn.getX(), spawn.getY(), spawn.getZ()));
+            spawn.getWorld().getName(), spawn.getX(), spawn.getY(), spawn.getZ(),
+            player.getGameMode() != GameMode.CREATIVE ? player.getUniqueId() : null));
         if (player.getGameMode() != GameMode.CREATIVE) {
             item.setAmount(item.getAmount() - 1);
         }

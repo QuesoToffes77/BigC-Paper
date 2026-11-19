@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.boss.horus;
 
+import org.bukkit.GameMode;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,5 +63,14 @@ class HorusDamageRulesTest {
             assertNotNull(stream, path);
             return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    @Test
+    void onlySurvivalAndAdventurePlayersAreTargeted() {
+        assertTrue(HorusDamageRules.targetable(GameMode.SURVIVAL, false));
+        assertTrue(HorusDamageRules.targetable(GameMode.ADVENTURE, false));
+        assertFalse(HorusDamageRules.targetable(GameMode.CREATIVE, false));
+        assertFalse(HorusDamageRules.targetable(GameMode.SPECTATOR, false));
+        assertFalse(HorusDamageRules.targetable(GameMode.ADVENTURE, true));
     }
 }

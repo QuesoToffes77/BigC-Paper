@@ -12,8 +12,20 @@ import java.util.function.Predicate;
  */
 public final class DungeonBossRegistry {
 
-    /** Una invocacion: el jefe y donde aparecio. */
-    public record Summon(UUID bossInstanceId, MythicCulture culture, String world, double x, double y, double z) {
+    /**
+     * Una invocacion: el jefe, donde aparecio y quien gasto el Invocador ({@code null} si lo invoco un admin con
+     * comando): si el jefe termina sin ser derrotado, el Invocador de {@code culture} vuelve a ese jugador.
+     */
+    public record Summon(UUID bossInstanceId, MythicCulture culture, String world, double x, double y, double z,
+                         UUID summonerId) {
+
+        public Summon(UUID bossInstanceId, MythicCulture culture, String world, double x, double y, double z) {
+            this(bossInstanceId, culture, world, x, y, z, null);
+        }
+
+        public Optional<UUID> summoner() {
+            return Optional.ofNullable(summonerId);
+        }
     }
 
     private final Map<String, Summon> byDungeon = new LinkedHashMap<>();
@@ -38,6 +50,12 @@ public final class DungeonBossRegistry {
     /** Todas las invocaciones recordadas (vivas o no). */
     public Map<String, Summon> snapshot() {
         return Map.copyOf(byDungeon);
+    }
+
+    /** La invocacion de esa instancia del jefe, viva o no, mientras no se haya olvidado. */
+    public Optional<Summon> byBoss(UUID bossInstanceId) {
+        return byDungeon.values().stream().filter(summon -> summon.bossInstanceId().equals(bossInstanceId))
+            .findFirst();
     }
 
     public void forget(UUID bossInstanceId) {

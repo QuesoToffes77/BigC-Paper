@@ -119,4 +119,15 @@ class EnmaMirrorTrialTest {
         }
         assertTrue(EnmaMirrorTrial.VOLLEY_WINDUP_TICKS >= 16, "at least 0.8 s of warning");
     }
+
+    @Test
+    void aLostMirrorCountsAsBrokenSoEnmaIsNotImmuneForever() {
+        EnmaMirrorTrial trial = new EnmaMirrorTrial(0, 60.0);
+        runUntil(trial, 1, 0, EnmaMirrorTrial.Event.EXPOSED);
+        trial.hit(15.0);
+        assertEquals(45.0, trial.forfeit(), 1.0e-9);
+        assertTrue(trial.broken());
+        assertEquals(0.0, trial.forfeit());
+        assertEquals(0.0, trial.hit(10.0).accepted());
+    }
 }

@@ -116,6 +116,39 @@ class DiabloQteTest {
     }
 
     @Test
+    void mashingEveryKeyNeverCompletesAndFails() {
+        for (boolean bedrock : new boolean[] {false, true}) {
+            DiabloQte qte = new DiabloQte(SETTINGS, bedrock, new SplittableRandom(11));
+            qte.begin(0);
+            boolean failed = false;
+            for (long tick = 1; tick <= 2000; tick++) {
+                DiabloQte.Outcome outcome = qte.tick(tick, tick % 2 == 0 ? EnumSet.allOf(QteKey.class) : Set.of());
+                assertNotEquals(DiabloQte.Outcome.COMPLETED, outcome);
+                assertNotEquals(DiabloQte.Outcome.PROGRESS, outcome);
+                failed |= outcome == DiabloQte.Outcome.FAILED_WRONG;
+            }
+            assertFalse(qte.completed());
+            assertEquals(0, qte.cleared());
+            assertTrue(failed, "extra keys after the grace are a wrong press");
+        }
+    }
+
+    @Test
+    void thePromptPlusAnotherKeyIsAWrongPress() {
+        DiabloQte qte = new DiabloQte(SETTINGS, false, new SplittableRandom(3));
+        qte.begin(0);
+        QteKey key = qte.prompt();
+        QteKey other = key == QteKey.JUMP ? QteKey.SNEAK : QteKey.JUMP;
+        qte.tick(1, Set.of());
+        assertEquals(DiabloQte.Outcome.NONE, qte.tick(2, EnumSet.of(key, other)), "inside the grace");
+        assertEquals(0, qte.count());
+        qte.tick(8, Set.of());
+        assertEquals(DiabloQte.Outcome.FAILED_WRONG, qte.tick(9, EnumSet.of(key, other)));
+        qte.tick(10, Set.of());
+        assertEquals(DiabloQte.Outcome.PROGRESS, qte.tick(11, EnumSet.of(key)), "a clean press still counts");
+    }
+
+    @Test
     void javaPlayersDoNotGetAlternatives() {
         for (long seed = 0; seed < 40; seed++) {
             DiabloQte qte = new DiabloQte(SETTINGS, false, new SplittableRandom(seed));

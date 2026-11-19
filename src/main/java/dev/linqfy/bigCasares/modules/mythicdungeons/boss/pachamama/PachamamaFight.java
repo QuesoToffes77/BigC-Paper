@@ -73,11 +73,14 @@ final class PachamamaFight implements BossEncounterController {
     private final RandomGenerator random = RandomGenerator.of("L64X128MixRandom");
     private final Map<UUID, Long> hints = new HashMap<>();
     private final PachamamaDealHold dealHold = new PachamamaDealHold();
+    private final PachamamaDealConfirm dealConfirm = new PachamamaDealConfirm();
     private final List<PachamamaShockwave> waves = new ArrayList<>();
     /** Floor block y of every paintable column (key: {@link #key}). */
     private final Map<Long, Integer> paintable = new HashMap<>();
     private final List<Block> roundBlocks = new ArrayList<>();
     private final Set<Long> paintedColumns = new HashSet<>();
+    /** Blue round: water columns that were already there when it was painted ({@code null} otherwise). */
+    private Set<Long> waterBefore;
 
     private PachamamaArena arena;
     private World world;
@@ -175,6 +178,7 @@ final class PachamamaFight implements BossEncounterController {
         if (floor != null) {
             try {
                 floor.restoreAll();
+                dryStrays();
             } catch (RuntimeException failure) {
                 support.logger().log(Level.WARNING, "[Mazmorras] Pachamama: fallo al restaurar el piso", failure);
             }
@@ -304,6 +308,7 @@ final class PachamamaFight implements BossEncounterController {
         previousColour = round.colour();
         Material paint = paintMaterial(round.colour());
         Map<Block, BlockData> batch = new LinkedHashMap<>();
+        Set<Long> columns = new HashSet<>();
         BlockData data = paint.createBlockData();
         for (PachamamaTile tile : round.painted()) {
             for (int[] column : arena.columns(tile)) {
@@ -316,11 +321,16 @@ final class PachamamaFight implements BossEncounterController {
                     continue;
                 }
                 batch.put(block, data);
-                paintedColumns.add(key(column[0], column[1]));
+                columns.add(key(column[0], column[1]));
             }
         }
-        floor.change(batch);
-        roundBlocks.addAll(batch.keySet());
+        if (floor.change(batch)) {
+            roundBlocks.addAll(batch.keySet());
+            paintedColumns.addAll(columns);
+        }
+        if (round.colour() == PachamamaColour.BLUE) {
+            waterBefore = waterCells(PachamamaWaterSweep.area(paintedColumns));
+        }
         context.animate("cast");
         sound(Sound.BLOCK_ROOTED_DIRT_PLACE, 2.5f, 0.6f);
         sound(Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 2.0f, 0.5f);
@@ -386,8 +396,9 @@ final class PachamamaFight implements BossEncounterController {
                 water.put(above, source);
             }
         }
-        floor.change(water);
-        roundBlocks.addAll(water.keySet());
+        if (floor.change(water)) {
+            roundBlocks.addAll(water.keySet());
+        }
         sound(Sound.ITEM_BUCKET_EMPTY, 2.5f, 0.6f);
         List<PachamamaTile> tiles = new ArrayList<>(round.painted());
         for (int index = 0; index < Math.min(4, tiles.size()); index++) {
@@ -458,9 +469,45 @@ final class PachamamaFight implements BossEncounterController {
 
     private void clearRound() {
         floor.restore(roundBlocks);
+        dryStrays();
         roundBlocks.clear();
         paintedColumns.clear();
         round = null;
+    }
+
+    /**
+     * After a blue round: water the journal does not know (a source the infinite-water rule made between two of
+     * ours) at the water level over the painted columns and one block around, inside the room; water that was
+     * there when the round started stays.
+     */
+    private void dryStrays() {
+        if (waterBefore == null) {
+            return;
+        }
+        Set<Long> area = PachamamaWaterSweep.area(paintedColumns);
+        int y = arena.floorY();
+        List<Long> strays = PachamamaWaterSweep.strays(area, waterBefore,
+            column -> world.getBlockAt(PachamamaWaterSweep.x(column), y, PachamamaWaterSweep.z(column)).getType()
+                == Material.WATER,
+            column -> arena.contains(PachamamaWaterSweep.x(column) + 0.5, PachamamaWaterSweep.z(column) + 0.5));
+        for (long column : strays) {
+            world.getBlockAt(PachamamaWaterSweep.x(column), y, PachamamaWaterSweep.z(column))
+                .setType(Material.AIR, true);
+        }
+        waterBefore = null;
+    }
+
+    /** Columns of {@code area} with water at the water level of the blue rounds. */
+    private Set<Long> waterCells(Set<Long> area) {
+        Set<Long> water = new HashSet<>();
+        int y = arena.floorY();
+        for (long column : area) {
+            if (world.getBlockAt(PachamamaWaterSweep.x(column), y, PachamamaWaterSweep.z(column)).getType()
+                == Material.WATER) {
+                water.add(column);
+            }
+        }
+        return water;
     }
 
     private boolean onPainted(Player player) {
@@ -513,7 +560,7 @@ final class PachamamaFight implements BossEncounterController {
         for (Player player : players) {
             player.sendMessage(LEGACY.deserialize("§4Mandinga: §7\"¿Querés mi guitarra, che? Te la cambio por un "
                 + "corazón... §cpara siempre§7.\""));
-            player.sendMessage(LEGACY.deserialize("§8(Click derecho en el pedestal, o quedate agachado al lado "
+            player.sendMessage(LEGACY.deserialize("§8(Click derecho dos veces en el pedestal, o quedate agachado al lado "
                 + "3 segundos. Una sola vez por jugador.)"));
         }
     }
@@ -627,9 +674,10 @@ final class PachamamaFight implements BossEncounterController {
         }
     }
 
-    /** Clicks on the pedestal and sneak-holds next to it. */
+    /** Clicks on the pedestal (a second one confirms) and sneak-holds next to it. */
     private void deals(List<Player> players) {
-        pedestal.poll().filter(players::contains).ifPresent(this::deal);
+        dealConfirm.expire(tick);
+        pedestal.poll().filter(players::contains).ifPresent(this::clicked);
         Location top = pedestal.top();
         Set<UUID> holding = new HashSet<>();
         for (Player player : players) {
@@ -648,6 +696,23 @@ final class PachamamaFight implements BossEncounterController {
             }
             if (player.getUniqueId().equals(done)) {
                 deal(player);
+            }
+        }
+    }
+
+    /** Any right-click looking at the pedestal lands here, so the first one only asks for a second. */
+    private void clicked(Player player) {
+        if (MandingaGuitar.check(player) != MandingaGuitarPactRule.Outcome.ACCEPT) {
+            deal(player);
+            return;
+        }
+        switch (dealConfirm.click(player.getUniqueId(), tick)) {
+            case CONFIRMED -> deal(player);
+            case ARMED -> player.showTitle(Title.title(LEGACY.deserialize(""),
+                LEGACY.deserialize("§4Hacé click otra vez en 3 s para pagar un corazón"),
+                Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(2600), Duration.ofMillis(300))));
+            case HELD -> {
+                // a held use key: wait for a real second click
             }
         }
     }
@@ -672,7 +737,10 @@ final class PachamamaFight implements BossEncounterController {
         }
         Map<Integer, ItemStack> left = player.getInventory().addItem(guitar.get());
         for (ItemStack rest : left.values()) {
-            player.getWorld().dropItem(player.getLocation(), rest, item -> item.setOwner(player.getUniqueId()));
+            player.getWorld().dropItem(player.getLocation(), rest, item -> {
+                PachamamaPaidDrop.protect(item, player.getUniqueId());
+                item.setCanMobPickup(false);
+            });
         }
         Location at = player.getLocation().add(0.0, 1.0, 0.0);
         world.spawnParticle(Particle.DAMAGE_INDICATOR, at, 10, 0.3, 0.4, 0.3, 0.1);
@@ -825,7 +893,7 @@ final class PachamamaFight implements BossEncounterController {
     }
 
     private static long key(int bx, int bz) {
-        return ((long) bx << 32) | (bz & 0xffffffffL);
+        return PachamamaWaterSweep.key(bx, bz);
     }
 
     // ------------------------------------------------------------------------------------------------ helpers

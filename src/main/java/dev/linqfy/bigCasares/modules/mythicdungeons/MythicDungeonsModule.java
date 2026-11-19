@@ -72,6 +72,7 @@ public final class MythicDungeonsModule implements PluginModule {
     private MythicMobs mobs;
     private MythicBossSupport support;
     private PaperDungeonLocator locator;
+    private MythicDeliveries deliveries;
 
     public MythicDungeonsModule(BigCasares plugin, JavaModelGateway javaModels, PveBossModule pveBossModule,
                                 CustomItemRegistry customItems, ClientPlatformGateway platforms) {
@@ -139,6 +140,11 @@ public final class MythicDungeonsModule implements PluginModule {
         registerSummonerRecipe(registrations, summonerRecipe);
         registrations.registerListener("mythic-guitar",
             new MandingaGuitarListener(plugin, customItems, scheduler));
+        MythicDeliveries ownedDeliveries = new MythicDeliveries(plugin.getServer(), new MythicPendingDeliveries(
+            new File(plugin.getDataFolder(), MythicPendingDeliveries.FILE).toPath(), plugin.getLogger()),
+            this::catalogItem, plugin.getLogger());
+        deliveries = ownedDeliveries;
+        registrations.registerListener("mythic-deliveries", ownedDeliveries);
 
         MythicBossSupport ownedSupport = new MythicBossSupport(plugin, ownedMobs, javaModels, ownedLocator, scheduler,
             platforms);
@@ -149,7 +155,7 @@ public final class MythicDungeonsModule implements PluginModule {
         registrations.scheduleRepeating("mythic-bedrock-stand-ins-tick", standIns::tick, 1L, 1L);
         registrations.ownCleanup("mythic-bedrock-stand-ins-entities", standIns::clear);
         registrations.ownCleanup("mythic-boss-entities", ownedSupport::cleanupAll);
-        registerBosses(registrations, ownedSupport, settings);
+        registerBosses(registrations, ownedSupport, settings, new MythicBossEndings(this::bossEnded));
 
         PluginCommand command = plugin.getCommand(COMMAND);
         if (command == null) {
@@ -204,10 +210,11 @@ public final class MythicDungeonsModule implements PluginModule {
             locator = null;
         }
         summons.clear();
+        deliveries = null;
     }
 
     private void registerBosses(BukkitRuntimeRegistrations registrations, MythicBossSupport ownedSupport,
-                                MythicDungeonSettings settings) {
+                                MythicDungeonSettings settings, MythicBossEndings endings) {
         if (pveBossModule == null || !pveBossModule.isEnabled()) {
             plugin.getLogger().warning("[Mazmorras] El módulo pve-boss está apagado: los invocadores no van a andar.");
             return;
@@ -215,8 +222,12 @@ public final class MythicDungeonsModule implements PluginModule {
         for (MythicBossRegistry.Entry entry : MythicBossRegistry.entries()) {
             MythicCulture culture = entry.culture();
             try {
-                pveBossModule.registerExternalBoss(entry.bossId(), entry.factory().apply(ownedSupport),
-                    standings -> reward(culture, standings, settings));
+                pveBossModule.registerExternalBoss(entry.bossId(),
+                    endings.wrap(culture, entry.factory().apply(ownedSupport)), standings -> {
+                        // primero: la instancia que pve-boss baja ahora es una derrota (ver MythicBossEndings)
+                        endings.defeated(culture);
+                        reward(culture, standings, settings);
+                    });
                 registeredBosses.add(entry.bossId());
             } catch (RuntimeException failure) {
                 plugin.getLogger().log(Level.WARNING, "[Mazmorras] No se pudo registrar el jefe " + entry.bossId(),
@@ -224,6 +235,21 @@ public final class MythicDungeonsModule implements PluginModule {
             }
         }
         registrations.ownCleanup("mythic-bosses", this::unregisterBosses);
+    }
+
+    /**
+     * Un jefe mitico termino. Si no fue derrotado (chunk descargado, recarga, modulo apagado, reinicio, comando), el
+     * Invocador vuelve a quien lo gasto: ya si esta conectado, o cuando entre.
+     */
+    private void bossEnded(UUID bossInstanceId, MythicCulture culture, boolean defeated) {
+        Optional<DungeonBossRegistry.Summon> summon = summons.byBoss(bossInstanceId);
+        summons.forget(bossInstanceId);
+        MythicDeliveries owned = deliveries;
+        if (defeated || owned == null || summon.isEmpty()) {
+            return;
+        }
+        summon.get().summoner().ifPresent(player -> owned.deliver(
+            MythicPendingDeliveries.Delivery.summoner(player, summon.get().culture())));
     }
 
     private void unregisterBosses() {
@@ -253,19 +279,12 @@ public final class MythicDungeonsModule implements PluginModule {
                 .mapToDouble(BossDamageStanding::damage).findFirst().orElse(0.0);
             podium.add("§e" + grant.placement() + ". " + name + " §7(" + String.format(Locale.ROOT, "%.0f", damage)
                 + ")");
-            if (player == null) {
-                plugin.getLogger().info("[Mazmorras] " + name + " no estaba conectado: se pierde su premio de "
-                    + culture.requireBoss().id() + ".");
-                continue;
+            // si no esta conectado queda guardado y se le da al entrar
+            MythicDeliveries owned = deliveries;
+            if (owned != null) {
+                owned.deliver(MythicPendingDeliveries.Delivery.reward(grant.playerId(), culture, grant.placement(),
+                    grant.xp(), grant.items()));
             }
-            player.giveExp(grant.xp());
-            for (MythicDungeonSettings.RewardItem item : grant.items()) {
-                ItemStack stack = new ItemStack(item.material(), item.amount());
-                player.getInventory().addItem(stack).values()
-                    .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
-            }
-            player.sendMessage("§6Puesto #" + grant.placement() + " contra " + culture.requireBoss().displayName()
-                + "§6: §a+" + grant.xp() + " de experiencia§6 y el botín del jefe.");
         }
         // el alma del jefe para el podio (sistema de misiones de netherita, si esta version lo trae)
         new BossSoulBridge(plugin, (message, cause) -> plugin.getLogger().log(Level.WARNING, "[Mazmorras] " + message,

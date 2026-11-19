@@ -67,6 +67,8 @@ final class EnmaController implements BossEncounterController {
     private static final double STAND_IN_SCALE = 1.9;
     private static final int FEEDBACK_COOLDOWN = 30;
     private static final int MIRROR_REMOVE_AFTER = 30;
+    /** Ticks seguidos sin poder volver a crear el espejo antes de darlo por quebrado (si no, Enma seria inmune). */
+    private static final int MIRROR_RESPAWN_TICKS = 40;
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
     private static final Particle.DustOptions BULLET = new Particle.DustOptions(Color.fromRGB(230, 30, 40), 1.7F);
     private static final Particle.DustOptions WARN = new Particle.DustOptions(Color.fromRGB(255, 70, 30), 1.6F);
@@ -97,6 +99,7 @@ final class EnmaController implements BossEncounterController {
     private List<Double> aims = List.of();
     private int shatteredAt;
     private int lastCrack;
+    private int mirrorMissing;
     private int tick;
     private boolean started;
     private boolean ready;
@@ -250,6 +253,9 @@ final class EnmaController implements BossEncounterController {
     // ------------------------------------------------------------------ phase 1: the mirror
 
     private void mirrorStep(Warden boss, List<Player> players) {
+        if (!keepMirror()) {
+            return;
+        }
         mirror.poll().ifPresent(this::strikeMirror);
         reflections.tick(players, terrain::inside, mirrorFront(0.0));
         for (EnmaMirrorTrial.Event event : trial.advance(tick, reflections.alive())) {
@@ -275,6 +281,32 @@ final class EnmaController implements BossEncounterController {
         if (tick % 10 == 0) {
             mirrorHud(players);
         }
+    }
+
+    /**
+     * Si el Husk del espejo dejo de ser valido ({@code /kill}, chunk descargado) lo vuelve a crear en su lugar; si no
+     * se puede durante {@link #MIRROR_RESPAWN_TICKS}, el espejo cuenta como quebrado (con su parte de la vida de Enma)
+     * para que la fase 1 termine. Devuelve si el espejo sigue en juego.
+     */
+    private boolean keepMirror() {
+        if (mirror.present()) {
+            mirrorMissing = 0;
+            return true;
+        }
+        if (mirror.respawn()) {
+            mirrorMissing = 0;
+            mirror.animate(trial.exposed() ? "exposed" : "idle");
+            return true;
+        }
+        if (++mirrorMissing < MIRROR_RESPAWN_TICKS) {
+            return true;
+        }
+        double rest = trial.forfeit();
+        if (rest > 0.0) {
+            context.damage(trial.transfer(rest, context.maximumHealth()), null);
+        }
+        support.logger().warning("[Enma] El espejo desaparecio y no se pudo volver a crear: se da por quebrado.");
+        return false;
     }
 
     private void strikeMirror(EnmaMirror.Strike strike) {

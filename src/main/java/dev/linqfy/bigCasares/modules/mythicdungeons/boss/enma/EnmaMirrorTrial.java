@@ -139,6 +139,20 @@ public final class EnmaMirrorTrial {
         return new Hit(accepted, false, broke);
     }
 
+    /**
+     * El espejo se perdio (su entidad desaparecio y no se pudo volver a crear): queda quebrado para que la fase
+     * termine. Devuelve la integridad que le quedaba (0 si ya estaba quebrado).
+     */
+    public double forfeit() {
+        if (state == State.BROKEN) {
+            return 0.0;
+        }
+        double rest = remaining;
+        remaining = 0.0;
+        state = State.BROKEN;
+        return rest;
+    }
+
     /** Dano que pasa a la vida de Enma por {@code accepted} puntos de espejo. */
     public double transfer(double accepted, double bossMaximumHealth) {
         return accepted / durability * BOSS_SHARE * bossMaximumHealth;

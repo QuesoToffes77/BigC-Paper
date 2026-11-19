@@ -11,7 +11,9 @@ import java.util.Objects;
  * Everything that makes one culture's dungeon look and spread differently: layout family, block
  * palette, architectural style, biomes, structure spacing, spawner mob and loot. The piece
  * geometry is shared by all cultures of a family ({@link MythicSurfacePieces},
- * {@link MythicUndergroundPieces}); the style adds the culture's set-pieces.
+ * {@link MythicUndergroundPieces}); the style adds the culture's set-pieces. No biome belongs to two
+ * cultures (the tests check it): each culture has its own structure set, so a shared biome would let two
+ * complexes overlap.
  */
 public record MythicDungeonTheme(
     String culture,
@@ -148,7 +150,7 @@ public record MythicDungeonTheme(
             BlockStateSpec.of("minecraft:lightning_rod", Map.of("facing", "up")), hanging("minecraft:lantern"),
             b("minecraft:smooth_quartz"), "minecraft:quartz_stairs"),
         EntranceStyle.TEMPLE,
-        List.of("minecraft:meadow", "minecraft:plains", "minecraft:stony_shore", "minecraft:windswept_hills"),
+        List.of("minecraft:meadow", "minecraft:plains", "minecraft:stony_shore"),
         new Spread(64, 22, 734_512_001), "minecraft:skeleton",
         "minecraft:chests/simple_dungeon", "minecraft:chests/stronghold_library");
 
@@ -242,7 +244,7 @@ public record MythicDungeonTheme(
             b("minecraft:stone"), "minecraft:stone_stairs"),
         EntranceStyle.CAVE_MOUTH,
         List.of("minecraft:windswept_hills", "minecraft:windswept_gravelly_hills", "minecraft:stony_peaks",
-            "minecraft:jagged_peaks", "minecraft:windswept_savanna", "minecraft:meadow"),
+            "minecraft:jagged_peaks", "minecraft:windswept_savanna"),
         new Spread(64, 26, 734_512_009), "minecraft:zombie",
         "minecraft:chests/abandoned_mineshaft", "minecraft:chests/stronghold_corridor");
 

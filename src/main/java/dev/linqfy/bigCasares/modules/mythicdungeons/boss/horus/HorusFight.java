@@ -196,7 +196,7 @@ final class HorusFight implements BossEncounterController {
             return;
         }
         clock++;
-        List<Player> players = context.players();
+        List<Player> players = targets();
         pollEyes(players);
         double fraction = context.maximumHealth() <= 0.0 ? 1.0 : context.health() / context.maximumHealth();
         boolean entered = director.tick(fraction, swarm.allSpawned(), swarm.cleared());
@@ -208,6 +208,17 @@ final class HorusFight implements BossEncounterController {
         }
         during(director.stage(), director.ticksInStage(), players);
         move(boss);
+    }
+
+    /** Los jugadores del publico en supervivencia/aventura: a los de creativo/espectador no se los ataca. */
+    private List<Player> targets() {
+        List<Player> targets = new ArrayList<>();
+        for (Player player : context.players()) {
+            if (HorusDamageRules.targetable(player.getGameMode(), player.isDead())) {
+                targets.add(player);
+            }
+        }
+        return targets;
     }
 
     private void enter(Stage stage, List<Player> players) {

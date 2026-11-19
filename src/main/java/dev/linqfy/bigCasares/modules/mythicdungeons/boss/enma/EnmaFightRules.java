@@ -1,5 +1,7 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.boss.enma;
 
+import org.bukkit.Material;
+
 /**
  * Las dos fases de Enma y quien puede herirlo, sin Bukkit.
  *
@@ -55,5 +57,10 @@ public final class EnmaFightRules {
             case SHATTER -> Verdict.TRANSITION;
             case JUDGEMENT -> hasAttacker ? Verdict.ADMITTED : Verdict.NO_ATTACKER;
         };
+    }
+
+    /** Si un objeto se le puede copiar a un reflejo: nada que lo salve de la muerte (totem o proteccion de muerte). */
+    public static boolean mirrorable(Material type, boolean deathProtection) {
+        return !deathProtection && type != Material.TOTEM_OF_UNDYING;
     }
 }

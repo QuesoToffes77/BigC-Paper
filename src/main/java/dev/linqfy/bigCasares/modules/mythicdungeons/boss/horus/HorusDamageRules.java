@@ -1,6 +1,8 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.boss.horus;
 
-/** Cuanto de cada golpe le llega a Horus, sin Bukkit. */
+import org.bukkit.GameMode;
+
+/** Cuanto de cada golpe le llega a Horus y a quien ataca, sin objetos del servidor. */
 public final class HorusDamageRules {
 
     /** Dano del cuerpo de Horus al pasar planeando (cuatro corazones antes de armadura). */
@@ -10,6 +12,11 @@ public final class HorusDamageRules {
     public static final double BUFFET_RADIUS = 4.5;
 
     private HorusDamageRules() {
+    }
+
+    /** Solo se ataca a jugadores vivos en supervivencia o aventura (no al staff en creativo o espectador). */
+    public static boolean targetable(GameMode mode, boolean dead) {
+        return !dead && (mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE);
     }
 
     /**

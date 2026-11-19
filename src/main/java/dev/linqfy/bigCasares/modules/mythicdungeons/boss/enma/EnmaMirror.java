@@ -19,6 +19,7 @@ import org.bukkit.entity.Projectile;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.EntityEquipment;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.loot.LootTable;
 
@@ -32,8 +33,9 @@ import java.util.UUID;
  * vida del Husk se mantiene en {@link #POOL}; lo que le falta en cada tick es el dano del golpe y
  * {@code getLastDamageCause()} dice quien fue. Solo cuentan golpes de jugadores (directos o con proyectil).
  *
- * <p>Bedrock no ve el modelo: ve un soporte invisible con un bloque de vidrio como casco (y el nombre), que le pasa
- * los golpes al Husk como cualquier doble de {@code BedrockStandIns}.</p>
+ * <p>Bedrock no ve el modelo: ve un soporte invisible con un bloque de vidrio como casco (y el nombre), con todos los
+ * huecos trabados, que le pasa los golpes al Husk como cualquier doble de {@code BedrockStandIns}. Si el Husk deja de
+ * ser valido, el encuentro lo vuelve a crear ({@link #respawn()}).</p>
  */
 final class EnmaMirror {
 
@@ -104,9 +106,49 @@ final class EnmaMirror {
             standIn.setCustomNameVisible(true);
             EntityEquipment equipment = standIn.getEquipment();
             equipment.setHelmet(new ItemStack(Material.GLASS));
+            lockEquipment(standIn);
         } catch (RuntimeException unavailable) {
             // sin dobles de Bedrock (modulo sin Geyser)
         }
+    }
+
+    /** Huecos que un jugador puede tocar en un soporte (los de un jugador: armadura y manos). */
+    static final EquipmentSlot[] STAND_SLOTS = {
+        EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.HAND,
+        EquipmentSlot.OFF_HAND
+    };
+
+    /**
+     * Traba todos los huecos del soporte de Bedrock: nadie le saca el vidrio ni le pone nada. No es marcador porque los
+     * golpes tienen que llegarle (los pasa {@code BedrockStandIns} al Husk).
+     */
+    static void lockEquipment(ArmorStand stand) {
+        for (EquipmentSlot slot : STAND_SLOTS) {
+            for (ArmorStand.LockType lock : ArmorStand.LockType.values()) {
+                stand.addEquipmentLock(slot, lock);
+            }
+        }
+    }
+
+    /**
+     * Vuelve a crear el espejo en su lugar si el Husk dejo de ser valido ({@code /kill}, chunk descargado); devuelve si
+     * quedo presente. El doble de Bedrock viejo se va solo (su ancla ya no es valida).
+     */
+    boolean respawn() {
+        if (present()) {
+            return true;
+        }
+        if (home == null) {
+            return false;
+        }
+        remove();
+        try {
+            spawn(home);
+        } catch (RuntimeException failure) {
+            support.logger().warning("[Enma] No se pudo volver a crear el espejo: " + failure.getMessage());
+            return false;
+        }
+        return present();
     }
 
     boolean present() {

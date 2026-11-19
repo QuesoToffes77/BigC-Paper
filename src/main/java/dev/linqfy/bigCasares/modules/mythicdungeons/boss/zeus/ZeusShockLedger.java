@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.boss.zeus;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,23 @@ public final class ZeusShockLedger {
                 return true;
             }
             return false;
+        });
+        return released;
+    }
+
+    /**
+     * Suelta ya (con la inmunidad de siempre) a los paralizados que no estan en {@code inRoom}: el que salio de la sala
+     * ({@code /spawn}, {@code /home}, murio y reaparecio, cambio de mundo) no puede quedar anclado a la baldosa.
+     */
+    public List<UUID> releaseAbsent(Collection<UUID> inRoom, int tick) {
+        List<UUID> released = new ArrayList<>();
+        paralysedUntil.keySet().removeIf(player -> {
+            if (inRoom.contains(player)) {
+                return false;
+            }
+            released.add(player);
+            immuneUntil.put(player, tick + IMMUNITY_TICKS);
+            return true;
         });
         return released;
     }

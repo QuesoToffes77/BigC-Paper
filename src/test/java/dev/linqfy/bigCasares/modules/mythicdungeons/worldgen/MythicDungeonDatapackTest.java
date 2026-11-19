@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -43,6 +44,9 @@ class MythicDungeonDatapackTest {
         "medieval", Layout.SURFACE, "egyptian", Layout.SURFACE, "greek", Layout.SURFACE, "arabian", Layout.SURFACE,
         "mesoamerican", Layout.SURFACE, "norse", Layout.UNDERGROUND, "mesopotamian", Layout.UNDERGROUND,
         "japanese", Layout.UNDERGROUND, "andean", Layout.UNDERGROUND);
+    /** Biomes of the vanilla 26.2 {@code has_structure/village_*} tags. */
+    private static final Set<String> VILLAGE_BIOMES = Set.of("minecraft:plains", "minecraft:meadow", "minecraft:desert",
+        "minecraft:savanna", "minecraft:snowy_plains", "minecraft:taiga");
     private static final int MIN_TEMPLATES = 12;
     private static final int MIN_SPAWNER_TEMPLATES = 5;
     private static final int MIN_CHEST_TEMPLATES = 4;
@@ -104,6 +108,16 @@ class MythicDungeonDatapackTest {
             // from its chunk corner: the footprints (max distance each way) never overlap
             assertTrue(separation * 16 - 48 > 2 * maxDistance, theme.culture() + " separation " + separation);
             assertTrue(salts.add(placement.get("salt").getAsInt()), "salts must differ");
+            // a culture that shares a biome with villages keeps 10 chunks away from every village candidate
+            boolean villageBiome = theme.biomes().stream().anyMatch(VILLAGE_BIOMES::contains);
+            if (villageBiome) {
+                JsonObject exclusion = placement.getAsJsonObject("exclusion_zone");
+                assertNotNull(exclusion, theme.culture());
+                assertEquals("minecraft:villages", exclusion.get("other_set").getAsString());
+                assertEquals(10, exclusion.get("chunk_count").getAsInt());
+            } else {
+                assertFalse(placement.has("exclusion_zone"), theme.culture());
+            }
 
             JsonObject tag = index.json(MythicPackIndex.jsonPath("tags/worldgen/biome", "bigc_myth:has_structure/" + theme.culture()))
                 .getAsJsonObject();
@@ -114,6 +128,21 @@ class MythicDungeonDatapackTest {
             String startTemplate = index.pools.get(structure.get("start_pool").getAsString()).elements().getFirst().location();
             assertTrue(startTemplate.endsWith(theme.layout() == Layout.SURFACE ? "/pieces/plaza" : "/pieces/entrance"), startTemplate);
         }
+    }
+
+    /** No biome belongs to two cultures: their sets would otherwise place overlapping complexes. */
+    @Test
+    void cultureBiomesArePairwiseDisjoint() {
+        Map<String, String> owners = new HashMap<>();
+        for (MythicDungeonTheme theme : MythicDungeonTheme.all()) {
+            for (String biome : theme.biomes()) {
+                String previous = owners.putIfAbsent(biome, theme.culture());
+                assertTrue(previous == null, biome + " is shared by " + previous + " and " + theme.culture());
+            }
+        }
+        // the cultures that do meet villages are exactly the ones with the exclusion zone
+        assertEquals(Set.of("greek", "norse", "egyptian", "mesopotamian"), MythicDungeonTheme.all().stream()
+            .filter(MythicDungeonDatapack::sharesVillageBiome).map(MythicDungeonTheme::culture).collect(Collectors.toSet()));
     }
 
     @Test

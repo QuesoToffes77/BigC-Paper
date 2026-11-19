@@ -7,10 +7,12 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -21,6 +23,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Every block the fight changes (painted floor, water of the blue rounds, the pedestal) with its original data, so
@@ -41,42 +44,60 @@ final class PachamamaFloor {
     private record Change(Material placed, BlockData original) {
     }
 
-    private final JavaPlugin plugin;
+    private final Path path;
+    private final Logger logger;
     private final UUID bossId;
     private final Map<Block, Change> journal = new LinkedHashMap<>();
     private boolean closed;
 
     PachamamaFloor(JavaPlugin plugin, UUID bossId) {
-        this.plugin = plugin;
+        this(file(plugin, bossId), plugin.getLogger(), bossId);
+    }
+
+    PachamamaFloor(Path path, Logger logger, UUID bossId) {
+        this.path = path;
+        this.logger = logger;
         this.bossId = bossId;
         LIVE.add(bossId);
     }
 
     /**
      * Changes a batch of blocks: the journal file is written first, then the blocks change (without physics). A
-     * block already changed keeps its first original data.
+     * block already changed keeps its first original data. When the journal cannot be written nothing changes
+     * (a crash could not put those blocks back).
+     *
+     * @return whether the blocks changed
      */
-    void change(Map<Block, BlockData> batch) {
+    boolean change(Map<Block, BlockData> batch) {
         if (closed || batch.isEmpty()) {
-            return;
+            return false;
         }
+        Map<Block, Change> next = new LinkedHashMap<>(journal);
         for (Map.Entry<Block, BlockData> entry : batch.entrySet()) {
             Block block = entry.getKey();
-            Change previous = journal.get(block);
+            Change previous = next.get(block);
             BlockData original = previous != null ? previous.original() : block.getBlockData();
-            journal.put(block, new Change(entry.getValue().getMaterial(), original));
+            next.put(block, new Change(entry.getValue().getMaterial(), original));
         }
-        persist();
+        if (!persist(next)) {
+            return false;
+        }
+        journal.clear();
+        journal.putAll(next);
         for (Map.Entry<Block, BlockData> entry : batch.entrySet()) {
             entry.getKey().setBlockData(entry.getValue(), false);
         }
+        return true;
     }
 
     boolean changed(Block block) {
         return journal.containsKey(block);
     }
 
-    /** Puts back the given blocks (newest first) and forgets them. */
+    /**
+     * Puts back the given blocks (newest first) and forgets them. The world goes first and the journal after: a
+     * stale line is harmless, recovery only touches blocks that are still what the fight placed.
+     */
     void restore(Collection<Block> blocks) {
         List<Block> order = new ArrayList<>(blocks);
         for (int index = order.size() - 1; index >= 0; index--) {
@@ -86,7 +107,7 @@ final class PachamamaFloor {
                 put(block, change);
             }
         }
-        persist();
+        persist(journal);
     }
 
     /** Puts back every journaled block and deletes the journal file; idempotent. */
@@ -101,28 +122,40 @@ final class PachamamaFloor {
         }
         journal.clear();
         try {
-            Files.deleteIfExists(file(plugin, bossId));
+            Files.deleteIfExists(path);
         } catch (IOException failure) {
-            plugin.getLogger().log(Level.WARNING, "[Mazmorras] Pachamama: no se pudo borrar el diario de bloques",
+            logger.log(Level.WARNING, "[Mazmorras] Pachamama: no se pudo borrar el diario de bloques",
                 failure);
         }
         LIVE.remove(bossId);
     }
 
+    /**
+     * Puts a block back only while it is still what the fight placed (flowing water is water too): a block a player
+     * put in the water, a container that took its place or a mined painted block stays as the player left it.
+     */
     private static void put(Block block, Change change) {
+        if (!stillPlaced(block.getType(), change.placed())) {
+            return;
+        }
         // water goes back with physics so any flow it caused dries up; the rest without (no neighbour updates)
         block.setBlockData(change.original(), change.placed() == Material.WATER);
     }
 
-    private void persist() {
-        Path path = file(plugin, bossId);
+    /** Whether a block of type {@code current} is still the {@code placed} block of the fight. */
+    static boolean stillPlaced(Material current, Material placed) {
+        return current == placed;
+    }
+
+    /** Writes the journal to a temporary file and moves it over the old one in one step. */
+    private boolean persist(Map<Block, Change> state) {
         try {
-            if (journal.isEmpty()) {
+            if (state.isEmpty()) {
                 Files.deleteIfExists(path);
-                return;
+                return true;
             }
-            StringBuilder text = new StringBuilder(journal.size() * 48);
-            for (Map.Entry<Block, Change> entry : journal.entrySet()) {
+            StringBuilder text = new StringBuilder(state.size() * 48);
+            for (Map.Entry<Block, Change> entry : state.entrySet()) {
                 Block block = entry.getKey();
                 text.append(block.getWorld().getName()).append(' ').append(block.getX()).append(' ')
                     .append(block.getY()).append(' ').append(block.getZ()).append(' ')
@@ -130,10 +163,17 @@ final class PachamamaFloor {
                     .append(entry.getValue().original().getAsString()).append('\n');
             }
             Files.createDirectories(path.getParent());
-            Files.writeString(path, text, StandardCharsets.UTF_8);
-        } catch (IOException failure) {
-            plugin.getLogger().log(Level.WARNING, "[Mazmorras] Pachamama: no se pudo escribir el diario de bloques",
-                failure);
+            Path temp = path.resolveSibling(path.getFileName() + ".tmp");
+            Files.writeString(temp, text, StandardCharsets.UTF_8);
+            try {
+                Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException unsupported) {
+                Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
+        } catch (IOException | RuntimeException failure) {
+            logger.log(Level.WARNING, "[Mazmorras] Pachamama: no se pudo escribir el diario de bloques", failure);
+            return false;
         }
     }
 
@@ -185,7 +225,7 @@ final class PachamamaFloor {
                 Block block = world.getBlockAt(Integer.parseInt(parts[1]), Integer.parseInt(parts[2]),
                     Integer.parseInt(parts[3]));
                 Material placed = Material.matchMaterial(parts[4]);
-                if (placed != null && block.getType() == placed) {
+                if (placed != null && stillPlaced(block.getType(), placed)) {
                     block.setBlockData(plugin.getServer().createBlockData(parts[5]), placed == Material.WATER);
                     restored++;
                 }

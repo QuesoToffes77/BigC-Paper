@@ -9,8 +9,8 @@ import java.util.SplittableRandom;
 /**
  * El encuentro de Diablo (Europa medieval). Fase 1: botella de vino que siempre pega, oscuridad y solo el contorno
  * amarillo de Diablo, que se aleja, vuelve y da vueltas. Fase 2 (desde {@code phases.phase-2-at}): se sienta, agarra
- * a todos y cada uno se suelta con un QTE de teclas; cuando no queda nadie agarrado queda aturdido y solo ahi recibe
- * dano. Ver {@link DiabloController}.
+ * a todos y cada uno se suelta con un QTE de teclas; cuando no queda nadie agarrado (o se le acaba el tiempo del agarre
+ * y revolea a los que quedan) queda aturdido y solo ahi recibe dano. Ver {@link DiabloController}.
  */
 public final class DiabloEncounter {
 

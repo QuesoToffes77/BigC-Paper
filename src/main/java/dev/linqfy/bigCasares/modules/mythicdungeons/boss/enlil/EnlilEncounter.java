@@ -29,7 +29,7 @@ public final class EnlilEncounter {
 
     /**
      * Saca el agua que dejo una inundacion de Enlil cuya pelea no termino limpia (un crash): solo los bloques de los
-     * diarios {@code plugins/BigCasares/mythicdungeons/enlil-flood-*.txt} de jefes que no estan vivos y que siguen
+     * diarios {@code plugins/BigCasares/mythicdungeons/enlil-flood-*} de jefes que no estan vivos y que siguen
      * siendo agua. Llamarlo al prender el modulo, en el hilo del servidor y con los mundos cargados.
      */
     public static void recoverOrphanFloods(JavaPlugin plugin) {

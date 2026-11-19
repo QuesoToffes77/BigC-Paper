@@ -31,6 +31,21 @@ class ZeusMinionRulesTest {
     }
 
     @Test
+    void aParalysedPlayerWhoLeftTheRoomIsReleasedAtOnce() {
+        ZeusShockLedger ledger = new ZeusShockLedger();
+        UUID gone = UUID.randomUUID();
+        UUID stays = UUID.randomUUID();
+        assertTrue(ledger.shock(gone, 100));
+        assertTrue(ledger.shock(stays, 100));
+        assertEquals(List.of(gone), ledger.releaseAbsent(List.of(stays), 105));
+        assertFalse(ledger.paralysed(gone));
+        assertTrue(ledger.paralysed(stays));
+        assertFalse(ledger.shock(gone, 106), "the usual immunity after a release");
+        assertTrue(ledger.releaseAbsent(List.of(stays), 107).isEmpty());
+        assertEquals(List.of(stays), ledger.release(100 + ZeusShockLedger.PARALYSIS_TICKS));
+    }
+
+    @Test
     void cloudsHaveHalfAZombieAndTopUpOneAtATime() {
         assertEquals(10.0, ZeusCloudRoster.CLOUD_HEALTH);
         assertEquals(10.0, ZeusCloudRoster.remaining(ZeusCloudRoster.BUFFER_HEALTH));

@@ -1,9 +1,16 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.boss.enlil;
 
-/** Damage and phase decisions of the Enlil fight (no server types). */
+import org.bukkit.GameMode;
+
+/** Damage, phase and targeting decisions of the Enlil fight (no server objects). */
 public final class EnlilRules {
 
     private EnlilRules() {
+    }
+
+    /** Only survival/adventure players who are alive are targeted (creative and spectator staff are left alone). */
+    public static boolean targetable(GameMode mode, boolean dead) {
+        return !dead && (mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE);
     }
 
     /** Phase 1 ends once health is at or below {@link EnlilTuning#PHASE_TWO_AT} of the maximum. */

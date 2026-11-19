@@ -614,19 +614,28 @@ final class DiabloController implements BossEncounterController {
         }
     }
 
+    /** El agarre llego al tope: revolea a los que siguen agarrados y queda aturdido igual, agotado. */
     private void slam(Warden boss, List<Player> players) {
+        Set<UUID> slammed = new HashSet<>();
         for (UUID playerId : List.copyOf(held.keySet())) {
             Player player = Bukkit.getPlayer(playerId);
             release(playerId);
             if (player != null) {
+                slammed.add(playerId);
                 player.damage(SLAM_DAMAGE, boss);
-                title(player, "§4§l¡TARDASTE!", "§7Diablo te revoleó", 0, 30, 10);
+                title(player, "§4§l¡TARDASTE!", "§7Diablo te revoleó... §ey quedó agotado: ¡pegale!", 0, 30, 10);
             }
         }
         context.models().stopAnimation(context.model(), "grab");
         context.models().stopAnimation(context.model(), "sit");
-        context.animate("rage");
+        context.animate("stunned");
         boss.getWorld().playSound(boss.getLocation(), Sound.ENTITY_RAVAGER_ROAR, 2.0f, 0.7f);
+        boss.getWorld().playSound(boss.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.5f, 0.6f);
+        for (Player player : players) {
+            if (!slammed.contains(player.getUniqueId())) {
+                title(player, "§e§l¡AGOTADO!", "§f¡Pegale con todo!", 0, 30, 10);
+            }
+        }
     }
 
     private void standUp(Warden boss, List<Player> players) {
@@ -747,11 +756,32 @@ final class DiabloController implements BossEncounterController {
             glowTeam = board.getTeam(GLOW_TEAM);
             if (glowTeam == null) {
                 glowTeam = board.registerNewTeam(GLOW_TEAM);
+            } else {
+                pruneGlowTeam(glowTeam);
             }
             glowTeam.color(NamedTextColor.YELLOW);
             glowTeam.addEntry(outline.getUniqueId().toString());
         } catch (RuntimeException failure) {
             support.logger().log(Level.WARNING, "Diablo: no glowing outline", failure);
+        }
+    }
+
+    /**
+     * El scoreboard principal se guarda en disco: tras un crash el equipo queda con UUIDs de contornos que ya no
+     * existen. Se borran las entradas que no son una entidad viva (los contornos no persisten).
+     */
+    private static void pruneGlowTeam(Team team) {
+        for (String entry : Set.copyOf(team.getEntries())) {
+            UUID entityId;
+            try {
+                entityId = UUID.fromString(entry);
+            } catch (IllegalArgumentException notAnEntity) {
+                continue;
+            }
+            Entity entity = Bukkit.getEntity(entityId);
+            if (entity == null || !entity.isValid()) {
+                team.removeEntry(entry);
+            }
         }
     }
 
@@ -810,13 +840,15 @@ final class DiabloController implements BossEncounterController {
 
     // ------------------------------------------------------------------------------------------------ ayudas
 
-    /** Los jugadores de la audiencia que estan adentro de la sala. */
+    /**
+     * Los jugadores de la audiencia vivos, en supervivencia o aventura, que estan adentro de la sala. Quien deja de
+     * cumplirlo (muere, pasa a creativo o espectador) pierde la oscuridad, su botella y el agarre en el proximo tick.
+     */
     private List<Player> fighters() {
-        List<Player> players = context.players();
-        if (arena == null) {
-            return players;
-        }
-        return players.stream().filter(player -> inside(player.getLocation())).toList();
+        return context.players().stream()
+            .filter(player -> DiabloGrabCycle.fights(player.getGameMode(), player.isDead()))
+            .filter(player -> inside(player.getLocation()))
+            .toList();
     }
 
     private boolean inside(Location location) {

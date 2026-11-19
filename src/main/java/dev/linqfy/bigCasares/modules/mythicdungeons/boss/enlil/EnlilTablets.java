@@ -11,6 +11,7 @@ import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Shulker;
@@ -21,14 +22,16 @@ import org.bukkit.projectiles.ProjectileSource;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Level;
 
 /**
  * The three Tablets of Destiny of phase 2. Each one is an invisible, AI-less small slime (a real hitbox that melee
  * and arrows both hit) carrying the {@code bigcasares_myth_enlil_tablet} model. The encounter may not register
- * listeners, so hits are found by polling: the slime's health is kept at its maximum and any drop is one hit
- * (vanilla invulnerability ticks keep one hit per half second). Bedrock players get a brown shulker stand-in
+ * listeners, so hits are found by polling: the slime's health is kept at its maximum and a drop is one hit when the
+ * last damage came from a player (melee or projectile; fire and poison do not count, and fire is put out every poll;
+ * vanilla invulnerability ticks keep one hit per half second). Bedrock players get a brown shulker stand-in
  * (smaller than the slime, so Java arrows still hit the slime first) that forwards its hits to the slime.
  */
 final class EnlilTablets {
@@ -37,7 +40,7 @@ final class EnlilTablets {
     private static final double HEALTH = 1024.0;
     private static final int BREAK_TICKS = 16;
 
-    /** One hit found by {@link #poll()}; {@code attacker} may be {@code null}. */
+    /** One player hit found by {@link #poll()}. */
     record Hit(int index, Player attacker, Location at) {
     }
 
@@ -121,10 +124,9 @@ final class EnlilTablets {
             if (tablet.breaking >= 0 || !tablet.anchor.isValid()) {
                 continue;
             }
-            if (tablet.anchor.getHealth() < HEALTH - 0.01) {
-                hits.add(new Hit(tablet.index, attacker(tablet.anchor.getLastDamageCause()), tablet.spot));
-                tablet.anchor.setHealth(HEALTH);
-            }
+            tablet.anchor.setFireTicks(0);
+            Optional<Player> attacker = struck(tablet.anchor);
+            attacker.ifPresent(player -> hits.add(new Hit(tablet.index, player, tablet.spot)));
             if (tablet.anchor.getLocation().distanceSquared(tablet.spot) > 0.01) {
                 tablet.anchor.teleport(tablet.spot);
                 tablet.anchor.setVelocity(new org.bukkit.util.Vector());
@@ -227,6 +229,19 @@ final class EnlilTablets {
             }
         }
         return null;
+    }
+
+    /**
+     * The player whose attack took health off {@code anchor} since the last poll, if any; the health always goes back
+     * to the maximum. Only a direct player attack or a player's projectile counts: fire, poison, explosions or a
+     * mob do not break a tablet.
+     */
+    static Optional<Player> struck(LivingEntity anchor) {
+        if (anchor.getHealth() >= HEALTH - 0.01) {
+            return Optional.empty();
+        }
+        anchor.setHealth(HEALTH);
+        return Optional.ofNullable(attacker(anchor.getLastDamageCause()));
     }
 
     private static Player attacker(EntityDamageEvent cause) {

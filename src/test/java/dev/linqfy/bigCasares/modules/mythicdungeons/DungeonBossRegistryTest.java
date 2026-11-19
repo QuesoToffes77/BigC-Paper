@@ -62,4 +62,20 @@ class DungeonBossRegistryTest {
         DungeonLocator fake = location -> Optional.of(greek);
         assertEquals(MythicCulture.GREEK, fake.cultureAt(null).orElseThrow());
     }
+
+    @Test
+    void remembersWhoSpentTheSummonerAndFindsTheSummonByItsBoss() {
+        DungeonBossRegistry registry = new DungeonBossRegistry();
+        UUID boss = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        registry.remember(greek.key(), new DungeonBossRegistry.Summon(boss, MythicCulture.GREEK, "world", 5, 1, 5,
+            player));
+        registry.remember("admin:x", new DungeonBossRegistry.Summon(UUID.randomUUID(), MythicCulture.NORSE, "w", 0, 0,
+            0));
+
+        assertEquals(Optional.of(player), registry.byBoss(boss).flatMap(DungeonBossRegistry.Summon::summoner));
+        assertTrue(registry.snapshot().get("admin:x").summoner().isEmpty());
+        registry.forget(boss);
+        assertTrue(registry.byBoss(boss).isEmpty());
+    }
 }

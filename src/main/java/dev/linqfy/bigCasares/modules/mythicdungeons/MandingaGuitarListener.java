@@ -89,8 +89,8 @@ public final class MandingaGuitarListener implements Listener {
             return;
         }
         ItemStack item = event.getItem();
-        if (!guitar(item)) {
-            return;
+        if (!guitar(item) || MythicInteractions.deniedByOthers(event)) {
+            return; // not ours, or another plugin already denied using it (and with it the crossbow use)
         }
         // never charge or fire as a crossbow, never use the clicked block
         event.setUseItemInHand(Event.Result.DENY);

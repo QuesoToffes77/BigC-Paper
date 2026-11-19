@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.boss.enlil;
 
+import org.bukkit.GameMode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,5 +51,14 @@ class EnlilRulesTest {
         assertEquals(1, EnlilTuning.floodLayersAt(EnlilTuning.FLOOD_LAYER_ONE_AT));
         assertEquals(1, EnlilTuning.floodLayersAt(EnlilTuning.FLOOD_LAYER_TWO_AT - 1));
         assertEquals(2, EnlilTuning.floodLayersAt(100_000));
+    }
+
+    @Test
+    void onlySurvivalAndAdventurePlayersAreTargeted() {
+        assertTrue(EnlilRules.targetable(GameMode.SURVIVAL, false));
+        assertTrue(EnlilRules.targetable(GameMode.ADVENTURE, false));
+        assertFalse(EnlilRules.targetable(GameMode.CREATIVE, false));
+        assertFalse(EnlilRules.targetable(GameMode.SPECTATOR, false));
+        assertFalse(EnlilRules.targetable(GameMode.SURVIVAL, true));
     }
 }

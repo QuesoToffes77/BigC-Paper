@@ -164,13 +164,26 @@ final class EnlilTornadoes {
                 continue;
             }
             EnlilWind.Push push = EnlilWind.tornadoDrag(dx, dy, dz);
-            player.setVelocity(new Vector(push.x(), push.y(), push.z()));
             Long last = lastHit.get(player.getUniqueId());
+            double damage = 0.0;
             if (last == null || tick - last >= EnlilTuning.TORNADO_HIT_TICKS) {
                 lastHit.put(player.getUniqueId(), tick);
-                player.damage(EnlilTuning.TORNADO_DAMAGE, source);
+                damage = EnlilTuning.TORNADO_DAMAGE;
             }
+            hitThenPush(player, damage, source, new Vector(push.x(), push.y(), push.z()));
         }
+    }
+
+    /**
+     * Hurts (when {@code damage > 0}) and then sets the wind's velocity. The order matters: the vanilla knockback of
+     * the damage would otherwise halve and override the push (bracing by sneaking would do nothing and the tornado
+     * would throw players out instead of spinning them).
+     */
+    static void hitThenPush(Player player, double damage, Entity source, Vector velocity) {
+        if (damage > 0.0) {
+            player.damage(damage, source);
+        }
+        player.setVelocity(velocity);
     }
 
     boolean active() {

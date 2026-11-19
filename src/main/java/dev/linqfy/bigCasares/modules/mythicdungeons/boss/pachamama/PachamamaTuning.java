@@ -67,6 +67,13 @@ public final class PachamamaTuning {
     public static final double WAVE_DAMAGE = 6.0;
     /** Ticks a player must hold sneak on the pedestal to accept the deal (fallback to the click). */
     public static final int DEAL_SNEAK_TICKS = 60;
+    /** A click on the pedestal only arms the deal; a second click by the same player within this many ticks pays. */
+    public static final int DEAL_CONFIRM_TICKS = 60;
+    /**
+     * Holding the use key on the pedestal repeats the click every 4 ticks: the confirming click must come after a
+     * pause longer than this, so a held right-click (eating, a shield) never pays.
+     */
+    public static final int DEAL_REPEAT_GAP_TICKS = 5;
     /** The offer is repeated this often while the pedestal stands. */
     public static final int OFFER_REPEAT_TICKS = 400;
 

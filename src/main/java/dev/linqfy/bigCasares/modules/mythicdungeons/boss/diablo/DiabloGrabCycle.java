@@ -1,12 +1,15 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.boss.diablo;
 
+import org.bukkit.GameMode;
+
 import java.util.Objects;
 
 /**
  * El ciclo de la fase 2: Diablo se enoja, se sienta y estira los brazos (aviso), agarra a todos, y queda aturdido
  * cuando ya no le queda nadie agarrado (todos completaron su QTE, o murieron o se fueron). Si el agarre dura demasiado
- * golpea a los que siguen agarrados y vuelve a empezar sin aturdirse. Despues del aturdimiento se levanta, descansa y
- * repite hasta morir. Solo mientras esta aturdido se le puede pegar. Sin Bukkit.
+ * golpea a los que siguen agarrados y queda aturdido igual, agotado: la ventana de dano siempre llega, completar el QTE
+ * solo la adelanta (si no, un jugador AFK la bloquearia para siempre). Despues del aturdimiento se levanta, descansa y
+ * repite hasta morir. Solo mientras esta aturdido se le puede pegar. Sin Bukkit (salvo el enum {@link GameMode}).
  */
 final class DiabloGrabCycle {
 
@@ -20,7 +23,7 @@ final class DiabloGrabCycle {
         GRAB,
         /** Nadie quedo agarrado: queda aturdido. */
         STUN,
-        /** Se acabo el tiempo del agarre: golpea a los que siguen agarrados y los suelta. */
+        /** Se acabo el tiempo del agarre: golpea a los que siguen agarrados, los suelta y queda aturdido (agotado). */
         SLAM,
         /** Termina el aturdimiento: se levanta. */
         STAND_UP
@@ -81,7 +84,7 @@ final class DiabloGrabCycle {
                     return Event.STUN;
                 }
                 if (elapsed >= settings.holdCapTicks()) {
-                    enter(Stage.RECOVERING, tick);
+                    enter(Stage.STUNNED, tick);
                     return Event.SLAM;
                 }
             }
@@ -102,6 +105,11 @@ final class DiabloGrabCycle {
             }
         }
         return Event.NONE;
+    }
+
+    /** Solo pelean (los agarra, cuentan para el aturdimiento) los vivos en supervivencia o aventura. */
+    static boolean fights(GameMode mode, boolean dead) {
+        return !dead && (mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE);
     }
 
     Stage stage() {

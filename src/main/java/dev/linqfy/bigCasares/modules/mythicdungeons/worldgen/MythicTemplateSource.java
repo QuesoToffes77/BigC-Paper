@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.worldgen;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Supplies extra structure templates (for example re-themed third-party rooms) that
@@ -28,4 +29,13 @@ import java.util.List;
 public interface MythicTemplateSource {
 
     List<MythicExtraPiece> piecesFor(String culture);
+
+    /**
+     * Licence and notice files the pack must carry for this source, keyed by a path relative to
+     * {@code licenses/} in the pack (for example {@code yungs_better_dungeons/LICENSE}). Deterministic,
+     * like {@link #piecesFor(String)}.
+     */
+    default Map<String, byte[]> licenseFiles() {
+        return Map.of();
+    }
 }

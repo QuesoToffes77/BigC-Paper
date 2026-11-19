@@ -9,6 +9,8 @@ import dev.linqfy.bigCasares.modules.mythicdungeons.worldgen.MythicExtraPiece;
 import dev.linqfy.bigCasares.modules.mythicdungeons.worldgen.MythicTemplateSource;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,10 +40,16 @@ class ThirdPartySourcesTest {
     }
 
     @Test
-    void packIsDeterministicAndContainsBothSources() {
+    void packIsDeterministicAndContainsBothSources() throws IOException {
         GeneratedDatapack pack = MythicDungeonDatapack.build(ThirdPartySources.all());
         assertEquals(pack.contentHash(), MythicDungeonDatapack.build(ThirdPartySources.all()).contentHash());
         assertNotEquals(MythicDungeonDatapack.build().contentHash(), pack.contentHash());
+        // the licence files travel inside the pack
+        for (String file : List.of("yungs_better_dungeons/COPYING", "yungs_better_dungeons/LICENSE",
+            "yungs_better_dungeons/NOTICE", "doomlike_dungeons/LICENSE", "doomlike_dungeons/NOTICE")) {
+            assertArrayEquals(resource("/mythicdungeons/third_party/" + file), pack.file("licenses/" + file), file);
+        }
+        assertFalse(MythicDungeonDatapack.build().paths().stream().anyMatch(path -> path.startsWith("licenses/")));
         for (MythicTemplateSource source : ThirdPartySources.all()) {
             // The module's own validation: an invalid piece makes build() throw.
             MythicDungeonDatapack.build(List.of(source));
@@ -147,6 +155,13 @@ class ThirdPartySourcesTest {
             return type.isAssignableFrom(declared.getType());
         } catch (ReflectiveOperationException exception) {
             return false;
+        }
+    }
+
+    private static byte[] resource(String path) throws IOException {
+        try (InputStream input = ThirdPartySourcesTest.class.getResourceAsStream(path)) {
+            assertNotNull(input, path);
+            return input.readAllBytes();
         }
     }
 }

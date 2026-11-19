@@ -9,8 +9,9 @@ import java.util.random.RandomGenerator;
 
 /**
  * El QTE de un jugador agarrado: tiene que apretar la tecla pedida {@code presses} veces antes de que se acabe el
- * tiempo, {@code rounds} veces seguidas, y cada pedido es una tecla distinta de las anteriores. Una tecla equivocada
- * (fuera del margen de reaccion) o quedarse sin tiempo es una falla: el pedido vuelve a empezar con la misma tecla.
+ * tiempo, {@code rounds} veces seguidas, y cada pedido es una tecla distinta de las anteriores. Una pulsacion cuenta
+ * solo si en ese tick se aprieta unicamente la tecla pedida; una tecla equivocada o de mas (fuera del margen de
+ * reaccion) o quedarse sin tiempo es una falla: el pedido vuelve a empezar con la misma tecla.
  * Sin Bukkit: el encuentro le pasa en cada tick las teclas apretadas.
  *
  * <p>Muestreo: un encuentro no puede registrar listeners, asi que se lee {@code Player#getCurrentInput()} una vez por
@@ -106,8 +107,17 @@ final class DiabloQte {
             restart(tick);
             return Outcome.FAILED_TIMEOUT;
         }
-        if (pressed.contains(prompt) || (alternatives && prompt.alternative() != null
-            && pressed.contains(prompt.alternative()))) {
+        if (alternatives) {
+            // un stick analogico de Bedrock marca direcciones de costado sin querer: solo cuentan la tecla pedida,
+            // salto y agacharse
+            pressed.retainAll(EnumSet.of(prompt, QteKey.JUMP, QteKey.SNEAK));
+        }
+        if (pressed.isEmpty()) {
+            return Outcome.NONE;
+        }
+        // vale solo si aprieta exactamente la tecla pedida (o su alternativa): apretar todas a la vez no cuenta
+        if (pressed.equals(EnumSet.of(prompt))
+            || (alternatives && prompt.alternative() != null && pressed.equals(EnumSet.of(prompt.alternative())))) {
             count++;
             if (count < settings.presses()) {
                 return Outcome.PROGRESS;
@@ -120,11 +130,7 @@ final class DiabloQte {
             nextPrompt(tick);
             return Outcome.PROMPT_CLEARED;
         }
-        if (alternatives) {
-            // un stick analogico de Bedrock marca direcciones de costado sin querer: solo salto/agacharse son errores
-            pressed.retainAll(EnumSet.of(QteKey.JUMP, QteKey.SNEAK));
-        }
-        if (!pressed.isEmpty() && tick - promptStart >= settings.graceTicks()) {
+        if (tick - promptStart >= settings.graceTicks()) {
             restart(tick);
             return Outcome.FAILED_WRONG;
         }

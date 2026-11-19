@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.mythicdungeons.boss.enma;
 
 import dev.linqfy.bigCasares.modules.mythicdungeons.boss.MythicBossSupport;
+import io.papermc.paper.datacomponent.DataComponentTypes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -29,7 +30,8 @@ import java.util.function.Predicate;
 
 /**
  * Los reflejos de la fase 1: por cada jugador de la sala sale del espejo un zombi (no se quema al sol) con su
- * nombre y una copia de su armadura y de lo que tiene en las manos (sin encantamientos, probabilidad de soltarlos 0).
+ * nombre y una copia de su armadura y de lo que tiene en las manos (sin encantamientos ni atributos agregados, sin
+ * totems, probabilidad de soltarlos 0).
  * Si el jugador no lleva casco, el reflejo lleva su cabeza. Cada reflejo persigue a su original mientras siga en la
  * sala; si no, al jugador mas cercano. Al ser mobs vanilla, Java y Bedrock los ven igual.
  */
@@ -156,14 +158,20 @@ final class EnmaReflections {
         equipment.setItemInOffHandDropChance(0.0F);
     }
 
-    /** Copia de un objeto sin encantamientos (el reflejo se ve igual pero no pega como un arma encantada). */
+    /**
+     * Copia de un objeto sin encantamientos ni modificadores de atributos agregados (el reflejo se ve igual pero no
+     * pega ni aguanta como el equipo del jugador; un arma conserva su dano normal). Un totem u otro objeto que
+     * salva de la muerte no se copia: el reflejo no puede revivir.
+     */
     private static ItemStack copy(ItemStack item) {
-        if (item == null || item.getType().isAir()) {
+        if (item == null || item.getType().isAir()
+            || !EnmaFightRules.mirrorable(item.getType(), item.hasData(DataComponentTypes.DEATH_PROTECTION))) {
             return null;
         }
         ItemStack copy = item.clone();
         copy.setAmount(1);
         copy.removeEnchantments();
+        copy.resetData(DataComponentTypes.ATTRIBUTE_MODIFIERS);
         return copy;
     }
 
