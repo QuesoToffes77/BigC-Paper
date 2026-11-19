@@ -2,7 +2,7 @@ package dev.linqfy.bigCasares.modules.alexscaves;
 
 import java.util.List;
 
-/** Attribution required by the original mod's LGPL licence. Mirrors CREDITS.md. */
+/** Attribution required by the original mod's LGPL licence. Mirrors licenses/alexscaves/CREDITS.txt. */
 public final class AlexsCavesCredits {
     public static final String MOD_NAME = "Alex's Caves";
     public static final String MOD_VERSION = "2.0.2";
@@ -32,6 +32,6 @@ public final class AlexsCavesCredits {
 
     /** One-line version for pack descriptions. */
     public static String shortLine() {
-        return "Alex's Caves por AlexModGuy (LGPL). Recreación no oficial. Ver CREDITS.md";
+        return "Alex's Caves por AlexModGuy (LGPL). Recreación no oficial. Ver licenses/alexscaves/CREDITS.txt";
     }
 }

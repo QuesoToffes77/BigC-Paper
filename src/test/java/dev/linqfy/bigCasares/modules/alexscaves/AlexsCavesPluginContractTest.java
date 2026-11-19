@@ -61,6 +61,6 @@ class AlexsCavesPluginContractTest {
         assertTrue(all.contains("Alexthe668"));
         assertTrue(all.contains("LGPL"));
         assertTrue(all.contains("no oficial"));
-        assertTrue(AlexsCavesCredits.shortLine().contains("CREDITS.md"));
+        assertTrue(AlexsCavesCredits.shortLine().contains("licenses/alexscaves/CREDITS.txt"));
     }
 }
