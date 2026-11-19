@@ -1,0 +1,5433 @@
+{
+  "format_version": 1,
+  "blocks": {
+    "minecraft:note_block": {
+      "name": "alexscaves_note_block",
+      "only_override_states": true,
+      "state_overrides": {
+        "instrument=banjo,note=0,powered=false": {
+          "name": "alexscaves_radon_lamp_white_default",
+          "display_name": "Lámpara de radón blanca",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_white",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=0,powered=true": {
+          "name": "alexscaves_block_of_chocolate_x",
+          "display_name": "Bloque de chocolate",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_chocolate",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=1,powered=false": {
+          "name": "alexscaves_block_of_chocolate_y",
+          "display_name": "Bloque de chocolate",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_chocolate",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=1,powered=true": {
+          "name": "alexscaves_block_of_chocolate_z",
+          "display_name": "Bloque de chocolate",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_chocolate",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=10,powered=false": {
+          "name": "alexscaves_candy_cane_block_z",
+          "display_name": "Bloque de bastón de caramelo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_candy_cane_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=11,powered=false": {
+          "name": "alexscaves_stripped_candy_cane_block_x",
+          "display_name": "Bloque de bastón de caramelo sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_candy_cane_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=11,powered=true": {
+          "name": "alexscaves_stripped_candy_cane_block_y",
+          "display_name": "Bloque de bastón de caramelo sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_candy_cane_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=12,powered=false": {
+          "name": "alexscaves_stripped_candy_cane_block_z",
+          "display_name": "Bloque de bastón de caramelo sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_candy_cane_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=12,powered=true": {
+          "name": "alexscaves_candy_cane_pole_default",
+          "display_name": "Estaca de bastón de caramelo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_candy_cane_pole",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=13,powered=false": {
+          "name": "alexscaves_stripped_candy_cane_pole_default",
+          "display_name": "Estaca de bastón de caramelo sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_candy_cane_pole",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=13,powered=true": {
+          "name": "alexscaves_chocolate_ice_cream_0",
+          "display_name": "Helado de chocolate",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_chocolate_ice_cream",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=14,powered=false": {
+          "name": "alexscaves_chocolate_ice_cream_1",
+          "display_name": "Helado de chocolate",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_chocolate_ice_cream",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=14,powered=true": {
+          "name": "alexscaves_chocolate_ice_cream_2",
+          "display_name": "Helado de chocolate",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_chocolate_ice_cream",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=15,powered=false": {
+          "name": "alexscaves_vanilla_ice_cream_0",
+          "display_name": "Helado de vainilLa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_vanilla_ice_cream",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=15,powered=true": {
+          "name": "alexscaves_vanilla_ice_cream_1",
+          "display_name": "Helado de vainilLa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_vanilla_ice_cream",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=16,powered=false": {
+          "name": "alexscaves_vanilla_ice_cream_2",
+          "display_name": "Helado de vainilLa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_vanilla_ice_cream",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=16,powered=true": {
+          "name": "alexscaves_sweetberry_ice_cream_0",
+          "display_name": "Helado de bayas dulces",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sweetberry_ice_cream",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=17,powered=false": {
+          "name": "alexscaves_sweetberry_ice_cream_1",
+          "display_name": "Helado de bayas dulces",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sweetberry_ice_cream",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=17,powered=true": {
+          "name": "alexscaves_sweetberry_ice_cream_2",
+          "display_name": "Helado de bayas dulces",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sweetberry_ice_cream",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=18,powered=false": {
+          "name": "alexscaves_giant_sweetberry_default",
+          "display_name": "Cereza gigante",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_giant_sweetberry",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=18,powered=true": {
+          "name": "alexscaves_licoroot_x",
+          "display_name": "Regaraíz",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_licoroot",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=19,powered=false": {
+          "name": "alexscaves_licoroot_y",
+          "display_name": "Regaraíz",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_licoroot",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=19,powered=true": {
+          "name": "alexscaves_licoroot_z",
+          "display_name": "Regaraíz",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_licoroot",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=2,powered=false": {
+          "name": "alexscaves_block_of_frosted_chocolate_default",
+          "display_name": "Bloque de chocolate congelado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_frosted_chocolate",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=2,powered=true": {
+          "name": "alexscaves_block_of_chocolate_frosting_default",
+          "display_name": "Bloque de glaseado de chocolate",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_chocolate_frosting",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=20,powered=false": {
+          "name": "alexscaves_small_peppermint_down",
+          "display_name": "Menta pequeña",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_small_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=20,powered=true": {
+          "name": "alexscaves_small_peppermint_up",
+          "display_name": "Menta pequeña",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_small_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=21,powered=false": {
+          "name": "alexscaves_small_peppermint_north",
+          "display_name": "Menta pequeña",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_small_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=21,powered=true": {
+          "name": "alexscaves_small_peppermint_south",
+          "display_name": "Menta pequeña",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_small_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=22,powered=false": {
+          "name": "alexscaves_small_peppermint_west",
+          "display_name": "Menta pequeña",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_small_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=22,powered=true": {
+          "name": "alexscaves_small_peppermint_east",
+          "display_name": "Menta pequeña",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_small_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=23,powered=false": {
+          "name": "alexscaves_large_peppermint_down",
+          "display_name": "Menta grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_large_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=23,powered=true": {
+          "name": "alexscaves_large_peppermint_up",
+          "display_name": "Menta grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_large_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=24,powered=false": {
+          "name": "alexscaves_large_peppermint_north",
+          "display_name": "Menta grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_large_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=24,powered=true": {
+          "name": "alexscaves_large_peppermint_south",
+          "display_name": "Menta grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_large_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=3,powered=false": {
+          "name": "alexscaves_block_of_frosting_default",
+          "display_name": "Bloque de glaseado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_frosting",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=3,powered=true": {
+          "name": "alexscaves_block_of_vanilla_frosting_default",
+          "display_name": "Bloque de chocolate de vainilla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_vanilla_frosting",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=4,powered=false": {
+          "name": "alexscaves_cake_layer_x",
+          "display_name": "Estrato de tarta",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_cake_layer",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=4,powered=true": {
+          "name": "alexscaves_cake_layer_y",
+          "display_name": "Estrato de tarta",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_cake_layer",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=5,powered=false": {
+          "name": "alexscaves_cake_layer_z",
+          "display_name": "Estrato de tarta",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_cake_layer",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=5,powered=true": {
+          "name": "alexscaves_cookie_block_default",
+          "display_name": "Bloque de galleta",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_cookie_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=6,powered=false": {
+          "name": "alexscaves_dough_block_default",
+          "display_name": "Bloque de masa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_dough_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=6,powered=true": {
+          "name": "alexscaves_wafer_cookie_block_default",
+          "display_name": "Bloque de oblea",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_wafer_cookie_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=7,powered=false": {
+          "name": "alexscaves_gingerbread_block_default",
+          "display_name": "Bloque de pan de jengibre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gingerbread_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=7,powered=true": {
+          "name": "alexscaves_gingerbread_bricks_default",
+          "display_name": "Ladrillos de pan de jengibre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gingerbread_bricks",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=8,powered=false": {
+          "name": "alexscaves_frosted_gingerbread_block_default",
+          "display_name": "Bloque de pan de jengibre congelado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_frosted_gingerbread_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=8,powered=true": {
+          "name": "alexscaves_frosted_gingerbread_bricks_default",
+          "display_name": "Ladrillos de pan de jengibre congelado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_frosted_gingerbread_bricks",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=9,powered=false": {
+          "name": "alexscaves_candy_cane_block_x",
+          "display_name": "Bloque de bastón de caramelo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_candy_cane_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=banjo,note=9,powered=true": {
+          "name": "alexscaves_candy_cane_block_y",
+          "display_name": "Bloque de bastón de caramelo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_candy_cane_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=0,powered=false": {
+          "name": "alexscaves_galena_default",
+          "display_name": "Galena",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_galena",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=0,powered=true": {
+          "name": "alexscaves_packed_galena_default",
+          "display_name": "Galena comprimida",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_packed_galena",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=1,powered=false": {
+          "name": "alexscaves_galena_bricks_default",
+          "display_name": "Ladrillos de galena",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_galena_bricks",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=1,powered=true": {
+          "name": "alexscaves_galena_iron_ore_default",
+          "display_name": "Mena de hierro de galena",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_galena_iron_ore",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=10,powered=false": {
+          "name": "alexscaves_azure_neodymium_node_west",
+          "display_name": "Nodo de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=10,powered=true": {
+          "name": "alexscaves_azure_neodymium_node_east",
+          "display_name": "Nodo de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=11,powered=false": {
+          "name": "alexscaves_scarlet_neodymium_pillar_down",
+          "display_name": "Pilar de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=11,powered=true": {
+          "name": "alexscaves_scarlet_neodymium_pillar_up",
+          "display_name": "Pilar de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=12,powered=false": {
+          "name": "alexscaves_scarlet_neodymium_pillar_north",
+          "display_name": "Pilar de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=12,powered=true": {
+          "name": "alexscaves_scarlet_neodymium_pillar_south",
+          "display_name": "Pilar de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=13,powered=false": {
+          "name": "alexscaves_scarlet_neodymium_pillar_west",
+          "display_name": "Pilar de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=13,powered=true": {
+          "name": "alexscaves_scarlet_neodymium_pillar_east",
+          "display_name": "Pilar de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=14,powered=false": {
+          "name": "alexscaves_azure_neodymium_pillar_down",
+          "display_name": "Pilar de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=14,powered=true": {
+          "name": "alexscaves_azure_neodymium_pillar_up",
+          "display_name": "Pilar de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=15,powered=false": {
+          "name": "alexscaves_azure_neodymium_pillar_north",
+          "display_name": "Pilar de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=15,powered=true": {
+          "name": "alexscaves_azure_neodymium_pillar_south",
+          "display_name": "Pilar de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=16,powered=false": {
+          "name": "alexscaves_azure_neodymium_pillar_west",
+          "display_name": "Pilar de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=16,powered=true": {
+          "name": "alexscaves_azure_neodymium_pillar_east",
+          "display_name": "Pilar de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=17,powered=false": {
+          "name": "alexscaves_block_of_scarlet_neodymium_default",
+          "display_name": "Bloque de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_scarlet_neodymium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=17,powered=true": {
+          "name": "alexscaves_block_of_azure_neodymium_default",
+          "display_name": "Bloque de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_azure_neodymium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=18,powered=false": {
+          "name": "alexscaves_scarlet_magnet_down",
+          "display_name": "Imán escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=18,powered=true": {
+          "name": "alexscaves_scarlet_magnet_up",
+          "display_name": "Imán escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=19,powered=false": {
+          "name": "alexscaves_scarlet_magnet_north",
+          "display_name": "Imán escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=19,powered=true": {
+          "name": "alexscaves_scarlet_magnet_south",
+          "display_name": "Imán escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=2,powered=false": {
+          "name": "alexscaves_galena_pillar_x",
+          "display_name": "Pilar de galena",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_galena_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=2,powered=true": {
+          "name": "alexscaves_galena_pillar_y",
+          "display_name": "Pilar de galena",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_galena_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=20,powered=false": {
+          "name": "alexscaves_scarlet_magnet_west",
+          "display_name": "Imán escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=20,powered=true": {
+          "name": "alexscaves_scarlet_magnet_east",
+          "display_name": "Imán escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=21,powered=false": {
+          "name": "alexscaves_azure_magnet_down",
+          "display_name": "Imán azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=21,powered=true": {
+          "name": "alexscaves_azure_magnet_up",
+          "display_name": "Imán azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=22,powered=false": {
+          "name": "alexscaves_azure_magnet_north",
+          "display_name": "Imán azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=22,powered=true": {
+          "name": "alexscaves_azure_magnet_south",
+          "display_name": "Imán azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=23,powered=false": {
+          "name": "alexscaves_azure_magnet_west",
+          "display_name": "Imán azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=23,powered=true": {
+          "name": "alexscaves_azure_magnet_east",
+          "display_name": "Imán azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_magnet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=24,powered=false": {
+          "name": "alexscaves_tesla_bulb_up",
+          "display_name": "Bombilla Tesla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tesla_bulb",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=24,powered=true": {
+          "name": "alexscaves_tesla_bulb_down",
+          "display_name": "Bombilla Tesla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tesla_bulb",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=3,powered=false": {
+          "name": "alexscaves_galena_pillar_z",
+          "display_name": "Pilar de galena",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_galena_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=3,powered=true": {
+          "name": "alexscaves_energized_galena_neutral_default",
+          "display_name": "Galena energizada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_energized_galena_neutral",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=4,powered=false": {
+          "name": "alexscaves_energized_galena_scarlet_default",
+          "display_name": "Galena energizada escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_energized_galena_scarlet",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=4,powered=true": {
+          "name": "alexscaves_energized_galena_azure_default",
+          "display_name": "Galena energizada azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_energized_galena_azure",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=5,powered=false": {
+          "name": "alexscaves_scarlet_neodymium_node_down",
+          "display_name": "Nodo de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=5,powered=true": {
+          "name": "alexscaves_scarlet_neodymium_node_up",
+          "display_name": "Nodo de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=6,powered=false": {
+          "name": "alexscaves_scarlet_neodymium_node_north",
+          "display_name": "Nodo de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=6,powered=true": {
+          "name": "alexscaves_scarlet_neodymium_node_south",
+          "display_name": "Nodo de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=7,powered=false": {
+          "name": "alexscaves_scarlet_neodymium_node_west",
+          "display_name": "Nodo de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=7,powered=true": {
+          "name": "alexscaves_scarlet_neodymium_node_east",
+          "display_name": "Nodo de neodimio escarlata",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scarlet_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=8,powered=false": {
+          "name": "alexscaves_azure_neodymium_node_down",
+          "display_name": "Nodo de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=8,powered=true": {
+          "name": "alexscaves_azure_neodymium_node_up",
+          "display_name": "Nodo de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=9,powered=false": {
+          "name": "alexscaves_azure_neodymium_node_north",
+          "display_name": "Nodo de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=basedrum,note=9,powered=true": {
+          "name": "alexscaves_azure_neodymium_node_south",
+          "display_name": "Nodo de neodimio azur",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_azure_neodymium_node",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=0,powered=false": {
+          "name": "alexscaves_sulfur_bud_medium_down",
+          "display_name": "Brote de azufre mediano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_medium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=0,powered=true": {
+          "name": "alexscaves_sulfur_bud_medium_up",
+          "display_name": "Brote de azufre mediano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_medium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=1,powered=false": {
+          "name": "alexscaves_sulfur_bud_medium_north",
+          "display_name": "Brote de azufre mediano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_medium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=1,powered=true": {
+          "name": "alexscaves_sulfur_bud_medium_south",
+          "display_name": "Brote de azufre mediano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_medium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=10,powered=false": {
+          "name": "alexscaves_uranium_rod_z",
+          "display_name": "Vara de uranio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_uranium_rod",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=10,powered=true": {
+          "name": "alexscaves_nuclear_bomb_default",
+          "display_name": "Bomba nuclear",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_nuclear_bomb",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=11,powered=false": {
+          "name": "alexscaves_flood_basalt_x",
+          "display_name": "Basalto de inundación",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_flood_basalt",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=11,powered=true": {
+          "name": "alexscaves_flood_basalt_y",
+          "display_name": "Basalto de inundación",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_flood_basalt",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=12,powered=false": {
+          "name": "alexscaves_flood_basalt_z",
+          "display_name": "Basalto de inundación",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_flood_basalt",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=12,powered=true": {
+          "name": "alexscaves_primal_magma_default",
+          "display_name": "Magma primigenio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_primal_magma",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=13,powered=false": {
+          "name": "alexscaves_primal_magma_active",
+          "display_name": "Magma primigenio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_primal_magma",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=13,powered=true": {
+          "name": "alexscaves_volcanic_core_default",
+          "display_name": "Núcleo volcánico",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_volcanic_core",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=14,powered=false": {
+          "name": "alexscaves_metal_barrel_down",
+          "display_name": "Barril metálico",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_metal_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=14,powered=true": {
+          "name": "alexscaves_metal_barrel_up",
+          "display_name": "Barril metálico",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_metal_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=15,powered=false": {
+          "name": "alexscaves_metal_barrel_north",
+          "display_name": "Barril metálico",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_metal_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=15,powered=true": {
+          "name": "alexscaves_metal_barrel_south",
+          "display_name": "Barril metálico",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_metal_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=16,powered=false": {
+          "name": "alexscaves_metal_barrel_west",
+          "display_name": "Barril metálico",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_metal_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=16,powered=true": {
+          "name": "alexscaves_metal_barrel_east",
+          "display_name": "Barril metálico",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_metal_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=17,powered=false": {
+          "name": "alexscaves_rusty_barrel_down",
+          "display_name": "Barril corroído",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rusty_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=17,powered=true": {
+          "name": "alexscaves_rusty_barrel_up",
+          "display_name": "Barril corroído",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rusty_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=18,powered=false": {
+          "name": "alexscaves_rusty_barrel_north",
+          "display_name": "Barril corroído",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rusty_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=18,powered=true": {
+          "name": "alexscaves_rusty_barrel_south",
+          "display_name": "Barril corroído",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rusty_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=19,powered=false": {
+          "name": "alexscaves_rusty_barrel_west",
+          "display_name": "Barril corroído",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rusty_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=19,powered=true": {
+          "name": "alexscaves_rusty_barrel_east",
+          "display_name": "Barril corroído",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rusty_barrel",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=2,powered=false": {
+          "name": "alexscaves_sulfur_bud_medium_west",
+          "display_name": "Brote de azufre mediano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_medium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=2,powered=true": {
+          "name": "alexscaves_sulfur_bud_medium_east",
+          "display_name": "Brote de azufre mediano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_medium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=20,powered=false": {
+          "name": "alexscaves_waste_drum_down",
+          "display_name": "Barril residual",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_waste_drum",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=20,powered=true": {
+          "name": "alexscaves_waste_drum_up",
+          "display_name": "Barril residual",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_waste_drum",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=21,powered=false": {
+          "name": "alexscaves_waste_drum_north",
+          "display_name": "Barril residual",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_waste_drum",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=21,powered=true": {
+          "name": "alexscaves_waste_drum_south",
+          "display_name": "Barril residual",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_waste_drum",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=22,powered=false": {
+          "name": "alexscaves_waste_drum_west",
+          "display_name": "Barril residual",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_waste_drum",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=22,powered=true": {
+          "name": "alexscaves_waste_drum_east",
+          "display_name": "Barril residual",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_waste_drum",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=23,powered=false": {
+          "name": "alexscaves_metal_scaffolding_default",
+          "display_name": "Andamios metálicos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_metal_scaffolding",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=23,powered=true": {
+          "name": "alexscaves_rusty_scaffolding_default",
+          "display_name": "Andamio corroído",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rusty_scaffolding",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=24,powered=false": {
+          "name": "alexscaves_radon_lamp_green_default",
+          "display_name": "Lámpara de radón verde",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_green",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=24,powered=true": {
+          "name": "alexscaves_radon_lamp_lime_default",
+          "display_name": "Lámpara de radón verde  lima",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_lime",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=3,powered=false": {
+          "name": "alexscaves_sulfur_bud_large_down",
+          "display_name": "Brote de azufre grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_large",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=3,powered=true": {
+          "name": "alexscaves_sulfur_bud_large_up",
+          "display_name": "Brote de azufre grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_large",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=4,powered=false": {
+          "name": "alexscaves_sulfur_bud_large_north",
+          "display_name": "Brote de azufre grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_large",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=4,powered=true": {
+          "name": "alexscaves_sulfur_bud_large_south",
+          "display_name": "Brote de azufre grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_large",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=5,powered=false": {
+          "name": "alexscaves_sulfur_bud_large_west",
+          "display_name": "Brote de azufre grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_large",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=5,powered=true": {
+          "name": "alexscaves_sulfur_bud_large_east",
+          "display_name": "Brote de azufre grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_large",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=6,powered=false": {
+          "name": "alexscaves_sulfur_cluster_down",
+          "display_name": "Cúmulo de azufre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_cluster",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=6,powered=true": {
+          "name": "alexscaves_sulfur_cluster_up",
+          "display_name": "Cúmulo de azufre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_cluster",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=7,powered=false": {
+          "name": "alexscaves_sulfur_cluster_north",
+          "display_name": "Cúmulo de azufre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_cluster",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=7,powered=true": {
+          "name": "alexscaves_sulfur_cluster_south",
+          "display_name": "Cúmulo de azufre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_cluster",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=8,powered=false": {
+          "name": "alexscaves_sulfur_cluster_west",
+          "display_name": "Cúmulo de azufre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_cluster",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=8,powered=true": {
+          "name": "alexscaves_sulfur_cluster_east",
+          "display_name": "Cúmulo de azufre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_cluster",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=9,powered=false": {
+          "name": "alexscaves_uranium_rod_x",
+          "display_name": "Vara de uranio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_uranium_rod",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=bit,note=9,powered=true": {
+          "name": "alexscaves_uranium_rod_y",
+          "display_name": "Vara de uranio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_uranium_rod",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=0,powered=false": {
+          "name": "alexscaves_tube_worm_turn_west_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=0,powered=true": {
+          "name": "alexscaves_tube_worm_turn_east_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=1,powered=false": {
+          "name": "alexscaves_tube_worm_elbow_north_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=1,powered=true": {
+          "name": "alexscaves_tube_worm_elbow_south_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=10,powered=false": {
+          "name": "alexscaves_bone_ribs_west_false_legacy",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=10,powered=true": {
+          "name": "alexscaves_bone_ribs_west_true_legacy",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=11,powered=false": {
+          "name": "alexscaves_bone_ribs_east_false_legacy",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=11,powered=true": {
+          "name": "alexscaves_bone_ribs_east_true_legacy",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=12,powered=false": {
+          "name": "alexscaves_hollow_bone_x",
+          "display_name": "Bloque de huesos hueco",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hollow_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=12,powered=true": {
+          "name": "alexscaves_hollow_bone_y",
+          "display_name": "Bloque de huesos hueco",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hollow_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=13,powered=false": {
+          "name": "alexscaves_hollow_bone_z",
+          "display_name": "Bloque de huesos hueco",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hollow_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=13,powered=true": {
+          "name": "alexscaves_smooth_bone_default",
+          "display_name": "Bloque de huesos liso",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_smooth_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=14,powered=false": {
+          "name": "alexscaves_thin_bone_x_0",
+          "display_name": "Bloque de huesos delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thin_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=14,powered=true": {
+          "name": "alexscaves_thin_bone_x_1",
+          "display_name": "Bloque de huesos delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thin_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=15,powered=false": {
+          "name": "alexscaves_thin_bone_x_2",
+          "display_name": "Bloque de huesos delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thin_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=15,powered=true": {
+          "name": "alexscaves_thin_bone_y_0",
+          "display_name": "Bloque de huesos delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thin_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=16,powered=false": {
+          "name": "alexscaves_thin_bone_y_1",
+          "display_name": "Bloque de huesos delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thin_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=16,powered=true": {
+          "name": "alexscaves_thin_bone_y_2",
+          "display_name": "Bloque de huesos delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thin_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=17,powered=false": {
+          "name": "alexscaves_thin_bone_z_0",
+          "display_name": "Bloque de huesos delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thin_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=17,powered=true": {
+          "name": "alexscaves_thin_bone_z_1",
+          "display_name": "Bloque de huesos delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thin_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=18,powered=false": {
+          "name": "alexscaves_thin_bone_z_2",
+          "display_name": "Bloque de huesos delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thin_bone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=18,powered=true": {
+          "name": "alexscaves_bone_worms_down_legacy",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=19,powered=false": {
+          "name": "alexscaves_bone_worms_up_legacy",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=19,powered=true": {
+          "name": "alexscaves_bone_worms_north_legacy",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=2,powered=false": {
+          "name": "alexscaves_tube_worm_elbow_west_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=2,powered=true": {
+          "name": "alexscaves_tube_worm_elbow_east_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=20,powered=false": {
+          "name": "alexscaves_bone_worms_south_legacy",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=20,powered=true": {
+          "name": "alexscaves_bone_worms_west_legacy",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=21,powered=false": {
+          "name": "alexscaves_bone_worms_east_legacy",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=21,powered=true": {
+          "name": "alexscaves_abyssal_altar_default",
+          "display_name": "Altar abisal",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssal_altar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=22,powered=false": {
+          "name": "alexscaves_abyssal_altar_active",
+          "display_name": "Altar abisal",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssal_altar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=22,powered=true": {
+          "name": "alexscaves_abyssmarine_bricks_default",
+          "display_name": "Ladrillos de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_bricks",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=23,powered=false": {
+          "name": "alexscaves_abyssmarine_bricks_active",
+          "display_name": "Ladrillos de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_bricks",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=23,powered=true": {
+          "name": "alexscaves_abyssmarine_pillar_x",
+          "display_name": "Pilar de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=24,powered=false": {
+          "name": "alexscaves_abyssmarine_pillar_x_active",
+          "display_name": "Pilar de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=24,powered=true": {
+          "name": "alexscaves_abyssmarine_pillar_y",
+          "display_name": "Pilar de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=3,powered=false": {
+          "name": "alexscaves_ping_pong_sponge_default_legacy",
+          "display_name": "Esponja ping-Pong",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_ping_pong_sponge",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=3,powered=true": {
+          "name": "alexscaves_ping_pong_sponge_top_legacy",
+          "display_name": "Esponja ping-Pong",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_ping_pong_sponge",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=4,powered=false": {
+          "name": "alexscaves_baleen_bone_default_legacy",
+          "display_name": "Hueso con barbas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_baleen_bone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=4,powered=true": {
+          "name": "alexscaves_baleen_bone_x_legacy",
+          "display_name": "Hueso con barbas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_baleen_bone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=5,powered=false": {
+          "name": "alexscaves_bone_nodule_down",
+          "display_name": "Nódulo de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_nodule",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=5,powered=true": {
+          "name": "alexscaves_bone_nodule_up",
+          "display_name": "Nódulo de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_nodule",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=6,powered=false": {
+          "name": "alexscaves_bone_nodule_north",
+          "display_name": "Nódulo de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_nodule",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=6,powered=true": {
+          "name": "alexscaves_bone_nodule_south",
+          "display_name": "Nódulo de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_nodule",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=7,powered=false": {
+          "name": "alexscaves_bone_nodule_west",
+          "display_name": "Nódulo de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_nodule",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=7,powered=true": {
+          "name": "alexscaves_bone_nodule_east",
+          "display_name": "Nódulo de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_nodule",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=chime,note=8,powered=false": {
+          "name": "alexscaves_bone_ribs_north_false_legacy",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=8,powered=true": {
+          "name": "alexscaves_bone_ribs_north_true_legacy",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=9,powered=false": {
+          "name": "alexscaves_bone_ribs_south_false_legacy",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=chime,note=9,powered=true": {
+          "name": "alexscaves_bone_ribs_south_true_legacy",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=0,powered=false": {
+          "name": "alexscaves_chiseled_candy_cane_block_z",
+          "display_name": "Bloque de bastón de caramelo cincelado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_chiseled_candy_cane_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=0,powered=true": {
+          "name": "alexscaves_candy_cane_pole_north",
+          "display_name": "Estaca de bastón de caramelo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_candy_cane_pole",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=1,powered=false": {
+          "name": "alexscaves_candy_cane_pole_east",
+          "display_name": "Estaca de bastón de caramelo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_candy_cane_pole",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=1,powered=true": {
+          "name": "alexscaves_candy_cane_pole_south",
+          "display_name": "Estaca de bastón de caramelo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_candy_cane_pole",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=10,powered=false": {
+          "name": "alexscaves_mussel_down_2_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=10,powered=true": {
+          "name": "alexscaves_mussel_down_3_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=11,powered=false": {
+          "name": "alexscaves_mussel_down_4_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=11,powered=true": {
+          "name": "alexscaves_mussel_down_5_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=12,powered=false": {
+          "name": "alexscaves_mussel_north_1_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=12,powered=true": {
+          "name": "alexscaves_mussel_north_2_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=13,powered=false": {
+          "name": "alexscaves_mussel_north_3_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=13,powered=true": {
+          "name": "alexscaves_mussel_north_4_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=14,powered=false": {
+          "name": "alexscaves_mussel_north_5_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=14,powered=true": {
+          "name": "alexscaves_mussel_south_1_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=15,powered=false": {
+          "name": "alexscaves_mussel_south_2_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=15,powered=true": {
+          "name": "alexscaves_mussel_south_3_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=16,powered=false": {
+          "name": "alexscaves_mussel_south_4_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=16,powered=true": {
+          "name": "alexscaves_mussel_south_5_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=17,powered=false": {
+          "name": "alexscaves_mussel_west_1_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=17,powered=true": {
+          "name": "alexscaves_mussel_west_2_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=18,powered=false": {
+          "name": "alexscaves_mussel_west_3_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=18,powered=true": {
+          "name": "alexscaves_mussel_west_4_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=19,powered=false": {
+          "name": "alexscaves_mussel_west_5_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=19,powered=true": {
+          "name": "alexscaves_mussel_east_1_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=2,powered=false": {
+          "name": "alexscaves_candy_cane_pole_west",
+          "display_name": "Estaca de bastón de caramelo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_candy_cane_pole",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=2,powered=true": {
+          "name": "alexscaves_block_of_polished_chocolate_default",
+          "display_name": "Bloque de chocolate pulido",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_polished_chocolate",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=20,powered=false": {
+          "name": "alexscaves_mussel_east_2_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=20,powered=true": {
+          "name": "alexscaves_mussel_east_3_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=21,powered=false": {
+          "name": "alexscaves_mussel_east_4_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=21,powered=true": {
+          "name": "alexscaves_mussel_east_5_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=22,powered=false": {
+          "name": "alexscaves_tube_worm_straight_north_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=22,powered=true": {
+          "name": "alexscaves_tube_worm_straight_south_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=23,powered=false": {
+          "name": "alexscaves_tube_worm_straight_west_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=23,powered=true": {
+          "name": "alexscaves_tube_worm_straight_east_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=24,powered=false": {
+          "name": "alexscaves_tube_worm_turn_north_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=24,powered=true": {
+          "name": "alexscaves_tube_worm_turn_south_legacy",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=3,powered=false": {
+          "name": "alexscaves_block_of_chiseled_chocolate_default",
+          "display_name": "Bloque de chocolate cincelado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_chiseled_chocolate",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=3,powered=true": {
+          "name": "alexscaves_gummy_ring_red_sunk",
+          "display_name": "Anillo de gominola roja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_red",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=4,powered=false": {
+          "name": "alexscaves_gummy_ring_green_sunk",
+          "display_name": "Anillo de gominola verde",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_green",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=4,powered=true": {
+          "name": "alexscaves_gummy_ring_blue_sunk",
+          "display_name": "Anillo de gominola azul",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=5,powered=false": {
+          "name": "alexscaves_gummy_ring_yellow_sunk",
+          "display_name": "Anillo de gominola amarilla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_yellow",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=5,powered=true": {
+          "name": "alexscaves_gummy_ring_pink_sunk",
+          "display_name": "Anillo de gominola rosa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_pink",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=6,powered=false": {
+          "name": "alexscaves_abyssmarine_default",
+          "display_name": "Abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=6,powered=true": {
+          "name": "alexscaves_muck_default",
+          "display_name": "Lodo abisal",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_muck",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=cow_bell,note=7,powered=false": {
+          "name": "alexscaves_mussel_up_1_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=7,powered=true": {
+          "name": "alexscaves_mussel_up_2_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=8,powered=false": {
+          "name": "alexscaves_mussel_up_3_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=8,powered=true": {
+          "name": "alexscaves_mussel_up_4_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=9,powered=false": {
+          "name": "alexscaves_mussel_up_5_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=cow_bell,note=9,powered=true": {
+          "name": "alexscaves_mussel_down_1_legacy",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=0,powered=false": {
+          "name": "alexscaves_large_peppermint_west",
+          "display_name": "Menta grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_large_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=0,powered=true": {
+          "name": "alexscaves_large_peppermint_east",
+          "display_name": "Menta grande",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_large_peppermint",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=1,powered=false": {
+          "name": "alexscaves_gummy_ring_red_down",
+          "display_name": "Anillo de gominola roja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_red",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=1,powered=true": {
+          "name": "alexscaves_gummy_ring_red_up",
+          "display_name": "Anillo de gominola roja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_red",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=10,powered=false": {
+          "name": "alexscaves_gummy_ring_yellow_down",
+          "display_name": "Anillo de gominola amarilla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_yellow",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=10,powered=true": {
+          "name": "alexscaves_gummy_ring_yellow_up",
+          "display_name": "Anillo de gominola amarilla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_yellow",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=11,powered=false": {
+          "name": "alexscaves_gummy_ring_yellow_north",
+          "display_name": "Anillo de gominola amarilla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_yellow",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=11,powered=true": {
+          "name": "alexscaves_gummy_ring_yellow_south",
+          "display_name": "Anillo de gominola amarilla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_yellow",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=12,powered=false": {
+          "name": "alexscaves_gummy_ring_yellow_west",
+          "display_name": "Anillo de gominola amarilla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_yellow",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=12,powered=true": {
+          "name": "alexscaves_gummy_ring_yellow_east",
+          "display_name": "Anillo de gominola amarilla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_yellow",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=13,powered=false": {
+          "name": "alexscaves_gummy_ring_pink_down",
+          "display_name": "Anillo de gominola rosa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_pink",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=13,powered=true": {
+          "name": "alexscaves_gummy_ring_pink_up",
+          "display_name": "Anillo de gominola rosa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_pink",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=14,powered=false": {
+          "name": "alexscaves_gummy_ring_pink_north",
+          "display_name": "Anillo de gominola rosa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_pink",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=14,powered=true": {
+          "name": "alexscaves_gummy_ring_pink_south",
+          "display_name": "Anillo de gominola rosa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_pink",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=15,powered=false": {
+          "name": "alexscaves_gummy_ring_pink_west",
+          "display_name": "Anillo de gominola rosa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_pink",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=15,powered=true": {
+          "name": "alexscaves_gummy_ring_pink_east",
+          "display_name": "Anillo de gominola rosa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_pink",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=16,powered=false": {
+          "name": "alexscaves_rock_candy_white_default",
+          "display_name": "Roca de caramelo blanco",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_white",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=16,powered=true": {
+          "name": "alexscaves_rock_candy_orange_default",
+          "display_name": "Roca de caramelo naranja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_orange",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=17,powered=false": {
+          "name": "alexscaves_rock_candy_magenta_default",
+          "display_name": "Roca de caramelo magenta",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_magenta",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=17,powered=true": {
+          "name": "alexscaves_rock_candy_light_blue_default",
+          "display_name": "Roca de caramelo azul claro",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_light_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=18,powered=false": {
+          "name": "alexscaves_rock_candy_yellow_default",
+          "display_name": "Roca de caramelo amarillo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_yellow",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=18,powered=true": {
+          "name": "alexscaves_rock_candy_lime_default",
+          "display_name": "Roca de caramelo verde lima",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_lime",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=19,powered=false": {
+          "name": "alexscaves_rock_candy_pink_default",
+          "display_name": "Roca de caramelo rosa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_pink",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=19,powered=true": {
+          "name": "alexscaves_rock_candy_gray_default",
+          "display_name": "Roca de caramelo gris",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_gray",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=2,powered=false": {
+          "name": "alexscaves_gummy_ring_red_north",
+          "display_name": "Anillo de gominola roja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_red",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=2,powered=true": {
+          "name": "alexscaves_gummy_ring_red_south",
+          "display_name": "Anillo de gominola roja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_red",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=20,powered=false": {
+          "name": "alexscaves_rock_candy_light_gray_default",
+          "display_name": "Roca de caramelo gris claro",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_light_gray",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=20,powered=true": {
+          "name": "alexscaves_rock_candy_cyan_default",
+          "display_name": "Roca de caramelo cian",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_cyan",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=21,powered=false": {
+          "name": "alexscaves_rock_candy_purple_default",
+          "display_name": "Roca de caramelo morado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_purple",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=21,powered=true": {
+          "name": "alexscaves_rock_candy_blue_default",
+          "display_name": "Roca de caramelo azul",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=22,powered=false": {
+          "name": "alexscaves_rock_candy_brown_default",
+          "display_name": "Roca de caramelo marrón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_brown",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=22,powered=true": {
+          "name": "alexscaves_rock_candy_green_default",
+          "display_name": "Roca de caramelo verde",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_green",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=23,powered=false": {
+          "name": "alexscaves_rock_candy_red_default",
+          "display_name": "Roca de caramelo rojo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_red",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=23,powered=true": {
+          "name": "alexscaves_rock_candy_black_default",
+          "display_name": "Roca de caramelo negro",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rock_candy_black",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=24,powered=false": {
+          "name": "alexscaves_chiseled_candy_cane_block_x",
+          "display_name": "Bloque de bastón de caramelo cincelado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_chiseled_candy_cane_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=24,powered=true": {
+          "name": "alexscaves_chiseled_candy_cane_block_y",
+          "display_name": "Bloque de bastón de caramelo cincelado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_chiseled_candy_cane_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=3,powered=false": {
+          "name": "alexscaves_gummy_ring_red_west",
+          "display_name": "Anillo de gominola roja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_red",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=3,powered=true": {
+          "name": "alexscaves_gummy_ring_red_east",
+          "display_name": "Anillo de gominola roja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_red",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=4,powered=false": {
+          "name": "alexscaves_gummy_ring_green_down",
+          "display_name": "Anillo de gominola verde",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_green",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=4,powered=true": {
+          "name": "alexscaves_gummy_ring_green_up",
+          "display_name": "Anillo de gominola verde",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_green",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=5,powered=false": {
+          "name": "alexscaves_gummy_ring_green_north",
+          "display_name": "Anillo de gominola verde",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_green",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=5,powered=true": {
+          "name": "alexscaves_gummy_ring_green_south",
+          "display_name": "Anillo de gominola verde",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_green",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=6,powered=false": {
+          "name": "alexscaves_gummy_ring_green_west",
+          "display_name": "Anillo de gominola verde",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_green",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=6,powered=true": {
+          "name": "alexscaves_gummy_ring_green_east",
+          "display_name": "Anillo de gominola verde",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_green",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=7,powered=false": {
+          "name": "alexscaves_gummy_ring_blue_down",
+          "display_name": "Anillo de gominola azul",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=7,powered=true": {
+          "name": "alexscaves_gummy_ring_blue_up",
+          "display_name": "Anillo de gominola azul",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=8,powered=false": {
+          "name": "alexscaves_gummy_ring_blue_north",
+          "display_name": "Anillo de gominola azul",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=8,powered=true": {
+          "name": "alexscaves_gummy_ring_blue_south",
+          "display_name": "Anillo de gominola azul",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=9,powered=false": {
+          "name": "alexscaves_gummy_ring_blue_west",
+          "display_name": "Anillo de gominola azul",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=didgeridoo,note=9,powered=true": {
+          "name": "alexscaves_gummy_ring_blue_east",
+          "display_name": "Anillo de gominola azul",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_gummy_ring_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=0,powered=false": {
+          "name": "alexscaves_abyssmarine_pillar_y_active",
+          "display_name": "Pilar de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=0,powered=true": {
+          "name": "alexscaves_abyssmarine_pillar_z",
+          "display_name": "Pilar de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=1,powered=false": {
+          "name": "alexscaves_abyssmarine_pillar_z_active",
+          "display_name": "Pilar de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=1,powered=true": {
+          "name": "alexscaves_abyssmarine_tiles_default",
+          "display_name": "Azulejos de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_tiles",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=10,powered=false": {
+          "name": "alexscaves_guano_layer_6_legacy",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=10,powered=true": {
+          "name": "alexscaves_guano_layer_7_legacy",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=11,powered=false": {
+          "name": "alexscaves_guano_layer_8",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=11,powered=true": {
+          "name": "alexscaves_coprolith_default",
+          "display_name": "Coprolito",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_coprolith",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=12,powered=false": {
+          "name": "alexscaves_smooth_coprolith_default",
+          "display_name": "Coprolito liso",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_smooth_coprolith",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=12,powered=true": {
+          "name": "alexscaves_coprolith_coal_ore_default",
+          "display_name": "Mena de carbón de coprolito",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_coprolith_coal_ore",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=13,powered=false": {
+          "name": "alexscaves_porous_coprolith_default",
+          "display_name": "Coprolito poroso",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_porous_coprolith",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=13,powered=true": {
+          "name": "alexscaves_peering_coprolith_default",
+          "display_name": "Coprolito ojeante",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_peering_coprolith",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=14,powered=false": {
+          "name": "alexscaves_forsaken_idol_north",
+          "display_name": "Ídolo olvidado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_forsaken_idol",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=14,powered=true": {
+          "name": "alexscaves_forsaken_idol_south",
+          "display_name": "Ídolo olvidado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_forsaken_idol",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=15,powered=false": {
+          "name": "alexscaves_forsaken_idol_west",
+          "display_name": "Ídolo olvidado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_forsaken_idol",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=15,powered=true": {
+          "name": "alexscaves_forsaken_idol_east",
+          "display_name": "Ídolo olvidado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_forsaken_idol",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=16,powered=false": {
+          "name": "alexscaves_thornwood_log_x",
+          "display_name": "Tronco de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=16,powered=true": {
+          "name": "alexscaves_thornwood_log_y",
+          "display_name": "Tronco de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=17,powered=false": {
+          "name": "alexscaves_thornwood_log_z",
+          "display_name": "Tronco de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=17,powered=true": {
+          "name": "alexscaves_thornwood_wood_x",
+          "display_name": "Leño de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=18,powered=false": {
+          "name": "alexscaves_thornwood_wood_y",
+          "display_name": "Leño de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=18,powered=true": {
+          "name": "alexscaves_thornwood_wood_z",
+          "display_name": "Leño de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=19,powered=false": {
+          "name": "alexscaves_stripped_thornwood_log_x",
+          "display_name": "Tronco de pinchoárbol sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_thornwood_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=19,powered=true": {
+          "name": "alexscaves_stripped_thornwood_log_y",
+          "display_name": "Tronco de pinchoárbol sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_thornwood_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=2,powered=false": {
+          "name": "alexscaves_abyssmarine_tiles_active",
+          "display_name": "Azulejos de abismarina",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_abyssmarine_tiles",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=2,powered=true": {
+          "name": "alexscaves_copper_valve_default",
+          "display_name": "Válvula de cobre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_copper_valve",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=20,powered=false": {
+          "name": "alexscaves_stripped_thornwood_log_z",
+          "display_name": "Tronco de pinchoárbol sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_thornwood_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=20,powered=true": {
+          "name": "alexscaves_stripped_thornwood_wood_x",
+          "display_name": "Leño de pinchoárbol sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_thornwood_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=21,powered=false": {
+          "name": "alexscaves_stripped_thornwood_wood_y",
+          "display_name": "Leño de pinchoárbol sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_thornwood_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=21,powered=true": {
+          "name": "alexscaves_stripped_thornwood_wood_z",
+          "display_name": "Leño de pinchoárbol sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_thornwood_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=22,powered=false": {
+          "name": "alexscaves_thornwood_planks_default",
+          "display_name": "Tablones de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_planks",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=22,powered=true": {
+          "name": "alexscaves_thornwood_branch_down_legacy",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=23,powered=false": {
+          "name": "alexscaves_thornwood_branch_up_legacy",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=23,powered=true": {
+          "name": "alexscaves_thornwood_branch_north_legacy",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=24,powered=false": {
+          "name": "alexscaves_thornwood_branch_south_legacy",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=24,powered=true": {
+          "name": "alexscaves_thornwood_branch_west_legacy",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=3,powered=false": {
+          "name": "alexscaves_dusk_anemone_default_legacy",
+          "display_name": "Anémona del alba",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_dusk_anemone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=3,powered=true": {
+          "name": "alexscaves_twilight_anemone_default_legacy",
+          "display_name": "Anémona del crepúsculo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_twilight_anemone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=4,powered=false": {
+          "name": "alexscaves_midnight_anemone_default_legacy",
+          "display_name": "Anémona de la medianoche",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_midnight_anemone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=4,powered=true": {
+          "name": "alexscaves_guanostone_default",
+          "display_name": "Guanopiedra",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guanostone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=5,powered=false": {
+          "name": "alexscaves_guanostone_bricks_default",
+          "display_name": "Ladrillos de guanopiedra",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guanostone_bricks",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=5,powered=true": {
+          "name": "alexscaves_guanostone_chiseled_default",
+          "display_name": "Guanopiedra cincelada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guanostone_chiseled",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=6,powered=false": {
+          "name": "alexscaves_guanostone_tiles_default",
+          "display_name": "Azulejos de guanopiedra",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guanostone_tiles",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=6,powered=true": {
+          "name": "alexscaves_guanostone_redstone_ore_default",
+          "display_name": "Mena de redstone de guanopiedra",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guanostone_redstone_ore",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=7,powered=false": {
+          "name": "alexscaves_guano_block_default",
+          "display_name": "Bloque de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=7,powered=true": {
+          "name": "alexscaves_guano_layer_1_legacy",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=8,powered=false": {
+          "name": "alexscaves_guano_layer_2_legacy",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=8,powered=true": {
+          "name": "alexscaves_guano_layer_3_legacy",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=9,powered=false": {
+          "name": "alexscaves_guano_layer_4_legacy",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=iron_xylophone,note=9,powered=true": {
+          "name": "alexscaves_guano_layer_5_legacy",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=pling,note=0,powered=false": {
+          "name": "alexscaves_limestone_default",
+          "display_name": "Caliza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=0,powered=true": {
+          "name": "alexscaves_smooth_limestone_default",
+          "display_name": "Caliza lisa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_smooth_limestone",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=1,powered=false": {
+          "name": "alexscaves_limestone_chiseled_down",
+          "display_name": "Caliza cincelada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone_chiseled",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=1,powered=true": {
+          "name": "alexscaves_limestone_chiseled_up",
+          "display_name": "Caliza cincelada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone_chiseled",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=10,powered=false": {
+          "name": "alexscaves_pewen_wood_x",
+          "display_name": "Leño de pehúen",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_pewen_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=10,powered=true": {
+          "name": "alexscaves_pewen_wood_y",
+          "display_name": "Leño de pehúen",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_pewen_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=11,powered=false": {
+          "name": "alexscaves_pewen_wood_z",
+          "display_name": "Leño de pehúen",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_pewen_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=11,powered=true": {
+          "name": "alexscaves_stripped_pewen_log_x",
+          "display_name": "Tronco de pehuén sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_pewen_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=12,powered=false": {
+          "name": "alexscaves_stripped_pewen_log_y",
+          "display_name": "Tronco de pehuén sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_pewen_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=12,powered=true": {
+          "name": "alexscaves_stripped_pewen_log_z",
+          "display_name": "Tronco de pehuén sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_pewen_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=13,powered=false": {
+          "name": "alexscaves_stripped_pewen_wood_x",
+          "display_name": "Leño de pehuén sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_pewen_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=13,powered=true": {
+          "name": "alexscaves_stripped_pewen_wood_y",
+          "display_name": "Leño de pehuén sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_pewen_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=14,powered=false": {
+          "name": "alexscaves_stripped_pewen_wood_z",
+          "display_name": "Leño de pehuén sin corteza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_stripped_pewen_wood",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=14,powered=true": {
+          "name": "alexscaves_pewen_planks_default",
+          "display_name": "Tablones de pehuén",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_pewen_planks",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=15,powered=false": {
+          "name": "alexscaves_radrock_default",
+          "display_name": "Radiaroca",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radrock",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=15,powered=true": {
+          "name": "alexscaves_radrock_bricks_default",
+          "display_name": "Ladrillos de radiaoroca",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radrock_bricks",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=16,powered=false": {
+          "name": "alexscaves_radrock_chiseled_default",
+          "display_name": "Radiaroca cincelada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radrock_chiseled",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=16,powered=true": {
+          "name": "alexscaves_radrock_uranium_ore_default",
+          "display_name": "Mena de uranio de radiaroca",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radrock_uranium_ore",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=17,powered=false": {
+          "name": "alexscaves_acidic_radrock_default",
+          "display_name": "Radiaroca acídica",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_acidic_radrock",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=17,powered=true": {
+          "name": "alexscaves_block_of_uranium_default",
+          "display_name": "Bloque de uranio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_uranium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=18,powered=false": {
+          "name": "alexscaves_sulfur_default",
+          "display_name": "Azufre",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=18,powered=true": {
+          "name": "alexscaves_cinder_block_default",
+          "display_name": "Ladrillos de hormigón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_cinder_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=19,powered=false": {
+          "name": "alexscaves_unrefined_waste_default",
+          "display_name": "Residuo sin refinar",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_unrefined_waste",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=19,powered=true": {
+          "name": "alexscaves_rusty_scrap_metal_default",
+          "display_name": "Chatarra corroída",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rusty_scrap_metal",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=2,powered=false": {
+          "name": "alexscaves_limestone_chiseled_north",
+          "display_name": "Caliza cincelada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone_chiseled",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=2,powered=true": {
+          "name": "alexscaves_limestone_chiseled_south",
+          "display_name": "Caliza cincelada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone_chiseled",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=20,powered=false": {
+          "name": "alexscaves_rusty_scrap_metal_plate_default",
+          "display_name": "Placa de chatarra corroída",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_rusty_scrap_metal_plate",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=20,powered=true": {
+          "name": "alexscaves_geothermal_vent_default",
+          "display_name": "Respiradero geotérmico",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_geothermal_vent",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=21,powered=false": {
+          "name": "alexscaves_geothermal_vent_medium_default",
+          "display_name": "Respiradero geotérmico mediano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_geothermal_vent_medium",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=21,powered=true": {
+          "name": "alexscaves_geothermal_vent_thin_default",
+          "display_name": "Respiradero geotérmico delgado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_geothermal_vent_thin",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=22,powered=false": {
+          "name": "alexscaves_sulfur_bud_small_down",
+          "display_name": "Brote de azufre pequeño",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_small",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=22,powered=true": {
+          "name": "alexscaves_sulfur_bud_small_up",
+          "display_name": "Brote de azufre pequeño",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_small",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=23,powered=false": {
+          "name": "alexscaves_sulfur_bud_small_north",
+          "display_name": "Brote de azufre pequeño",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_small",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=23,powered=true": {
+          "name": "alexscaves_sulfur_bud_small_south",
+          "display_name": "Brote de azufre pequeño",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_small",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=24,powered=false": {
+          "name": "alexscaves_sulfur_bud_small_west",
+          "display_name": "Brote de azufre pequeño",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_small",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=24,powered=true": {
+          "name": "alexscaves_sulfur_bud_small_east",
+          "display_name": "Brote de azufre pequeño",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sulfur_bud_small",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=3,powered=false": {
+          "name": "alexscaves_limestone_chiseled_west",
+          "display_name": "Caliza cincelada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone_chiseled",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=3,powered=true": {
+          "name": "alexscaves_limestone_chiseled_east",
+          "display_name": "Caliza cincelada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone_chiseled",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=4,powered=false": {
+          "name": "alexscaves_limestone_pillar_x",
+          "display_name": "Pilar de caliza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=4,powered=true": {
+          "name": "alexscaves_limestone_pillar_y",
+          "display_name": "Pilar de caliza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=5,powered=false": {
+          "name": "alexscaves_limestone_pillar_z",
+          "display_name": "Pilar de caliza",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_limestone_pillar",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=5,powered=true": {
+          "name": "alexscaves_amber_default",
+          "display_name": "Ámbar",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_amber",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=6,powered=false": {
+          "name": "alexscaves_ambersol_default",
+          "display_name": "Solámbar",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_ambersol",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=6,powered=true": {
+          "name": "alexscaves_fern_thatch_default",
+          "display_name": "Paja de helechos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_fern_thatch",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=7,powered=false": {
+          "name": "alexscaves_carmine_froglight_x",
+          "display_name": "Ranaluz carmín",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_carmine_froglight",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=7,powered=true": {
+          "name": "alexscaves_carmine_froglight_y",
+          "display_name": "Ranaluz carmín",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_carmine_froglight",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=8,powered=false": {
+          "name": "alexscaves_carmine_froglight_z",
+          "display_name": "Ranaluz carmín",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_carmine_froglight",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=8,powered=true": {
+          "name": "alexscaves_pewen_log_x",
+          "display_name": "Tronco de pehuén",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_pewen_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=9,powered=false": {
+          "name": "alexscaves_pewen_log_y",
+          "display_name": "Tronco de pehuén",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_pewen_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=pling,note=9,powered=true": {
+          "name": "alexscaves_pewen_log_z",
+          "display_name": "Tronco de pehuén",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_pewen_log",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=0,powered=false": {
+          "name": "alexscaves_metal_swarf_default",
+          "display_name": "Virutas metálicas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_metal_swarf",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=0,powered=true": {
+          "name": "alexscaves_scrap_metal_default",
+          "display_name": "Chatarra",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scrap_metal",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=1,powered=false": {
+          "name": "alexscaves_scrap_metal_plate_default",
+          "display_name": "Placa de ccatarra",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_scrap_metal_plate",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=1,powered=true": {
+          "name": "alexscaves_magnetic_activator_down",
+          "display_name": "Activador magnético",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_magnetic_activator",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=2,powered=false": {
+          "name": "alexscaves_magnetic_activator_up",
+          "display_name": "Activador magnético",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_magnetic_activator",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=2,powered=true": {
+          "name": "alexscaves_magnetic_activator_north",
+          "display_name": "Activador magnético",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_magnetic_activator",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=3,powered=false": {
+          "name": "alexscaves_magnetic_activator_south",
+          "display_name": "Activador magnético",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_magnetic_activator",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=3,powered=true": {
+          "name": "alexscaves_magnetic_activator_west",
+          "display_name": "Activador magnético",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_magnetic_activator",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=4,powered=false": {
+          "name": "alexscaves_magnetic_activator_east",
+          "display_name": "Activador magnético",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_magnetic_activator",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=4,powered=true": {
+          "name": "alexscaves_heart_of_iron_x",
+          "display_name": "Corazón férreo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_heart_of_iron",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=5,powered=false": {
+          "name": "alexscaves_heart_of_iron_y",
+          "display_name": "Corazón férreo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_heart_of_iron",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=snare,note=5,powered=true": {
+          "name": "alexscaves_heart_of_iron_z",
+          "display_name": "Corazón férreo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_heart_of_iron",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=0,powered=false": {
+          "name": "alexscaves_thornwood_branch_east_legacy",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=0,powered=true": {
+          "name": "alexscaves_moth_ball_1",
+          "display_name": "Bola antioscurolillas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_moth_ball",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=1,powered=false": {
+          "name": "alexscaves_moth_ball_2",
+          "display_name": "Bola antioscurolillas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_moth_ball",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=1,powered=true": {
+          "name": "alexscaves_moth_ball_3",
+          "display_name": "Bola antioscurolillas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_moth_ball",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=10,powered=false": {
+          "name": "alexscaves_lollipop_bunch_default_legacy",
+          "display_name": "Ramo de piruletas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_lollipop_bunch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=10,powered=true": {
+          "name": "alexscaves_licoroot_sprout_default_legacy",
+          "display_name": "Brote de regaraíz",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_licoroot_sprout",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=11,powered=false": {
+          "name": "alexscaves_radon_lamp_orange_default",
+          "display_name": "Lámpara de radón naranja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_orange",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=11,powered=true": {
+          "name": "alexscaves_radon_lamp_magenta_default",
+          "display_name": "Lámpara de radón magenta",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_magenta",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=12,powered=false": {
+          "name": "alexscaves_radon_lamp_light_blue_default",
+          "display_name": "Lámpara de radón azul claro",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_light_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=12,powered=true": {
+          "name": "alexscaves_radon_lamp_yellow_default",
+          "display_name": "Lámpara de radón amarilla",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_yellow",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=13,powered=false": {
+          "name": "alexscaves_radon_lamp_pink_default",
+          "display_name": "Lámpara de radón rosa",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_pink",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=13,powered=true": {
+          "name": "alexscaves_radon_lamp_gray_default",
+          "display_name": "Lámpara de radón gris",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_gray",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=14,powered=false": {
+          "name": "alexscaves_radon_lamp_light_gray_default",
+          "display_name": "Lámpara de radón gris claro",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_light_gray",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=14,powered=true": {
+          "name": "alexscaves_radon_lamp_cyan_default",
+          "display_name": "Lámpara de radón cian",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_cyan",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=15,powered=false": {
+          "name": "alexscaves_radon_lamp_purple_default",
+          "display_name": "Lámpara de radón morada",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_purple",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=15,powered=true": {
+          "name": "alexscaves_radon_lamp_blue_default",
+          "display_name": "Lámpara de radón azul",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_blue",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=16,powered=false": {
+          "name": "alexscaves_radon_lamp_brown_default",
+          "display_name": "Lámpara de radón marrón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_brown",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=16,powered=true": {
+          "name": "alexscaves_radon_lamp_red_default",
+          "display_name": "Lámpara de radón roja",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_red",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=17,powered=false": {
+          "name": "alexscaves_radon_lamp_black_default",
+          "display_name": "Lámpara de radón negra",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_radon_lamp_black",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=17,powered=true": {
+          "name": "alexscaves_hazmat_block_x",
+          "display_name": "Bloque MP",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hazmat_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=18,powered=false": {
+          "name": "alexscaves_hazmat_block_y",
+          "display_name": "Bloque MP",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hazmat_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=18,powered=true": {
+          "name": "alexscaves_hazmat_block_z",
+          "display_name": "Bloque MP",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hazmat_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=19,powered=false": {
+          "name": "alexscaves_hazmat_warning_block_x",
+          "display_name": "Bloque MP de adventercia",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hazmat_warning_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=19,powered=true": {
+          "name": "alexscaves_hazmat_warning_block_y",
+          "display_name": "Bloque MP de adventercia",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hazmat_warning_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=2,powered=false": {
+          "name": "alexscaves_moth_ball_4",
+          "display_name": "Bola antioscurolillas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_moth_ball",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=2,powered=true": {
+          "name": "alexscaves_moth_ball_5",
+          "display_name": "Bola antioscurolillas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_moth_ball",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=20,powered=false": {
+          "name": "alexscaves_hazmat_warning_block_z",
+          "display_name": "Bloque MP de adventercia",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hazmat_warning_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=20,powered=true": {
+          "name": "alexscaves_hazmat_skull_block_x",
+          "display_name": "Bloque HP de calavera",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hazmat_skull_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=21,powered=false": {
+          "name": "alexscaves_hazmat_skull_block_y",
+          "display_name": "Bloque HP de calavera",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hazmat_skull_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=21,powered=true": {
+          "name": "alexscaves_hazmat_skull_block_z",
+          "display_name": "Bloque HP de calavera",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_hazmat_skull_block",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=22,powered=false": {
+          "name": "alexscaves_block_of_pearl_default",
+          "display_name": "Bloque de perlas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_block_of_pearl",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=3,powered=false": {
+          "name": "alexscaves_primal_magma_boss",
+          "display_name": "Magma primigenio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_primal_magma",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=3,powered=true": {
+          "name": "alexscaves_fissure_primal_magma_r0",
+          "display_name": "Magma primigenio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_fissure_primal_magma",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=4,powered=false": {
+          "name": "alexscaves_fissure_primal_magma_r1",
+          "display_name": "Magma primigenio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_fissure_primal_magma",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=4,powered=true": {
+          "name": "alexscaves_fissure_primal_magma_r2",
+          "display_name": "Magma primigenio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_fissure_primal_magma",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=5,powered=false": {
+          "name": "alexscaves_fissure_primal_magma_r3",
+          "display_name": "Magma primigenio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_fissure_primal_magma",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=5,powered=true": {
+          "name": "alexscaves_fissure_primal_magma_r4",
+          "display_name": "Magma primigenio",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_fissure_primal_magma",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=6,powered=false": {
+          "name": "alexscaves_amber_monolith_default",
+          "display_name": "Monolito de ámbar",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_amber_monolith",
+              "render_method": "opaque"
+            }
+          }
+        },
+        "instrument=xylophone,note=6,powered=true": {
+          "name": "alexscaves_curly_fern_default_legacy",
+          "display_name": "Helecho ondulado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_curly_fern",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=7,powered=false": {
+          "name": "alexscaves_curly_fern_upper_legacy",
+          "display_name": "Helecho ondulado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_curly_fern",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=7,powered=true": {
+          "name": "alexscaves_flytrap_default_legacy",
+          "display_name": "Atrapamoscas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_flytrap",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=8,powered=false": {
+          "name": "alexscaves_fiddlehead_default_legacy",
+          "display_name": "Brote de helecho",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_fiddlehead",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=8,powered=true": {
+          "name": "alexscaves_underweed_default_legacy",
+          "display_name": "Hierbajo subterráneo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_underweed",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=9,powered=false": {
+          "name": "alexscaves_sweet_puff_default_legacy",
+          "display_name": "Buñuelo dulce",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sweet_puff",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=9,powered=true": {
+          "name": "alexscaves_sundrop_default_legacy",
+          "display_name": "Gotasol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sundrop",
+              "render_method": "alpha_test"
+            }
+          }
+        }
+      }
+    },
+    "minecraft:tripwire": {
+      "name": "alexscaves_tripwire",
+      "only_override_states": true,
+      "state_overrides": {
+        "attached=false,disarmed=true,east=false,north=false,powered=false,south=false,west=false": {
+          "name": "alexscaves_mussel_up_1",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=false,powered=false,south=false,west=true": {
+          "name": "alexscaves_mussel_up_2",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=false,powered=false,south=true,west=false": {
+          "name": "alexscaves_mussel_up_3",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=false,powered=false,south=true,west=true": {
+          "name": "alexscaves_mussel_up_4",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=false,powered=true,south=false,west=false": {
+          "name": "alexscaves_mussel_south_2",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=false,powered=true,south=false,west=true": {
+          "name": "alexscaves_mussel_south_3",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=false,powered=true,south=true,west=false": {
+          "name": "alexscaves_mussel_south_4",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=false,powered=true,south=true,west=true": {
+          "name": "alexscaves_mussel_south_5",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=true,powered=false,south=false,west=false": {
+          "name": "alexscaves_mussel_down_4",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=true,powered=false,south=false,west=true": {
+          "name": "alexscaves_mussel_down_5",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=true,powered=false,south=true,west=false": {
+          "name": "alexscaves_mussel_north_1",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=true,powered=false,south=true,west=true": {
+          "name": "alexscaves_mussel_north_2",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=true,powered=true,south=false,west=false": {
+          "name": "alexscaves_mussel_west_5",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=true,powered=true,south=false,west=true": {
+          "name": "alexscaves_mussel_east_1",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=true,powered=true,south=true,west=false": {
+          "name": "alexscaves_mussel_east_2",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=false,north=true,powered=true,south=true,west=true": {
+          "name": "alexscaves_mussel_east_3",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=false,powered=false,south=false,west=false": {
+          "name": "alexscaves_mussel_up_5",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=false,powered=false,south=false,west=true": {
+          "name": "alexscaves_mussel_down_1",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=false,powered=false,south=true,west=false": {
+          "name": "alexscaves_mussel_down_2",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=false,powered=false,south=true,west=true": {
+          "name": "alexscaves_mussel_down_3",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=false,powered=true,south=false,west=false": {
+          "name": "alexscaves_mussel_west_1",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=false,powered=true,south=false,west=true": {
+          "name": "alexscaves_mussel_west_2",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=false,powered=true,south=true,west=false": {
+          "name": "alexscaves_mussel_west_3",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=false,powered=true,south=true,west=true": {
+          "name": "alexscaves_mussel_west_4",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=true,powered=false,south=false,west=false": {
+          "name": "alexscaves_mussel_north_3",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=true,powered=false,south=false,west=true": {
+          "name": "alexscaves_mussel_north_4",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=true,powered=false,south=true,west=false": {
+          "name": "alexscaves_mussel_north_5",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=true,powered=false,south=true,west=true": {
+          "name": "alexscaves_mussel_south_1",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=true,powered=true,south=false,west=false": {
+          "name": "alexscaves_mussel_east_4",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=true,powered=true,south=false,west=true": {
+          "name": "alexscaves_mussel_east_5",
+          "display_name": "Mejillón",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_mussel",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=true,powered=true,south=true,west=false": {
+          "name": "alexscaves_ping_pong_sponge_default",
+          "display_name": "Esponja ping-Pong",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_ping_pong_sponge",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=false,disarmed=true,east=true,north=true,powered=true,south=true,west=true": {
+          "name": "alexscaves_ping_pong_sponge_top",
+          "display_name": "Esponja ping-Pong",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_ping_pong_sponge",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=false,powered=false,south=false,west=false": {
+          "name": "alexscaves_bone_worms_down",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=false,powered=false,south=false,west=true": {
+          "name": "alexscaves_bone_worms_up",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=false,powered=false,south=true,west=false": {
+          "name": "alexscaves_bone_worms_north",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=false,powered=false,south=true,west=true": {
+          "name": "alexscaves_bone_worms_south",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=false,powered=true,south=false,west=false": {
+          "name": "alexscaves_thornwood_branch_down",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=false,powered=true,south=false,west=true": {
+          "name": "alexscaves_thornwood_branch_up",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=false,powered=true,south=true,west=false": {
+          "name": "alexscaves_thornwood_branch_north",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=false,powered=true,south=true,west=true": {
+          "name": "alexscaves_thornwood_branch_south",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=true,powered=false,south=false,west=false": {
+          "name": "alexscaves_midnight_anemone_default",
+          "display_name": "Anémona de la medianoche",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_midnight_anemone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=true,powered=false,south=false,west=true": {
+          "name": "alexscaves_guano_layer_1",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=true,powered=false,south=true,west=false": {
+          "name": "alexscaves_guano_layer_2",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=true,powered=false,south=true,west=true": {
+          "name": "alexscaves_guano_layer_3",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=true,powered=true,south=false,west=false": {
+          "name": "alexscaves_flytrap_default",
+          "display_name": "Atrapamoscas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_flytrap",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=true,powered=true,south=false,west=true": {
+          "name": "alexscaves_fiddlehead_default",
+          "display_name": "Brote de helecho",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_fiddlehead",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=true,powered=true,south=true,west=false": {
+          "name": "alexscaves_underweed_default",
+          "display_name": "Hierbajo subterráneo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_underweed",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=false,north=true,powered=true,south=true,west=true": {
+          "name": "alexscaves_sweet_puff_default",
+          "display_name": "Buñuelo dulce",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sweet_puff",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=false,powered=false,south=false,west=false": {
+          "name": "alexscaves_bone_worms_west",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=false,powered=false,south=false,west=true": {
+          "name": "alexscaves_bone_worms_east",
+          "display_name": "Gusanos osícolas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_worms",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=false,powered=false,south=true,west=false": {
+          "name": "alexscaves_dusk_anemone_default",
+          "display_name": "Anémona del alba",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_dusk_anemone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=false,powered=false,south=true,west=true": {
+          "name": "alexscaves_twilight_anemone_default",
+          "display_name": "Anémona del crepúsculo",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_twilight_anemone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=false,powered=true,south=false,west=false": {
+          "name": "alexscaves_thornwood_branch_west",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=false,powered=true,south=false,west=true": {
+          "name": "alexscaves_thornwood_branch_east",
+          "display_name": "Rama de pinchoárbol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_thornwood_branch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=false,powered=true,south=true,west=false": {
+          "name": "alexscaves_curly_fern_default",
+          "display_name": "Helecho ondulado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_curly_fern",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=false,powered=true,south=true,west=true": {
+          "name": "alexscaves_curly_fern_upper",
+          "display_name": "Helecho ondulado",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_curly_fern",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=true,powered=false,south=false,west=false": {
+          "name": "alexscaves_guano_layer_4",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=true,powered=false,south=false,west=true": {
+          "name": "alexscaves_guano_layer_5",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=true,powered=false,south=true,west=false": {
+          "name": "alexscaves_guano_layer_6",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=true,powered=false,south=true,west=true": {
+          "name": "alexscaves_guano_layer_7",
+          "display_name": "Capa de guano",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_guano_layer",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=true,powered=true,south=false,west=false": {
+          "name": "alexscaves_sundrop_default",
+          "display_name": "Gotasol",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_sundrop",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=true,powered=true,south=false,west=true": {
+          "name": "alexscaves_lollipop_bunch_default",
+          "display_name": "Ramo de piruletas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_lollipop_bunch",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "attached=true,disarmed=true,east=true,north=true,powered=true,south=true,west=false": {
+          "name": "alexscaves_licoroot_sprout_default",
+          "display_name": "Brote de regaraíz",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_licoroot_sprout",
+              "render_method": "alpha_test"
+            }
+          }
+        }
+      }
+    },
+    "minecraft:chorus_plant": {
+      "name": "alexscaves_chorus_plant",
+      "only_override_states": true,
+      "state_overrides": {
+        "down=false,east=false,north=false,south=false,up=true,west=false": {
+          "name": "alexscaves_tube_worm_elbow_east",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=false,north=false,south=true,up=false,west=true": {
+          "name": "alexscaves_tube_worm_straight_north",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=false,north=false,south=true,up=true,west=true": {
+          "name": "alexscaves_baleen_bone_default",
+          "display_name": "Hueso con barbas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_baleen_bone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=false,north=true,south=false,up=false,west=true": {
+          "name": "alexscaves_tube_worm_turn_north",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=false,north=true,south=false,up=true,west=true": {
+          "name": "alexscaves_bone_ribs_south_false",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=false,north=true,south=true,up=false,west=false": {
+          "name": "alexscaves_tube_worm_turn_south",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=false,north=true,south=true,up=false,west=true": {
+          "name": "alexscaves_tube_worm_turn_west",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=false,north=true,south=true,up=true,west=false": {
+          "name": "alexscaves_bone_ribs_south_true",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=false,north=true,south=true,up=true,west=true": {
+          "name": "alexscaves_bone_ribs_west_false",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=false,south=false,up=false,west=true": {
+          "name": "alexscaves_tube_worm_straight_south",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=false,south=false,up=true,west=true": {
+          "name": "alexscaves_baleen_bone_x",
+          "display_name": "Hueso con barbas",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_baleen_bone",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=false,south=true,up=false,west=false": {
+          "name": "alexscaves_tube_worm_straight_west",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=false,south=true,up=false,west=true": {
+          "name": "alexscaves_tube_worm_straight_east",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=false,south=true,up=true,west=false": {
+          "name": "alexscaves_bone_ribs_north_false",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=false,south=true,up=true,west=true": {
+          "name": "alexscaves_bone_ribs_north_true",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=true,south=false,up=false,west=false": {
+          "name": "alexscaves_tube_worm_turn_east",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=true,south=false,up=false,west=true": {
+          "name": "alexscaves_tube_worm_elbow_north",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=true,south=false,up=true,west=false": {
+          "name": "alexscaves_bone_ribs_west_true",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=true,south=false,up=true,west=true": {
+          "name": "alexscaves_bone_ribs_east_false",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=true,south=true,up=false,west=false": {
+          "name": "alexscaves_tube_worm_elbow_south",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=true,south=true,up=false,west=true": {
+          "name": "alexscaves_tube_worm_elbow_west",
+          "display_name": "Gusano tubícola",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_tube_worm",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "down=false,east=true,north=true,south=true,up=true,west=false": {
+          "name": "alexscaves_bone_ribs_east_true",
+          "display_name": "Costillas de huesos",
+          "material_instances": {
+            "*": {
+              "texture": "alexscaves_bone_ribs",
+              "render_method": "alpha_test"
+            }
+          }
+        }
+      }
+    }
+  }
+}
