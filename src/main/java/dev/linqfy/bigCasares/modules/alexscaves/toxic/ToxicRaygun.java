@@ -17,9 +17,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.Event;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
@@ -60,7 +65,8 @@ public final class ToxicRaygun implements Listener, Runnable {
         this.chargeKey = new NamespacedKey(mobs.plugin(), "raygun_charge_used");
     }
 
-    private record Firing(long startedAt, long lastUse) {
+    /** {@code slot}: inventory slot of the raygun when the beam started, where its charge is written back. */
+    private record Firing(long startedAt, long lastUse, int slot) {
     }
 
     /** Charge used during the current beam, not yet written to the item. */
@@ -68,7 +74,7 @@ public final class ToxicRaygun implements Listener, Runnable {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onUse(PlayerInteractEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND
+        if (event.getHand() != EquipmentSlot.HAND || event.useItemInHand() == Event.Result.DENY
             || event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
@@ -90,19 +96,69 @@ public final class ToxicRaygun implements Listener, Runnable {
         }
         Firing current = firing.get(player.getUniqueId());
         if (current == null || tick - current.lastUse() > HOLD_TICKS) {
-            firing.put(player.getUniqueId(), new Firing(tick, tick));
+            firing.put(player.getUniqueId(), new Firing(tick, tick, player.getInventory().getHeldItemSlot()));
             player.getWorld().playSound(player.getLocation(), "alexscaves:raygun_start", SoundCategory.PLAYERS, 1.0f, 1.0f);
         } else {
-            firing.put(player.getUniqueId(), new Firing(current.startedAt(), tick));
+            firing.put(player.getUniqueId(), new Firing(current.startedAt(), tick, current.slot()));
         }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        firing.remove(player.getUniqueId());
-        ItemStack held = player.getInventory().getItemInMainHand();
-        flush(player.getUniqueId(), isRaygun(held) ? held : null);
+        stop(event.getPlayer());
+    }
+
+    /** Changing slot ends the beam; what it used so far is written to the slot it was fired from. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onHeld(PlayerItemHeldEvent event) {
+        stop(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSwap(PlayerSwapHandItemsEvent event) {
+        stop(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDrop(PlayerDropItemEvent event) {
+        ItemStack dropped = event.getItemDrop().getItemStack();
+        if (isRaygun(dropped) && firing.remove(event.getPlayer().getUniqueId()) != null) {
+            ItemStack copy = dropped.clone();
+            flushTo(event.getPlayer().getUniqueId(), copy);
+            event.getItemDrop().setItemStack(copy);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDeath(PlayerDeathEvent event) {
+        UUID id = event.getEntity().getUniqueId();
+        Firing current = firing.remove(id);
+        if (current == null) {
+            pending.remove(id);
+            return;
+        }
+        if (event.getKeepInventory()) {
+            flushTo(id, slotItem(event.getEntity(), current.slot()));
+            return;
+        }
+        for (ItemStack drop : event.getDrops()) {
+            if (isRaygun(drop)) {
+                flushTo(id, drop);
+                return;
+            }
+        }
+        pending.remove(id);
+    }
+
+    /** Ends the beam of a player and never loses the charge it used. */
+    private void stop(Player player) {
+        Firing current = firing.remove(player.getUniqueId());
+        flushTo(player.getUniqueId(), current == null ? null : slotItem(player, current.slot()));
+    }
+
+    private ItemStack slotItem(Player player, int slot) {
+        ItemStack stack = player.getInventory().getItem(slot);
+        return isRaygun(stack) ? stack : null;
     }
 
     @Override
@@ -110,21 +166,34 @@ public final class ToxicRaygun implements Listener, Runnable {
         tick++;
         firing.entrySet().removeIf(entry -> {
             Player player = mobs.plugin().getServer().getPlayer(entry.getKey());
+            Firing state = entry.getValue();
             ItemStack held = player == null ? null : player.getInventory().getItemInMainHand();
-            boolean stop = player == null || !player.isValid() || tick - entry.getValue().lastUse() > HOLD_TICKS || !isRaygun(held)
-                || !fire(player, held, (int) (tick - entry.getValue().startedAt()));
-            if (stop || (tick - entry.getValue().startedAt()) % SAVE_TICKS == 0) {
-                flush(entry.getKey(), isRaygun(held) ? held : null);
+            boolean stop = player == null || !player.isValid() || tick - state.lastUse() > HOLD_TICKS || !isRaygun(held)
+                || player.getInventory().getHeldItemSlot() != state.slot()
+                || !fire(player, held, (int) (tick - state.startedAt()));
+            if (stop || (tick - state.startedAt()) % SAVE_TICKS == 0) {
+                flushTo(entry.getKey(), player == null ? null : slotItem(player, state.slot()));
             }
             return stop;
         });
     }
 
-    private void flush(UUID player, ItemStack raygun) {
+    /** Writes the charge used since the last flush to the raygun it was fired from. */
+    private void flushTo(UUID player, ItemStack raygun) {
         Integer used = pending.remove(player);
         if (used != null && used > 0 && raygun != null) {
-            setChargeUsed(raygun, chargeUsed(raygun) + used);
+            setChargeUsed(raygun, withPending(chargeUsed(raygun), used));
         }
+    }
+
+    /** Charge used after adding what a beam used since the last write, never above the capacity. */
+    static int withPending(int stored, int pending) {
+        return Math.max(0, Math.min(MAX_CHARGE, stored + pending));
+    }
+
+    /** A full-power beam uses 1 charge every second tick, unless its user is in creative. */
+    static boolean usesCharge(float warmup, int useTicks, boolean creative) {
+        return warmup >= 1.0F && useTicks % 2 == 0 && !creative;
     }
 
     /** One tick of the beam; false when it ran out of charge. */
@@ -151,15 +220,16 @@ public final class ToxicRaygun implements Listener, Runnable {
             for (Entity near : world.getNearbyEntities(at, 1.0, 1.0, 1.0)) {
                 if (near != player && near instanceof LivingEntity living) {
                     // Mod: only a hit that lands (outside the hurt cooldown) irradiates.
-                    boolean lands = living.getNoDamageTicks() <= living.getMaximumNoDamageTicks() / 2;
+                    double before = DamageProbe.pool(living);
                     living.damage(1.5, mobs.damageTypes().source(ModDamageTypes.RAYGUN, player));
+                    boolean lands = DamageProbe.landed(before, DamageProbe.pool(living), living.isDead());
                     if (lands && !NukeMath.RESISTS_RADIATION.contains(mobs.typeOf(living).map(type -> "alexscaves:" + type.id()).orElse(""))) {
                         mobs.effects().apply(living, ModEffectType.IRRADIATED, 0, 800);
                     }
                 }
             }
         }
-        if (time >= 1.0F && useTicks % 2 == 0 && player.getGameMode() != GameMode.CREATIVE) {
+        if (usesCharge(time, useTicks, player.getGameMode() == GameMode.CREATIVE)) {
             pending.merge(player.getUniqueId(), 1, Integer::sum);
         }
         return true;

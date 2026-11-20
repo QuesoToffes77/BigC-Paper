@@ -83,6 +83,7 @@ final class AlexsCavesRuntime {
         this.magneticBlocks = new MagneticBlocks(plugin, blocks, magnetismService);
         this.worldgen = new WorldgenService(plugin, settings.worldgen(), content.features());
         this.mobs = new ModMobService(plugin, content.mobs(), effects, damageTypes, models, items);
+        this.mobs.configure(settings);
         this.spawner = new ModSpawner(settings.spawning(), settings.worldgen().worlds(), content.mobs(), mobs);
     }
 

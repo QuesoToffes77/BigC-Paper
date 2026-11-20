@@ -63,8 +63,6 @@ import java.util.UUID;
  */
 public final class TotemOfPossession implements Listener, Runnable, AutoCloseable {
     static final String TOTEM = "ac_totem_of_possession";
-    /** Mod config {@code totem_of_possession_works_on_players}. */
-    static final boolean PLAYERS_CONTROLLABLE = true;
     /** The client repeats the use every 4 ticks while right click is held. */
     private static final int HOLD_GRACE_TICKS = 7;
     /** Durability is written to the item in batches: a change every other tick would restart its hand animation. */
@@ -79,6 +77,7 @@ public final class TotemOfPossession implements Listener, Runnable, AutoCloseabl
     private final NamespacedKey boundKey;
     private final NamespacedKey boundNameKey;
     private final Map<UUID, Possession> active = new HashMap<>();
+    private final HarmVerdictCache verdicts = new HarmVerdictCache();
     private long tick;
 
     public TotemOfPossession(ModMobService mobs) {
@@ -95,7 +94,7 @@ public final class TotemOfPossession implements Listener, Runnable, AutoCloseabl
     private boolean resists(Entity entity) {
         return entity instanceof Boss || RESISTANT_TYPES.contains(entity.getType())
             || mobs.typeOf(entity).filter(type -> RESISTANT_MOBS.contains(type.id())).isPresent()
-            || entity instanceof Player && !PLAYERS_CONTROLLABLE;
+            || entity instanceof Player && !mobs.settings().forlorn().possessPlayers();
     }
 
     // --- binding -------------------------------------------------------------------------------------------
@@ -163,6 +162,10 @@ public final class TotemOfPossession implements Listener, Runnable, AutoCloseabl
 
     /** Whether the user could hurt the victim themselves: asks the protections with a stand-in hit of a neutral cause. */
     private boolean canHarm(Player user, LivingEntity victim) {
+        return verdicts.allowed(user.getUniqueId(), victim.getUniqueId(), tick, () -> askProtections(user, victim));
+    }
+
+    private boolean askProtections(Player user, LivingEntity victim) {
         DamageSource source = DamageSource.builder(DamageType.GENERIC).withCausingEntity(user).withDirectEntity(user).build();
         EntityDamageByEntityEvent probe = new EntityDamageByEntityEvent(user, victim, EntityDamageEvent.DamageCause.CUSTOM, source, 1.0);
         return probe.callEvent();
@@ -206,6 +209,11 @@ public final class TotemOfPossession implements Listener, Runnable, AutoCloseabl
         }
         boolean sightless = enchantments.level(totem, ModEnchantment.SIGHTLESS) > 0;
         if (!sightless && !(controlled instanceof LivingEntity living && looking(player, living))) {
+            return;
+        }
+        // Protection was only asked when the creature was bound: a claim may have appeared around it since.
+        if (!(controlled instanceof LivingEntity victim) || resists(victim)
+            || !verdicts.refresh(player.getUniqueId(), victim.getUniqueId(), tick, () -> askProtections(player, victim))) {
             return;
         }
         player.getWorld().playSound(player.getLocation(), "alexscaves:totem_of_possession_use", SoundCategory.PLAYERS, 1.0F, 1.0F);
@@ -446,6 +454,7 @@ public final class TotemOfPossession implements Listener, Runnable, AutoCloseabl
             }
         }
         active.clear();
+        verdicts.clear();
     }
 
     private static final class Possession {

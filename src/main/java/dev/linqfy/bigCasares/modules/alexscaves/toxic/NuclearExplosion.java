@@ -231,14 +231,18 @@ public final class NuclearExplosion implements Runnable {
                 damage *= 0.25F;
                 playerFling *= 0.1F;
             }
+            // A blast that a zone or claim cancelled does not irradiate either; no damage at all (Tremorzilla) always does.
+            boolean landed = true;
             if (damage > 0.0F) {
+                double before = DamageProbe.pool(entity);
                 entity.damage(damage, mobs.damageTypes().source(ModDamageTypes.NUKE));
+                landed = DamageProbe.landed(before, DamageProbe.pool(entity), entity.isDead());
             }
             Vector away = entity.getLocation().toVector().subtract(center.toVector()).add(new Vector(0, 0.3, 0));
             if (away.lengthSquared() > 1.0E-6) {
                 entity.setVelocity(away.normalize().multiply(damage * 0.1F * playerFling));
             }
-            if (!NukeMath.RESISTS_RADIATION.contains(id) || "alexscaves:tremorzilla".equals(id)) {
+            if (landed && (!NukeMath.RESISTS_RADIATION.contains(id) || "alexscaves:tremorzilla".equals(id))) {
                 mobs.effects().apply(entity, ModEffectType.IRRADIATED, NukeMath.irradiatedAmplifier(size), IRRADIATED_TICKS);
             }
         }

@@ -57,6 +57,10 @@ magnetism:
   max-entities-per-tick: 200
   scan-radius: 6
 
+forlorn:
+  # Totem de la Posesión sobre jugadores (totem_of_possession_works_on_players del mod). Apagado por defecto.
+  possess-players: false
+
 enchantments:
   enabled: true
   # Igual que enchantments_in_loot del mod: apagado por defecto.

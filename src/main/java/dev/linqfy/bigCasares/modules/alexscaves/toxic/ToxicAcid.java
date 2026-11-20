@@ -9,6 +9,7 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
@@ -16,6 +17,9 @@ import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -26,6 +30,8 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class ToxicAcid implements Listener, Runnable {
     static final int CHECK_TICKS = 5;
+    /** Acid only reaches what is near a player: the rest of the world is not simulated. */
+    static final double SCAN_RADIUS = 48.0;
     private static final NamespacedKey TOXIC_CAVES = new NamespacedKey("alexscaves", "toxic_caves");
 
     private final ModMobService mobs;
@@ -40,13 +46,25 @@ public final class ToxicAcid implements Listener, Runnable {
         if (++tick % CHECK_TICKS != 0) {
             return;
         }
-        for (World world : mobs.plugin().getServer().getWorlds()) {
-            for (LivingEntity entity : world.getLivingEntities()) {
-                if (entity.isInWater() && inToxicCaves(entity.getLocation()) && !resists(entity)) {
+        Set<String> worlds = Set.copyOf(mobs.settings().worldgen().worlds());
+        Set<UUID> done = new HashSet<>();
+        for (Player player : mobs.plugin().getServer().getOnlinePlayers()) {
+            World world = player.getWorld();
+            if (!worlds.contains(world.getName())) {
+                continue;
+            }
+            for (LivingEntity entity : world.getNearbyLivingEntities(player.getLocation(), SCAN_RADIUS)) {
+                if (done.add(entity.getUniqueId()) && affected(entity) && entity.isInWater()
+                    && inToxicCaves(entity.getLocation()) && !resists(entity)) {
                     burn(entity);
                 }
             }
         }
+    }
+
+    /** Armor stands, NPCs of other plugins and invulnerable entities are not touched by the acid. */
+    private static boolean affected(LivingEntity entity) {
+        return !(entity instanceof ArmorStand) && !entity.isInvulnerable() && !entity.hasMetadata("NPC");
     }
 
     static boolean isToxicBiome(NamespacedKey biome) {
