@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.alexscaves.core.mob;
 
 import dev.linqfy.bigCasares.items.CustomItemRegistry;
+import dev.linqfy.bigCasares.modules.alexscaves.config.AlexsCavesSettings;
 import dev.linqfy.bigCasares.modules.alexscaves.core.ability.CooldownLedger;
 import dev.linqfy.bigCasares.modules.alexscaves.core.damage.ModDamageTypes;
 import dev.linqfy.bigCasares.modules.alexscaves.core.effect.ModEffectService;
@@ -58,6 +59,7 @@ public final class ModMobService implements ModMobContext {
     private final Map<UUID, Instance> tracked = new HashMap<>();
     /** Models of dead mobs kept while their death animation plays, until the body is removed. */
     private final Map<UUID, JavaModelHandle> dying = new HashMap<>();
+    private volatile AlexsCavesSettings settings = AlexsCavesSettings.defaults();
     private long tick;
 
     public ModMobService(Plugin plugin, ModMobCatalog catalog, ModEffectService effects, ModDamageTypes damageTypes,
@@ -70,6 +72,15 @@ public final class ModMobService implements ModMobContext {
         this.items = items;
         this.cooldowns = new CooldownLedger(() -> tick);
         this.customEntityKey = new NamespacedKey(plugin, ModMobIdentity.CUSTOM_ENTITY_KEY);
+    }
+
+    /** Module settings for content listeners; defaults until the runtime calls {@link #configure}. */
+    public AlexsCavesSettings settings() {
+        return settings;
+    }
+
+    public void configure(AlexsCavesSettings settings) {
+        this.settings = settings;
     }
 
     /** Marker on a mob the module's spawner placed (the mod's {@code MobSpawnType.NATURAL}), for spawn-only extras. */

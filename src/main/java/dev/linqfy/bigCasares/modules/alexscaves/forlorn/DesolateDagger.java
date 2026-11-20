@@ -17,6 +17,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
@@ -40,6 +41,8 @@ public final class DesolateDagger implements Listener, Runnable, AutoCloseable {
     static final String DAGGER = "ac_desolate_dagger";
     /** Mod: the stab progress grows by 0.2 a tick once the orbit is over. */
     private static final float STAB_STEP = 0.2F;
+    static final int MAX_BLADES_PER_PLAYER = 8;
+    static final int MAX_BLADES_GLOBAL = 64;
 
     private final ModMobService mobs;
     private final ModEnchantments enchantments;
@@ -81,7 +84,28 @@ public final class DesolateDagger implements Listener, Runnable, AutoCloseable {
         }
     }
 
+    static boolean canSummon(int playerBlades, int totalBlades) {
+        return playerBlades < MAX_BLADES_PER_PLAYER && totalBlades < MAX_BLADES_GLOBAL;
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        UUID id = event.getPlayer().getUniqueId();
+        blades.removeIf(blade -> {
+            if (blade.owner.equals(id)) {
+                blade.display.remove();
+                return true;
+            }
+            return false;
+        });
+    }
+
     private void summon(Player player, LivingEntity target, ItemStack held, int impending, int sated) {
+        UUID id = player.getUniqueId();
+        int own = (int) blades.stream().filter(blade -> blade.owner.equals(id)).count();
+        if (!canSummon(own, blades.size())) {
+            return;
+        }
         ItemStack look = held.clone();
         look.setAmount(1);
         Location start = target.getLocation().add(0, target.getHeight() * 0.25, 0);

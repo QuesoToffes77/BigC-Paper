@@ -18,12 +18,20 @@ public record AlexsCavesSettings(
     MagnetismSettings magnetism,
     EnchantmentSettings enchantments,
     BlockSettings blocks,
-    IntegrationSettings integration
+    IntegrationSettings integration,
+    ForlornSettings forlorn
 ) {
     public static AlexsCavesSettings defaults() {
         return new AlexsCavesSettings(WorldgenSettings.defaults(), SpawningSettings.defaults(), EffectSettings.defaults(),
             MagnetismSettings.defaults(), EnchantmentSettings.defaults(), BlockSettings.defaults(),
-            IntegrationSettings.defaults());
+            IntegrationSettings.defaults(), ForlornSettings.defaults());
+    }
+
+    /** {@code possessPlayers}: mod's {@code totem_of_possession_works_on_players}; off by default (griefing risk). */
+    public record ForlornSettings(boolean possessPlayers) {
+        public static ForlornSettings defaults() {
+            return new ForlornSettings(false);
+        }
     }
 
     public record WorldgenSettings(

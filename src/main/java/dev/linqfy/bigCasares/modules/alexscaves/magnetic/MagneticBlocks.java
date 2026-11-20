@@ -20,17 +20,17 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPhysicsEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -46,12 +46,13 @@ public final class MagneticBlocks implements Listener {
     private static final int ZAP_DELAY = 5;
     private static final int BURST_TICKS = 20;
     private static final float EXPLOSION_POWER = 7.0f;
+    static final int MAX_PENDING_ZAPS = 200;
 
     private final Plugin plugin;
     private final NoteBlockService blocks;
     private final MagnetismService magnetism;
     private final Map<BlockKey, Burst> bursting = new HashMap<>();
-    private final List<PendingZap> pendingZaps = new ArrayList<>();
+    private final ArrayDeque<PendingZap> pendingZaps = new ArrayDeque<>();
     private long tick;
 
     public MagneticBlocks(Plugin plugin, NoteBlockService blocks, MagnetismService magnetism) {
@@ -132,7 +133,24 @@ public final class MagneticBlocks implements Listener {
             from.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, point, 1, 0.02, 0.02, 0.02, 0);
         }
         from.getWorld().playSound(from, Sound.BLOCK_COPPER_BULB_TURN_ON, 0.5f, 1.8f);
-        pendingZaps.add(new PendingZap(to, damage, source, ZAP_DELAY));
+        if (canQueueZap(pendingZaps.size())) {
+            pendingZaps.add(new PendingZap(to, damage, source, ZAP_DELAY));
+        }
+    }
+
+    static boolean canQueueZap(int queued) {
+        return queued < MAX_PENDING_ZAPS;
+    }
+
+    /** Adventure players cannot break blocks, and a protection plugin may refuse the break the explosion stands for. */
+    private static boolean mayBreak(Block block, Entity source) {
+        if (!(source instanceof Player player)) {
+            return true;
+        }
+        if (player.getGameMode() == GameMode.ADVENTURE || player.getGameMode() == GameMode.SPECTATOR) {
+            return false;
+        }
+        return new BlockBreakEvent(block, player).callEvent();
     }
 
     private void tickPendingZaps() {
@@ -161,7 +179,7 @@ public final class MagneticBlocks implements Listener {
     }
 
     private void startBurst(Block block, Entity source) {
-        if (isTesla(block)) {
+        if (isTesla(block) && mayBreak(block, source)) {
             bursting.putIfAbsent(new BlockKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()),
                 new Burst(source));
         }

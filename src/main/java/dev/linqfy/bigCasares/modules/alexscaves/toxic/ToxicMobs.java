@@ -367,14 +367,19 @@ public final class ToxicMobs {
                 entity.getWorld().spawnParticle(Particle.DUST, from.clone().add(toward.clone().multiply(d / length)), 1, 0, 0, 0, 0,
                     new Particle.DustOptions(Color.fromRGB(0xD8, 0x6B, 0x8A), 1.0f));
             }
+            double before = DamageProbe.pool(target);
             target.damage(4.0, entity);
-            irradiate(target, context);
+            if (DamageProbe.landed(before, DamageProbe.pool(target), target.isDead())) {
+                irradiate(target, context);
+            }
             target.setVelocity(target.getVelocity().add(toward.normalize().multiply(-0.3)));
         }
 
         @Override
         public void onAttack(LivingEntity entity, ModMobContext context, LivingEntity target) {
-            irradiate(target, context);
+            if (DamageProbe.mayHarm(entity, target)) {
+                irradiate(target, context);
+            }
             // Mod BrainiacMeleeGoal: smash or bite, half and half.
             boolean smash = ThreadLocalRandom.current().nextBoolean();
             if (action == Action.NONE) {
@@ -444,10 +449,10 @@ public final class ToxicMobs {
             readyAt = now + 10000 + ThreadLocalRandom.current().nextInt(24000);
             context.mobs().playSound(entity, type, "spray");
             animation.action(entity, context, "spray");
-            spray(entity.getLocation().add(0, 0.2, 0), context);
+            spray(entity, entity.getLocation().add(0, 0.2, 0), context);
         }
 
-        private static void spray(Location at, ModMobContext context) {
+        private static void spray(LivingEntity source, Location at, ModMobContext context) {
             new BukkitRunnable() {
                 private int age;
 
@@ -461,7 +466,7 @@ public final class ToxicMobs {
                     at.getWorld().spawnParticle(Particle.DUST, at, 12, radius * 0.6, 0.2, radius * 0.6, 0,
                         new Particle.DustOptions(Color.fromRGB(0x77, 0xD6, 0x0E), 1.4f));
                     for (Entity near : at.getWorld().getNearbyEntities(at, radius, 0.5 + radius * 0.25, radius)) {
-                        if (near instanceof LivingEntity living && !resistsRadiation(living, context)) {
+                        if (near instanceof LivingEntity living && !resistsRadiation(living, context) && DamageProbe.mayHarm(source, living)) {
                             context.effects().apply(living, ModEffectType.IRRADIATED, 0, 2000);
                         }
                     }

@@ -3,6 +3,7 @@ package dev.linqfy.bigCasares.modules.alexscaves.config;
 import dev.linqfy.bigCasares.modules.alexscaves.config.AlexsCavesSettings.BlockSettings;
 import dev.linqfy.bigCasares.modules.alexscaves.config.AlexsCavesSettings.EffectSettings;
 import dev.linqfy.bigCasares.modules.alexscaves.config.AlexsCavesSettings.EnchantmentSettings;
+import dev.linqfy.bigCasares.modules.alexscaves.config.AlexsCavesSettings.ForlornSettings;
 import dev.linqfy.bigCasares.modules.alexscaves.config.AlexsCavesSettings.IntegrationSettings;
 import dev.linqfy.bigCasares.modules.alexscaves.config.AlexsCavesSettings.MagnetismSettings;
 import dev.linqfy.bigCasares.modules.alexscaves.config.AlexsCavesSettings.SpawningSettings;
@@ -52,8 +53,12 @@ public final class AlexsCavesSettingsLoader {
             bool(root.getConfigurationSection("blocks"), "custom-textures", defaults.blocks().customTextures()),
             bool(root.getConfigurationSection("blocks"), "packet-remap", defaults.blocks().packetRemap()));
         IntegrationSettings integration = loadIntegration(root.getConfigurationSection("integration"), defaults.integration(), errors, warnings);
+        ConfigurationSection forlornSection = root.getConfigurationSection("forlorn");
+        ForlornSettings forlorn = new ForlornSettings(
+            bool(forlornSection, "possess-players", defaults.forlorn().possessPlayers()));
         return new AlexsCavesConfigLoadResult(
-            new AlexsCavesSettings(worldgen, spawning, effects, magnetism, enchantments, blocks, integration), errors, warnings);
+            new AlexsCavesSettings(worldgen, spawning, effects, magnetism, enchantments, blocks, integration, forlorn),
+            errors, warnings);
     }
 
     private static WorldgenSettings loadWorldgen(

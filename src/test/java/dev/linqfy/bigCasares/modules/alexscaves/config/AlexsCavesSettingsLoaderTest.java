@@ -49,6 +49,17 @@ class AlexsCavesSettingsLoaderTest {
     }
 
     @Test
+    void possessPlayersIsOffByDefaultAndReadFromForlorn() throws IOException, InvalidConfigurationException {
+        assertFalse(AlexsCavesSettings.defaults().forlorn().possessPlayers());
+        assertFalse(AlexsCavesSettingsLoader.load(shipped()).settings().forlorn().possessPlayers());
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("forlorn.possess-players", true);
+        AlexsCavesConfigLoadResult result = AlexsCavesSettingsLoader.load(yaml);
+        assertTrue(result.valid());
+        assertTrue(result.settings().forlorn().possessPlayers());
+    }
+
+    @Test
     void missingFileUsesDefaultsWithAWarning() {
         AlexsCavesConfigLoadResult result = AlexsCavesSettingsLoader.load(null);
         assertTrue(result.valid());

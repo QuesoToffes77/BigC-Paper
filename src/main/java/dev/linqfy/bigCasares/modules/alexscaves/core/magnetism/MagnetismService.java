@@ -46,7 +46,6 @@ public final class MagnetismService {
     private static final List<String> FERROMAGNETIC_HINTS = List.of(
         "IRON", "NETHERITE", "CHAIN", "RAIL", "BUCKET", "COMPASS", "ANVIL", "MINECART", "SHEARS",
         "CAULDRON", "HOPPER", "LANTERN");
-    private static final double SEARCH_RADIUS = 32.0;
 
     private final Plugin plugin;
     private final MagnetismSettings settings;
@@ -246,6 +245,7 @@ public final class MagnetismService {
             return;
         }
         int budget = settings.maxEntitiesPerTick();
+        double scan = settings.scanRadius();
         Set<UUID> seen = new HashSet<>();
         // Start from a different player every tick so a spent budget never starves the same ones.
         List<Player> players = new ArrayList<>(plugin.getServer().getOnlinePlayers());
@@ -254,21 +254,24 @@ public final class MagnetismService {
         }
         for (Player player : players) {
             World world = player.getWorld();
-            if (index.near(world.getUID(), player.getX(), player.getY(), player.getZ(), SEARCH_RADIUS).isEmpty()) {
+            if (index.near(world.getUID(), player.getX(), player.getY(), player.getZ(), scan + MagnetForce.RANGE).isEmpty()) {
                 deltas.remove(player.getUniqueId());
                 continue;
             }
-            List<Entity> candidates = new ArrayList<>(player.getNearbyEntities(SEARCH_RADIUS, SEARCH_RADIUS, SEARCH_RADIUS));
+            List<Entity> candidates = new ArrayList<>(player.getNearbyEntities(scan, scan, scan));
             candidates.add(player);
             for (Entity entity : candidates) {
                 if (budget <= 0) {
                     return;
                 }
-                if (!seen.add(entity.getUniqueId()) || !isMagnetic(entity)) {
+                if (!couldBeMagnetic(entity) || !seen.add(entity.getUniqueId())) {
                     continue;
                 }
+                // Every entity looked at costs budget, magnetic or not: reading equipment is the expensive part.
                 budget--;
-                applyTo(entity);
+                if (isMagnetic(entity)) {
+                    applyTo(entity);
+                }
             }
         }
         deltas.keySet().retainAll(seen);
@@ -299,6 +302,11 @@ public final class MagnetismService {
 
     private record ScanResult(List<MagnetIndex.Magnet> magnets, List<MagnetIndex.Magnet> teslas,
                               List<MagnetIndex.Magnet> magnetBlocks) {
+    }
+
+    /** Type-only check, before anything is read from the entity. */
+    static boolean couldBeMagnetic(Entity entity) {
+        return entity instanceof LivingEntity || entity instanceof Item || entity instanceof Minecart;
     }
 
     boolean isMagnetic(Entity entity) {

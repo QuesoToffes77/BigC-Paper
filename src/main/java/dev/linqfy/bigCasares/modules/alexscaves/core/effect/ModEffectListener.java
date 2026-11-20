@@ -45,7 +45,7 @@ public final class ModEffectListener implements Listener {
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onMilk(PlayerItemConsumeEvent event) {
         if (event.getItem().getType() == Material.MILK_BUCKET) {
             effects.cureWithMilk(event.getPlayer());

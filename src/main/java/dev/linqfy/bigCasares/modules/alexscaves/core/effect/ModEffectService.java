@@ -213,6 +213,8 @@ public final class ModEffectService {
         // The modifier lives in the entity NBT; after a crash it may outlive the stored effect.
         removeStun(player);
         String stored = player.getPersistentDataContainer().get(storageKey, PersistentDataType.STRING);
+        // The ledger owns the effects from here on; a copy left in the PDC would revive them after a crash.
+        player.getPersistentDataContainer().remove(storageKey);
         for (ModEffectLedger.ActiveEffect effect : ModEffectCodec.decode(stored)) {
             ledger.restore(player.getUniqueId(), effect);
             if (effect.type() == ModEffectType.STUNNED) {
