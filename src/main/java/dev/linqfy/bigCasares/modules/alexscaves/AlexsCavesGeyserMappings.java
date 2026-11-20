@@ -31,7 +31,7 @@ final class AlexsCavesGeyserMappings {
         if (folder == null) {
             return false;
         }
-        boolean changed = false;
+        boolean changed = AlexsCavesBedrockModels.install(plugin);
         for (String file : FILES) {
             try (InputStream input = plugin.getResource("alexscaves/geyser/" + file)) {
                 if (input == null) {
@@ -49,6 +49,7 @@ final class AlexsCavesGeyserMappings {
     }
 
     static void uninstall(Plugin plugin) {
+        AlexsCavesBedrockModels.uninstall(plugin);
         Path folder = mappingsFolder(plugin);
         if (folder == null) {
             return;

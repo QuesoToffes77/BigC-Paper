@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from content_tables import (BLOCKS, CAVE_PAINTINGS, ENCHANTMENT_EXCLUSIVE, ENCHANTMENTS, EQUIPMENT, ITEMS, SOUNDS,  # noqa: E402
                             SUBSTITUTES, WATERLOGGABLE, CLIENT_REMAP_LAST)
 import block_bases  # noqa: E402
+import bedrock_blocks  # noqa: E402
 import display_models  # noqa: E402
 import citadel_to_item_model  # noqa: E402
 import shutil  # noqa: E402
@@ -521,12 +522,8 @@ def main(jar_path, repo, decompiled=None):
     write(os.path.join(bedrock, "textures/item_texture.alexscaves.json"), {"texture_data": dict(sorted(icons.items()))})
     write(os.path.join(res, "alexscaves/geyser/alexscaves-items.json"),
           {"format_version": 2, "items": dict(sorted(item_mappings.items()))})
-    write(os.path.join(res, "alexscaves/geyser/alexscaves-blocks.json"), {
-        "format_version": 1,
-        "blocks": {"minecraft:" + base: {"name": "alexscaves_" + base, "only_override_states": True,
-                                         "state_overrides": dict(sorted(block_overrides[base].items()))}
-                   for base in BASE_BLOCKS},
-    })
+    # Block overrides, geometries and the block textures of the terrain atlas (needs the items mapping above).
+    bedrock_blocks.build(repo, {block_id: mod.name("block", block_id) for block_id in BLOCKS})
     write(os.path.join(res, "alexscaves/items.txt"),
           "# Ítems del catálogo de Alex's Caves (mechanic alexs-caves). Generado; no editar a mano.\n"
           + "\n".join(sorted(yaml_files)) + "\n")
