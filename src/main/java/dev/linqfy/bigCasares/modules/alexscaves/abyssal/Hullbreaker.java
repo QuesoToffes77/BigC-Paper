@@ -84,7 +84,7 @@ public final class Hullbreaker {
         new MobDrop("ac_scrap_metal", 2, 4, false, 1.0, 0.0, false));
 
     public static final ModMobType HULLBREAKER = new ModMobType("hullbreaker", AbyssalMobs.BIOME, "ghast",
-        SpawnCategory.UNDERGROUND_WATER_CREATURE, Map.of("max_health", MAX_HEALTH), "alexscaves_hullbreaker", LOOT);
+        SpawnCategory.UNDERGROUND_WATER_CREATURE, Map.of("max_health", MAX_HEALTH), "alexscaves_hullbreaker", LOOT).asBoss();
 
     /** Mod parts: head (3 by 2), then the four tail parts (2 by 2, 2 by 1.5, 2.5 by 1.5, 1.5 by 1). */
     static final double[][] PART_SIZES = {{3.0, 2.0}, {2.0, 2.0}, {2.0, 1.5}, {2.5, 1.5}, {1.5, 1.0}};
