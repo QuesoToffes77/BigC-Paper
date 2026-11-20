@@ -121,6 +121,9 @@ public final class DinosaurChops implements Listener {
             return;
         }
         event.setCancelled(true);
+        if (player.getGameMode() == GameMode.ADVENTURE) {
+            return;
+        }
         BlockPlaceEvent check = new BlockPlaceEvent(target, target.getState(), clicked, held, player, true,
             event.getHand());
         if (!check.callEvent()) {
@@ -234,6 +237,9 @@ public final class DinosaurChops implements Listener {
             return;
         }
         event.setCancelled(true);
+        if (event.getPlayer().getGameMode() == GameMode.ADVENTURE) {
+            return;
+        }
         // Protection plugins: hitting the chop is breaking its block.
         if (!new BlockBreakEvent(chop.getLocation().getBlock(), event.getPlayer()).callEvent()) {
             return;

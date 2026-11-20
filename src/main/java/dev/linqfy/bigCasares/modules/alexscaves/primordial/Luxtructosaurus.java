@@ -86,7 +86,7 @@ public final class Luxtructosaurus {
         Map.of("max_health", SauropodRules.LUX_HEALTH, "armor", SauropodRules.LUX_ARMOR, "attack_damage",
             SauropodRules.LUX_ATTACK, "movement_speed", SauropodRules.LUX_SPEED, "knockback_resistance", 1.0, "follow_range",
             SauropodRules.LUX_FOLLOW_RANGE, "scale", SCALE, "step_height", STEP_HEIGHT),
-        "alexscaves_luxtructosaurus", LOOT);
+        "alexscaves_luxtructosaurus", LOOT).asBoss();
 
     /** The rolled loot of a boss that is dying, saved with it so a restart in the middle of the death loses nothing. */
     static final NamespacedKey PENDING = new NamespacedKey("bigcasares", "ac_luxtructosaurus_loot");
@@ -141,6 +141,8 @@ public final class Luxtructosaurus {
         private final Random random = new Random();
         private ModMobContext context;
         private BossBar bar;
+        /** Id of the boss as registered in {@link PrimordialBoss}; entity may already be gone when closing. */
+        private UUID bossId;
         private final java.util.Set<Player> viewers = new java.util.HashSet<>();
 
         private final PrimordialAnimator animator = new PrimordialAnimator();
@@ -866,6 +868,7 @@ public final class Luxtructosaurus {
             boolean erupting = !viewers.isEmpty() && !dying;
             if (erupting != active) {
                 active = erupting;
+                bossId = entity.getUniqueId();
                 PrimordialBoss.setActive(entity.getUniqueId(), world.getUID(), erupting);
             }
         }
@@ -877,7 +880,11 @@ public final class Luxtructosaurus {
                 }
                 viewers.clear();
             }
-            PrimordialBoss.setActive(entity == null ? new UUID(0, 0) : entity.getUniqueId(), new UUID(0, 0), false);
+            UUID id = entity != null ? entity.getUniqueId() : bossId;
+            if (id != null) {
+                PrimordialBoss.setActive(id, new UUID(0, 0), false);
+            }
+            bossId = null;
             active = false;
         }
 
@@ -997,12 +1004,6 @@ public final class Luxtructosaurus {
                     entity.getWorld().dropItem(at, one, (Item item) -> {
                         item.setVelocity(delta);
                         item.setGlowing(true);
-                        item.setUnlimitedLifetime(true);
-                        context.plugin().getServer().getScheduler().runTaskLater(context.plugin(), () -> {
-                            if (item.isValid()) {
-                                item.remove();
-                            }
-                        }, 38768L);
                     });
                 }
             }

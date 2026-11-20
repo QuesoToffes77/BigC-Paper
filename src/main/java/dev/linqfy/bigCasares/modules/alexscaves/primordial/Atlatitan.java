@@ -135,6 +135,8 @@ public final class Atlatitan {
         private Location wanderGoal;
         private int wanderTime;
 
+        private boolean pinned;
+
         /** Stomp meter of the rider (mod {@code METER_AMOUNT}). */
         private float meter;
         private int barClock;
@@ -181,6 +183,7 @@ public final class Atlatitan {
                 animTick += ticks;
             }
             Player rider = baby ? null : rider(entity);
+            keepWhileRidden(entity, rider != null);
             rideable(entity, ticks, baby);
             meter = SauropodRules.meterAfter(meter, rider != null, ticks);
             LivingEntity prey = rider != null ? null : target();
@@ -234,6 +237,16 @@ public final class Atlatitan {
 
         private boolean baby(LivingEntity entity) {
             return entity.getPersistentDataContainer().has(babyKey, PersistentDataType.LONG);
+        }
+
+        /** A ridden Atlatitan must not despawn under its rider; the flag is released once the rider is gone. */
+        private void keepWhileRidden(LivingEntity entity, boolean ridden) {
+            if (!(entity instanceof org.bukkit.entity.Mob mob) || ridden == pinned) {
+                return;
+            }
+            pinned = ridden;
+            mob.setPersistent(ridden);
+            mob.setRemoveWhenFarAway(!ridden);
         }
 
         private static Player rider(LivingEntity entity) {

@@ -58,12 +58,6 @@ public final class BossTerrain implements Listener, Runnable, AutoCloseable {
     private final Map<UUID, Map<Long, Set<Long>>> fissures = new HashMap<>();
     private final Map<UUID, Map<Long, Set<Long>>> lit = new HashMap<>();
     private long tick;
-    /** Chunks whose records changed since they were saved (saved every 5 seconds and when the world saves). */
-    private final Set<ChunkRef> dirty = new HashSet<>();
-
-    private record ChunkRef(UUID world, int x, int z) {
-    }
-
     public BossTerrain(Plugin plugin, PrimordialBlocks blocks) {
         this.plugin = plugin;
         this.blocks = blocks;
@@ -94,27 +88,11 @@ public final class BossTerrain implements Listener, Runnable, AutoCloseable {
         markDirty(block.getWorld(), block.getX() >> 4, block.getZ() >> 4);
     }
 
+    /** Writes the chunk's records at once, so a crash or an unclean stop cannot lose a fissure or a lit block. */
     private void markDirty(World world, int chunkX, int chunkZ) {
-        dirty.add(new ChunkRef(world.getUID(), chunkX, chunkZ));
-    }
-
-    /** Writes the records of every changed chunk that is loaded (a chunk that unloaded was saved by its unload). */
-    private void flush(UUID only) {
-        for (ChunkRef ref : new ArrayList<>(dirty)) {
-            if (only != null && !only.equals(ref.world())) {
-                continue;
-            }
-            World world = plugin.getServer().getWorld(ref.world());
-            dirty.remove(ref);
-            if (world != null && world.isChunkLoaded(ref.x(), ref.z())) {
-                save(world.getChunkAt(ref.x(), ref.z()), false);
-            }
+        if (world.isChunkLoaded(chunkX, chunkZ)) {
+            save(world.getChunkAt(chunkX, chunkZ), false);
         }
-    }
-
-    @EventHandler
-    public void onWorldSave(org.bukkit.event.world.WorldSaveEvent event) {
-        flush(event.getWorld().getUID());
     }
 
     private void addLit(Block block) {
@@ -133,7 +111,6 @@ public final class BossTerrain implements Listener, Runnable, AutoCloseable {
 
     @EventHandler
     public void onUnload(ChunkUnloadEvent event) {
-        dirty.remove(new ChunkRef(event.getWorld().getUID(), event.getChunk().getX(), event.getChunk().getZ()));
         save(event.getChunk(), true);
     }
 
@@ -190,9 +167,6 @@ public final class BossTerrain implements Listener, Runnable, AutoCloseable {
         }
         if (tick % 10 == 0) {
             burn();
-        }
-        if (tick % 100 == 0) {
-            flush(null);
         }
     }
 

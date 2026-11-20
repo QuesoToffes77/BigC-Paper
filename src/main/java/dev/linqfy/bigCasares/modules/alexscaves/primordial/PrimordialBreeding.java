@@ -27,6 +27,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -121,9 +122,10 @@ public final class PrimordialBreeding implements Listener, Runnable {
         if (!TamingRules.breedingFood(type.get(), item, tamed)) {
             return;
         }
-        long fullTime = entity.getWorld().getFullTime();
+        long fullTime = entity.getWorld().getGameTime();
+        long stored = entity.getPersistentDataContainer().getOrDefault(cooldownKey, PersistentDataType.LONG, 0L);
         if (inLove.containsKey(entity.getUniqueId())
-            || entity.getPersistentDataContainer().getOrDefault(cooldownKey, PersistentDataType.LONG, 0L) > fullTime) {
+            || TamingRules.clampDeadline(stored, fullTime, TamingRules.BREED_COOLDOWN_TICKS) > fullTime) {
             // Mod: food that cannot be eaten falls through to the rest of mobInteract (the Atlatitan is then mounted).
             if (type.get().equals(Atlatitan.ATLATITAN) && Atlatitan.mount(entity, player)) {
                 event.setCancelled(true);
@@ -172,7 +174,7 @@ public final class PrimordialBreeding implements Listener, Runnable {
     }
 
     private void layEggs(LivingEntity first, LivingEntity second, ModMobType type) {
-        long until = first.getWorld().getFullTime() + TamingRules.BREED_COOLDOWN_TICKS;
+        long until = first.getWorld().getGameTime() + TamingRules.BREED_COOLDOWN_TICKS;
         first.getPersistentDataContainer().set(cooldownKey, PersistentDataType.LONG, until);
         second.getPersistentDataContainer().set(cooldownKey, PersistentDataType.LONG, until);
         int amount = TamingRules.eggsLaid(type, ThreadLocalRandom.current().nextInt(3));
@@ -207,6 +209,9 @@ public final class PrimordialBreeding implements Listener, Runnable {
             return;
         }
         event.setCancelled(true);
+        if (event.getPlayer().getGameMode() == GameMode.ADVENTURE) {
+            return;
+        }
         Block above = clicked.getRelative(BlockFace.UP);
         if (!above.getType().isAir() || !clicked.getType().isSolid() || hasEgg(above)) {
             return;
@@ -282,6 +287,10 @@ public final class PrimordialBreeding implements Listener, Runnable {
         String link = box.getPersistentDataContainer().get(linkKey, PersistentDataType.STRING);
         Entity display = link == null ? null : linked(link);
         if (display instanceof ItemDisplay egg && egg.getPersistentDataContainer().has(eggKey, PersistentDataType.STRING)) {
+            // Protection plugins: picking the egg up is breaking its block.
+            if (!new BlockBreakEvent(box.getLocation().getBlock(), player).callEvent()) {
+                return;
+            }
             if (player.getGameMode() != GameMode.CREATIVE) {
                 ItemStack drop = egg.getItemStack().clone();
                 drop.setAmount(1);
@@ -386,7 +395,7 @@ public final class PrimordialBreeding implements Listener, Runnable {
                 }
             }
             baby.getPersistentDataContainer().set(babyKey, PersistentDataType.LONG,
-                baby.getWorld().getFullTime() + TamingRules.BABY_TICKS);
+                baby.getWorld().getGameTime() + TamingRules.BABY_TICKS);
             Optional<ModMobType> type = mobs.typeOf(baby);
             if (type.isPresent() && TamingRules.tamesFromHatching(type.get())) {
                 Player closest = null;
@@ -410,10 +419,11 @@ public final class PrimordialBreeding implements Listener, Runnable {
 
     private void growBabies() {
         for (Player player : mobs.plugin().getServer().getOnlinePlayers()) {
-            long now = player.getWorld().getFullTime();
+            long now = player.getWorld().getGameTime();
             for (Entity nearby : player.getNearbyEntities(64, 64, 64)) {
                 Long until = nearby.getPersistentDataContainer().get(babyKey, PersistentDataType.LONG);
-                if (until != null && until <= now && nearby instanceof LivingEntity grown) {
+                if (until != null && TamingRules.clampDeadline(until, now, TamingRules.BABY_TICKS) <= now
+                    && nearby instanceof LivingEntity grown) {
                     if (mobs.typeOf(grown).filter(type -> type.id().equals(Tremorzilla.ID)).isPresent()) {
                         // Its giant base has a scale of its own; it stays an animal that never despawns.
                         Tremorzilla.applyScale(grown, false);

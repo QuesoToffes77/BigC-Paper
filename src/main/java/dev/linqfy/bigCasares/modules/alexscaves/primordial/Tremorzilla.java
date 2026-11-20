@@ -106,7 +106,7 @@ public final class Tremorzilla {
             "attack_damage", TremorzillaRules.ATTACK_DAMAGE, "movement_speed", TremorzillaRules.MOVEMENT_SPEED,
             "follow_range", TremorzillaRules.FOLLOW_RANGE, "knockback_resistance", 1.0,
             "step_height", TremorzillaRules.STEP_HEIGHT),
-        "alexscaves_tremorzilla", LOOT);
+        "alexscaves_tremorzilla", LOOT).asBoss();
 
     /** Mod tail parts (width, height) and offsets from the one before (the first from the body centre). */
     static final double[][] PART_SIZES = {{3.0, 3.0}, {2.5, 2.0}, {2.5, 1.5}, {2.5, 1.5}, {2.0, 1.0}};
@@ -176,7 +176,7 @@ public final class Tremorzilla {
                 continue;
             }
             LivingEntity baby = spawned.get();
-            baby.getPersistentDataContainer().set(babyKey, PersistentDataType.LONG, world.getFullTime() + TamingRules.BABY_TICKS);
+            baby.getPersistentDataContainer().set(babyKey, PersistentDataType.LONG, world.getGameTime() + TamingRules.BABY_TICKS);
             applyScale(baby, true);
             removeLink(mobs, found, linkKey);
             found.remove();

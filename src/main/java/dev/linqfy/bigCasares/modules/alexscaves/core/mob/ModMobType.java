@@ -24,9 +24,20 @@ public record ModMobType(
     SpawnCategory category,
     Map<String, Double> attributes,
     String modelKey,
-    List<MobDrop> drops
+    List<MobDrop> drops,
+    boolean persistent
 ) {
     private static final Pattern ID = Pattern.compile("[a-z0-9_]+");
+
+    public ModMobType(String id, CaveBiomeId biome, String baseEntity, SpawnCategory category,
+                      Map<String, Double> attributes, String modelKey, List<MobDrop> drops) {
+        this(id, biome, baseEntity, category, attributes, modelKey, drops, false);
+    }
+
+    /** Same type flagged as a boss: it is kept across chunk unloads and never despawns when far away. */
+    public ModMobType asBoss() {
+        return new ModMobType(id, biome, baseEntity, category, attributes, modelKey, drops, true);
+    }
 
     public ModMobType {
         Objects.requireNonNull(id, "id");

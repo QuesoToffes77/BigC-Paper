@@ -21,6 +21,14 @@ final class TamingRules {
     static final long BREED_COOLDOWN_TICKS = 6000L;
     static final double BABY_SCALE = 0.5;
 
+    /**
+     * Deadline as read from storage: values saved against another clock (the old day-time based one) can lie far
+     * beyond what any timer here may reach, so they are pulled back to {@code now + max}.
+     */
+    static long clampDeadline(long stored, long now, long max) {
+        return Math.min(stored, now + max);
+    }
+
     private TamingRules() {
     }
 

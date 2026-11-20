@@ -114,4 +114,19 @@ class PrimordialTamingTest {
             }
         }
     }
+
+    @Test
+    void clampsDeadlinesSavedAgainstAnotherClock() {
+        assertEquals(1000L, TamingRules.clampDeadline(1000L, 500L, 24000L), "a sane deadline is kept");
+        assertEquals(500L + 24000L, TamingRules.clampDeadline(9_000_000L, 500L, 24000L));
+        assertEquals(0L, TamingRules.clampDeadline(0L, 500L, 24000L));
+    }
+
+    @Test
+    void bossesArePersistentAndOtherMobsAreNot() {
+        assertTrue(Luxtructosaurus.LUXTRUCTOSAURUS.persistent());
+        assertTrue(Tremorzilla.TREMORZILLA.persistent());
+        assertFalse(PrimordialMobs.TREMORSAURUS.persistent());
+        assertFalse(Atlatitan.ATLATITAN.persistent());
+    }
 }

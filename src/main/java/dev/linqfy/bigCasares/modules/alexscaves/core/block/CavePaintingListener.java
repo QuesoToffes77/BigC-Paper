@@ -74,6 +74,9 @@ public final class CavePaintingListener implements Listener {
             return;
         }
         event.setCancelled(true);
+        if (player.getGameMode() == GameMode.ADVENTURE) {
+            return;
+        }
         Block target = clicked.isReplaceable() ? clicked : clicked.getRelative(event.getBlockFace());
         if (!target.isReplaceable() || target.getY() >= target.getWorld().getMaxHeight()
             || target.getY() < target.getWorld().getMinHeight() || occupied(target)) {

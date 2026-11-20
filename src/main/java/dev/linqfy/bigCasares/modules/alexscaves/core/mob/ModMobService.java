@@ -133,8 +133,8 @@ public final class ModMobService implements ModMobContext {
         entity.setCustomName(null);
         entity.setCustomNameVisible(false);
         if (entity instanceof Mob mob) {
-            mob.setPersistent(false);
-            mob.setRemoveWhenFarAway(true);
+            mob.setPersistent(type.persistent());
+            mob.setRemoveWhenFarAway(!type.persistent());
         }
         // Zombie-like bases would otherwise pick up and keep loot.
         entity.setCanPickupItems(false);
