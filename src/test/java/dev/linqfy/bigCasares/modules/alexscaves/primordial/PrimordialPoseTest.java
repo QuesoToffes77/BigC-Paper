@@ -143,4 +143,13 @@ class PrimordialPoseTest {
         assertEquals(55, PrimordialPose.length(Kind.TREMORSAURUS, "roar"));
         assertEquals(0, PrimordialPose.length(Kind.TRILOCARIS, "nothing"));
     }
+
+    @Test
+    void choreAnimationsHaveTheirModelLengths() {
+        assertEquals(20, PrimordialPose.length(Kind.VALLUMRAPTOR, "startleap"));
+        assertEquals(40, PrimordialPose.length(Kind.VALLUMRAPTOR, "grab"));
+        assertEquals(40, PrimordialPose.length(Kind.RELICHEIRUS, "eat_tree"));
+        assertEquals(60, PrimordialPose.length(Kind.RELICHEIRUS, "push_tree"));
+        assertEquals(60, PrimordialPose.length(Kind.GROTTOCERATOPS, "chew_from_ground"));
+    }
 }

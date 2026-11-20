@@ -70,4 +70,14 @@ class DinosaurHabitsTest {
         assertEquals("idle", PrimordialPose.sauropodBase("idle", true));
         assertEquals("walk", PrimordialPose.sauropodBase("walk", false));
     }
+
+    @Test
+    void builtBlocksRuleOutATree() {
+        assertTrue(DinosaurHabits.builtMaterial(org.bukkit.Material.OAK_PLANKS));
+        assertTrue(DinosaurHabits.builtMaterial(org.bukkit.Material.GLASS_PANE));
+        assertTrue(DinosaurHabits.builtMaterial(org.bukkit.Material.STRIPPED_OAK_LOG));
+        assertFalse(DinosaurHabits.builtMaterial(org.bukkit.Material.AIR));
+        assertFalse(DinosaurHabits.builtMaterial(org.bukkit.Material.DIRT));
+        assertFalse(DinosaurHabits.builtMaterial(org.bukkit.Material.OAK_LEAVES));
+    }
 }

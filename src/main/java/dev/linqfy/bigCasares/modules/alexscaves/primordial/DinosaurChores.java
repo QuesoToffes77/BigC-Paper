@@ -72,6 +72,7 @@ final class DinosaurChores {
     // raptor
     private int windup = -1;
     private boolean leaping;
+    private boolean leapHurt;
     private int leapAge;
     private Block door;
     private int grabDoor = -1;
@@ -158,8 +159,8 @@ final class DinosaurChores {
         boolean live = target != null && target.isValid() && !target.isDead() && target.getWorld().equals(entity.getWorld());
         if (leaping) {
             leapAge += ticks;
-            if (live) {
-                leapHit(entity, target);
+            if (live && !leapHurt) {
+                leapHurt = leapHit(entity, target);
             }
             if (leapAge >= 4 && (entity.isOnGround() || entity.isInWater()) || leapAge > LEAP_LIMIT) {
                 leaping = false;
@@ -185,6 +186,7 @@ final class DinosaurChores {
                 windup = -1;
                 leaping = true;
                 leapAge = 0;
+                leapHurt = false;
             } else if (windup > LEAP_LIMIT) {
                 windup = -1;
             }
@@ -202,13 +204,15 @@ final class DinosaurChores {
     }
 
     /** Mod {@code checkAndDealDamage}: a leaping raptor hurts what it lands on. */
-    private void leapHit(LivingEntity entity, LivingEntity target) {
+    private boolean leapHit(LivingEntity entity, LivingEntity target) {
         double reach = entity.getWidth() + target.getWidth() + 1.0;
         if (entity.hasLineOfSight(target) && entity.getLocation().distance(target.getLocation()) < reach) {
             entity.getWorld().playSound(entity.getLocation(), "alexscaves:vallumraptor_scratch", SoundCategory.HOSTILE, 1.0F, 1.0F);
             AttributeInstance damage = entity.getAttribute(Attribute.ATTACK_DAMAGE);
             target.damage(damage == null ? 3.0 : damage.getValue(), entity);
+            return true;
         }
+        return false;
     }
 
     /** Mod {@code VallumraptorOpenDoorGoal}: the grab starts within 2 blocks of a closed door on the path. */
@@ -649,8 +653,7 @@ final class DinosaurChores {
         if (!blocks.knockableLog(block)) {
             return false;
         }
-        Block above = block.getRelative(BlockFace.UP);
-        return blocks.knockableLeaves(above);
+        return naturalLeaves(block.getRelative(BlockFace.UP));
     }
 
     /** Mod {@code getBottomOfTree}: down through logs, leaves and air to the ground. */
@@ -688,7 +691,7 @@ final class DinosaurChores {
             return;
         }
         List<Block> tree = gather(origin);
-        if (tree.isEmpty()) {
+        if (tree.isEmpty() || built(tree)) {
             return;
         }
         BlockData air = Material.AIR.createBlockData();
@@ -749,7 +752,32 @@ final class DinosaurChores {
     private boolean treePart(Block block) {
         Material type = block.getType();
         return !type.isAir() && !PrimordialBlocks.unmovable(type) && !block.isLiquid()
-            && (blocks.knockableLog(block) || blocks.knockableLeaves(block));
+            && (blocks.knockableLog(block) || naturalLeaves(block));
+    }
+
+    /** Leaves a player placed are persistent: only the ones that grew with the tree count. */
+    private boolean naturalLeaves(Block block) {
+        return blocks.knockableLeaves(block)
+            && !(block.getBlockData() instanceof org.bukkit.block.data.type.Leaves leaves && leaves.isPersistent());
+    }
+
+    /** A log house or fence post is not a tree: stripped wood or built blocks touching a log rule the whole tree out. */
+    private boolean built(List<Block> tree) {
+        for (Block part : tree) {
+            if (!blocks.knockableLog(part)) {
+                continue;
+            }
+            if (part.getType().name().startsWith("STRIPPED_")) {
+                return true;
+            }
+            for (BlockFace face : new BlockFace[] {BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH,
+                BlockFace.EAST, BlockFace.WEST}) {
+                if (DinosaurHabits.builtMaterial(part.getRelative(face).getType())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static long key(Block block) {

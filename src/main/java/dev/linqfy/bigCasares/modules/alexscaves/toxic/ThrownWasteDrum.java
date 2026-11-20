@@ -30,6 +30,7 @@ import java.util.Set;
  */
 final class ThrownWasteDrum extends BukkitRunnable {
     static final int MAX_AGE = 200;
+    static final int MAX_ACTIVE = 32;
     private static final int ACID_TICK = 20;
     private static final int END_TICK = 35;
     private static final Set<ThrownWasteDrum> ACTIVE = new HashSet<>();
@@ -52,6 +53,9 @@ final class ThrownWasteDrum extends BukkitRunnable {
     }
 
     static void launch(ModMobService mobs, LivingEntity thrower, Location at, Vector velocity, BlockData drum) {
+        if (ACTIVE.size() >= MAX_ACTIVE) {
+            return;
+        }
         BlockDisplay display = at.getWorld().spawn(at, BlockDisplay.class, spawned -> {
             spawned.setBlock(drum);
             spawned.setPersistent(false);
@@ -90,7 +94,8 @@ final class ThrownWasteDrum extends BukkitRunnable {
             for (Entity nearby : world.getNearbyEntities(display.getLocation().add(0, 0.5, 0), 0.5, 0.5, 0.5)) {
                 if (nearby instanceof LivingEntity living && !isBrainiac(living)) {
                     hit = true;
-                    living.damage(2.0, mobs.damageTypes().source(ModDamageTypes.ACID));
+                    living.damage(2.0, thrower.isValid() ? mobs.damageTypes().source(ModDamageTypes.ACID, thrower)
+                        : mobs.damageTypes().source(ModDamageTypes.ACID));
                 }
             }
             if (hit) {
@@ -161,8 +166,9 @@ final class ThrownWasteDrum extends BukkitRunnable {
 
     private void finish() {
         if (ACTIVE.remove(this)) {
-            if (acid != null && acid.getType() == Material.WATER && acid.getWorld().isChunkLoaded(acid.getX() >> 4, acid.getZ() >> 4)) {
-                acid.setType(Material.AIR, false);
+            // The acid goes even if its chunk unloaded meanwhile (loading it here keeps it from staying as real water).
+            if (acid != null && acid.getWorld().getBlockAt(acid.getX(), acid.getY(), acid.getZ()).getType() == Material.WATER) {
+                acid.getWorld().getBlockAt(acid.getX(), acid.getY(), acid.getZ()).setType(Material.AIR, false);
             }
             display.remove();
             cancel();

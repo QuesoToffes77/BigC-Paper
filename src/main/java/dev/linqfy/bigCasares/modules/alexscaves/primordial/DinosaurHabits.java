@@ -111,4 +111,19 @@ final class DinosaurHabits {
     static boolean attached(double dx, double dy, double dz) {
         return Math.sqrt(dx * dx + dy * dy + dz * dz) < TREE_SPREAD;
     }
+
+    /** Whether a material is something players build with: a tree does not grow next to it. */
+    static boolean builtMaterial(Material type) {
+        String name = type.name();
+        if (name.equals("AIR") || name.endsWith("_AIR")) {
+            return false;
+        }
+        return name.endsWith("_PLANKS") || name.endsWith("_STAIRS") || name.endsWith("_SLAB") || name.endsWith("_DOOR")
+            || name.endsWith("_TRAPDOOR") || name.endsWith("_FENCE") || name.endsWith("_FENCE_GATE") || name.endsWith("_SIGN")
+            || name.endsWith("_WALL_SIGN") || name.endsWith("_HANGING_SIGN") || name.contains("GLASS") || name.contains("BRICK") || name.contains("COBBLE") || name.contains("TORCH")
+            || name.contains("LANTERN") || name.contains("CHEST") || name.contains("TABLE") || name.contains("WOOL")
+            || name.contains("CARPET") || name.contains("_BED") || name.contains("BANNER") || name.contains("FRAME")
+            || name.startsWith("STRIPPED_") || name.contains("CONCRETE") || name.contains("TERRACOTTA")
+            || name.contains("POLISHED") || name.contains("FURNACE") || name.contains("BARREL");
+    }
 }
