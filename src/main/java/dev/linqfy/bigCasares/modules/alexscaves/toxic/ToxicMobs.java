@@ -11,7 +11,19 @@ import dev.linqfy.bigCasares.modules.alexscaves.core.mob.ModMobContext;
 import dev.linqfy.bigCasares.modules.alexscaves.core.mob.ModMobType;
 import dev.linqfy.bigCasares.modules.alexscaves.core.spawn.BiomeSpawnTable.SpawnCategory;
 import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.CaveBiomeId;
+import io.papermc.paper.entity.LookAnchor;
 import org.bukkit.Color;
+import org.bukkit.GameRules;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.SoundCategory;
@@ -32,6 +44,7 @@ import org.bukkit.util.Vector;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -40,7 +53,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * cod. The Gammaroach sits on a rabbit (a silverfish would hide in stone as infested blocks).
  * Abilities after the mod: the Nucleeper's long fuse and nuclear blast ({@link ToxicMobListener}), the
  * Brainiac's tongue and irradiating hits, the Gammaroach's radiation spray when hurt, and the Raycat
- * absorbing radiation from nearby mobs. The Brainiac's waste drums need a block the module does not have yet.
+ * absorbing radiation from nearby mobs. The Brainiac carries, drinks and throws waste drums.
  */
 public final class ToxicMobs {
     private static final CaveBiomeId BIOME = CaveBiomeId.TOXIC_CAVES;
@@ -152,9 +165,24 @@ public final class ToxicMobs {
      */
     static final class Brainiac implements ModMobBehaviour {
         static final int IRRADIATED_TICKS = 400;
+        private static final String BARREL_KEY = "ac_brainiac_barrel";
+        private static final int SCAN_RANGE = 10;
+        private static final int SCAN_HEIGHT = 4;
+
+        private enum Action { NONE, MELEE, DRINK, THROW, PICKUP }
+
         private final ModMobType type;
         private final MobAnimator animation = new MobAnimator();
         private int cooldown;
+        private boolean loaded;
+        private boolean hasBarrel;
+        private boolean killedByEntity;
+        private ModMobContext context;
+        private Action action = Action.NONE;
+        private int actionTicks;
+        private int actionLength;
+        private int scanCooldown;
+        private Location drum;
 
         Brainiac(ModMobType type) {
             this.type = type;
@@ -162,12 +190,25 @@ public final class ToxicMobs {
 
         @Override
         public void tick(LivingEntity entity, ModMobContext context, int ticks) {
+            this.context = context;
+            if (!loaded) {
+                loaded = true;
+                hasBarrel = entity.getPersistentDataContainer().has(barrelKey(), PersistentDataType.BYTE);
+            }
             animation.update(entity, context, ticks, null);
             cooldown = Math.max(0, cooldown - ticks);
             LivingEntity target = entity instanceof Mob mob ? mob.getTarget() : null;
+            boolean alive = target != null && target.isValid() && target.getWorld() == entity.getWorld();
             ThreadLocalRandom random = ThreadLocalRandom.current();
-            if (target == null || !target.isValid() || cooldown > 0 || target.getWorld() != entity.getWorld()
-                || random.nextDouble() >= 1.0 - Math.pow(15.0 / 16.0, ticks)) {
+            if (action != Action.NONE) {
+                actionTicks += ticks;
+                progress(entity, context, alive ? target : null);
+            } else if (alive) {
+                combat(entity, context, target, ticks, random);
+            } else if (!hasBarrel) {
+                pickup(entity, context, ticks);
+            }
+            if (!alive || cooldown > 0 || random.nextDouble() >= 1.0 - Math.pow(15.0 / 16.0, ticks)) {
                 return;
             }
             double distance = entity.getLocation().distance(target.getLocation());
@@ -175,6 +216,146 @@ public final class ToxicMobs {
                 cooldown = 15 + random.nextInt(15);
                 context.mobs().playSound(entity, type, "lick");
                 lick(entity, context, target);
+            }
+        }
+
+        /** Mod {@code BrainiacMeleeGoal}: below half health it drinks; below three quarters it throws the drum. */
+        private void combat(LivingEntity entity, ModMobContext context, LivingEntity target, int ticks, ThreadLocalRandom random) {
+            double health = entity.getHealth();
+            double max = maxHealth(entity, 40.0);
+            if (BrainiacBarrel.wantsToDrink(health, max, hasBarrel, random.nextDouble(), ticks)) {
+                begin(entity, context, Action.DRINK, BrainiacBarrel.DRINK_TICKS, "drink_barrel");
+                return;
+            }
+            double distance = entity.getLocation().distance(target.getLocation());
+            if (entity.hasLineOfSight(target)
+                && BrainiacBarrel.wantsToThrow(health, max, distance, hasBarrel, random.nextDouble(), ticks)) {
+                begin(entity, context, Action.THROW, BrainiacBarrel.THROW_TICKS, "throw_barrel");
+                context.mobs().playSound(entity, type, "throw");
+            }
+        }
+
+        private void begin(LivingEntity entity, ModMobContext context, Action next, int length, String animationName) {
+            action = next;
+            actionTicks = 0;
+            actionLength = length;
+            animation.action(entity, context, animationName);
+        }
+
+        private void progress(LivingEntity entity, ModMobContext context, LivingEntity target) {
+            switch (action) {
+                case DRINK -> {
+                    if (hasBarrel && actionTicks >= BrainiacBarrel.DRINK_EFFECT_TICK) {
+                        setBarrel(entity, false);
+                        entity.heal(BrainiacBarrel.DRINK_HEAL);
+                        int duration = BrainiacBarrel.DRINK_EFFECT_DURATION;
+                        entity.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, duration, 0));
+                        entity.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, duration, 0));
+                        entity.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, duration, 0));
+                    }
+                }
+                case THROW -> {
+                    if (hasBarrel && target != null && actionTicks >= BrainiacBarrel.THROW_RELEASE_TICK) {
+                        setBarrel(entity, false);
+                        Vector release = entity.getEyeLocation().toVector().add(
+                            BrainiacBarrel.releaseOffset(entity.getLocation().getPitch(), entity.getEyeLocation().getYaw()));
+                        Vector velocity = BrainiacBarrel.throwVelocity(release, target.getEyeLocation().toVector(),
+                            entity.getLocation().distance(target.getLocation()));
+                        ThrownWasteDrum.launch(context.mobs(), entity, release.toLocation(entity.getWorld()), velocity,
+                            WasteDrums.thrown());
+                    }
+                }
+                case PICKUP -> {
+                    if (actionTicks >= BrainiacBarrel.PICKUP_FIRST_TICK && drum != null) {
+                        takeDrum(entity);
+                    }
+                }
+                default -> {
+                }
+            }
+            if (actionTicks >= actionLength) {
+                action = Action.NONE;
+            }
+        }
+
+        /** Mod {@code PickupBarrelGoal}: walks to a waste drum within reach and bites it away (it carries one). */
+        private void pickup(LivingEntity entity, ModMobContext context, int ticks) {
+            scanCooldown -= ticks;
+            Set<BlockData> drums = WasteDrums.states();
+            if (drums.isEmpty()) {
+                return;
+            }
+            if (drum == null || !drums.contains(drum.getBlock().getBlockData())) {
+                drum = null;
+                if (scanCooldown > 0) {
+                    return;
+                }
+                scanCooldown = 60 + ThreadLocalRandom.current().nextInt(40);
+                drum = nearestDrum(entity.getLocation(), drums);
+                if (drum == null) {
+                    return;
+                }
+            }
+            Location center = drum.clone().add(0.5, 0.5, 0.5);
+            if (entity.getLocation().distanceSquared(center) <= 2.5 * 2.5) {
+                if (entity instanceof Mob mob) {
+                    mob.getPathfinder().stopPathfinding();
+                }
+                entity.lookAt(center.getX(), center.getY(), center.getZ(), LookAnchor.EYES);
+                begin(entity, context, Action.PICKUP, BrainiacBarrel.BITE_TICKS, "bite");
+            } else if (entity instanceof Mob mob) {
+                mob.getPathfinder().moveTo(center, 1.0);
+            }
+        }
+
+        private void takeDrum(LivingEntity entity) {
+            Block block = drum.getBlock();
+            drum = null;
+            if (!WasteDrums.states().contains(block.getBlockData())
+                || Boolean.FALSE.equals(entity.getWorld().getGameRuleValue(GameRules.MOB_GRIEFING))
+                || !new EntityChangeBlockEvent(entity, block, Material.AIR.createBlockData()).callEvent()) {
+                return;
+            }
+            block.setType(Material.AIR, true);
+            setBarrel(entity, true);
+        }
+
+        private static Location nearestDrum(Location from, Set<BlockData> drums) {
+            World world = from.getWorld();
+            Location best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (int x = -SCAN_RANGE; x <= SCAN_RANGE; x++) {
+                for (int z = -SCAN_RANGE; z <= SCAN_RANGE; z++) {
+                    int bx = from.getBlockX() + x;
+                    int bz = from.getBlockZ() + z;
+                    if (!world.isChunkLoaded(bx >> 4, bz >> 4)) {
+                        continue;
+                    }
+                    for (int y = -SCAN_HEIGHT; y <= SCAN_HEIGHT; y++) {
+                        Block block = world.getBlockAt(bx, from.getBlockY() + y, bz);
+                        if (block.getType() == Material.NOTE_BLOCK && drums.contains(block.getBlockData())) {
+                            double distance = x * x + y * y + z * z;
+                            if (distance < bestDistance) {
+                                bestDistance = distance;
+                                best = block.getLocation();
+                            }
+                        }
+                    }
+                }
+            }
+            return best;
+        }
+
+        private NamespacedKey barrelKey() {
+            return new NamespacedKey(context.plugin(), BARREL_KEY);
+        }
+
+        private void setBarrel(LivingEntity entity, boolean carrying) {
+            hasBarrel = carrying;
+            if (carrying) {
+                entity.getPersistentDataContainer().set(barrelKey(), PersistentDataType.BYTE, (byte) 1);
+            } else {
+                entity.getPersistentDataContainer().remove(barrelKey());
             }
         }
 
@@ -194,11 +375,26 @@ public final class ToxicMobs {
         @Override
         public void onAttack(LivingEntity entity, ModMobContext context, LivingEntity target) {
             irradiate(target, context);
-            // Mod BrainiacMeleeGoal: smash or bite, half and half (the barrel animations need the waste drum block).
-            if (ThreadLocalRandom.current().nextBoolean()) {
-                animation.action(entity, context, "smash");
-            } else {
-                animation.action(entity, context, "bite");
+            // Mod BrainiacMeleeGoal: smash or bite, half and half.
+            boolean smash = ThreadLocalRandom.current().nextBoolean();
+            if (action == Action.NONE) {
+                action = Action.MELEE;
+                actionTicks = 0;
+                actionLength = smash ? BrainiacBarrel.SMASH_TICKS : BrainiacBarrel.BITE_TICKS;
+            }
+            animation.action(entity, context, smash ? "smash" : "bite");
+        }
+
+        @Override
+        public void onDamaged(LivingEntity entity, ModMobContext context, EntityDamageEvent event) {
+            killedByEntity = event instanceof EntityDamageByEntityEvent;
+        }
+
+        /** Mod {@code dropDeathLoot}: killed by something while carrying the drum, it drops it. */
+        @Override
+        public void onDeathDrops(LivingEntity entity, List<ItemStack> drops) {
+            if (hasBarrel && killedByEntity && context != null) {
+                context.mobs().createItem("ac_waste_drum", 1).ifPresent(drops::add);
             }
         }
 

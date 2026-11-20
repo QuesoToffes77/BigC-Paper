@@ -36,6 +36,7 @@ import org.bukkit.util.Vector;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -609,8 +610,26 @@ public final class CandyMobs {
     static final class GummyBear implements ModMobBehaviour {
         /** Mod {@code ANIMATION_MAUL} / {@code ANIMATION_SWIPE}: 25 ticks each. */
         static final int STRIKE_TICKS = 25;
+        /** A bear that swallowed a potion: it goes for a licoroot to scratch its back some time later. */
+        static final NamespacedKey DIGESTING = new NamespacedKey("bigcasares", "ac_gummy_bear_digesting");
+        /** Ticks it digests before looking for a tree (the mod sleeps it for days first; the module does not sleep it). */
+        static final int DIGEST_DELAY = 200;
+        private static final int TREE_RANGE = 20;
+        private static final int TREE_HEIGHT = 6;
         private final MobAnimator animation = new MobAnimator();
         private int standing;
+        private int digested;
+        private int treeSearch;
+        private int treeChase;
+        private Location treeStand;
+        private Location tree;
+        private int scratching = -1;
+        private UUID prey;
+        private int preySearch = 20;
+        private int preyChase;
+        private int fishing = -1;
+        private int eating = -1;
+        private UUID held;
 
         /** Mod {@code isStandingAnimation}: it stands for the whole maul. */
         static String state(int standingTicks) {
@@ -621,6 +640,231 @@ public final class CandyMobs {
         public void tick(LivingEntity entity, ModMobContext context, int ticks) {
             standing = Math.max(0, standing - ticks);
             animation.update(entity, context, ticks, state(standing));
+            if (!(entity instanceof Mob mob)) {
+                return;
+            }
+            if (backScratch(mob, context, ticks)) {
+                return;
+            }
+            hunt(mob, context, ticks);
+        }
+
+        /**
+         * Mod {@code GummyBearBackScratchGoal}: a grown bear that is digesting goes to a licoroot (within 20 blocks, 6
+         * up or down, with free ground beside it), stands against it and scratches its back for 90 ticks; the digestion
+         * ends with the animation.
+         *
+         * @return whether it is busy with it
+         */
+        private boolean backScratch(Mob bear, ModMobContext context, int ticks) {
+            boolean digesting = bear.getPersistentDataContainer().has(DIGESTING, PersistentDataType.BYTE);
+            if (!digesting) {
+                digested = 0;
+                treeStand = null;
+                scratching = -1;
+                return false;
+            }
+            if (scratching >= 0) {
+                scratching += ticks;
+                bear.getPathfinder().stopPathfinding();
+                if (scratching >= CandyAnimations.BACKSCRATCH_TICKS - 5) {
+                    bear.getPersistentDataContainer().remove(DIGESTING);
+                    scratching = -1;
+                    treeStand = null;
+                    digested = 0;
+                }
+                return true;
+            }
+            boolean baby = bear instanceof org.bukkit.entity.Ageable ageable && !ageable.isAdult();
+            if (!CandyAnimations.scratches(baby, false, false, true) || fishing >= 0 || eating >= 0 || held != null
+                || bear.getTarget() != null) {
+                return false;
+            }
+            digested += ticks;
+            if (digested < DIGEST_DELAY) {
+                return false;
+            }
+            treeSearch -= ticks;
+            if (treeStand == null && treeSearch <= 0) {
+                treeSearch = 100;
+                treeChase = 0;
+                findTree(bear);
+            }
+            if (treeStand == null) {
+                return false;
+            }
+            if (treeStand.getWorld() != bear.getWorld() || (treeChase += ticks) > 400) {
+                treeStand = null;
+                return false;
+            }
+            Location here = bear.getLocation();
+            double dx = here.getX() - treeStand.getX();
+            double dz = here.getZ() - treeStand.getZ();
+            double dy = here.getY() - treeStand.getY();
+            if (dx * dx + dy * dy + dz * dz < 4.0) {
+                bear.getPathfinder().stopPathfinding();
+                double toX = tree.getX() - here.getX();
+                double toZ = tree.getZ() - here.getZ();
+                bear.setRotation((float) Math.toDegrees(Math.atan2(-toX, toZ)), 0.0F);
+                scratching = 0;
+                animation.action(bear, context, "backscratch");
+            } else {
+                bear.getPathfinder().moveTo(treeStand, 1.0);
+            }
+            return true;
+        }
+
+        /** The nearest licoroot with a free side to stand on (air beside it, solid ground under that), or none. */
+        private void findTree(Mob bear) {
+            Location from = bear.getLocation();
+            var world = from.getWorld();
+            double best = Double.MAX_VALUE;
+            treeStand = null;
+            for (int x = from.getBlockX() - TREE_RANGE; x <= from.getBlockX() + TREE_RANGE; x++) {
+                for (int z = from.getBlockZ() - TREE_RANGE; z <= from.getBlockZ() + TREE_RANGE; z++) {
+                    if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+                        continue;
+                    }
+                    for (int y = from.getBlockY() - TREE_HEIGHT; y <= from.getBlockY() + TREE_HEIGHT; y++) {
+                        var block = world.getBlockAt(x, y, z);
+                        if (!isLicoroot(block)) {
+                            continue;
+                        }
+                        for (var face : new org.bukkit.block.BlockFace[] {org.bukkit.block.BlockFace.NORTH,
+                            org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.EAST, org.bukkit.block.BlockFace.WEST}) {
+                            var side = block.getRelative(face);
+                            if (!side.isPassable() || side.isLiquid() || !side.getRelative(org.bukkit.block.BlockFace.DOWN).isSolid()) {
+                                continue;
+                            }
+                            Location stand = side.getLocation().add(0.5, 0.0, 0.5);
+                            double distance = stand.distanceSquared(from);
+                            if (distance < best) {
+                                best = distance;
+                                treeStand = stand;
+                                tree = block.getLocation().add(0.5, 0.5, 0.5);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Mod {@code GummyBearMeleeGoal} against a Sweetish Fish (its target goal, one scan in about 100 ticks): it chases
+         * the fish at 1.3; within 5 blocks it eats a fish at its mouth, otherwise it fishes: on tick 16 of the 35 it jumps,
+         * lunges at the fish until tick 20 and catches it if within 1.5 blocks, then eats it for 40 ticks, biting it.
+         */
+        private void hunt(Mob bear, ModMobContext context, int ticks) {
+            if (held != null) {
+                eat(bear, ticks);
+                return;
+            }
+            LivingEntity fish = prey == null ? null : bear.getServer().getEntity(prey) instanceof LivingEntity found ? found : null;
+            if (fish != null && (!fish.isValid() || fish.getWorld() != bear.getWorld()
+                || (preyChase += ticks) > 600 || fish.getLocation().distanceSquared(bear.getLocation()) > 24.0 * 24.0)) {
+                fish = null;
+            }
+            if (fish == null) {
+                prey = null;
+                fishing = -1;
+                preySearch -= ticks;
+                if (preySearch <= 0 && bear.getTarget() == null && scratching < 0) {
+                    preySearch = 60 + ThreadLocalRandom.current().nextInt(80);
+                    findPrey(bear, context);
+                }
+                return;
+            }
+            double distance = bear.getLocation().distance(fish.getLocation());
+            bear.lookAt(fish);
+            if (fishing >= 0) {
+                fish(bear, context, fish, distance, ticks);
+                return;
+            }
+            if (distance >= 5.0) {
+                bear.getPathfinder().moveTo(fish.getLocation(), 1.3);
+                return;
+            }
+            bear.getPathfinder().stopPathfinding();
+            String action = CandyAnimations.huntAction(distance);
+            if (action == null) {
+                return;
+            }
+            if (action.equals("eat")) {
+                grab(bear, fish, context);
+            } else {
+                fishing = 0;
+                animation.action(bear, context, "fish");
+            }
+        }
+
+        private void findPrey(Mob bear, ModMobContext context) {
+            LivingEntity best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (Entity near : bear.getWorld().getNearbyEntities(bear.getLocation(), 16, 8, 16)) {
+                if (near instanceof LivingEntity living && living.isValid()
+                    && context.mobs().typeOf(living).filter(SWEETISH_FISH::equals).isPresent()) {
+                    double distance = living.getLocation().distanceSquared(bear.getLocation());
+                    if (distance < bestDistance) {
+                        bestDistance = distance;
+                        best = living;
+                    }
+                }
+            }
+            if (best != null) {
+                prey = best.getUniqueId();
+                preyChase = 0;
+            }
+        }
+
+        private void fish(Mob bear, ModMobContext context, LivingEntity fish, double distance, int ticks) {
+            int before = fishing;
+            fishing += ticks;
+            Vector motion = bear.getVelocity();
+            if (CandyAnimations.fishJumps(before, fishing) && bear.isOnGround()) {
+                bear.setVelocity(motion.add(new Vector(0, 0.3, 0)));
+            }
+            if (CandyAnimations.fishLunges(fishing)) {
+                Vector toward = fish.getLocation().toVector().subtract(bear.getLocation().toVector());
+                if (toward.length() > 1.0) {
+                    toward.normalize();
+                }
+                bear.setVelocity(bear.getVelocity().add(toward.multiply(0.3 * ticks)));
+            }
+            if (CandyAnimations.fishCatches(fishing, distance)) {
+                grab(bear, fish, context);
+                return;
+            }
+            if (fishing >= CandyAnimations.FISH_TICKS) {
+                fishing = -1;
+            }
+        }
+
+        /** Mod {@code setHeldMobId}: the fish is held at the mouth while the bear eats it. */
+        private void grab(Mob bear, LivingEntity fish, ModMobContext context) {
+            held = fish.getUniqueId();
+            eating = 0;
+            fishing = -1;
+            animation.action(bear, context, "eat");
+        }
+
+        private void eat(Mob bear, int ticks) {
+            Entity fish = bear.getServer().getEntity(held);
+            if (fish instanceof LivingEntity living && living.isValid() && living.getWorld() == bear.getWorld()
+                && eating < CandyAnimations.EAT_TICKS) {
+                int before = eating;
+                eating += ticks;
+                Location mouth = bear.getEyeLocation().add(bear.getLocation().getDirection().setY(0).normalize().multiply(0.5))
+                    .add(0, 0.25, 0);
+                living.teleport(mouth);
+                living.setVelocity(new Vector());
+                if (before / 15 != eating / 15) {
+                    CandyMobs.abilityDamage(living, 2.0, bear);
+                }
+                return;
+            }
+            held = null;
+            prey = null;
+            eating = -1;
         }
 
         @Override
@@ -633,6 +877,19 @@ public final class CandyMobs {
                 animation.action(entity, context, "swipe");
             }
         }
+    }
+
+    /** The module's licoroot blocks (every axis), set up with the block palette. */
+    private static volatile java.util.Set<BlockData> licoroot = java.util.Set.of();
+    private static volatile java.util.Set<org.bukkit.Material> licorootMaterials = java.util.Set.of();
+
+    static void trackLicoroot(java.util.Collection<BlockData> states) {
+        licoroot = java.util.Set.copyOf(states);
+        licorootMaterials = states.stream().map(BlockData::getMaterial).collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    static boolean isLicoroot(org.bukkit.block.Block block) {
+        return licorootMaterials.contains(block.getType()) && licoroot.contains(block.getBlockData());
     }
 
     static ItemStack gumballItem(ModMobContext context) {

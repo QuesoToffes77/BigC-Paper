@@ -110,6 +110,10 @@ public final class CandyMobListener implements Listener, AutoCloseable {
             clicked.getPersistentDataContainer().set(CandyMobs.Gumbeeper.LEFT, PersistentDataType.INTEGER, 0);
             return;
         }
+        if (is(clicked, CandyMobs.GUMMY_BEAR) && feedPotion(event.getPlayer(), clicked, held, event.getHand())) {
+            event.setCancelled(true);
+            return;
+        }
         if (is(clicked, CandyMobs.CANDICORN) && clicked instanceof AbstractHorse horse && !horse.isTamed()
             && mobs.itemId(held).filter("ac_caramel_apple"::equals).isPresent()) {
             // Mod: a caramel apple tames it 1 time in 3.
@@ -125,6 +129,44 @@ public final class CandyMobListener implements Listener, AutoCloseable {
                 horse.getWorld().spawnParticle(org.bukkit.Particle.SMOKE, horse.getLocation().add(0, 1.5, 0), 6, 0.4, 0.4, 0.4, 0.01);
             }
         }
+    }
+
+    /**
+     * Mod {@code GummyBearEntity.mobInteract}: a potion with lasting effects makes the bear digest it (it hands back the
+     * bottle); it then scratches its back on a licoroot ({@link CandyMobs.GummyBear}).
+     */
+    private boolean feedPotion(org.bukkit.entity.Player player, Entity bear, ItemStack held, EquipmentSlot hand) {
+        if (held.getType() != Material.POTION
+            || bear.getPersistentDataContainer().has(CandyMobs.GummyBear.DIGESTING, PersistentDataType.BYTE)) {
+            return false;
+        }
+        boolean instant = false;
+        boolean effects = false;
+        if (held.getItemMeta() instanceof org.bukkit.inventory.meta.PotionMeta meta) {
+            var base = meta.getBasePotionType();
+            var all = new java.util.ArrayList<>(meta.getCustomEffects());
+            if (base != null) {
+                all.addAll(base.getPotionEffects());
+            }
+            effects = !all.isEmpty();
+            instant = all.stream().anyMatch(effect -> effect.getType().isInstant());
+        }
+        if (!CandyAnimations.digestible(true, instant, effects)) {
+            return false;
+        }
+        bear.getPersistentDataContainer().set(CandyMobs.GummyBear.DIGESTING, PersistentDataType.BYTE, (byte) 1);
+        bear.getWorld().playSound(bear.getLocation(), "alexscaves:gummy_bear_eat", 1.0f, 1.0f);
+        if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+            ItemStack bottle = new ItemStack(Material.GLASS_BOTTLE);
+            if (held.getAmount() <= 1) {
+                player.getInventory().setItem(hand, bottle);
+            } else {
+                held.setAmount(held.getAmount() - 1);
+                player.getInventory().addItem(bottle).values().forEach(
+                    left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+            }
+        }
+        return true;
     }
 
     /** The Candicorn is tamed with caramel apples, not by riding it; it does not breed like a horse. */

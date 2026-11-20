@@ -70,6 +70,8 @@ public final class CandyFolk {
     }
 
     public static void register(ModMobCatalog catalog, ModBlockPalette palette) {
+        // The Gummy Bear's back scratching goes for these.
+        CandyMobs.trackLicoroot(List.of(palette.get("licoroot", "x"), palette.get("licoroot", "y"), palette.get("licoroot", "z")));
         catalog.register(GINGERBREAD_MAN, (entity, type) -> {
             if (entity instanceof Mob mob) {
                 stripFoxGoals(mob);
@@ -115,6 +117,8 @@ public final class CandyFolk {
 
     /** Barrels of gingerbread towns (mod: the gingerbarrel point of interest). */
     static final String TOWN_BARREL = "alexscaves:chests/gingerbread_town";
+    /** Limbs a Gingerbread Man has lost, as {@link CandyAnimations} flags. */
+    static final NamespacedKey LOST_LIMBS = new NamespacedKey("bigcasares", "ac_gingerbread_lost_limbs");
     static final NamespacedKey CARRIED = new NamespacedKey("bigcasares", "ac_gingerbread_carried");
 
     /** What a Gingerbread Man carries (kept in its data, so the fox never eats it), or null. */
@@ -178,6 +182,8 @@ public final class CandyFolk {
         private int idleAction;
         private int idleElapsed;
         private boolean idleJump;
+        private int lostLimbs;
+        private boolean limbsLoaded;
 
         GingerbreadMan(ModMobType type) {
             this.type = type;
@@ -185,10 +191,21 @@ public final class CandyFolk {
 
         /** Mod {@code isCarryingItem} / {@code isSitting}: carrying a stolen sweet, or resting. */
         static String state(boolean carrying, boolean sitting) {
+            return state(carrying, sitting, false);
+        }
+
+        /**
+         * With a limb lost (mod {@code hasLostLimb}) the loop that hides them plays unless it carries or sits. The model
+         * animation hides all four limbs, as it was sampled with every flag set.
+         */
+        static String state(boolean carrying, boolean sitting, boolean lostLimb) {
             if (carrying) {
                 return "carry_item";
             }
-            return sitting ? "sit" : null;
+            if (sitting) {
+                return "sit";
+            }
+            return lostLimb ? "lost_limb" : null;
         }
 
         /** Mod idle animations: not sitting jump 25%, fall over 25%, wave left or right 25% each; sitting only waves. */
@@ -251,6 +268,7 @@ public final class CandyFolk {
 
         @Override
         public void onDamaged(LivingEntity entity, ModMobContext context, EntityDamageEvent event) {
+            loseLimb(entity, context, event);
             if (event instanceof EntityDamageByEntityEvent byEntity) {
                 Entity damager = byEntity.getDamager() instanceof org.bukkit.entity.Projectile projectile
                     && projectile.getShooter() instanceof Entity shooter ? shooter : byEntity.getDamager();
@@ -261,17 +279,43 @@ public final class CandyFolk {
             }
         }
 
+        private void loadLimbs(LivingEntity entity) {
+            if (!limbsLoaded) {
+                limbsLoaded = true;
+                lostLimbs = entity.getPersistentDataContainer().getOrDefault(LOST_LIMBS, PersistentDataType.INTEGER, 0);
+            }
+        }
+
+        /** Mod {@code hurt}: a hit may cost a leg or an arm (kept in the mob's data), with a burst of crumbs. */
+        private void loseLimb(LivingEntity entity, ModMobContext context, EntityDamageEvent event) {
+            if (event.isCancelled()) {
+                return;
+            }
+            loadLimbs(entity);
+            double damage = event.getFinalDamage();
+            int after = CandyAnimations.afterHit(lostLimbs, damage, entity.getHealth() - damage <= 0.0,
+                ThreadLocalRandom.current());
+            if (after == lostLimbs) {
+                return;
+            }
+            lostLimbs = after;
+            entity.getPersistentDataContainer().set(LOST_LIMBS, PersistentDataType.INTEGER, after);
+            context.mobs().createItem("ac_gingerbread_crumbs", 1).ifPresent(crumbs -> entity.getWorld().spawnParticle(
+                Particle.ITEM, entity.getLocation().add(0, entity.getHeight() * 0.5, 0), 8, 0.2, 0.2, 0.2, 0.05, crumbs));
+        }
+
         @Override
         public void tick(LivingEntity entity, ModMobContext context, int ticks) {
             if (!(entity instanceof Fox fox)) {
                 return;
             }
+            loadLimbs(fox);
             fox.setSleeping(false);
             fox.setSitting(false);
             boolean carrying = fox.getPersistentDataContainer().has(CARRIED, PersistentDataType.BYTE_ARRAY);
             boolean moving = animation.moving();
             idle(fox, context, ticks, carrying || fleeFor > 0 || fighting != null || stealing != null, moving);
-            animation.update(fox, context, ticks, state(carrying, sitFor > 0));
+            animation.update(fox, context, ticks, state(carrying, sitFor > 0, lostLimbs != 0));
             stealCooldown = Math.max(0, stealCooldown - ticks);
             barrelCooldown = Math.max(0, barrelCooldown - ticks);
             attackCooldown = Math.max(0, attackCooldown - ticks);
@@ -374,7 +418,7 @@ public final class CandyFolk {
                     attackCooldown = 10;
                     CandyMobs.abilityDamage(fighting, CandyMobs.attribute(fox, org.bukkit.attribute.Attribute.ATTACK_DAMAGE, 2.0), fox);
                     context.mobs().playSound(fox, type, "attack");
-                    animation.action(fox, context, "attack");
+                    animation.action(fox, context, CandyAnimations.mainHandSwing(fox.isLeftHanded()));
                     fleeFrom(fighting);
                     fighting = null;
                 }
@@ -511,7 +555,7 @@ public final class CandyFolk {
         void potionSwing(LivingEntity entity, ModMobContext context) {
             uncrossed = Math.max(uncrossed, SWING_TICKS);
             animation.base(entity, context, state(uncrossed));
-            animation.action(entity, context, "swing_right");
+            animation.action(entity, context, CandyAnimations.mainHandSwing(entity instanceof Mob mob && mob.isLeftHanded()));
         }
 
         private void cast(LivingEntity entity, ModMobContext context, int spellType) {

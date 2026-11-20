@@ -37,5 +37,6 @@ public final class ToxicMobListener implements Listener, AutoCloseable {
     @Override
     public void close() {
         NuclearExplosion.cancelAll();
+        ThrownWasteDrum.cancelAll();
     }
 }
