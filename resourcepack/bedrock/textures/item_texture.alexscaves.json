@@ -327,6 +327,123 @@
     "alexscaves_dinosaur_nugget": {
       "textures": "textures/alexscaves/item/dinosaur_nugget_0"
     },
+    "alexscaves_display_cave_painting_ambersol": {
+      "textures": "textures/alexscaves/block/cave_painting/ambersol"
+    },
+    "alexscaves_display_cave_painting_dark": {
+      "textures": "textures/alexscaves/block/cave_painting/dark"
+    },
+    "alexscaves_display_cave_painting_dino_nuggets": {
+      "textures": "textures/alexscaves/block/cave_painting/dino_nuggets"
+    },
+    "alexscaves_display_cave_painting_enderman": {
+      "textures": "textures/alexscaves/block/cave_painting/enderman"
+    },
+    "alexscaves_display_cave_painting_footprint": {
+      "textures": "textures/alexscaves/block/cave_painting/footprint"
+    },
+    "alexscaves_display_cave_painting_footprints": {
+      "textures": "textures/alexscaves/block/cave_painting/footprints"
+    },
+    "alexscaves_display_cave_painting_friendship": {
+      "textures": "textures/alexscaves/block/cave_painting/friendship"
+    },
+    "alexscaves_display_cave_painting_grottoceratops": {
+      "textures": "textures/alexscaves/block/cave_painting/grottoceratops"
+    },
+    "alexscaves_display_cave_painting_grottoceratops_friend": {
+      "textures": "textures/alexscaves/block/cave_painting/grottoceratops_friend"
+    },
+    "alexscaves_display_cave_painting_hunt": {
+      "textures": "textures/alexscaves/block/cave_painting/hunt"
+    },
+    "alexscaves_display_cave_painting_mystery_1": {
+      "textures": "textures/alexscaves/block/cave_painting/mystery_1"
+    },
+    "alexscaves_display_cave_painting_mystery_2": {
+      "textures": "textures/alexscaves/block/cave_painting/mystery_2"
+    },
+    "alexscaves_display_cave_painting_mystery_3": {
+      "textures": "textures/alexscaves/block/cave_painting/mystery_3"
+    },
+    "alexscaves_display_cave_painting_mystery_4": {
+      "textures": "textures/alexscaves/block/cave_painting/mystery_4"
+    },
+    "alexscaves_display_cave_painting_mystery_5": {
+      "textures": "textures/alexscaves/block/cave_painting/mystery_5"
+    },
+    "alexscaves_display_cave_painting_mystery_6": {
+      "textures": "textures/alexscaves/block/cave_painting/mystery_6"
+    },
+    "alexscaves_display_cave_painting_mystery_7": {
+      "textures": "textures/alexscaves/block/cave_painting/mystery_7"
+    },
+    "alexscaves_display_cave_painting_mystery_8": {
+      "textures": "textures/alexscaves/block/cave_painting/mystery_8"
+    },
+    "alexscaves_display_cave_painting_mystery_9": {
+      "textures": "textures/alexscaves/block/cave_painting/mystery_9"
+    },
+    "alexscaves_display_cave_painting_pewen": {
+      "textures": "textures/alexscaves/block/cave_painting/pewen"
+    },
+    "alexscaves_display_cave_painting_portal": {
+      "textures": "textures/alexscaves/block/cave_painting/portal"
+    },
+    "alexscaves_display_cave_painting_relicheirus": {
+      "textures": "textures/alexscaves/block/cave_painting/relicheirus"
+    },
+    "alexscaves_display_cave_painting_relicheirus_slash": {
+      "textures": "textures/alexscaves/block/cave_painting/relicheirus_slash"
+    },
+    "alexscaves_display_cave_painting_subterranodon": {
+      "textures": "textures/alexscaves/block/cave_painting/subterranodon"
+    },
+    "alexscaves_display_cave_painting_subterranodon_ride": {
+      "textures": "textures/alexscaves/block/cave_painting/subterranodon_ride"
+    },
+    "alexscaves_display_cave_painting_tree_stars": {
+      "textures": "textures/alexscaves/block/cave_painting/tree_stars"
+    },
+    "alexscaves_display_cave_painting_tremorsaurus": {
+      "textures": "textures/alexscaves/block/cave_painting/tremorsaurus"
+    },
+    "alexscaves_display_cave_painting_tremorsaurus_friend": {
+      "textures": "textures/alexscaves/block/cave_painting/tremorsaurus_friend"
+    },
+    "alexscaves_display_cave_painting_trilocaris": {
+      "textures": "textures/alexscaves/block/cave_painting/trilocaris"
+    },
+    "alexscaves_display_cave_painting_vallumraptor_chest": {
+      "textures": "textures/alexscaves/block/cave_painting/vallumraptor_chest"
+    },
+    "alexscaves_display_cave_painting_vallumraptor_friend": {
+      "textures": "textures/alexscaves/block/cave_painting/vallumraptor_friend"
+    },
+    "alexscaves_display_cooked_dinosaur_chop_0": {
+      "textures": "textures/alexscaves/block/dinosaur_chop_cooked"
+    },
+    "alexscaves_display_cooked_dinosaur_chop_1": {
+      "textures": "textures/alexscaves/block/dinosaur_chop_cooked"
+    },
+    "alexscaves_display_cooked_dinosaur_chop_2": {
+      "textures": "textures/alexscaves/block/dinosaur_chop_cooked"
+    },
+    "alexscaves_display_cooked_dinosaur_chop_3": {
+      "textures": "textures/alexscaves/block/dinosaur_chop_cooked"
+    },
+    "alexscaves_display_dinosaur_chop_0": {
+      "textures": "textures/alexscaves/block/dinosaur_chop_raw"
+    },
+    "alexscaves_display_dinosaur_chop_1": {
+      "textures": "textures/alexscaves/block/dinosaur_chop_raw"
+    },
+    "alexscaves_display_dinosaur_chop_2": {
+      "textures": "textures/alexscaves/block/dinosaur_chop_raw"
+    },
+    "alexscaves_display_dinosaur_chop_3": {
+      "textures": "textures/alexscaves/block/dinosaur_chop_raw"
+    },
     "alexscaves_diving_boots": {
       "textures": "textures/alexscaves/item/diving_boots"
     },

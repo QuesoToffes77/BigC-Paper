@@ -3463,6 +3463,357 @@
         "bedrock_options": {
           "icon": "alexscaves_cave_painting_vallumraptor_friend"
         }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_ambersol",
+        "bedrock_identifier": "alexscaves:display_cave_painting_ambersol",
+        "display_name": "Cave painting ambersol",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_ambersol"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_dark",
+        "bedrock_identifier": "alexscaves:display_cave_painting_dark",
+        "display_name": "Cave painting dark",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_dark"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_dino_nuggets",
+        "bedrock_identifier": "alexscaves:display_cave_painting_dino_nuggets",
+        "display_name": "Cave painting dino nuggets",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_dino_nuggets"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_enderman",
+        "bedrock_identifier": "alexscaves:display_cave_painting_enderman",
+        "display_name": "Cave painting enderman",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_enderman"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_footprint",
+        "bedrock_identifier": "alexscaves:display_cave_painting_footprint",
+        "display_name": "Cave painting footprint",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_footprint"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_footprints",
+        "bedrock_identifier": "alexscaves:display_cave_painting_footprints",
+        "display_name": "Cave painting footprints",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_footprints"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_friendship",
+        "bedrock_identifier": "alexscaves:display_cave_painting_friendship",
+        "display_name": "Cave painting friendship",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_friendship"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_grottoceratops",
+        "bedrock_identifier": "alexscaves:display_cave_painting_grottoceratops",
+        "display_name": "Cave painting grottoceratops",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_grottoceratops"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_grottoceratops_friend",
+        "bedrock_identifier": "alexscaves:display_cave_painting_grottoceratops_friend",
+        "display_name": "Cave painting grottoceratops friend",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_grottoceratops_friend"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_hunt",
+        "bedrock_identifier": "alexscaves:display_cave_painting_hunt",
+        "display_name": "Cave painting hunt",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_hunt"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_mystery_1",
+        "bedrock_identifier": "alexscaves:display_cave_painting_mystery_1",
+        "display_name": "Cave painting mystery 1",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_mystery_1"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_mystery_2",
+        "bedrock_identifier": "alexscaves:display_cave_painting_mystery_2",
+        "display_name": "Cave painting mystery 2",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_mystery_2"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_mystery_3",
+        "bedrock_identifier": "alexscaves:display_cave_painting_mystery_3",
+        "display_name": "Cave painting mystery 3",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_mystery_3"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_mystery_4",
+        "bedrock_identifier": "alexscaves:display_cave_painting_mystery_4",
+        "display_name": "Cave painting mystery 4",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_mystery_4"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_mystery_5",
+        "bedrock_identifier": "alexscaves:display_cave_painting_mystery_5",
+        "display_name": "Cave painting mystery 5",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_mystery_5"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_mystery_6",
+        "bedrock_identifier": "alexscaves:display_cave_painting_mystery_6",
+        "display_name": "Cave painting mystery 6",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_mystery_6"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_mystery_7",
+        "bedrock_identifier": "alexscaves:display_cave_painting_mystery_7",
+        "display_name": "Cave painting mystery 7",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_mystery_7"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_mystery_8",
+        "bedrock_identifier": "alexscaves:display_cave_painting_mystery_8",
+        "display_name": "Cave painting mystery 8",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_mystery_8"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_mystery_9",
+        "bedrock_identifier": "alexscaves:display_cave_painting_mystery_9",
+        "display_name": "Cave painting mystery 9",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_mystery_9"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_pewen",
+        "bedrock_identifier": "alexscaves:display_cave_painting_pewen",
+        "display_name": "Cave painting pewen",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_pewen"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_portal",
+        "bedrock_identifier": "alexscaves:display_cave_painting_portal",
+        "display_name": "Cave painting portal",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_portal"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_relicheirus",
+        "bedrock_identifier": "alexscaves:display_cave_painting_relicheirus",
+        "display_name": "Cave painting relicheirus",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_relicheirus"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_relicheirus_slash",
+        "bedrock_identifier": "alexscaves:display_cave_painting_relicheirus_slash",
+        "display_name": "Cave painting relicheirus slash",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_relicheirus_slash"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_subterranodon",
+        "bedrock_identifier": "alexscaves:display_cave_painting_subterranodon",
+        "display_name": "Cave painting subterranodon",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_subterranodon"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_subterranodon_ride",
+        "bedrock_identifier": "alexscaves:display_cave_painting_subterranodon_ride",
+        "display_name": "Cave painting subterranodon ride",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_subterranodon_ride"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_tree_stars",
+        "bedrock_identifier": "alexscaves:display_cave_painting_tree_stars",
+        "display_name": "Cave painting tree stars",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_tree_stars"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_tremorsaurus",
+        "bedrock_identifier": "alexscaves:display_cave_painting_tremorsaurus",
+        "display_name": "Cave painting tremorsaurus",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_tremorsaurus"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_tremorsaurus_friend",
+        "bedrock_identifier": "alexscaves:display_cave_painting_tremorsaurus_friend",
+        "display_name": "Cave painting tremorsaurus friend",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_tremorsaurus_friend"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_trilocaris",
+        "bedrock_identifier": "alexscaves:display_cave_painting_trilocaris",
+        "display_name": "Cave painting trilocaris",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_trilocaris"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_vallumraptor_chest",
+        "bedrock_identifier": "alexscaves:display_cave_painting_vallumraptor_chest",
+        "display_name": "Cave painting vallumraptor chest",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_vallumraptor_chest"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cave_painting_vallumraptor_friend",
+        "bedrock_identifier": "alexscaves:display_cave_painting_vallumraptor_friend",
+        "display_name": "Cave painting vallumraptor friend",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cave_painting_vallumraptor_friend"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cooked_dinosaur_chop_0",
+        "bedrock_identifier": "alexscaves:display_cooked_dinosaur_chop_0",
+        "display_name": "Cooked dinosaur chop 0",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cooked_dinosaur_chop_0"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cooked_dinosaur_chop_1",
+        "bedrock_identifier": "alexscaves:display_cooked_dinosaur_chop_1",
+        "display_name": "Cooked dinosaur chop 1",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cooked_dinosaur_chop_1"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cooked_dinosaur_chop_2",
+        "bedrock_identifier": "alexscaves:display_cooked_dinosaur_chop_2",
+        "display_name": "Cooked dinosaur chop 2",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cooked_dinosaur_chop_2"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/cooked_dinosaur_chop_3",
+        "bedrock_identifier": "alexscaves:display_cooked_dinosaur_chop_3",
+        "display_name": "Cooked dinosaur chop 3",
+        "bedrock_options": {
+          "icon": "alexscaves_display_cooked_dinosaur_chop_3"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/dinosaur_chop_0",
+        "bedrock_identifier": "alexscaves:display_dinosaur_chop_0",
+        "display_name": "Dinosaur chop 0",
+        "bedrock_options": {
+          "icon": "alexscaves_display_dinosaur_chop_0"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/dinosaur_chop_1",
+        "bedrock_identifier": "alexscaves:display_dinosaur_chop_1",
+        "display_name": "Dinosaur chop 1",
+        "bedrock_options": {
+          "icon": "alexscaves_display_dinosaur_chop_1"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/dinosaur_chop_2",
+        "bedrock_identifier": "alexscaves:display_dinosaur_chop_2",
+        "display_name": "Dinosaur chop 2",
+        "bedrock_options": {
+          "icon": "alexscaves_display_dinosaur_chop_2"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:display/dinosaur_chop_3",
+        "bedrock_identifier": "alexscaves:display_dinosaur_chop_3",
+        "display_name": "Dinosaur chop 3",
+        "bedrock_options": {
+          "icon": "alexscaves_display_dinosaur_chop_3"
+        }
       }
     ],
     "minecraft:petrified_oak_slab": [
