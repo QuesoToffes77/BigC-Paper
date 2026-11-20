@@ -31,9 +31,7 @@ class AlexsCavesSettingsLoaderTest {
         assertEquals(650, settings.worldgen().minSpawnDistance().get(CaveBiomeId.TOXIC_CAVES));
         assertEquals(6, settings.worldgen().enabledBiomes().size());
         assertEquals(1.75, settings.spawning().caveCreatureMultiplier());
-        assertFalse(settings.enchantments().inLoot());
         assertEquals(List.of("world"), settings.worldgen().worlds());
-        assertTrue(settings.blocks().customTextures());
         assertFalse(settings.blocks().packetRemap(), "the packet remap stays off until tested with real clients");
     }
 
@@ -44,8 +42,49 @@ class AlexsCavesSettingsLoaderTest {
         AlexsCavesConfigLoadResult result = AlexsCavesSettingsLoader.load(yaml);
         assertTrue(result.valid());
         assertTrue(result.settings().blocks().packetRemap());
-        assertTrue(result.settings().blocks().customTextures());
         assertFalse(AlexsCavesSettings.defaults().blocks().packetRemap());
+    }
+
+    @Test
+    void removedKeysInOldFilesAreIgnoredSilently() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("blocks.custom-textures", false);
+        yaml.set("enchantments.in-loot", true);
+        yaml.set("effects.sugar-rush-slows-nearby", false);
+        yaml.set("worldgen.structure-blocks-per-tick", 7);
+        AlexsCavesConfigLoadResult result = AlexsCavesSettingsLoader.load(yaml);
+        assertTrue(result.valid(), String.valueOf(result.errors()));
+        assertTrue(result.warnings().isEmpty(), String.valueOf(result.warnings()));
+        assertEquals(AlexsCavesSettings.defaults(), result.settings());
+    }
+
+    @Test
+    void nonNumericStringsAreErrorsNotZero() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("spawning.interval-ticks", "abc");
+        yaml.set("spawning.cap-scale", "lots");
+        yaml.set("worldgen.biome-separation", "far");
+        yaml.set("worldgen.biomes.toxic-caves.min-spawn-distance", "near");
+        yaml.set("magnetism.max-entities-per-tick", "many");
+        AlexsCavesConfigLoadResult result = AlexsCavesSettingsLoader.load(yaml);
+        assertFalse(result.valid());
+        assertEquals(5, result.errors().size(), String.valueOf(result.errors()));
+        assertFalse(result.settings().spawning().enabled());
+        assertFalse(result.settings().worldgen().enabled());
+        assertFalse(result.settings().magnetism().enabled());
+    }
+
+    @Test
+    void numbersOfTheRightTypeStillLoad() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("spawning.interval-ticks", 100);
+        yaml.set("spawning.cap-scale", 1);
+        yaml.set("worldgen.biome-separation", 1200.5);
+        AlexsCavesConfigLoadResult result = AlexsCavesSettingsLoader.load(yaml);
+        assertTrue(result.valid(), String.valueOf(result.errors()));
+        assertEquals(100, result.settings().spawning().intervalTicks());
+        assertEquals(1.0, result.settings().spawning().capScale());
+        assertEquals(1200.5, result.settings().worldgen().rarity().separation());
     }
 
     @Test

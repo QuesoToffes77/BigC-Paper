@@ -100,6 +100,15 @@ public final class NoteBlockListener implements Listener {
         }
     }
 
+    /** The top half of a two-block plant goes in only when no later handler cancelled the placement. */
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    public void onPlaceFinal(BlockPlaceEvent event) {
+        Block block = event.getBlockPlaced();
+        if (block.getType() == Material.NOTE_BLOCK && moduleBlock(event.getItemInHand()).isPresent()) {
+            blocks.placeUpperHalf(block);
+        }
+    }
+
     /** Note blocks never update their state from neighbours: that would change module blocks. */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPhysics(BlockPhysicsEvent event) {
@@ -296,7 +305,8 @@ public final class NoteBlockListener implements Listener {
         Block block = event.getClickedBlock();
         ItemStack tool = event.getItem();
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || block == null || tool == null
-            || !tool.getType().name().endsWith("_AXE") || event.useItemInHand() == Event.Result.DENY) {
+            || !tool.getType().name().endsWith("_AXE") || event.useItemInHand() == Event.Result.DENY
+            || event.getPlayer().getGameMode() == GameMode.ADVENTURE) {
             return;
         }
         blocks.placedAt(block).flatMap(placed -> blocks.blockData(strippedId(placed.blockId()), placed.variant()))

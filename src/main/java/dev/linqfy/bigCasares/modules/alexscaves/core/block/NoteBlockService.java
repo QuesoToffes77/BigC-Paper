@@ -172,12 +172,23 @@ public final class NoteBlockService {
         String variant = BlockVariants.choose(registry.variants(blockId), clickedFace);
         Optional<BlockData> data = blockData(blockId, variant);
         data.ifPresent(value -> block.setBlockData(value, false));
-        if (data.isPresent() && TwoBlockPlants.isTall(registry, blockId)) {
-            // The listener only lets a two-block plant in with room above (see canPlace).
-            blockData(blockId, TwoBlockPlants.UPPER)
-                .ifPresent(top -> block.getRelative(BlockFace.UP).setBlockData(top, false));
-        }
         return data.isPresent();
+    }
+
+    /**
+     * The top half of a two-block plant whose bottom half stands at {@code block}. Done once the placement is final
+     * (MONITOR), so a plugin that cancels the placement later never leaves an orphan top half.
+     */
+    public void placeUpperHalf(Block block) {
+        Optional<ModBlockRegistry.Placed> placed = placedAt(block);
+        if (placed.isEmpty() || !TwoBlockPlants.isTall(registry, placed.get().blockId())
+            || TwoBlockPlants.UPPER.equals(placed.get().variant())) {
+            return;
+        }
+        Block above = block.getRelative(BlockFace.UP);
+        if (above.isEmpty()) {
+            blockData(placed.get().blockId(), TwoBlockPlants.UPPER).ifPresent(top -> above.setBlockData(top, false));
+        }
     }
 
     /** False for a two-block plant without room for its top half (block above taken, or the build limit). */

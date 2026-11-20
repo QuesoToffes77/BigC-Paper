@@ -238,7 +238,7 @@ public final class PottedPlantListener implements Listener {
             return;
         }
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            if (block.getChunk().isLoaded() && marked(block).isEmpty()) {
+            if (block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4) && marked(block).isEmpty()) {
                 unmark(block);
             }
         });

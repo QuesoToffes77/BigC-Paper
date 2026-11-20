@@ -300,7 +300,7 @@ public final class WaterloggedBlocks implements Listener {
             return;
         }
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            if (block.getChunk().isLoaded() && unmark(block) && block.getType().isAir()) {
+            if (block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4) && unmark(block) && block.getType().isAir()) {
                 block.setType(Material.WATER);
             }
         });

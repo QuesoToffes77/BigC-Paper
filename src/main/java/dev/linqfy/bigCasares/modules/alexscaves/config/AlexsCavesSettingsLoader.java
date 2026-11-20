@@ -49,7 +49,6 @@ public final class AlexsCavesSettingsLoader {
         MagnetismSettings magnetism = loadMagnetism(root.getConfigurationSection("magnetism"), defaults.magnetism(), errors);
         EnchantmentSettings enchantments = loadEnchantments(root.getConfigurationSection("enchantments"), defaults.enchantments());
         BlockSettings blocks = new BlockSettings(
-            bool(root.getConfigurationSection("blocks"), "custom-textures", defaults.blocks().customTextures()),
             bool(root.getConfigurationSection("blocks"), "packet-remap", defaults.blocks().packetRemap()));
         IntegrationSettings integration = loadIntegration(root.getConfigurationSection("integration"), defaults.integration(), errors, warnings);
         return new AlexsCavesConfigLoadResult(
@@ -72,10 +71,10 @@ public final class AlexsCavesSettingsLoader {
         if (worlds.stream().anyMatch(name -> name == null || name.isBlank())) {
             errors.add("worldgen.worlds contiene un nombre de mundo vacío");
         }
-        double radius = section.getDouble("biome-radius", defaults.rarity().radius());
-        double separation = section.getDouble("biome-separation", defaults.rarity().separation());
-        double width = section.getDouble("width-randomness", defaults.rarity().widthRandomness());
-        double spacing = section.getDouble("spacing-randomness", defaults.rarity().spacingRandomness());
+        double radius = numberOr(section, "biome-radius", defaults.rarity().radius(), errors, "worldgen");
+        double separation = numberOr(section, "biome-separation", defaults.rarity().separation(), errors, "worldgen");
+        double width = numberOr(section, "width-randomness", defaults.rarity().widthRandomness(), errors, "worldgen");
+        double spacing = numberOr(section, "spacing-randomness", defaults.rarity().spacingRandomness(), errors, "worldgen");
         if (!(radius >= MIN_RADIUS && radius <= MAX_RADIUS)) {
             errors.add("worldgen.biome-radius debe estar entre " + (int) MIN_RADIUS + " y " + (int) MAX_RADIUS + " (valor: " + radius + ")");
         }
@@ -99,7 +98,12 @@ public final class AlexsCavesSettingsLoader {
                 enabledBiomes.add(biome);
             }
             if (biomeSection != null && biomeSection.isSet("min-spawn-distance")) {
-                int distance = biomeSection.getInt("min-spawn-distance");
+                int typeErrors = errors.size();
+                int distance = integerOr(biomeSection, "min-spawn-distance", -1, errors,
+                    "worldgen.biomes." + biome.configKey());
+                if (errors.size() > typeErrors) {
+                    continue;
+                }
                 if (distance < 0 || distance > MAX_SPAWN_DISTANCE) {
                     errors.add("worldgen.biomes." + biome.configKey() + ".min-spawn-distance debe estar entre 0 y "
                         + MAX_SPAWN_DISTANCE + " (valor: " + distance + ")");
@@ -115,15 +119,11 @@ public final class AlexsCavesSettingsLoader {
                 }
             }
         }
-        int blocksPerTick = section.getInt("structure-blocks-per-tick", defaults.structureBlocksPerTick());
-        if (blocksPerTick < 1 || blocksPerTick > 50_000) {
-            errors.add("worldgen.structure-blocks-per-tick debe estar entre 1 y 50000 (valor: " + blocksPerTick + ")");
-        }
         if (errors.size() > errorsBefore) {
             return defaults.disabled();
         }
         return new WorldgenSettings(enabled, installDatapack, worlds,
-            new RarityParameters(radius, separation, width, spacing), enabledBiomes, distances, blocksPerTick);
+            new RarityParameters(radius, separation, width, spacing), enabledBiomes, distances);
     }
 
     private static SpawningSettings loadSpawning(ConfigurationSection section, SpawningSettings defaults, List<String> errors) {
@@ -148,7 +148,6 @@ public final class AlexsCavesSettingsLoader {
         }
         return new EffectSettings(
             section.getBoolean("irradiated", defaults.irradiatedEnabled()),
-            section.getBoolean("sugar-rush-slows-nearby", defaults.sugarRushSlowsNearby()),
             section.getBoolean("hud", defaults.hud())
         );
     }
@@ -170,8 +169,7 @@ public final class AlexsCavesSettingsLoader {
         if (section == null) {
             return defaults;
         }
-        return new EnchantmentSettings(section.getBoolean("enabled", defaults.enabled()),
-            section.getBoolean("in-loot", defaults.inLoot()));
+        return new EnchantmentSettings(section.getBoolean("enabled", defaults.enabled()));
     }
 
     /** Bad economy amounts switch only the economy reward off; Danger placements are untouched. */
@@ -187,7 +185,8 @@ public final class AlexsCavesSettingsLoader {
         boolean danger = bool(dangerSection, "placements", defaults.dangerPlacements());
         double minDamage = defaults.minDamagePercent();
         if (section.isSet("min-damage-percent")) {
-            double value = section.getDouble("min-damage-percent", Double.NaN);
+            Object raw = section.get("min-damage-percent");
+            double value = raw instanceof Number number ? number.doubleValue() : Double.NaN;
             if (value >= 0 && value <= 100) {
                 minDamage = value;
             } else {
@@ -245,7 +244,11 @@ public final class AlexsCavesSettingsLoader {
 
     private static int rangedInt(ConfigurationSection section, String path, int min, int max, int fallback,
                                  List<String> errors, String prefix) {
-        int value = section.getInt(path, fallback);
+        int errorsBefore = errors.size();
+        int value = integerOr(section, path, fallback, errors, prefix);
+        if (errors.size() > errorsBefore) {
+            return fallback;
+        }
         if (value < min || value > max) {
             errors.add(prefix + "." + path + " debe estar entre " + min + " y " + max + " (valor: " + value + ")");
             return fallback;
@@ -255,12 +258,40 @@ public final class AlexsCavesSettingsLoader {
 
     private static double rangedDouble(ConfigurationSection section, String path, double min, double max, double fallback,
                                        List<String> errors, String prefix) {
-        double value = section.getDouble(path, fallback);
+        int errorsBefore = errors.size();
+        double value = numberOr(section, path, fallback, errors, prefix);
+        if (errors.size() > errorsBefore) {
+            return fallback;
+        }
         if (!(value >= min && value <= max)) {
             errors.add(prefix + "." + path + " debe estar entre " + min + " y " + max + " (valor: " + value + ")");
             return fallback;
         }
         return value;
+    }
+
+    /** An absent key gives the fallback; a present one that is not an integer is an error (and gives the fallback). */
+    static int integerOr(ConfigurationSection section, String path, int fallback, List<String> errors, String prefix) {
+        if (!section.isSet(path)) {
+            return fallback;
+        }
+        if (!section.isInt(path)) {
+            errors.add(prefix + "." + path + " debe ser un número entero (valor: " + section.get(path) + ")");
+            return fallback;
+        }
+        return section.getInt(path);
+    }
+
+    /** An absent key gives the fallback; a present one that is not a number is an error (and gives the fallback). */
+    static double numberOr(ConfigurationSection section, String path, double fallback, List<String> errors, String prefix) {
+        if (!section.isSet(path)) {
+            return fallback;
+        }
+        if (!(section.get(path) instanceof Number number)) {
+            errors.add(prefix + "." + path + " debe ser un número (valor: " + section.get(path) + ")");
+            return fallback;
+        }
+        return number.doubleValue();
     }
 
     /** Spawn distances are part of the public map so tests and commands can show them. */
