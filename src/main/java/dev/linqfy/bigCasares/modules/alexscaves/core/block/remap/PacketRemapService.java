@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import io.papermc.paper.event.packet.PlayerChunkLoadEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
@@ -122,6 +123,17 @@ public final class PacketRemapService implements Listener {
             plugin.getLogger().log(Level.WARNING, "[AlexsCaves] Reescritura por paquetes apagada: " + status, failure);
             return;
         }
+        try {
+            startPacketLayer(registrations);
+        } catch (RuntimeException | LinkageError failure) {
+            // A broken packetevents must not roll back the rest of the modules: the blocks go out as note blocks.
+            rollbackStart();
+            status = "inactiva: falló la integración con packetevents";
+            plugin.getLogger().log(Level.WARNING, "[AlexsCaves] Reescritura por paquetes apagada: " + status, failure);
+        }
+    }
+
+    private void startPacketLayer(BukkitRuntimeRegistrations registrations) {
         // The plugin's own loader sees Floodgate and Geyser (plugin.yml softdepend); the server's does not.
         bedrock = BedrockPlayers.lookup(plugin.getClass().getClassLoader());
         registrations.registerListener("alexs-caves-packet-remap", this);
@@ -145,6 +157,32 @@ public final class PacketRemapService implements Listener {
         plugin.getLogger().info("[AlexsCaves] Reescritura por paquetes " + status + " (packetevents "
             + PacketEventsRemap.serverVersionName() + ", " + index.size() + " chunks cargados marcados, "
             + wetIndex.size() + " bloques en agua).");
+    }
+
+    /** Undoes whatever {@link #startPacketLayer} registered before failing. */
+    private void rollbackStart() {
+        active = false;
+        stopMiningSync();
+        AutoCloseable listener = packetListener;
+        packetListener = null;
+        if (listener != null) {
+            try {
+                listener.close();
+            } catch (Exception | LinkageError ignored) {
+                // Already failing; the status line tells the story.
+            }
+        }
+        if (waterlogged != null) {
+            try {
+                waterlogged.stop();
+            } catch (RuntimeException ignored) {
+                // Already failing.
+            }
+            org.bukkit.event.HandlerList.unregisterAll(waterlogged);
+            waterlogged = null;
+        }
+        org.bukkit.event.HandlerList.unregisterAll(this);
+        index.clear();
     }
 
     /**
@@ -299,6 +337,18 @@ public final class PacketRemapService implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkLoad(ChunkLoadEvent event) {
         scan(event.getChunk());
+    }
+
+    /**
+     * A module block placed in a loaded chunk that was never marked (no palette hit at load, no remapped block
+     * change sent yet) would leave the chunk unrewritten for the next player: check it before it is sent.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerChunkLoad(PlayerChunkLoadEvent event) {
+        Chunk chunk = event.getChunk();
+        if (active && scanProbe != null && !index.contains(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ())) {
+            scan(chunk);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

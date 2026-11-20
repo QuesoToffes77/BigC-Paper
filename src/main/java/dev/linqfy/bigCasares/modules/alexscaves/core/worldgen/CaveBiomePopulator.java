@@ -67,8 +67,23 @@ public final class CaveBiomePopulator extends BlockPopulator {
         this.logger = logger;
     }
 
+    private final LogThrottle throttle = new LogThrottle(30_000L);
+
     @Override
     public void populate(WorldInfo worldInfo, Random random, int chunkX, int chunkZ, LimitedRegion region) {
+        try {
+            populateChunk(worldInfo, chunkX, chunkZ, region);
+        } catch (RuntimeException | LinkageError failure) {
+            // A broken populator must not abort chunk generation for the whole server.
+            long suppressed = throttle.tryLog("populate");
+            if (suppressed >= 0) {
+                logger.log(Level.WARNING, "[AlexsCaves] La generación de cuevas falló en el chunk " + chunkX + ","
+                    + chunkZ + (suppressed > 0 ? " (" + suppressed + " fallos más sin registrar)" : ""), failure);
+            }
+        }
+    }
+
+    private void populateChunk(WorldInfo worldInfo, int chunkX, int chunkZ, LimitedRegion region) {
         if (!active.getAsBoolean()) {
             return;
         }
@@ -149,8 +164,12 @@ public final class CaveBiomePopulator extends BlockPopulator {
             feature.place(chunk);
         } catch (RuntimeException failure) {
             // A broken feature must not abort chunk generation for the whole server.
-            logger.log(Level.WARNING, "[AlexsCaves] Feature " + feature.id() + " falló en el chunk "
-                + chunkX + "," + chunkZ, failure);
+            long suppressed = throttle.tryLog("feature:" + feature.id());
+            if (suppressed >= 0) {
+                logger.log(Level.WARNING, "[AlexsCaves] Feature " + feature.id() + " falló en el chunk "
+                    + chunkX + "," + chunkZ + (suppressed > 0 ? " (" + suppressed + " fallos más sin registrar)" : ""),
+                    failure);
+            }
         }
     }
 

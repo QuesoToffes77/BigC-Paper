@@ -15,7 +15,6 @@ worldgen:
   biome-separation: 900
   width-randomness: 0.15
   spacing-randomness: 0.45
-  structure-blocks-per-tick: 2000
   biomes:
     magnetic-caves:
       enabled: true
@@ -48,8 +47,6 @@ spawning:
 
 effects:
   irradiated: true
-  # Aproximación de Sugar Rush: ralentiza a las entidades cercanas.
-  sugar-rush-slows-nearby: true
   hud: true
 
 magnetism:
@@ -63,12 +60,8 @@ forlorn:
 
 enchantments:
   enabled: true
-  # Igual que enchantments_in_loot del mod: apagado por defecto.
-  in-loot: false
 
 blocks:
-  # false = usar solo bloques vanilla parecidos en lugar de las texturas del mod.
-  custom-textures: true
   # Prueba (apagado por defecto): los jugadores de Java reciben los bloques del módulo que no son cubos
   # completos como otro bloque vanilla que no tapa a los vecinos (hojas, flor de chorus), para que el piso y
   # las paredes de al lado no se vean transparentes, y los que el mod deja anegar (mejillones, gusanos...)

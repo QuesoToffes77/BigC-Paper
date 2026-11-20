@@ -107,6 +107,16 @@ final class AlexsCavesRuntime {
         warnAboutBlockUpdates(NoteBlockService.loadPaperGlobal(plugin));
         registrations.registerListener("alexs-caves-craft-guard", new AlexsCavesCraftGuard(items));
         cookingRecipes.addAll(ModCookingRecipes.register(plugin.getServer(), items, plugin.getLogger()));
+        // The recipes' exact choices carry the catalog revision, so they follow every catalog reload.
+        Runnable cookingListener = items.addCatalogListener(catalog -> {
+            if (stopped.get()) {
+                return;
+            }
+            ModCookingRecipes.unregister(plugin.getServer(), cookingRecipes);
+            cookingRecipes.clear();
+            cookingRecipes.addAll(ModCookingRecipes.register(plugin.getServer(), items, plugin.getLogger()));
+        });
+        closeables.add(cookingListener::run);
         if (config.settings().enchantments().enabled()) {
             registrations.registerListener("alexs-caves-enchant-guard", new EnchantmentGuardListener(enchantments, items));
         }

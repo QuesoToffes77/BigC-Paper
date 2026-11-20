@@ -376,6 +376,11 @@ public final class AbyssalAltar implements Listener, Runnable, AutoCloseable {
                 save(altar.key);
                 propagate(block);
             } else if (altar.item.isEmpty() && altar.popStack == null) {
+                if (altar.active()) {
+                    // An active altar keeps lighting its linked blocks even with nothing on it.
+                    altar.removeDisplay();
+                    continue;
+                }
                 altar.removeDisplay();
                 altars.remove(altar.key);
                 save(altar.key);
@@ -488,7 +493,7 @@ public final class AbyssalAltar implements Listener, Runnable, AutoCloseable {
         StringBuilder text = new StringBuilder();
         for (Altar altar : altars.values()) {
             if (altar.key.world().equals(key.world()) && altar.key.x() >> 4 == chunk.getX() && altar.key.z() >> 4 == chunk.getZ()
-                && (!altar.item.isEmpty() || altar.popStack != null)) {
+                && (!altar.item.isEmpty() || altar.popStack != null || altar.active())) {
                 text.append(altar.key.x()).append(';').append(altar.key.y()).append(';').append(altar.key.z()).append(';')
                     .append(altar.placingPlayer == null ? "-" : altar.placingPlayer).append(';')
                     .append(encode(altar.item)).append(';').append(encode(altar.popStack)).append(';')

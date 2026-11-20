@@ -40,8 +40,7 @@ public record AlexsCavesSettings(
         List<String> worlds,
         RarityParameters rarity,
         Set<CaveBiomeId> enabledBiomes,
-        Map<CaveBiomeId, Integer> minSpawnDistance,
-        int structureBlocksPerTick
+        Map<CaveBiomeId, Integer> minSpawnDistance
     ) {
         public WorldgenSettings {
             worlds = List.copyOf(worlds);
@@ -55,12 +54,11 @@ public record AlexsCavesSettings(
                 distances.put(biome, biome.defaultMinSpawnDistance());
             }
             return new WorldgenSettings(true, true, List.of("world"), RarityParameters.MOD_DEFAULTS,
-                EnumSet.allOf(CaveBiomeId.class), distances, 2000);
+                EnumSet.allOf(CaveBiomeId.class), distances);
         }
 
         public WorldgenSettings disabled() {
-            return new WorldgenSettings(false, installDatapack, worlds, rarity, enabledBiomes, minSpawnDistance,
-                structureBlocksPerTick);
+            return new WorldgenSettings(false, installDatapack, worlds, rarity, enabledBiomes, minSpawnDistance);
         }
     }
 
@@ -85,12 +83,9 @@ public record AlexsCavesSettings(
         }
     }
 
-    /**
-     * @param sugarRushSlowsNearby approximation of the mod's {@code sugar_rush_slows_time}
-     */
-    public record EffectSettings(boolean irradiatedEnabled, boolean sugarRushSlowsNearby, boolean hud) {
+    public record EffectSettings(boolean irradiatedEnabled, boolean hud) {
         public static EffectSettings defaults() {
-            return new EffectSettings(true, true, true);
+            return new EffectSettings(true, true);
         }
     }
 
@@ -105,23 +100,21 @@ public record AlexsCavesSettings(
         }
     }
 
-    /** {@code inLoot} mirrors the mod's {@code enchantments_in_loot} (off by default). */
-    public record EnchantmentSettings(boolean enabled, boolean inLoot) {
+    public record EnchantmentSettings(boolean enabled) {
         public static EnchantmentSettings defaults() {
-            return new EnchantmentSettings(true, false);
+            return new EnchantmentSettings(true);
         }
     }
 
     /**
-     * @param customTextures {@code false} replaces every module block with its vanilla substitute
      * @param packetRemap    Java players (never Bedrock ones) receive module blocks that are not full cubes, and
      *                       waterloggable ones standing in water, as borrowed vanilla states that do not hide the faces
      *                       around them (needs packetevents; see client-remap.txt). Off by default until it is checked
      *                       with real clients: mining speed and sounds follow the borrowed block client-side
      */
-    public record BlockSettings(boolean customTextures, boolean packetRemap) {
+    public record BlockSettings(boolean packetRemap) {
         public static BlockSettings defaults() {
-            return new BlockSettings(true, false);
+            return new BlockSettings(false);
         }
     }
 
