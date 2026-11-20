@@ -14,7 +14,7 @@ recipe:
   result-amount: 3
   shape: ["C C", "###", "###"]
   ingredients:
-    C: CHAIN
+    C: IRON_CHAIN
     "#": bigcasares:ac_stripped_thornwood_log
 appearance:
   java-item-definition: java/assets/alexscaves/items/thornwood_hanging_sign.json

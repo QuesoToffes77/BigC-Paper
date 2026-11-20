@@ -665,6 +665,8 @@ def recompress(ffmpeg, data):
 # Ítems del mod que en el módulo son bloques vanilla (las enredaderas de regaliz son enredaderas lloronas).
 INGREDIENT_ITEMS = {
     "alexscaves:licoroot_vine": "WEEPING_VINES",
+    # 1.20.1 item renamed in 26.x.
+    "minecraft:chain": "IRON_CHAIN",
 }
 INGREDIENT_TAGS = {
     # Solo existe la gelatina roja (un color por mob).

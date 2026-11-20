@@ -211,4 +211,27 @@ class AlexsCavesContentContractTest {
         assertNotNull(input, path);
         return input;
     }
+
+    /** The validator's lookup accepts names the 26.2 server lacks (CHAIN is IRON_CHAIN there); check the API enum. */
+    @Test
+    void everyVanillaMaterialInTheItemFilesExistsIn26_2() throws IOException {
+        java.util.regex.Pattern single = java.util.regex.Pattern.compile(
+            "^\\s*(?:material|[A-Za-z#]):\\s*([A-Z][A-Z0-9_|]*)\\s*$|^\\s*-\\s*([A-Z][A-Z0-9_]*)\\s*$",
+            java.util.regex.Pattern.MULTILINE);
+        List<String> missing = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<Path> files = Files.list(Path.of("src/main/resources/content/items"))) {
+            for (Path file : files.filter(path -> path.getFileName().toString().startsWith("ac_")).sorted().toList()) {
+                java.util.regex.Matcher matcher = single.matcher(Files.readString(file));
+                while (matcher.find()) {
+                    String value = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+                    for (String part : value.split("\\|")) {
+                        if (!part.isEmpty() && org.bukkit.Material.getMaterial(part) == null) {
+                            missing.add(file.getFileName() + ": " + part);
+                        }
+                    }
+                }
+            }
+        }
+        assertEquals(List.of(), missing);
+    }
 }
