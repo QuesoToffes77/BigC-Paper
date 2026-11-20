@@ -160,6 +160,7 @@ public final class Luxtructosaurus {
         private boolean crushed;
         private Location lastStomp;
         private Vector jumpTarget;
+        private final SauropodLegs legs = new SauropodLegs();
         private boolean prevOnGround = true;
         private int age;
         private int scareStamp;
@@ -254,9 +255,10 @@ public final class Luxtructosaurus {
                 setAnim(entity, Anim.SPEAK);
             }
             speakPending = false;
-            animator.base(context, entity, PrimordialPose.baseLoop(PrimordialPose.Kind.SAUROPOD,
+            boolean legsBack = legs.update(animator.speed() * ticks, animator.moving());
+            animator.base(context, entity, PrimordialPose.sauropodBase(PrimordialPose.baseLoop(PrimordialPose.Kind.SAUROPOD,
                 new PrimordialPose.State(false, dancing, false, false, false, false, false, false, entity.isOnGround(),
-                    animator.moving())));
+                    animator.moving())), legsBack));
             body.follow(entity.getLocation(), entity.getLocation().getYaw());
             prevOnGround = entity.isOnGround();
         }

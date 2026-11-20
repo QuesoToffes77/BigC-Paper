@@ -203,6 +203,12 @@ public final class PrimordialTaming implements Listener, Runnable, AutoCloseable
             } else {
                 failed(entity);
             }
+        } else if (mob == PrimordialMobs.RELICHEIRUS && item.equals("ac_primordial_soup")) {
+            // Mod RelicheirusEntity.onFeedMixture: it pushes trees over for 1200 ticks.
+            event.setCancelled(true);
+            consumeBowl(player, held);
+            animate(entity, dinosaur -> dinosaur.pushTrees(1200));
+            entity.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, entity.getLocation().add(0, entity.getHeight(), 0), 5, 0.4, 0.4, 0.4);
         } else if (mob == PrimordialMobs.TREMORSAURUS && item.equals("ac_serene_salad")) {
             event.setCancelled(true);
             if (!mobs.effects().has(entity, ModEffectType.STUNNED)) {

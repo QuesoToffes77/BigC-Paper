@@ -140,6 +140,7 @@ public final class Atlatitan {
         private int barClock;
         private int temptClock;
         private UUID tempter;
+        private final SauropodLegs legs = new SauropodLegs();
         private double stride;
         private Location lastSpot;
 
@@ -218,9 +219,10 @@ public final class Atlatitan {
                 setAnim(entity, Anim.SPEAK);
             }
             speakPending = false;
-            animator.base(context, entity, PrimordialPose.baseLoop(PrimordialPose.Kind.SAUROPOD,
+            boolean legsBack = legs.update(animator.speed() * ticks, animator.moving());
+            animator.base(context, entity, PrimordialPose.sauropodBase(PrimordialPose.baseLoop(PrimordialPose.Kind.SAUROPOD,
                 new PrimordialPose.State(false, dancing, false, false, false, false, false, false, entity.isOnGround(),
-                    animator.moving())));
+                    animator.moving())), legsBack));
             stepSound(entity, baby);
             // Mod: it heals 2 every 100 ticks.
             if (age % 100 < ticks && entity.getHealth() < entity.getAttribute(Attribute.MAX_HEALTH).getValue()) {

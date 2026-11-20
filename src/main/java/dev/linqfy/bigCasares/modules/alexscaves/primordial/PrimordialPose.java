@@ -75,6 +75,14 @@ final class PrimordialPose {
         return state.moving() ? "walk" : "idle";
     }
 
+    /**
+     * Mod {@code SauropodBaseEntity.legBackAmount}: the hind legs swing back while it strides, so the leg_back loop
+     * (the walk's own movement plus the legs pulled back) takes the place of the walk for that part of the stride.
+     */
+    static String sauropodBase(String base, boolean legsBack) {
+        return legsBack && base.equals("walk") ? "leg_back" : base;
+    }
+
     /** Mod {@code VallumraptorMeleeGoal}: bite 1 in 2, otherwise slash 2 or slash 1 evenly. */
     static String raptorBlow(boolean first, boolean second) {
         return first ? "melee_bite" : second ? "melee_slash_2" : "melee_slash_1";

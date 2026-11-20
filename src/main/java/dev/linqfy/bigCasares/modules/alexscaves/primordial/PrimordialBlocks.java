@@ -29,6 +29,12 @@ public final class PrimordialBlocks {
     private final Set<BlockData> volcano = new HashSet<>();
     private final Set<BlockData> breaks = new HashSet<>();
     private final Set<BlockData> nibbles = new HashSet<>();
+    private final Set<BlockData> logs = new HashSet<>();
+    /** Mod tag {@code grottoceratops_food_blocks}: the module plants the grottoceratops grazes. */
+    private final Set<BlockData> food = new HashSet<>();
+    private BlockData curlyFernLower;
+    private BlockData curlyFernUpper;
+    private BlockData fiddlehead;
 
     public PrimordialBlocks(ModBlockPalette palette) {
         primalMagma = palette.get("primal_magma");
@@ -70,9 +76,82 @@ public final class PrimordialBlocks {
                 }
             }
         }
+        for (String id : new String[] {"pewen_log", "pewen_wood", "stripped_pewen_log", "stripped_pewen_wood", "thornwood_log",
+            "thornwood_wood", "stripped_thornwood_log", "stripped_thornwood_wood"}) {
+            if (palette.registry().blockIds().contains(id)) {
+                for (String variant : palette.registry().variants(id)) {
+                    logs.add(palette.get(id, variant));
+                }
+            }
+        }
+        if (palette.registry().blockIds().contains("curly_fern")) {
+            curlyFernLower = palette.get("curly_fern");
+            curlyFernUpper = palette.get("curly_fern", "upper");
+            food.add(curlyFernLower);
+        }
+        if (palette.registry().blockIds().contains("fiddlehead")) {
+            fiddlehead = palette.get("fiddlehead");
+        }
+        for (String id : new String[] {"tree_star", "pewen_pines"}) {
+            if (palette.registry().blockIds().contains(id)) {
+                for (String variant : palette.registry().variants(id)) {
+                    food.add(palette.get(id, variant));
+                }
+            }
+        }
         for (BlockData data : fissure) {
             volcano.add(data);
         }
+    }
+
+    /** Mod tag {@code relicheirus_nibbles}: leaves and the leafy module blocks, cocoa, propagules and the archaic vine. */
+    boolean relicheirusNibbles(Block block) {
+        Material type = block.getType();
+        return Tag.LEAVES.isTagged(type) || type == Material.CAVE_VINES || type == Material.CAVE_VINES_PLANT
+            || type == Material.MANGROVE_PROPAGULE || type == Material.COCOA || nibbles(block);
+    }
+
+    /** Mod tag {@code relicheirus_knockable_leaves}: the leaf blocks that make a tree fall with its logs. */
+    boolean knockableLeaves(Block block) {
+        Material type = block.getType();
+        return Tag.LEAVES.isTagged(type) || type == Material.MANGROVE_PROPAGULE || type == Material.COCOA || nibbles(block);
+    }
+
+    /** Mod tag {@code relicheirus_knockable_logs}: logs, mangrove roots and the module's own wood. */
+    boolean knockableLog(Block block) {
+        Material type = block.getType();
+        return Tag.LOGS.isTagged(type) || type == Material.MANGROVE_ROOTS
+            || type == Material.NOTE_BLOCK && logs.contains(block.getBlockData());
+    }
+
+    /** Mod tag {@code grottoceratops_food_blocks} (the curly fern counts only by its lower half). */
+    boolean grottoFood(Block block) {
+        Material type = block.getType();
+        if (type == Material.LARGE_FERN) {
+            return block.getBlockData() instanceof org.bukkit.block.data.Bisected bisected
+                && bisected.getHalf() == org.bukkit.block.data.Bisected.Half.BOTTOM;
+        }
+        return (type == Material.NOTE_BLOCK || type == Material.TRIPWIRE || type == Material.CHORUS_PLANT)
+            && food.contains(block.getBlockData());
+    }
+
+    /** Whether the block is a curly fern (module or its large fern stand-in): eating it leaves a fiddlehead. */
+    boolean curlyFern(Block block) {
+        return block.getType() == Material.LARGE_FERN || curlyFernLower != null && curlyFernLower.equals(block.getBlockData());
+    }
+
+    /** Whether the block is the upper half of a curly fern (or of the large fern that stands in for it). */
+    boolean curlyFernUpper(Block block) {
+        if (block.getType() == Material.LARGE_FERN) {
+            return block.getBlockData() instanceof org.bukkit.block.data.Bisected bisected
+                && bisected.getHalf() == org.bukkit.block.data.Bisected.Half.TOP;
+        }
+        return curlyFernUpper != null && curlyFernUpper.equals(block.getBlockData());
+    }
+
+    /** The fiddlehead a grazed curly fern becomes, null when the module does not have the block. */
+    BlockData fiddlehead() {
+        return fiddlehead;
     }
 
     /** Index of a fissure's regeneration height, or -1 when it is not a fissure. */

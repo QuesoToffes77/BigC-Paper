@@ -173,10 +173,10 @@ public final class AlexsCavesModule implements PluginModule {
         ToxicMobs.register(content.mobs());
         MagneticMobs.register(content.mobs());
         content.addListener(MagneticMobListener::new);
-        PrimordialMobs.register(content.mobs());
+        PrimordialBlocks bossBlocks = new PrimordialBlocks(palette);
+        PrimordialMobs.register(content.mobs(), bossBlocks);
         content.addListener(PrimordialMobListener::new);
         // Hito 7: the Primordial boss, its volcano, the amber monolith and the Atlatitan.
-        PrimordialBlocks bossBlocks = new PrimordialBlocks(palette);
         Luxtructosaurus.register(content.mobs(), bossBlocks);
         Atlatitan.register(content.mobs(), bossBlocks);
         content.addListener(Atlatitan.Listener::new);

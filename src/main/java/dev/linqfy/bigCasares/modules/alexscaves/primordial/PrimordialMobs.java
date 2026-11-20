@@ -61,12 +61,16 @@ public final class PrimordialMobs {
     }
 
     public static void register(ModMobCatalog catalog) {
+        register(catalog, null);
+    }
+
+    public static void register(ModMobCatalog catalog, PrimordialBlocks blocks) {
         catalog.register(SUBTERRANODON, (entity, type) -> new Subterranodon(entity));
-        catalog.register(VALLUMRAPTOR, (entity, type) -> new PrimordialDinosaur(Kind.VALLUMRAPTOR));
-        catalog.register(GROTTOCERATOPS, (entity, type) -> new PrimordialDinosaur(Kind.GROTTOCERATOPS));
+        catalog.register(VALLUMRAPTOR, (entity, type) -> new PrimordialDinosaur(Kind.VALLUMRAPTOR, blocks));
+        catalog.register(GROTTOCERATOPS, (entity, type) -> new PrimordialDinosaur(Kind.GROTTOCERATOPS, blocks));
         catalog.register(TRILOCARIS, (entity, type) -> new PrimordialDinosaur(Kind.TRILOCARIS));
         catalog.register(TREMORSAURUS, (entity, type) -> new PrimordialDinosaur(Kind.TREMORSAURUS));
-        catalog.register(RELICHEIRUS, (entity, type) -> new PrimordialDinosaur(Kind.RELICHEIRUS));
+        catalog.register(RELICHEIRUS, (entity, type) -> new PrimordialDinosaur(Kind.RELICHEIRUS, blocks));
     }
 
     /** Phantom base sized to the mod's 1.75 wide hitbox. */

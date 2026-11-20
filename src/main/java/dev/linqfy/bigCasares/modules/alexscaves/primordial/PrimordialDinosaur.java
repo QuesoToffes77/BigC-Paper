@@ -40,8 +40,17 @@ class PrimordialDinosaur implements ModMobBehaviour {
     private String requested;
     private boolean wasDancing;
 
+    private final DinosaurChores chores;
+    private int pushing;
+
     PrimordialDinosaur(Kind kind) {
+        this(kind, null);
+    }
+
+    PrimordialDinosaur(Kind kind, PrimordialBlocks blocks) {
         this.kind = kind;
+        this.chores = kind == Kind.VALLUMRAPTOR || kind == Kind.GROTTOCERATOPS || kind == Kind.RELICHEIRUS
+            ? new DinosaurChores(kind, blocks, this) : null;
     }
 
     @Override
@@ -59,6 +68,7 @@ class PrimordialDinosaur implements ModMobBehaviour {
         relaxed = Math.max(0, relaxed - ticks);
         burying = Math.max(0, burying - ticks);
         roarCooldown = Math.max(0, roarCooldown - ticks);
+        pushing = Math.max(0, pushing - ticks);
         animator.track(entity, ticks);
         boolean sitting = sitting(entity);
         boolean dancing = animator.dancing(entity, ticks);
@@ -72,7 +82,8 @@ class PrimordialDinosaur implements ModMobBehaviour {
         boolean onGround = kind == Kind.TRILOCARIS ? !entity.isInWater() : entity.isOnGround();
         PrimordialPose.State state = new PrimordialPose.State(sitting, dancing, burying > 0, running, relaxed > 0,
             kind == Kind.SUBTERRANODON && !entity.isOnGround(), entity.isInWater(), false, onGround, animator.moving());
-        animator.base(context, entity, PrimordialPose.baseLoop(kind, state));
+        boolean leaping = chores != null && chores.leaping();
+        animator.base(context, entity, leaping ? "leap" : PrimordialPose.baseLoop(kind, state));
 
         if (requested != null && busy == 0) {
             play(entity, requested);
@@ -86,6 +97,9 @@ class PrimordialDinosaur implements ModMobBehaviour {
         }
         speakPending = false;
         fidgets(entity, target, sitting, dancing);
+        if (chores != null) {
+            chores.tick(entity, context, ticks, sitting, dancing);
+        }
     }
 
     @Override
@@ -122,6 +136,9 @@ class PrimordialDinosaur implements ModMobBehaviour {
     @Override
     public void close(LivingEntity entity, ModMobContext context) {
         animator.close();
+        if (chores != null) {
+            chores.cancel(entity);
+        }
         // A dinosaur unloaded or closed mid-dance must not stay without its AI.
         if (wasDancing && entity instanceof Mob mob && !sitting(entity) && entity.getPassengers().isEmpty()) {
             mob.setAware(true);
@@ -138,6 +155,45 @@ class PrimordialDinosaur implements ModMobBehaviour {
     /** Mod {@code AnimalLayEggGoal}: the mother buries her eggs. */
     void buryEggs(int ticks) {
         burying = ticks;
+    }
+
+    /** Mod {@code onFeedMixture}: primordial soup makes a relicheirus push trees over for a while. */
+    void pushTrees(int ticks) {
+        pushing = ticks;
+    }
+
+    // --- what the chores need ---
+
+    boolean free() {
+        return busy == 0;
+    }
+
+    boolean act(LivingEntity entity, String animation) {
+        if (context != null && animator.action(context, entity, animation)) {
+            busy = PrimordialPose.length(kind, animation);
+            return true;
+        }
+        return false;
+    }
+
+    boolean moving() {
+        return animator.moving();
+    }
+
+    boolean dancing() {
+        return wasDancing;
+    }
+
+    int pushing() {
+        return pushing;
+    }
+
+    boolean baby(LivingEntity entity) {
+        return isBaby(entity);
+    }
+
+    String moduleItem(org.bukkit.inventory.ItemStack stack) {
+        return context == null ? null : context.mobs().itemId(stack).orElse(null);
     }
 
     /** An action to start on the next tick (the grottoceratops chews when fed). */
@@ -235,7 +291,7 @@ class PrimordialDinosaur implements ModMobBehaviour {
         }
     }
 
-    private boolean sitting(LivingEntity entity) {
+    boolean sitting(LivingEntity entity) {
         Byte value = entity.getPersistentDataContainer().get(sittingKey, PersistentDataType.BYTE);
         return value != null && value == 1;
     }
