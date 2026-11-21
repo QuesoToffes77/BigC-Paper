@@ -66,9 +66,12 @@ public final class AuctionHouseService<I> {
         }
         Instant now = clock.instant();
         AuctionListing<I> listing = new AuctionListing<>(
-            nextId++, seller, sellerName, item, price, now, now.plus(settings.listingDuration()));
+            nextId, seller, sellerName, item, price, now, now.plus(settings.listingDuration()));
+        List<AuctionListing<I>> proposed = new ArrayList<>(listings.values());
+        proposed.add(listing);
+        store.saveListing(new AuctionSnapshot<>(nextId + 1, proposed, claims));
+        nextId++;
         listings.put(listing.id(), listing);
-        save();
         return ListResult.LISTED;
     }
 

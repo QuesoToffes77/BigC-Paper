@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AuctionHouseServiceTest {
 
@@ -31,6 +32,14 @@ class AuctionHouseServiceTest {
     void setUp() {
         service = new AuctionHouseService<>(
             new AuctionHouseSettings(2, 10, 1_000, 10, Duration.ofHours(1)), bank, store, clock);
+    }
+
+    @Test
+    void failedListingSaveDoesNotPublishAnItemStillHeldBySeller() {
+        store.fail = true;
+        assertThrows(IllegalStateException.class, () -> service.list(SELLER, "Seller", "diamond", 200));
+        assertTrue(service.active().isEmpty());
+        assertTrue(store.saved.listings().isEmpty());
     }
 
     @Test
@@ -159,6 +168,7 @@ class AuctionHouseServiceTest {
 
     private static final class MemoryStore implements AuctionStore<String> {
         private AuctionSnapshot<String> saved = AuctionSnapshot.empty();
+        private boolean fail;
 
         @Override
         public AuctionSnapshot<String> load() {
@@ -167,6 +177,7 @@ class AuctionHouseServiceTest {
 
         @Override
         public void save(AuctionSnapshot<String> snapshot) {
+            if (fail) throw new IllegalStateException("disk unavailable");
             saved = snapshot;
         }
     }

@@ -75,6 +75,15 @@ final class YamlAuctionStore implements AuctionStore<ItemStack> {
 
     @Override
     public void save(AuctionSnapshot<ItemStack> snapshot) {
+        try {
+            saveListing(snapshot);
+        } catch (IllegalStateException failure) {
+            logger.log(Level.SEVERE, "[AuctionHouse] Could not save " + file, failure);
+        }
+    }
+
+    @Override
+    public void saveListing(AuctionSnapshot<ItemStack> snapshot) {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("next-id", snapshot.nextId());
         ConfigurationSection listingSection = yaml.createSection("listings");
@@ -95,7 +104,7 @@ final class YamlAuctionStore implements AuctionStore<ItemStack> {
             Files.writeString(temporary, yaml.saveToString());
             Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException failure) {
-            logger.log(Level.SEVERE, "[AuctionHouse] Could not save " + file, failure);
+            throw new IllegalStateException("Could not save " + file, failure);
         }
     }
 
