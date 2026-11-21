@@ -58,8 +58,16 @@ public final class QuadrantModule implements PluginModule {
         registrations.scheduleRepeating("quadrant-combat-tick", () -> tick(created), 20L, 20L);
         plugin.getServer().getOnlinePlayers().forEach(player -> created.observe(player, player.getLocation()));
         runtime = created;
-        PvpQuestController quests = plugin.getConfig().getBoolean("pvp-quadrants.quests.enabled", true)
-            ? new PvpQuestController(plugin, this::isFullPvp) : null;
+        PvpQuestController configuredQuests = null;
+        if (plugin.getConfig().getBoolean("pvp-quadrants.quests.enabled", true)) {
+            try {
+                configuredQuests = new PvpQuestController(plugin, this::isFullPvp);
+            } catch (IllegalArgumentException invalid) {
+                plugin.getLogger().warning("[Cuadrantes] Misiones PvP desactivadas por configuración inválida: "
+                    + invalid.getMessage());
+            }
+        }
+        final PvpQuestController quests = configuredQuests;
         if (quests != null) registrations.registerListener("quadrant-pvp-quests", quests);
         var command = plugin.getCommand("pvp");
         if (command == null) throw new IllegalStateException("Missing pvp command");
