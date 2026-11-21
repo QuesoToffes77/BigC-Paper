@@ -27,6 +27,8 @@ class SchizophreniaPluginContractTest {
         assertEquals("bigcasares.schizophrenia.admin", plugin.getString("commands/esquizo/permission"));
         assertTrue(plugin.isConfigurationSection("permissions/bigcasares.schizophrenia.admin"));
         assertTrue(main.calls("dev/linqfy/bigCasares/modules/schizophrenia/SchizophreniaModule", "<init>"));
+        assertTrue(java.nio.file.Files.readString(java.nio.file.Path.of(
+            "src/main/java/dev/linqfy/bigCasares/BigCasares.java")).contains("moduleManager.register(new SchizophreniaModule(this))"));
     }
 
     @Test

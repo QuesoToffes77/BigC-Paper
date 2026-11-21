@@ -73,9 +73,12 @@ class HallucinationPickerTest {
         // The director needs a live server registry for its sounds, so its wiring is read from the bytecode.
         CompiledClass director = CompiledClass.of(getClass(),
             "dev.linqfy.bigCasares.modules.schizophrenia.HallucinationDirector");
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+            "src/main/java/dev/linqfy/bigCasares/modules/schizophrenia/HallucinationDirector.java"));
         for (Hallucination hallucination : Hallucination.values()) {
             assertEquals(hallucination, Hallucination.parse(hallucination.id()).orElseThrow());
             assertTrue(director.hasConstant(hallucination.name()), hallucination::id);
+            assertTrue(source.contains("effects.put(Hallucination." + hallucination.name() + ","), hallucination::id);
         }
         assertTrue(Hallucination.parse(" ").isEmpty());
     }

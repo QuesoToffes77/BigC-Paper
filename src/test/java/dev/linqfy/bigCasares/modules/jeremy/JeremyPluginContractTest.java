@@ -32,6 +32,8 @@ class JeremyPluginContractTest {
         assertTrue(plugin.isConfigurationSection("permissions/bigcasares.jeremy.start"));
         assertTrue(plugin.isConfigurationSection("permissions/bigcasares.jeremy.stop"));
         assertTrue(main.calls("dev/linqfy/bigCasares/modules/jeremy/JeremyModule", "<init>"));
+        assertTrue(java.nio.file.Files.readString(java.nio.file.Path.of(
+            "src/main/java/dev/linqfy/bigCasares/BigCasares.java")).contains("moduleManager.register(jeremyModule)"));
     }
 
     private static YamlConfiguration pluginDescriptor() throws Exception {

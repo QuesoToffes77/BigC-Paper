@@ -46,6 +46,9 @@ class TombstoneLedgerTest {
         CompiledClass runtime = CompiledClass.of(getClass(), "dev.linqfy.bigCasares.modules.tombstone.TombstoneRuntime");
 
         assertTrue(runtime.calls().stream().anyMatch(call -> call.name().equals("setPersistent")));
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+            "src/main/java/dev/linqfy/bigCasares/modules/tombstone/TombstoneRuntime.java"));
+        assertEquals(3, source.split("setPersistent\\(false\\)", -1).length - 1);
     }
 
     private static TombstoneRecord record(Instant expiresAt) {

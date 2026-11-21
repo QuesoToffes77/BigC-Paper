@@ -29,5 +29,8 @@ class GliderCommandTest {
         assertEquals("bigcasares.glider.give", plugin.getString("commands/glider/permission"));
         assertTrue(plugin.isConfigurationSection("permissions/bigcasares.glider.admin"));
         assertTrue(plugin.isConfigurationSection("permissions/bigcasares.glider.give"));
+        assertTrue(java.nio.file.Files.readString(java.nio.file.Path.of(
+            "src/main/java/dev/linqfy/bigCasares/modules/glider/GliderModule.java"))
+            .contains("bindCommand(\"glider-command\""));
     }
 }

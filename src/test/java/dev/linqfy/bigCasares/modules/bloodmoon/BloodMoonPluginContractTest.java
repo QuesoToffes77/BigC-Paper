@@ -22,6 +22,8 @@ class BloodMoonPluginContractTest {
         assertTrue(plugin.isConfigurationSection("permissions/bigcasares.bloodmoon.start"));
         assertTrue(plugin.isConfigurationSection("permissions/bigcasares.bloodmoon.stop"));
         assertTrue(main.calls("dev/linqfy/bigCasares/modules/bloodmoon/BloodMoonModule", "<init>"));
+        assertTrue(java.nio.file.Files.readString(java.nio.file.Path.of(
+            "src/main/java/dev/linqfy/bigCasares/BigCasares.java")).contains("moduleManager.register(bloodMoonModule)"));
     }
 
     @Test
