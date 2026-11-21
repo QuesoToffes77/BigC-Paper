@@ -68,6 +68,10 @@ public final class PriceSeries {
         version++;
     }
 
+    List<Candle> closedCandles() {
+        return List.copyOf(closed);
+    }
+
     List<String> encodeClosed() {
         return closed.stream().map(Candle::encode).toList();
     }

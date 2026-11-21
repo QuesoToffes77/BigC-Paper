@@ -29,11 +29,15 @@ final class ForexCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (runtime.paused()) {
+        String sub = args.length == 0 ? "menu" : args[0].toLowerCase(Locale.ROOT);
+        if (runtime.busy()) {
+            sender.sendMessage(ForexAnnouncer.PREFIX + "§eEl mercado está guardando; intentá de nuevo en un momento.");
+            return true;
+        }
+        if (runtime.paused() && !sub.equals("admin")) {
             sender.sendMessage(ForexAnnouncer.PREFIX + "§cMercado pausado: avisá a un administrador.");
             return true;
         }
-        String sub = args.length == 0 ? "menu" : args[0].toLowerCase(Locale.ROOT);
         try {
             switch (sub) {
                 case "ayuda", "help" -> help(sender);
@@ -240,20 +244,41 @@ final class ForexCommand implements CommandExecutor, TabCompleter {
             return;
         }
         String action = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        if (runtime.paused() && !action.equals("pendiente") && !action.equals("resolver")) {
+            sender.sendMessage(ForexAnnouncer.PREFIX + "§cMercado pausado. Usá /forex admin pendiente.");
+            return;
+        }
         switch (action) {
+            case "pendiente" -> {
+                try {
+                    var details = runtime.reconciliationDetails();
+                    sender.sendMessage(ForexAnnouncer.PREFIX + "§cRevisá forex/transfers.log y el estado de Vault y forex/market.yml.");
+                    sender.sendMessage("§7Journal SHA-256: §f" + details.journalHash());
+                    sender.sendMessage("§7Mercado SHA-256: §f" + details.snapshotHash());
+                    sender.sendMessage("§7Tras reparar ambos, usá /forex admin resolver <journal-sha256> <mercado-sha256>.");
+                } catch (IllegalStateException failure) {
+                    sender.sendMessage(ForexAnnouncer.PREFIX + "§c" + failure.getMessage());
+                }
+            }
+            case "resolver" -> {
+                try {
+                    String journal = arg(args, 2, "/forex admin resolver <journal-sha256> <mercado-sha256>");
+                    String market = arg(args, 3, "/forex admin resolver <journal-sha256> <mercado-sha256>");
+                    String archive = runtime.acknowledgeReconciliation(journal, market, sender.getName());
+                    sender.sendMessage(ForexAnnouncer.PREFIX + "§aEvidencia archivada en " + archive);
+                    sender.sendMessage("§eEl mercado sigue cerrado. Reiniciá el plugin para cargar el estado reparado.");
+                } catch (IllegalStateException failure) {
+                    sender.sendMessage(ForexAnnouncer.PREFIX + "§c" + failure.getMessage());
+                }
+            }
             case "ciclo" -> {
-                runtime.market().forceCycle().forEach(runtime.announcer()::announce);
-                runtime.save();
-                sender.sendMessage(ForexAnnouncer.PREFIX + "§aCiclo de mercado forzado.");
+                runtime.forceCycle(sender);
             }
             case "flip" -> {
-                runtime.market().forceFlip(arg(args, 2, "/forex admin flip <ticker>"))
-                    .forEach(runtime.announcer()::announce);
-                runtime.save();
+                runtime.forceFlip(sender, arg(args, 2, "/forex admin flip <ticker>"));
             }
             case "guardar" -> {
-                runtime.save();
-                sender.sendMessage(ForexAnnouncer.PREFIX + "§aMercado guardado.");
+                runtime.saveNow(sender);
             }
             default -> sender.sendMessage(ForexAnnouncer.PREFIX + "§7/forex admin <ciclo|flip <ticker>|guardar>");
         }
@@ -274,7 +299,7 @@ final class ForexCommand implements CommandExecutor, TabCompleter {
             return switch (sub) {
                 case "comprar", "vender", "ver", "grafico" -> filter(Stream.concat(Stream.of("esmeraldas"), tickers.stream()).toList(), args[1]);
                 case "stake", "unstake", "rugpull", "clan", "comision", "dividendos" -> filter(ownedOrAll(sender, sub, tickers), args[1]);
-                case "admin" -> sender.hasPermission(ADMIN_PERMISSION) ? filter(List.of("ciclo", "flip", "guardar"), args[1]) : List.of();
+                case "admin" -> sender.hasPermission(ADMIN_PERMISSION) ? filter(List.of("ciclo", "flip", "guardar", "pendiente", "resolver"), args[1]) : List.of();
                 default -> List.of();
             };
         }

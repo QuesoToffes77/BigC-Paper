@@ -36,14 +36,16 @@ final class ForexCharts {
     private final ChartFeed feed;
     private final File file;
     private final Logger logger;
+    private final java.util.function.BooleanSupplier ready;
     private final Map<String, Integer> mapIds = new LinkedHashMap<>();
     private final Map<Integer, ChartRenderer> renderers = new HashMap<>();
 
-    ForexCharts(Server server, ChartFeed feed, File file, Logger logger) {
+    ForexCharts(Server server, ChartFeed feed, File file, Logger logger, java.util.function.BooleanSupplier ready) {
         this.server = server;
         this.feed = feed;
         this.file = file;
         this.logger = logger;
+        this.ready = ready;
     }
 
     void start() {
@@ -149,6 +151,7 @@ final class ForexCharts {
 
         @Override
         public void render(MapView view, MapCanvas canvas, Player player) {
+            if (!ready.getAsBoolean()) return;
             long key = feed.key(asset);
             if (painted && key == drawn) {
                 return;

@@ -18,7 +18,10 @@ class JournaledForexBankTest {
             public long balance(UUID ignored) { return 100; }
             public boolean withdraw(UUID ignored, long amount) {
                 try {
-                    assertTrue(Files.readString(journal).contains("INTENT"));
+                    String evidence = Files.readString(journal);
+                    assertTrue(evidence.contains("CONTEXT "));
+                    assertTrue(evidence.contains("BASELINE "));
+                    assertTrue(evidence.contains("INTENT"));
                 } catch (java.io.IOException failure) {
                     throw new java.io.UncheckedIOException(failure);
                 }
@@ -100,5 +103,68 @@ class JournaledForexBankTest {
         assertTrue(bank.withdraw(player, 20));
         assertTrue(Files.readString(journal).contains(
             "BASELINE ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
+    }
+
+    @Test
+    void reconciliationArchivesEvidenceAndDoesNotReplayVault() throws Exception {
+        Path snapshot = directory.resolve("market.yml");
+        Files.writeString(snapshot, "market");
+        Path journal = directory.resolve("transfers.log");
+        Files.writeString(journal, "INTENT ambiguous DEPOSIT " + player + " 20\n");
+        FakeBank delegate = new FakeBank().give(player, 100);
+        JournaledForexBank bank = new JournaledForexBank(delegate, journal, snapshot);
+        var details = bank.reconciliationDetails();
+        assertTrue(bank.paused());
+        Path archive = bank.acknowledgeReconciliation(details.journalHash(), details.snapshotHash(), "console");
+        assertFalse(Files.exists(journal));
+        assertTrue(Files.readString(archive).contains("INTENT ambiguous"));
+        assertTrue(Files.readString(archive).contains("RECONCILED console"));
+        assertTrue(bank.paused(), "existing runtime stays closed until reload");
+        assertEquals(100, delegate.balance(player));
+        assertFalse(new JournaledForexBank(delegate, journal, snapshot).paused());
+    }
+
+    @Test
+    void reconciliationRejectsChangedEvidenceWithoutUnlocking() throws Exception {
+        Path snapshot = directory.resolve("market.yml");
+        Files.writeString(snapshot, "first");
+        Path journal = directory.resolve("transfers.log");
+        Files.writeString(journal, "INTENT pending\n");
+        JournaledForexBank bank = new JournaledForexBank(new FakeBank(), journal, snapshot);
+        var details = bank.reconciliationDetails();
+        Files.writeString(snapshot, "changed");
+        assertThrows(IllegalStateException.class,
+            () -> bank.acknowledgeReconciliation(details.journalHash(), details.snapshotHash(), "console"));
+        assertTrue(bank.paused());
+        assertTrue(Files.exists(journal));
+    }
+
+    @Test
+    void reconciliationRequiresRestoredMarketSnapshot() throws Exception {
+        Path snapshot = directory.resolve("market.yml");
+        Path journal = directory.resolve("transfers.log");
+        Files.writeString(journal, "INTENT pending\n");
+        JournaledForexBank bank = new JournaledForexBank(new FakeBank(), journal, snapshot);
+        var details = bank.reconciliationDetails();
+        assertEquals("MISSING", details.snapshotHash());
+        assertThrows(IllegalStateException.class,
+            () -> bank.acknowledgeReconciliation(details.journalHash(), details.snapshotHash(), "console"));
+        assertTrue(bank.paused());
+        assertTrue(Files.exists(journal));
+    }
+
+    @Test
+    void reconciliationRejectsChangedJournal() throws Exception {
+        Path snapshot = directory.resolve("market.yml");
+        Files.writeString(snapshot, "market");
+        Path journal = directory.resolve("transfers.log");
+        Files.writeString(journal, "INTENT pending\n");
+        JournaledForexBank bank = new JournaledForexBank(new FakeBank(), journal, snapshot);
+        var details = bank.reconciliationDetails();
+        Files.writeString(journal, "different evidence\n");
+        assertThrows(IllegalStateException.class,
+            () -> bank.acknowledgeReconciliation(details.journalHash(), details.snapshotHash(), "console"));
+        assertTrue(bank.paused());
+        assertTrue(Files.exists(journal));
     }
 }

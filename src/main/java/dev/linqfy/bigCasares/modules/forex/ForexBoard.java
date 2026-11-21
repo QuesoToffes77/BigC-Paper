@@ -25,6 +25,10 @@ final class ForexBoard {
     }
 
     void openMarket(Player player) {
+        if (runtime.busy()) {
+            player.sendMessage(ForexAnnouncer.PREFIX + "§eEl mercado está guardando; intentá de nuevo en un momento.");
+            return;
+        }
         ForexMarket market = runtime.market();
         ForexMenu menu = new ForexMenu(6, "§2§lFOREX §8· §7Mercado Casares");
         menu.set(4, emeraldIcon(player.getUniqueId()), this::openEmerald);
@@ -56,6 +60,10 @@ final class ForexBoard {
     }
 
     void openEmerald(Player player) {
+        if (runtime.busy()) {
+            player.sendMessage(ForexAnnouncer.PREFIX + "§eEl mercado está guardando; intentá de nuevo en un momento.");
+            return;
+        }
         ForexMarket market = runtime.market();
         UUID id = player.getUniqueId();
         ForexMenu menu = new ForexMenu(4, "§2Esmeraldas Virtuales §8($vEMR)");
@@ -85,6 +93,10 @@ final class ForexBoard {
     }
 
     void openCoin(Player player, String ticker) {
+        if (runtime.busy()) {
+            player.sendMessage(ForexAnnouncer.PREFIX + "§eEl mercado está guardando; intentá de nuevo en un momento.");
+            return;
+        }
         ForexMarket market = runtime.market();
         Shitcoin coin = market.coin(ticker).orElse(null);
         if (coin == null) {
@@ -145,6 +157,10 @@ final class ForexBoard {
     }
 
     private void confirmRug(Player player, String ticker) {
+        if (runtime.busy()) {
+            player.sendMessage(ForexAnnouncer.PREFIX + "§eEl mercado está guardando; intentá de nuevo en un momento.");
+            return;
+        }
         ForexMenu menu = new ForexMenu(3, "§4¿Rug pull de $" + ForexMarket.normalizeTicker(ticker) + "?");
         menu.set(11, ForexMenu.button(Material.LIME_CONCRETE, "§aNo, sigo cobrando el goteo",
             "§7Las comisiones caen solas todos los días."), clicker -> openCoin(clicker, ticker));

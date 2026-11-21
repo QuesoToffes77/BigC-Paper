@@ -57,17 +57,18 @@ public final class ForexModule implements PluginModule {
         }
         ForexSettings settings = ForexSettings.load(plugin.getConfig());
         ForexRuntime created = new ForexRuntime(plugin, settings, new VaultForexBank(plugin.getServer(), economy), teams);
-        if (!created.start()) {
-            return;
-        }
+        boolean started = created.start();
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         registrations.ownCleanup("forex-runtime", created::stop);
-        registrations.registerListener("forex-listener", new ForexListener());
         ForexCommand handler = new ForexCommand(created);
         registrations.bindCommand("forex-command", command, handler, handler);
-        registrations.scheduleRepeating("forex-market", created::tickMarket, 20L, 20L);
-        registrations.scheduleRepeating("forex-effects", created::tickEffects, 1L, 1L);
-        registrations.scheduleRepeating("forex-aura", created::tickAura, 40L, 40L);
+        if (started) {
+            registrations.registerListener("forex-listener", new ForexListener());
+            registrations.scheduleRepeating("forex-writer-completion", created::pollWriter, 1L, 1L);
+            registrations.scheduleRepeating("forex-market", created::tickMarket, 20L, 20L);
+            registrations.scheduleRepeating("forex-effects", created::tickEffects, 1L, 1L);
+            registrations.scheduleRepeating("forex-aura", created::tickAura, 40L, 40L);
+        }
         runtime = created;
     }
 
@@ -82,19 +83,19 @@ public final class ForexModule implements PluginModule {
     }
 
     public boolean isOpen() {
-        return runtime != null && !runtime.paused();
+        return runtime != null && !runtime.paused() && !runtime.busy();
     }
 
     /** Holds enough of the team's official coin to walk through its protected chests. */
     public boolean hasClanPass(UUID player, String teamId) {
         ForexRuntime current = runtime;
-        return current != null && !current.paused() && current.market().hasClanPass(player, teamId);
+        return current != null && !current.paused() && current.committedClanPass(player, teamId);
     }
 
     /** Multiplier Don Casares applies to this player's loan interest: below 1 is prestige, above is a record. */
     public double creditMultiplier(UUID player) {
         ForexRuntime current = runtime;
-        return current == null || current.paused() ? 1.0 : current.market().creditMultiplier(player);
+        return current == null || current.paused() ? 1.0 : current.committedCredit(player);
     }
 
     private Economy resolveEconomy() {

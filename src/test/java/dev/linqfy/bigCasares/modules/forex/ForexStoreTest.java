@@ -24,6 +24,64 @@ class ForexStoreTest {
     }
 
     @Test
+    void invalidAccountStopsLoadWithoutChangingTheFile(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("market.yml");
+        String source = "accounts:\n  00000000-0000-0000-0000-000000000001:\n    emeralds: 5\n"
+            + "  not-a-uuid:\n    emeralds: 123\n";
+        Files.writeString(file, source);
+        ForexStore store = new ForexStore(file.toFile(), Logger.getAnonymousLogger());
+        ForexMarket market = new ForexMarket(ForexSettings.defaults(), new FakeBank(), new ScriptedRandom(), () -> 0L);
+        assertThrows(IllegalStateException.class, () -> store.load(market));
+        assertTrue(market.accounts().isEmpty(), "a partially parsed snapshot must not become live");
+        assertEquals(source, Files.readString(file));
+    }
+
+    @Test
+    void invalidCoinHolderStopsLoadWithoutChangingTheFile(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("market.yml");
+        String source = "coins:\n  MOON:\n    creator: 00000000-0000-0000-0000-000000000001\n"
+            + "    holders:\n      not-a-uuid:\n        balance: 12\n";
+        Files.writeString(file, source);
+        ForexStore store = new ForexStore(file.toFile(), Logger.getAnonymousLogger());
+        ForexMarket market = new ForexMarket(ForexSettings.defaults(), new FakeBank(), new ScriptedRandom(), () -> 0L);
+        assertThrows(IllegalStateException.class, () -> store.load(market));
+        assertEquals(source, Files.readString(file));
+    }
+
+    @Test
+    void malformedFinancialNumberStopsLoad(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("market.yml");
+        String source = "accounts:\n  00000000-0000-0000-0000-000000000001:\n    emeralds: broken\n";
+        Files.writeString(file, source);
+        ForexStore store = new ForexStore(file.toFile(), Logger.getAnonymousLogger());
+        ForexMarket market = new ForexMarket(ForexSettings.defaults(), new FakeBank(), new ScriptedRandom(), () -> 0L);
+        assertThrows(IllegalStateException.class, () -> store.load(market));
+        assertEquals(source, Files.readString(file));
+    }
+
+    @Test
+    void omittedLegacyFieldsStillUseDefaults(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("market.yml");
+        Files.writeString(file, "accounts:\n  00000000-0000-0000-0000-000000000001:\n    emeralds: 3.0\n");
+        ForexStore store = new ForexStore(file.toFile(), Logger.getAnonymousLogger());
+        ForexMarket market = new ForexMarket(ForexSettings.defaults(), new FakeBank(), new ScriptedRandom(), () -> 0L);
+        store.load(market);
+        assertEquals(3.0, market.emeralds(UUID.fromString("00000000-0000-0000-0000-000000000001")));
+    }
+
+    @Test
+    void capturedSnapshotDoesNotChangeWithTheLiveMarket() throws Exception {
+        UUID player = UUID.randomUUID();
+        FakeBank bank = new FakeBank().give(player, 5_000);
+        ForexMarket market = new ForexMarket(ForexSettings.defaults(), bank, new ScriptedRandom(), () -> 0L);
+        market.buyEmeralds(player, 1_000);
+        ForexStore.Snapshot snapshot = ForexStore.capture(market);
+        String before = ForexStore.serialize(snapshot).saveToString();
+        market.buyEmeralds(player, 1_000);
+        assertEquals(before, ForexStore.serialize(snapshot).saveToString());
+    }
+
+    @Test
     void theWholeMarketSurvivesARestart() throws Exception {
         UUID creator = UUID.randomUUID();
         UUID alice = UUID.randomUUID();

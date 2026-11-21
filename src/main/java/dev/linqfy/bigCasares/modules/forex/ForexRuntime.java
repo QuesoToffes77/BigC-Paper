@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.forex;
 
 import org.bukkit.Location;
+import org.bukkit.command.CommandSender;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
@@ -8,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -30,6 +32,9 @@ final class ForexRuntime {
     private final ForexTeams teams;
     private final ForexBoard board;
     private final ForexCharts charts;
+    private ForexAsyncWriter writer;
+    private List<Runnable> deferredEffects;
+    private ForexCommittedViews committedViews;
 
     ForexRuntime(Plugin plugin, ForexSettings settings, ForexBank bank, ForexTeams teams) {
         this.plugin = plugin;
@@ -44,7 +49,8 @@ final class ForexRuntime {
         this.teams = teams;
         this.board = new ForexBoard(this);
         this.charts = new ForexCharts(plugin.getServer(), new ChartFeed(market),
-            new File(new File(plugin.getDataFolder(), "forex"), "charts.yml"), plugin.getLogger());
+            new File(new File(plugin.getDataFolder(), "forex"), "charts.yml"), plugin.getLogger(),
+            () -> !paused() && !busy());
     }
 
     ForexMarket market() {
@@ -68,41 +74,153 @@ final class ForexRuntime {
             plugin.getLogger().severe("[Forex] Unresolved transfers.log: market disabled pending manual reconciliation.");
             return false;
         }
-        store.load(market);
-        charts.start();
-        return true;
+        ForexAsyncWriter owned;
+        try {
+            owned = new ForexAsyncWriter(new File(new File(plugin.getDataFolder(), "forex"), "market.yml").toPath());
+        } catch (IllegalStateException stillWriting) {
+            journaledBank.pause();
+            plugin.getLogger().warning("[Forex] Previous market write is still finishing; reload after it completes.");
+            return false;
+        }
+        try {
+            store.load(market);
+            charts.start();
+            refreshCommittedViews();
+            writer = owned;
+            return true;
+        } catch (RuntimeException failure) {
+            owned.close();
+            throw failure;
+        }
     }
 
     void stop() {
-        charts.stop();
-        if (!journaledBank.paused()) save();
-        announcer.clear();
+        try {
+            charts.stop();
+        } finally {
+            ForexAsyncWriter owned = writer;
+            try {
+                if (owned != null && !journaledBank.paused() && !owned.busy()) {
+                    // A pending snapshot already contains the last mutation: no second write may race it.
+                    try { saveAsync(() -> {}, failure -> {}); }
+                    catch (RuntimeException failure) { journaledBank.pause(); }
+                }
+            } finally {
+                if (owned != null) owned.close();
+                writer = null;
+                announcer.clear();
+            }
+        }
     }
 
-    void save() {
-        if (journaledBank.paused()) throw new ForexException("Mercado pausado: avisá a un administrador.");
+    boolean busy() { return writer != null && writer.busy(); }
+
+    void pollWriter() {
+        ForexAsyncWriter current = writer;
+        if (current != null) current.poll();
+    }
+
+    private void saveAsync(Runnable success, java.util.function.Consumer<Throwable> failureHandler) {
+        if (journaledBank.paused() || writer == null) throw new ForexException("Mercado pausado: avisá a un administrador.");
         try {
-            store.save(market);
-            journaledBank.committed();
-        } catch (RuntimeException failure) {
+            ForexStore.Snapshot snapshot = ForexStore.capture(market);
+            writer.submit(() -> ForexSettlement.persist(store, snapshot, journaledBank), failure -> {
+                if (failure == null) {
+                    try {
+                        refreshCommittedViews();
+                    } catch (RuntimeException problem) {
+                        journaledBank.pause();
+                        plugin.getLogger().log(java.util.logging.Level.SEVERE, "[Forex] Could not refresh market views", problem);
+                        failureHandler.accept(problem);
+                        return;
+                    }
+                    success.run();
+                } else {
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "[Forex] Market paused; preserve forex/transfers.log and reconcile before restarting.", failure);
+                    failureHandler.accept(failure);
+                }
+            });
+        } catch (RuntimeException | Error failure) {
             journaledBank.pause();
-            plugin.getLogger().log(java.util.logging.Level.SEVERE,
-                "[Forex] Market paused; preserve forex/transfers.log and reconcile before restarting.", failure);
-            throw new ForexException("Mercado pausado: avisá a un administrador.");
+            throw failure;
         }
+    }
+
+    /** Cross-module reads use the last durable state while a new snapshot is settling. */
+    private void refreshCommittedViews() {
+        committedViews = ForexCommittedViews.capture(market);
+    }
+
+    boolean committedClanPass(UUID player, String teamId) {
+        return committedViews != null && committedViews.hasClanPass(player, teamId);
+    }
+
+    double committedCredit(UUID player) {
+        return committedViews == null ? 1.0 : committedViews.creditMultiplier(player);
+    }
+
+    void saveNow(CommandSender sender) {
+        if (!available(sender)) return;
+        saveAsync(() -> sender.sendMessage(ForexAnnouncer.PREFIX + "§aMercado guardado."),
+            failure -> sender.sendMessage(ForexAnnouncer.PREFIX + "§cMercado pausado: avisá a un administrador."));
+    }
+
+    void forceCycle(CommandSender sender) {
+        adminMutation(sender, () -> market.forceCycle(), "§aCiclo de mercado forzado.");
+    }
+
+    void forceFlip(CommandSender sender, String ticker) {
+        adminMutation(sender, () -> market.forceFlip(ticker), null);
+    }
+
+    private void adminMutation(CommandSender sender, Supplier<List<MarketEvent>> operation, String message) {
+        if (!available(sender)) return;
+        try {
+            journaledBank.context("admin market operation");
+            List<MarketEvent> events = List.copyOf(operation.get());
+            saveAsync(() -> {
+                events.forEach(announcer::announce);
+                if (message != null) sender.sendMessage(ForexAnnouncer.PREFIX + message);
+            }, failure -> sender.sendMessage(ForexAnnouncer.PREFIX + "§cMercado pausado: avisá a un administrador."));
+        } catch (RuntimeException failure) {
+            if (!(failure instanceof ForexException) || journaledBank.hasUncommittedTransfer()) journaledBank.pause();
+            throw failure;
+        }
+    }
+
+    private boolean available(CommandSender sender) {
+        if (paused()) {
+            sender.sendMessage(ForexAnnouncer.PREFIX + "§cMercado pausado: avisá a un administrador.");
+            return false;
+        }
+        if (busy()) {
+            sender.sendMessage(ForexAnnouncer.PREFIX + "§eEl mercado está guardando; intentá de nuevo en un momento.");
+            return false;
+        }
+        return true;
     }
 
     boolean paused() { return journaledBank.paused(); }
 
+    JournaledForexBank.ReconciliationDetails reconciliationDetails() {
+        return journaledBank.reconciliationDetails();
+    }
+
+    String acknowledgeReconciliation(String journalHash, String marketHash, String operator) {
+        java.nio.file.Path archive = journaledBank.acknowledgeReconciliation(journalHash, marketHash, operator);
+        plugin.getLogger().warning("[Forex] " + operator + " acknowledged manual reconciliation; evidence: " + archive);
+        return archive.toString();
+    }
+
     /** Every second: market cycles, bubbles, flips and dividends. */
     void tickMarket() {
-        if (paused()) return;
+        if (paused() || busy()) return;
         try {
             journaledBank.context("market tick");
-            List<MarketEvent> events = market.tick();
+            List<MarketEvent> events = List.copyOf(market.tick());
             if (!events.isEmpty()) {
-                save();
-                events.forEach(announcer::announce);
+                saveAsync(() -> events.forEach(announcer::announce), failure -> {});
             }
         } catch (RuntimeException failure) {
             journaledBank.pause();
@@ -117,6 +235,7 @@ final class ForexRuntime {
 
     /** Emerald sparkles around the whales who did not hide them. */
     void tickAura() {
+        if (busy() || paused()) return;
         Set<UUID> whales = market.whales();
         for (UUID whale : whales) {
             Player player = plugin.getServer().getPlayer(whale);
@@ -135,7 +254,7 @@ final class ForexRuntime {
             TradeReceipt receipt = ForexMarket.isEmeraldAlias(asset)
                 ? market.buyEmeralds(player.getUniqueId(), money)
                 : market.buy(player.getUniqueId(), asset, money);
-            ding(player, true);
+            defer(() -> ding(player, true));
             return "§aCompraste §f" + ForexFormat.tokens(receipt.quantity()) + " " + label(receipt.asset())
                 + " §apor §f" + ForexFormat.money(receipt.money()) + " §8(comisiones " + ForexFormat.money(receipt.fees())
                 + ", precio " + ForexFormat.price(receipt.priceAfter()) + ")";
@@ -154,7 +273,7 @@ final class ForexRuntime {
                     new ForexException("No existe $" + ForexMarket.normalizeTicker(asset) + "."));
                 receipt = market.sell(id, asset, quantity.applyAsDouble(coin.free(id)));
             }
-            ding(player, false);
+            defer(() -> ding(player, false));
             String message = "§aVendiste §f" + ForexFormat.tokens(receipt.quantity()) + " " + label(receipt.asset())
                 + " §apor §f" + ForexFormat.money(receipt.money()) + " §8(comisiones " + ForexFormat.money(receipt.fees())
                 + ")";
@@ -188,7 +307,7 @@ final class ForexRuntime {
     boolean create(Player player, String ticker, String name) {
         return run(player, "create " + ticker, () -> {
             Shitcoin coin = market.create(player.getUniqueId(), ticker, name);
-            announcer.launched(coin);
+            defer(() -> announcer.launched(coin));
             return "§a$" + coin.ticker() + " ya cotiza. Cobrás §f" + ForexFormat.percent(coin.creatorFee())
                 + " §ade cada compra y venta. §7Ajustá con §f/forex comision§7, §f/forex dividendos §7y §f/forex clan§7.";
         });
@@ -200,8 +319,10 @@ final class ForexRuntime {
             List<UUID> victims = coin.holdings().keySet().stream()
                 .filter(holder -> !holder.equals(player.getUniqueId())).toList();
             RugPull rug = market.rugPull(player.getUniqueId(), ticker);
-            announcer.rugPulled(rug, victims);
-            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, SoundCategory.MASTER, 1f, 0.5f);
+            defer(() -> {
+                announcer.rugPulled(rug, victims);
+                player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, SoundCategory.MASTER, 1f, 0.5f);
+            });
             return "§2Te llevaste §f" + ForexFormat.money(rug.stolen()) + "§2. §7Don Casares ya anotó tu nombre.";
         });
     }
@@ -231,9 +352,9 @@ final class ForexRuntime {
                 new ForexException("Tenés que ser el dueño de un clan."));
             market.linkTeam(player.getUniqueId(), ticker, team);
             String label = teams.label(team).orElse("tu clan");
-            announcer.broadcast("§e$" + ForexMarket.normalizeTicker(ticker) + " §7es ahora la moneda oficial de "
+            defer(() -> announcer.broadcast("§e$" + ForexMarket.normalizeTicker(ticker) + " §7es ahora la moneda oficial de "
                 + label + "§7. Con §f" + ForexFormat.tokens(market.settings().clanPassThreshold())
-                + " §7tokens tenés pase libre a sus cofres protegidos.");
+                + " §7tokens tenés pase libre a sus cofres protegidos."));
             return "§aListo.";
         });
     }
@@ -255,10 +376,10 @@ final class ForexRuntime {
     }
 
     void toggleAura(Player player) {
-        boolean shown = market.toggleAura(player.getUniqueId());
-        save();
-        player.sendMessage(ForexAnnouncer.PREFIX + (shown ? "§aTu aura de ballena está visible."
-            : "§7Tu aura de ballena está oculta."));
+        run(player, "toggle aura", () -> {
+            boolean shown = market.toggleAura(player.getUniqueId());
+            return shown ? "§aTu aura de ballena está visible." : "§7Tu aura de ballena está oculta.";
+        });
     }
 
     // ---------------------------------------------------------------- helpers
@@ -272,16 +393,28 @@ final class ForexRuntime {
             new ForexException("No existe $" + ForexMarket.normalizeTicker(ticker) + "."));
     }
 
+    private void defer(Runnable effect) {
+        deferredEffects.add(effect);
+    }
+
     private boolean run(Player player, String description, Supplier<String> operation) {
-        if (paused()) {
-            player.sendMessage(ForexAnnouncer.PREFIX + "§cMercado pausado: avisá a un administrador.");
-            return false;
-        }
+        if (!available(player)) return false;
+        deferredEffects = new ArrayList<>();
         try {
             journaledBank.context(description + " player=" + player.getUniqueId());
             String message = operation.get();
-            save();
-            player.sendMessage(ForexAnnouncer.PREFIX + message);
+            List<Runnable> effects = List.copyOf(deferredEffects);
+            saveAsync(() -> {
+                for (Runnable effect : effects) {
+                    try { effect.run(); }
+                    catch (RuntimeException failure) {
+                        plugin.getLogger().log(java.util.logging.Level.WARNING, "[Forex] Could not announce settled operation", failure);
+                    }
+                }
+                if (player.isOnline()) player.sendMessage(ForexAnnouncer.PREFIX + message);
+            }, failure -> {
+                if (player.isOnline()) player.sendMessage(ForexAnnouncer.PREFIX + "§cMercado pausado: avisá a un administrador.");
+            });
             return true;
         } catch (ForexException refused) {
             if (journaledBank.hasUncommittedTransfer()) journaledBank.pause();
@@ -293,6 +426,8 @@ final class ForexRuntime {
             plugin.getLogger().log(java.util.logging.Level.SEVERE, "[Forex] Market paused; reconcile transfers.", failure);
             player.sendMessage(ForexAnnouncer.PREFIX + "§cMercado pausado: avisá a un administrador.");
             return false;
+        } finally {
+            deferredEffects = null;
         }
     }
 

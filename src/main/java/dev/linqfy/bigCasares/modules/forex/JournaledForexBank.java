@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -17,8 +18,8 @@ final class JournaledForexBank implements ForexBank {
     private final ForexBank delegate;
     private final Path journal;
     private final Path snapshot;
-    private boolean paused;
-    private boolean successfulTransfer;
+    private volatile boolean paused;
+    private volatile boolean successfulTransfer;
     private String context = "unspecified";
 
     JournaledForexBank(ForexBank delegate, Path journal) {
@@ -47,11 +48,12 @@ final class JournaledForexBank implements ForexBank {
         if (paused) throw new IllegalStateException("FOREX is paused pending reconciliation");
         String operation = UUID.randomUUID().toString();
         try {
+            String intent = "INTENT " + operation + " " + (deposit ? "DEPOSIT" : "WITHDRAW") + " " + player + " " + amount;
             if (!Files.exists(journal)) {
-                append("CONTEXT " + context);
-                append("BASELINE " + snapshotHash());
+                // One forced write still records all evidence before calling Vault.
+                intent = "CONTEXT " + context + "\nBASELINE " + snapshotHash() + "\n" + intent;
             }
-            append("INTENT " + operation + " " + (deposit ? "DEPOSIT" : "WITHDRAW") + " " + player + " " + amount);
+            append(intent);
             boolean succeeded = deposit ? delegate.deposit(player, amount) : delegate.withdraw(player, amount);
             append((succeeded ? "SUCCEEDED " : "REJECTED ") + operation);
             if (succeeded) {
@@ -86,11 +88,54 @@ final class JournaledForexBank implements ForexBank {
 
     void pause() { paused = true; }
 
+    record ReconciliationDetails(String journalHash, String snapshotHash, String evidence) { }
+
+    ReconciliationDetails reconciliationDetails() {
+        if (!paused || !Files.isRegularFile(journal)) {
+            throw new IllegalStateException("No hay un journal pendiente; revisar los logs del servidor.");
+        }
+        try {
+            byte[] evidence = Files.readAllBytes(journal);
+            return new ReconciliationDetails(hash(evidence), snapshotHash(),
+                new String(evidence, StandardCharsets.UTF_8));
+        } catch (IOException failure) {
+            throw new IllegalStateException("No se pudo leer el journal pendiente.", failure);
+        }
+    }
+
+    /** The operator has repaired both sides independently; no Vault operation is replayed. */
+    Path acknowledgeReconciliation(String journalHash, String marketHash, String operator) {
+        ReconciliationDetails details = reconciliationDetails();
+        if (!details.journalHash().equals(journalHash) || !details.snapshotHash().equals(marketHash)) {
+            throw new IllegalStateException("El journal o el mercado cambiaron; volver a inspeccionar.");
+        }
+        if ("MISSING".equals(marketHash) || "UNSPECIFIED".equals(marketHash)) {
+            throw new IllegalStateException("Falta market.yml; restaurá el estado antes de resolver.");
+        }
+        String actor = operator.replaceAll("[\r\n]", " ");
+        if (actor.isBlank() || actor.length() > 128) {
+            throw new IllegalStateException("Operador inválido.");
+        }
+        try {
+            append("RECONCILED " + actor + " JOURNAL " + journalHash + " SNAPSHOT " + marketHash);
+            Path archive = journal.resolveSibling("transfers-resolved-" + UUID.randomUUID() + ".log");
+            Files.move(journal, archive, StandardCopyOption.ATOMIC_MOVE);
+            syncDirectory(journal.getParent());
+            return archive;
+        } catch (IOException failure) {
+            throw new IllegalStateException("No se pudo archivar el journal; el mercado sigue cerrado.", failure);
+        }
+    }
+
     private String snapshotHash() throws IOException {
         if (snapshot == null) return "UNSPECIFIED";
         if (!Files.exists(snapshot)) return "MISSING";
+        return hash(Files.readAllBytes(snapshot));
+    }
+
+    private static String hash(byte[] content) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(snapshot)));
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("SHA-256 unavailable", impossible);
         }
