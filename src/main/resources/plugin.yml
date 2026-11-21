@@ -152,6 +152,10 @@ commands:
     description: Manage and debug the one-shot End event
     usage: /<command> <status|validate|optin|portal|arm|abort|reset|debug>
     permission: bigcasares.endevent.admin
+  evento:
+    description: Join staff events, or start and stop them as staff
+    usage: /<command> <unirse|salir|estado|iniciar|detener|tipos>
+    aliases: [ eventos ]
   warp:
     description: Opens the warp menu or manages warps
     usage: /<command> [manage]
@@ -160,9 +164,22 @@ commands:
     description: Inspect and travel between BigCasares custom dimensions
     usage: /<command> <list|info|tp|leave|locate|phase|pack|export>
     aliases: [ dim ]
+  netherita:
+    description: Misiones de armadura de netherita (estado, activar y almas de boss)
+    usage: /<command> [estado|activar <casco|peto|pantalones|botas>|alma <jugador> <boss> [cantidad]|reset <jugador>]
+    aliases: [ netherite ]
   siftmodels:
     description: Turns The Sift's block models over placed slabs, stairs and plants on or off for yourself
     usage: /<command> [on|off] [player]
+  duel:
+    description: Desafía a un jugador a un duelo 1v1
+    usage: /<command> <jugador> [kit|elegir] [chica|media|grande] [apuesta] | aceptar | rechazar | cancelar | menu | kits
+    aliases: [ duelo, duelos ]
+  piranha:
+    description: Hace aparecer un cardumen de pirañas
+    usage: /<command> spawn [cantidad]
+    aliases: [ pirana ]
+    permission: bigcasares.piranhas.admin
   content:
     description: List and give code-defined content items (e.g. The Sift)
     usage: /<command> <list [namespace]|give <id> [player] [amount]>
@@ -175,6 +192,9 @@ permissions:
     default: op
   bigcasares.sift.models.others:
     description: Switch The Sift's block models on or off for another player
+  bigcasares.netherita.admin:
+    description: Give boss souls and reset netherite quests
+    default: op
   bigcasares.donpollos.admin:
     description: Manage Don Pollos (spawn, boss, cities, dances and items)
     default: op
@@ -210,6 +230,7 @@ permissions:
       bigcasares.mobscaling.admin: true
       bigcasares.command.timer: true
       bigcasares.endevent.admin: true
+      bigcasares.events.admin: true
       bigcasares.danger.view: true
       bigcasares.danger.view.others: true
       bigcasares.acidrain.admin: true
@@ -221,6 +242,7 @@ permissions:
       bigcasares.bloodmoon.stop: true
       bigcasares.jeremy.admin: true
       bigcasares.donpollos.admin: true
+      bigcasares.netherita.admin: true
       bigcasares.mutango.admin: true
       bigcasares.jeremy.start: true
       bigcasares.jeremy.stop: true
@@ -235,6 +257,7 @@ permissions:
       bigcasares.dimension.leave: true
       bigcasares.content.admin: true
       bigcasares.auth.admin: true
+      bigcasares.piranhas.admin: true
 
   bigcasares.command.timer:
     description: Start a bossbar timer
@@ -243,6 +266,14 @@ permissions:
   bigcasares.endevent.admin:
     description: Manage and debug the End event
     default: op
+
+  bigcasares.events.admin:
+    description: Start and stop staff events and bypass event restrictions
+    default: op
+
+  bigcasares.events.join:
+    description: Join staff events
+    default: true
 
   bigcasares.warp.use:
     description: Use the warp command
@@ -469,3 +500,11 @@ permissions:
   bigcasares.auth.admin:
     description: Inspect, reset and force logins of BigCasares accounts
     default: op
+
+  bigcasares.piranhas.admin:
+    description: Spawn piranha schools with /piranha spawn
+    default: op
+
+  bigcasares.duels.bypass:
+    description: Use commands and edit the duel world while dueling
+    default: false
