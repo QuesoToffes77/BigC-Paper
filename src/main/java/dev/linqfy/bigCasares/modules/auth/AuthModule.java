@@ -97,6 +97,7 @@ public final class AuthModule implements PluginModule {
     private World limbo;
     private Location limboSpawn;
     private NamespacedKey qrKey;
+    private NamespacedKey restoredStashKey;
     private NamespacedKey premiumCookieKey;
     private RuntimeRegistrationScope scope;
     private RuntimeRegistrationScope compatibilityScope;
@@ -141,6 +142,7 @@ public final class AuthModule implements PluginModule {
             settings.premium().bindAddress());
         this.mojangProfiles = new MojangProfiles("https://api.mojang.com");
         this.qrKey = new NamespacedKey(plugin, "auth_qr_map");
+        this.restoredStashKey = new NamespacedKey(plugin, "auth_restored_stash");
         this.premiumCookieKey = NamespacedKey.fromString(PremiumVerifierServer.COOKIE_KEY);
         this.onlineModeServer = Bukkit.getOnlineMode();
         this.limbo = LimboWorld.createOrLoad(settings.limboWorld());
@@ -293,6 +295,15 @@ public final class AuthModule implements PluginModule {
         AuthAccount account = accounts.find(player.getName()).orElse(null);
         PlayerAuthState state = newState(playerId, player.getName(), addressOf(player), account);
         states.put(playerId, state);
+        var playerData = player.getPersistentDataContainer();
+        try {
+            stash.retireRestored(playerId, playerData.get(restoredStashKey, PersistentDataType.STRING));
+            playerData.remove(restoredStashKey);
+        } catch (RuntimeException ex) {
+            setJoinMessage.accept(null);
+            handleInventoryRecoveryFailure(player, ex);
+            return;
+        }
         for (PlayerAuthState other : states.values()) {
             Player otherPlayer = Bukkit.getPlayer(other.playerId);
             if (!other.authenticated && otherPlayer != null && otherPlayer != player) {
@@ -329,7 +340,12 @@ public final class AuthModule implements PluginModule {
         }
         state.deferredJoinMessage = joinMessage;
         setJoinMessage.accept(null);
-        enterLimbo(player, state, original);
+        try {
+            enterLimbo(player, state, original);
+        } catch (RuntimeException ex) {
+            handleInventoryRecoveryFailure(player, ex);
+            return;
+        }
         greet(player, state);
     }
 
@@ -346,7 +362,11 @@ public final class AuthModule implements PluginModule {
             authenticatedNames.remove(key(state.name));
             return;
         }
-        releaseFromLimbo(player, state);
+        try {
+            releaseFromLimbo(player, state);
+        } catch (RuntimeException ex) {
+            plugin.getLogger().log(Level.SEVERE, "Could not restore inventory for " + player.getName(), ex);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -917,6 +937,14 @@ public final class AuthModule implements PluginModule {
     }
 
     private void completeLogin(Player player, PlayerAuthState state, AuthMethod method, boolean fromLimbo) {
+        if (fromLimbo) {
+            try {
+                releaseFromLimbo(player, state);
+            } catch (RuntimeException ex) {
+                handleInventoryRecoveryFailure(player, ex);
+                return;
+            }
+        }
         state.authenticated = true;
         state.busy = false;
         state.pgpChallenge = null;
@@ -930,7 +958,7 @@ public final class AuthModule implements PluginModule {
             player.closeInventory();
         }
         if (fromLimbo) {
-            releaseFromLimbo(player, state);
+            restorePlayerList(player);
         }
         if (state.account != null) {
             state.account.recordLogin(state.addressKey, System.currentTimeMillis());
@@ -999,32 +1027,41 @@ public final class AuthModule implements PluginModule {
             teleportOwned(player, state, target);
         }
         if (stashed.isPresent()) {
-            removeQrMaps(player);
-            List<ItemStack> extras = new ArrayList<>();
-            for (ItemStack item : player.getInventory().getContents()) {
-                if (item != null && !item.getType().isAir()) {
-                    extras.add(item);
-                }
+            InventoryStash.Stashed snapshot = stashed.get();
+            var playerData = player.getPersistentDataContainer();
+            String restoredRevision = playerData.get(restoredStashKey, PersistentDataType.STRING);
+            if (!snapshot.revision().equals(restoredRevision)) {
+                removeQrMaps(player);
+                // A player file can still contain the original inventory after an interrupted stash.
+                // Replace its contents so either version of that player file restores the same items.
+                player.getInventory().setContents(snapshot.items());
+                playerData.set(restoredStashKey, PersistentDataType.STRING, snapshot.revision());
+                player.saveData();
             }
-            player.getInventory().setContents(stashed.get().items());
-            for (ItemStack overflow : player.getInventory().addItem(extras.toArray(ItemStack[]::new)).values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), overflow);
-            }
-            stash.delete(playerId);
         }
+    }
+
+    private void restorePlayerList(Player player) {
         for (Player other : Bukkit.getOnlinePlayers()) {
             if (other == player) {
                 continue;
             }
             PlayerAuthState otherState = states.get(other.getUniqueId());
-            boolean otherPending = otherState != null && !otherState.authenticated;
-            if (state.authenticated && !otherPending && !vanished(other)) {
+            if (otherState != null && !otherState.authenticated) {
+                continue;
+            }
+            if (!vanished(other)) {
                 player.listPlayer(other);
             }
-            if (state.authenticated && !otherPending && !vanished(player)) {
+            if (!vanished(player)) {
                 other.listPlayer(player);
             }
         }
+    }
+
+    private void handleInventoryRecoveryFailure(Player player, RuntimeException failure) {
+        plugin.getLogger().log(Level.SEVERE, "Could not reconcile inventory for " + player.getName(), failure);
+        player.kick(Component.text("No se pudo recuperar tu inventario. Volvé a entrar o avisá al staff.", NamedTextColor.RED));
     }
 
     private void teleportOwned(Player player, PlayerAuthState state, Location target) {
