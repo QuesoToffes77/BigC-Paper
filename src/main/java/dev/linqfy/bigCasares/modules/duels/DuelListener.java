@@ -115,7 +115,7 @@ final class DuelListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
-        service.scheduleRestoreIfSaved(event.getPlayer().getUniqueId());
+        service.onFreshJoin(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

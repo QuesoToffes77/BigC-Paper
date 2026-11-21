@@ -49,13 +49,19 @@ public final class DuelsModule implements PluginModule {
         if (economy == null) {
             plugin.getLogger().info("[Duelos] Sin Vault/economía: los duelos funcionan sin apuestas.");
         }
+        DuelEscrow escrow = new DuelEscrow(economy == null ? null : new VaultDuelBank(plugin.getServer(), economy),
+            new File(plugin.getDataFolder(), "duels/escrow.properties").toPath());
+        escrow.recover();
+        if (escrow.needsReconciliation()) {
+            plugin.getLogger().severe("[Duelos] Hay transacciones de apuesta inciertas en duels/escrow.properties; requieren conciliación manual. Las apuestas quedan deshabilitadas.");
+        }
         DuelService service = new DuelService(
             plugin.getServer(),
             plugin.getLogger(),
             settings,
             new DuelArenaWorld(plugin.getServer(), settings.worldName()),
             new DuelStateStore(new File(plugin.getDataFolder(), "duels/saved"), plugin.getServer(), plugin.getLogger()),
-            new DuelEscrow(economy == null ? null : new VaultDuelBank(plugin.getServer(), economy)),
+            escrow,
             new DuelKitItems(plugin.getLogger()),
             System::currentTimeMillis
         );

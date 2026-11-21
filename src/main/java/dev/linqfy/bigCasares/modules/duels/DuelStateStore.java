@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.duels;
 
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
@@ -16,6 +18,13 @@ import org.bukkit.potion.PotionEffect;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -29,6 +38,7 @@ import java.util.logging.Logger;
  */
 final class DuelStateStore {
 
+    private static final NamespacedKey RESTORED_REVISION = new NamespacedKey("bigcasares", "duel_restored_revision");
     private final File folder;
     private final Server server;
     private final Logger logger;
@@ -45,6 +55,12 @@ final class DuelStateStore {
 
     /** Writes the snapshot; returns false (and changes nothing in game) when it could not be stored. */
     boolean save(Player player, long escrow) {
+        if (has(player.getUniqueId()) && !restoredInMemory(player)) {
+            logger.warning("[Duelos] Hay un estado pendiente de " + player.getName() + "; no se reemplazará.");
+            return false;
+        }
+        // Return any item held on the cursor before taking the inventory snapshot.
+        player.closeInventory();
         YamlConfiguration yaml = new YamlConfiguration();
         Location home = player.getLocation();
         yaml.set("location.world", home.getWorld().getUID().toString());
@@ -69,9 +85,9 @@ final class DuelStateStore {
         yaml.set("allow-flight", player.getAllowFlight());
         yaml.set("effects", new ArrayList<>(player.getActivePotionEffects()));
         yaml.set("escrow", escrow);
+        yaml.set("revision", UUID.randomUUID().toString());
         try {
-            folder.mkdirs();
-            yaml.save(file(player.getUniqueId()));
+            saveSnapshot(file(player.getUniqueId()), yaml);
             return true;
         } catch (IOException failure) {
             logger.log(Level.SEVERE, "[Duelos] No se pudo guardar el estado de " + player.getName(), failure);
@@ -79,23 +95,46 @@ final class DuelStateStore {
         }
     }
 
-    /** Clears the escrowed amount once the wager has been paid out, so a crash cannot pay it twice. */
-    void clearEscrow(UUID player) {
-        File file = file(player);
-        if (!file.isFile()) {
-            return;
+    boolean restoredInMemory(Player player) {
+        File snapshot = file(player.getUniqueId());
+        if (!snapshot.isFile()) return false;
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(snapshot);
+        String revision = yaml.getString("revision");
+        String marker = player.getPersistentDataContainer().get(RESTORED_REVISION, PersistentDataType.STRING);
+        return DuelSnapshotCodec.mayReplace(revision, marker);
+    }
+
+    void retireOnJoin(Player player) {
+        File snapshot = file(player.getUniqueId());
+        if (!snapshot.isFile()) return;
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(snapshot);
+        String marker = player.getPersistentDataContainer().get(RESTORED_REVISION, PersistentDataType.STRING);
+        if (DuelSnapshotCodec.mayRetire(yaml.getString("revision"), marker, true) && !snapshot.delete()) {
+            logger.warning("[Duelos] No se pudo retirar el estado restaurado de " + player.getName());
         }
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
-        yaml.set("escrow", 0L);
+    }
+
+    private void saveSnapshot(File target, YamlConfiguration yaml) throws IOException {
+        Path parent = target.toPath().toAbsolutePath().getParent();
+        Files.createDirectories(parent);
+        Path temp = Files.createTempFile(parent, "duel-", ".tmp");
         try {
-            yaml.save(file);
-        } catch (IOException failure) {
-            logger.log(Level.WARNING, "[Duelos] No se pudo actualizar la apuesta guardada de " + player, failure);
+            try (FileChannel channel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
+                ByteBuffer bytes = StandardCharsets.UTF_8.encode(yaml.saveToString());
+                while (bytes.hasRemaining()) channel.write(bytes);
+                channel.force(true);
+            }
+            Files.move(temp, target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            if (!System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).startsWith("windows")) {
+                try (FileChannel directory = FileChannel.open(parent, StandardOpenOption.READ)) { directory.force(true); }
+            }
+        } finally {
+            Files.deleteIfExists(temp);
         }
     }
 
     /**
-     * Gives the player back what the duel replaced and deletes the snapshot.
+     * Gives the player back what the duel replaced; a later fresh join retires the snapshot.
      *
      * @return the escrowed wager still owed to the player (only non-zero after a crash), or -1 when there
      *     was nothing to restore
@@ -111,23 +150,32 @@ final class DuelStateStore {
         } catch (IOException | InvalidConfigurationException failure) {
             logger.log(Level.SEVERE, "[Duelos] Estado guardado ilegible para " + player.getName()
                 + "; se conserva el archivo " + file.getName(), failure);
+            player.sendMessage("§cNo se pudo restaurar tu estado de duelo. Contactá al staff antes de continuar.");
             return -1L;
         }
-        player.closeInventory();
         ItemStack[] contents = new ItemStack[player.getInventory().getContents().length];
-        ConfigurationSection inventory = yaml.getConfigurationSection("inventory");
-        if (inventory != null) {
-            for (String key : inventory.getKeys(false)) {
-                try {
-                    int slot = Integer.parseInt(key);
-                    if (slot >= 0 && slot < contents.length) {
-                        contents[slot] = ItemStack.deserializeBytes(Base64.getDecoder().decode(inventory.getString(key)));
-                    }
-                } catch (IllegalArgumentException corrupt) {
-                    logger.warning("[Duelos] Item ilegible en el slot " + key + " de " + player.getName());
-                }
+        try {
+            var decoded = DuelSnapshotCodec.decode(yaml.getConfigurationSection("inventory"), contents.length,
+                ItemStack::deserializeBytes);
+            decoded.forEach((slot, item) -> contents[slot] = item);
+        } catch (RuntimeException corrupt) {
+            logger.log(Level.SEVERE, "[Duelos] Inventario guardado ilegible para " + player.getName()
+                + "; se conserva el archivo " + file.getName(), corrupt);
+            player.sendMessage("§cNo se pudo restaurar tu inventario. Contactá al staff antes de continuar.");
+            return -1L;
+        }
+        String revision = yaml.getString("revision");
+        if (revision == null) {
+            revision = UUID.randomUUID().toString();
+            yaml.set("revision", revision);
+            try {
+                saveSnapshot(file, yaml);
+            } catch (IOException failure) {
+                logger.log(Level.SEVERE, "[Duelos] No se pudo actualizar el estado guardado de " + player.getName(), failure);
+                return -1L;
             }
         }
+        player.closeInventory();
         player.getInventory().setContents(contents);
         player.setItemOnCursor(null);
         for (PotionEffect effect : player.getActivePotionEffects()) {
@@ -155,9 +203,8 @@ final class DuelStateStore {
         player.setFallDistance(0f);
         player.teleport(home(yaml), PlayerTeleportEvent.TeleportCause.PLUGIN);
         long escrow = yaml.getLong("escrow", 0L);
-        if (!file.delete()) {
-            logger.warning("[Duelos] No se pudo borrar " + file.getName() + " tras restaurar a " + player.getName());
-        }
+        player.getPersistentDataContainer().set(RESTORED_REVISION, PersistentDataType.STRING, revision);
+        player.saveData();
         return escrow;
     }
 

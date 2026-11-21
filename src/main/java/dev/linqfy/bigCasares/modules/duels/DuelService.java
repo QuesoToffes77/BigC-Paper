@@ -54,6 +54,8 @@ final class DuelService {
     /** Players whose saved state must be given back as soon as they are online and alive. */
     private final Set<UUID> pendingRestore = new HashSet<>();
     private final Map<DuelSession, Long> returning = new LinkedHashMap<>();
+    private final Map<Integer, DuelSession> clearing = new LinkedHashMap<>();
+    private static final int CLEAR_BUDGET = 4096;
 
     DuelService(Server server, Logger logger, DuelSettings settings, DuelArenaWorld arenas, DuelStateStore store,
                 DuelEscrow escrow, DuelKitItems kitItems, LongSupplier clock) {
@@ -157,8 +159,12 @@ final class DuelService {
         if (!escrow.canAfford(challenger.getUniqueId(), request.wager())
             || !escrow.canAfford(target.getUniqueId(), request.wager())
             || !escrow.collect(challenger.getUniqueId(), target.getUniqueId(), request.wager())) {
-            Component broke = Component.text("Alguno de los dos no tiene $" + request.wager() + " para la apuesta.",
-                NamedTextColor.RED);
+            if (escrow.needsReconciliation()) {
+                logger.severe("[Duelos] Una operación de apuesta tiene resultado incierto; revisar duels/escrow.properties.");
+            }
+            Component broke = Component.text(escrow.needsReconciliation()
+                ? "La apuesta requiere revisión del staff."
+                : "Alguno de los dos no tiene $" + request.wager() + " para la apuesta.", NamedTextColor.RED);
             target.sendMessage(broke);
             challenger.sendMessage(broke);
             return;
@@ -203,7 +209,7 @@ final class DuelService {
     void cancel(Player player) {
         DuelSession session = sessions.get(player.getUniqueId());
         if (session != null) {
-            if (session.phase() == DuelSession.Phase.DRAFT) {
+            if (session.phase() == DuelSession.Phase.DRAFT || session.phase() == DuelSession.Phase.BUILDING) {
                 abortDraft(session, player.getName() + " canceló el duelo.");
             } else {
                 player.sendMessage(Component.text("No podés cancelar un duelo en curso.", NamedTextColor.RED));
@@ -249,7 +255,9 @@ final class DuelService {
     }
 
     private boolean busy(UUID player) {
-        return sessions.containsKey(player) || pendingRestore.contains(player) || store.has(player);
+        Player online = server.getPlayer(player);
+        return sessions.containsKey(player) || pendingRestore.contains(player)
+            || store.has(player) && (online == null || !store.restoredInMemory(online));
     }
 
     private String describe(DuelRequest request) {
@@ -350,6 +358,7 @@ final class DuelService {
 
     private void abortDraft(DuelSession session, String reason) {
         end(session);
+        if (session.slot() >= 0) clearing.put(session.slot(), null);
         for (UUID id : session.players()) {
             escrow.refund(id, session.wager());
             Player player = server.getPlayer(id);
@@ -357,9 +366,13 @@ final class DuelService {
                 if (player.getOpenInventory().getTopInventory().getHolder(false) instanceof DuelDraftMenu) {
                     player.closeInventory();
                 }
-                player.sendMessage(Component.text(reason + (session.wager() > 0 ? " Se devolvió la apuesta." : ""),
+                player.sendMessage(Component.text(reason + (session.wager() > 0 ? (escrow.needsReconciliation()
+                    ? " La apuesta requiere revisión del staff." : " Se devolvió la apuesta.") : ""),
                     NamedTextColor.RED));
             }
+        }
+        if (escrow.needsReconciliation()) {
+            logger.severe("[Duelos] Una devolución tiene resultado incierto; revisar duels/escrow.properties.");
         }
     }
 
@@ -378,17 +391,39 @@ final class DuelService {
             abortDraft(session, "El mundo de duelos no está disponible.");
             return;
         }
-        if (!store.save(first, session.wager())) {
-            abortDraft(session, "No se pudo guardar tu inventario; duelo cancelado.");
-            return;
-        }
-        if (!store.save(second, session.wager())) {
-            store.restore(first);
-            abortDraft(session, "No se pudo guardar tu inventario; duelo cancelado.");
-            return;
-        }
         int slot = arenas.claimSlot();
         session.slot(slot);
+        session.phase(DuelSession.Phase.BUILDING, 0);
+        arenas.startClear(slot);
+        clearing.put(slot, session);
+        first.sendMessage(Component.text("Preparando la arena...", NamedTextColor.YELLOW));
+        second.sendMessage(Component.text("Preparando la arena...", NamedTextColor.YELLOW));
+    }
+
+    private void finishBuild(DuelSession session) {
+        DuelKit kit = settings.kits().get(session.kitId());
+        Player first = server.getPlayer(session.first());
+        Player second = server.getPlayer(session.second());
+        if (kit == null || first == null || second == null || first.isDead() || second.isDead()) {
+            arenas.releaseSlot(session.slot());
+            session.slot(-1);
+            abortDraft(session, "El duelo no pudo empezar.");
+            return;
+        }
+        if (!store.save(first, 0L)) {
+            arenas.releaseSlot(session.slot());
+            session.slot(-1);
+            abortDraft(session, "No se pudo guardar tu inventario; duelo cancelado.");
+            return;
+        }
+        if (!store.save(second, 0L)) {
+            store.restore(first);
+            arenas.releaseSlot(session.slot());
+            session.slot(-1);
+            abortDraft(session, "No se pudo guardar tu inventario; duelo cancelado.");
+            return;
+        }
+        int slot = session.slot();
         arenas.build(slot, session.arena());
         prepare(first, kit, arenas.spawn(slot, session.arena(), true));
         prepare(second, kit, arenas.spawn(slot, session.arena(), false));
@@ -425,7 +460,7 @@ final class DuelService {
         if (session == null) {
             return;
         }
-        if (session.phase() == DuelSession.Phase.DRAFT) {
+        if (session.phase() == DuelSession.Phase.DRAFT || session.phase() == DuelSession.Phase.BUILDING) {
             abortDraft(session, reason);
             return;
         }
@@ -443,7 +478,9 @@ final class DuelService {
             } else {
                 escrow.payWinner(winner, session.wager());
             }
-            session.players().forEach(store::clearEscrow);
+        }
+        if (escrow.needsReconciliation()) {
+            logger.severe("[Duelos] Una operación de apuesta tiene resultado incierto; revisar duels/escrow.properties.");
         }
         String winnerName = winner == null ? null : server.getOfflinePlayer(winner).getName();
         String loserName = winner == null ? null : server.getOfflinePlayer(session.opponent(winner)).getName();
@@ -464,6 +501,7 @@ final class DuelService {
             player.showTitle(Title.title(headline, Component.text(reason, NamedTextColor.GRAY),
                 Title.Times.times(Duration.ofMillis(150), Duration.ofSeconds(2), Duration.ofMillis(400))));
             String money = session.wager() <= 0 ? ""
+                : escrow.needsReconciliation() ? " La apuesta requiere revisión del staff."
                 : winner == null ? " Se devolvió la apuesta."
                 : winner.equals(id) ? " Ganaste $" + session.wager() * 2 + "." : " Perdiste $" + session.wager() + ".";
             player.sendMessage(Component.text(winner == null ? "Duelo empatado: " + reason + "." + money
@@ -480,8 +518,8 @@ final class DuelService {
     private void sendHome(DuelSession session) {
         end(session);
         if (session.slot() >= 0) {
-            arenas.clear(session.slot());
-            arenas.releaseSlot(session.slot());
+            arenas.startClear(session.slot());
+            clearing.put(session.slot(), null);
         }
         pendingRestore.addAll(session.players());
         processRestores();
@@ -496,9 +534,15 @@ final class DuelService {
 
     // ---------------------------------------------------------------- restore
 
-    void scheduleRestoreIfSaved(UUID player) {
-        if (!sessions.containsKey(player) && store.has(player)) {
-            pendingRestore.add(player);
+    void onFreshJoin(Player player) {
+        store.retireOnJoin(player);
+        scheduleRestoreIfSaved(player.getUniqueId());
+    }
+
+    void scheduleRestoreIfSaved(UUID id) {
+        Player player = server.getPlayer(id);
+        if (!sessions.containsKey(id) && store.has(id) && (player == null || !store.restoredInMemory(player))) {
+            pendingRestore.add(id);
         }
     }
 
@@ -518,9 +562,8 @@ final class DuelService {
             long owed = store.restore(player);
             if (owed > 0) {
                 // The server stopped mid-duel: the stake was never settled, so it goes back.
-                escrow.refund(id, owed);
-                player.sendMessage(Component.text("Se te devolvió la apuesta de un duelo interrumpido ($" + owed + ").",
-                    NamedTextColor.YELLOW));
+                logger.severe("[Duelos] Apuesta anterior al diario requiere conciliación manual: " + id + " $" + owed);
+                player.sendMessage(Component.text("Tu apuesta anterior requiere revisión del staff.", NamedTextColor.YELLOW));
             }
         }
     }
@@ -528,6 +571,7 @@ final class DuelService {
     // ---------------------------------------------------------------- loop
 
     void tick() {
+        advanceClear();
         long now = clock.getAsLong();
         for (Map<UUID, DuelRequest> pending : requests.values()) {
             pending.values().removeIf(request -> request.expired(now));
@@ -536,6 +580,7 @@ final class DuelService {
         for (DuelSession session : new ArrayList<>(new HashSet<>(sessions.values()))) {
             switch (session.phase()) {
                 case DRAFT -> tickDraft(session, now);
+                case BUILDING -> { }
                 case COUNTDOWN -> tickCountdown(session, now);
                 case FIGHT -> tickFight(session, now);
                 case ENDING -> {
@@ -546,6 +591,22 @@ final class DuelService {
             }
         }
         processRestores();
+    }
+
+    private void advanceClear() {
+        if (clearing.isEmpty()) return;
+        var iterator = clearing.entrySet().iterator();
+        var next = iterator.next();
+        int slot = next.getKey();
+        DuelSession session = next.getValue();
+        iterator.remove();
+        if (!arenas.stepClear(slot, CLEAR_BUDGET)) {
+            clearing.put(slot, session);
+        } else if (session == null) {
+            arenas.releaseSlot(slot);
+        } else {
+            finishBuild(session);
+        }
     }
 
     private void tickDraft(DuelSession session, long now) {
@@ -605,7 +666,7 @@ final class DuelService {
     /** Module shutdown: every duel ends without a winner, stakes go back and online players go home now. */
     void shutdown() {
         for (DuelSession session : new ArrayList<>(new HashSet<>(sessions.values()))) {
-            if (session.phase() == DuelSession.Phase.DRAFT) {
+            if (session.phase() == DuelSession.Phase.DRAFT || session.phase() == DuelSession.Phase.BUILDING) {
                 abortDraft(session, "Los duelos se reiniciaron.");
             } else {
                 if (session.phase() != DuelSession.Phase.ENDING) {

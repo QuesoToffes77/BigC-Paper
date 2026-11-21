@@ -11,6 +11,8 @@ final class DuelSession {
     enum Phase {
         /** Players are still where they were, choosing the kit. */
         DRAFT,
+        /** The arena is being cleared before the players are moved. */
+        BUILDING,
         /** In the arena, frozen. */
         COUNTDOWN,
         FIGHT,
@@ -101,7 +103,7 @@ final class DuelSession {
     }
 
     boolean inArena() {
-        return phase != Phase.DRAFT;
+        return phase != Phase.DRAFT && phase != Phase.BUILDING;
     }
 
     void placed(int x, int y, int z) {

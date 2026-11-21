@@ -14,6 +14,8 @@ import org.bukkit.util.BoundingBox;
 
 import java.util.BitSet;
 import java.util.Random;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The separate dimension for duels: an empty world where every running duel gets its own arena, built when
@@ -30,6 +32,7 @@ final class DuelArenaWorld {
     private final String worldName;
     private final BitSet usedSlots = new BitSet();
     private World world;
+    private final Map<Integer, DuelArenaWork> work = new HashMap<>();
 
     DuelArenaWorld(Server server, String worldName) {
         this.server = server;
@@ -103,7 +106,6 @@ final class DuelArenaWorld {
 
     void build(int slot, DuelArenaSize size) {
         World target = world();
-        clear(slot);
         int half = (int) Math.ceil(size.halfSide());
         int cx = (int) Math.floor(centerX(slot));
         for (int dx = -half; dx < half; dx++) {
@@ -125,29 +127,29 @@ final class DuelArenaWorld {
         }
     }
 
-    /** Wipes the largest arena footprint of the slot, blocks and dropped entities alike. */
-    void clear(int slot) {
+    /** Schedule a bounded clear; the slot remains reserved until completion. */
+    void startClear(int slot) {
+        work.put(slot, new DuelArenaWork());
+    }
+
+    boolean stepClear(int slot, int budget) {
+        DuelArenaWork job = work.get(slot);
+        if (job == null) return true;
         World target = world();
-        if (target == null) {
-            return;
-        }
-        int half = (int) Math.ceil(DuelArenaSize.GRANDE.halfSide()) + 2;
+        if (target == null) return false;
         int cx = (int) Math.floor(centerX(slot));
-        for (int dx = -half; dx <= half; dx++) {
-            for (int dz = -half; dz <= half; dz++) {
-                for (int y = FLOOR_Y - 2; y <= FLOOR_Y + WALL_HEIGHT + 2; y++) {
-                    if (!target.getBlockAt(cx + dx, y, dz).getType().isAir()) {
-                        target.getBlockAt(cx + dx, y, dz).setType(Material.AIR, false);
-                    }
-                }
-            }
-        }
+        job.step(budget, (dx, y, dz) -> {
+            var block = target.getBlockAt(cx + dx, y, dz);
+            if (!block.getType().isAir()) block.setType(Material.AIR, false);
+        });
+        if (!job.done()) return false;
+        work.remove(slot);
+        int half = 34;
         BoundingBox area = new BoundingBox(cx - half, FLOOR_Y - 64, -half, cx + half, FLOOR_Y + 128, half);
         for (Entity entity : target.getNearbyEntities(area)) {
-            if (!(entity instanceof Player)) {
-                entity.remove();
-            }
+            if (!(entity instanceof Player)) entity.remove();
         }
+        return true;
     }
 
     /** Generates nothing at all. */
