@@ -1,10 +1,14 @@
 package dev.linqfy.bigCasares.modules.auctionhouse;
 
 import org.bukkit.Server;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
+import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,11 +18,15 @@ final class AuctionHouseController {
     private final Server server;
     private final AuctionHouseService<ItemStack> service;
     private final AuctionMenus menus;
+    private final NamespacedKey receiptKey;
+    private final NamespacedKey listingReceiptKey;
 
-    AuctionHouseController(Server server, AuctionHouseService<ItemStack> service, AuctionMenus menus) {
+    AuctionHouseController(Plugin plugin, Server server, AuctionHouseService<ItemStack> service, AuctionMenus menus) {
         this.server = server;
         this.service = service;
         this.menus = menus;
+        this.receiptKey = new NamespacedKey(plugin, "auction_claim_receipt");
+        this.listingReceiptKey = new NamespacedKey(plugin, "auction_listing_receipt");
     }
 
     AuctionHouseService<ItemStack> service() {
@@ -36,9 +44,26 @@ final class AuctionHouseController {
             return;
         }
         ItemStack item = hand.clone();
-        switch (service.list(player.getUniqueId(), player.getName(), item, price)) {
+        if (service.pendingListing(player.getUniqueId()).isPresent()) {
+            player.sendMessage("§cTenés una publicación pendiente de revisión. Contactá a un administrador.");
+            return;
+        }
+        AuctionHouseService.ListingPreparation prepared = service.prepareListing(
+            player.getUniqueId(), player.getName(), item, price, inventorySnapshot(player));
+        switch (prepared.status()) {
             case LISTED -> {
-                player.getInventory().setItemInMainHand(null);
+                try {
+                    player.getInventory().setItemInMainHand(null);
+                    service.recordListingOutcome(prepared.id(), inventorySnapshot(player));
+                    String receipt = service.pendingListing(player.getUniqueId()).orElseThrow().getValue().receiptId();
+                    PlayerDataCheckpoint.save(player, listingReceiptKey, receipt);
+                    service.finishListing(prepared.id());
+                } catch (RuntimeException | java.io.IOException failure) {
+                    server.getLogger().log(java.util.logging.Level.SEVERE,
+                        "[AuctionHouse] Listing deposit needs review for " + player.getUniqueId(), failure);
+                    player.sendMessage("§cTu publicación quedó pendiente de revisión. Contactá a un administrador.");
+                    return;
+                }
                 long tax = service.settings().taxOf(price);
                 player.sendMessage("§aPublicaste §f" + item.getAmount() + "x " + describe(item)
                     + " §apor §f" + AuctionFormat.money(price) + "§a."
@@ -58,9 +83,9 @@ final class AuctionHouseController {
         AuctionListing<ItemStack> listing = result.listing();
         switch (result.status()) {
             case BOUGHT -> {
-                give(player, List.of(listing.item()));
                 player.sendMessage("§aCompraste §f" + listing.item().getAmount() + "x " + describe(listing.item())
                     + " §apor §f" + AuctionFormat.money(listing.price()) + "§a.");
+                claim(player);
                 Player seller = server.getPlayer(listing.seller());
                 if (seller != null) {
                     long payout = listing.price() - service.settings().taxOf(listing.price());
@@ -83,34 +108,83 @@ final class AuctionHouseController {
             player.sendMessage("§cEsa subasta ya no está disponible.");
             return;
         }
-        give(player, List.of(item.get()));
         player.sendMessage("§eRetiraste " + describe(item.get()) + " de la casa de subastas.");
+        claim(player);
     }
 
     void claim(Player player) {
-        List<ItemStack> items = service.takeClaims(player.getUniqueId());
+        if (service.hasPendingClaim(player.getUniqueId())) {
+            player.sendMessage("§cTu entrega quedó pendiente de revisión. Contactá a un administrador.");
+            return;
+        }
+        List<ItemStack> items = service.takeClaims(player.getUniqueId(), inventorySnapshot(player));
         if (items.isEmpty()) {
             player.sendMessage("§7No tenés items pendientes para reclamar.");
             return;
         }
-        int kept = give(player, items);
-        int delivered = items.size() - kept;
-        player.sendMessage(kept == 0
-            ? "§aReclamaste " + delivered + " item(s)."
-            : "§eReclamaste " + delivered + " item(s); " + kept + " no entraron y siguen pendientes.");
+        try {
+            List<ItemStack> leftovers = new ArrayList<>();
+            for (ItemStack item : items) {
+                leftovers.addAll(player.getInventory().addItem(item.clone()).values());
+            }
+            service.recordClaimOutcome(player.getUniqueId(), inventorySnapshot(player), leftovers);
+            String receipt = service.pendingClaim(player.getUniqueId()).orElseThrow().receiptId();
+            PlayerDataCheckpoint.save(player, receiptKey, receipt);
+            service.finishClaim(player.getUniqueId());
+            int delivered = items.size() - leftovers.size();
+            player.sendMessage(leftovers.isEmpty()
+                ? "§aReclamaste " + delivered + " item(s)."
+                : "§eReclamaste " + delivered + " item(s); " + leftovers.size() + " no entraron y siguen pendientes.");
+        } catch (RuntimeException | java.io.IOException failure) {
+            player.sendMessage("§cTu entrega quedó pendiente de revisión. Contactá a un administrador.");
+            server.getLogger().log(java.util.logging.Level.SEVERE,
+                "[AuctionHouse] Item handoff needs review for " + player.getUniqueId(), failure);
+        }
     }
 
-    /** Adds the items to the inventory; what does not fit goes back to the claim box. Returns how many stacks were kept. */
-    int give(Player player, List<ItemStack> items) {
-        List<ItemStack> leftovers = new ArrayList<>();
-        for (ItemStack item : items) {
-            leftovers.addAll(player.getInventory().addItem(item.clone()).values());
+    void recoverClaim(Player player) {
+        service.pendingClaim(player.getUniqueId()).ifPresent(receipt -> {
+            try {
+                if (receipt.inventoryAfter() != null && PlayerDataCheckpoint.contains(player, receiptKey, receipt.receiptId())) {
+                    PlayerDataCheckpoint.confirm(player, receiptKey, receipt.receiptId());
+                    service.finishClaim(player.getUniqueId());
+                    player.sendMessage("§aSe confirmó tu entrega pendiente de la casa de subastas.");
+                } else {
+                    player.sendMessage("§cTenés una entrega pendiente de revisión. Contactá a un administrador.");
+                }
+            } catch (java.io.IOException | RuntimeException failure) {
+                server.getLogger().log(java.util.logging.Level.SEVERE,
+                    "[AuctionHouse] Could not verify pending claim for " + player.getUniqueId(), failure);
+                player.sendMessage("§cTenés una entrega pendiente de revisión. Contactá a un administrador.");
+            }
+        });
+    }
+
+    void recoverListing(Player player) {
+        service.pendingListing(player.getUniqueId()).ifPresent(pending -> {
+            AuctionListingHold hold = pending.getValue();
+            try {
+                if (hold.inventoryAfter() != null && PlayerDataCheckpoint.contains(player, listingReceiptKey, hold.receiptId())) {
+                    PlayerDataCheckpoint.confirm(player, listingReceiptKey, hold.receiptId());
+                    service.finishListing(pending.getKey());
+                    player.sendMessage("§aSe confirmó tu publicación pendiente en la casa de subastas.");
+                } else {
+                    player.sendMessage("§cTenés una publicación pendiente de revisión. Contactá a un administrador.");
+                }
+            } catch (java.io.IOException | RuntimeException failure) {
+                server.getLogger().log(java.util.logging.Level.SEVERE,
+                    "[AuctionHouse] Could not verify listing deposit for " + player.getUniqueId(), failure);
+                player.sendMessage("§cTenés una publicación pendiente de revisión. Contactá a un administrador.");
+            }
+        });
+    }
+
+    private static String inventorySnapshot(Player player) {
+        ItemStack[] items = player.getInventory().getContents().clone();
+        for (int slot = 0; slot < items.length; slot++) {
+            if (items[slot] == null) items[slot] = ItemStack.empty();
         }
-        if (!leftovers.isEmpty()) {
-            service.addClaims(player.getUniqueId(), leftovers);
-            player.sendMessage("§eTu inventario está lleno: usá §f/ah reclamar §epara recibir el resto.");
-        }
-        return leftovers.size();
+        return Base64.getEncoder().encodeToString(ItemStack.serializeItemsAsBytes(items));
     }
 
     static String describe(ItemStack item) {

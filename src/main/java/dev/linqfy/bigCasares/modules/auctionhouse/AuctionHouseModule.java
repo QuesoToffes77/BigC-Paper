@@ -70,7 +70,7 @@ public final class AuctionHouseModule implements PluginModule {
         AuctionHouseService<ItemStack> created = new AuctionHouseService<>(settings, bank,
             new YamlAuctionStore(plugin.getDataFolder().toPath().resolve("data/auction-house.yml"), plugin.getLogger()),
             clock);
-        AuctionHouseController controller = new AuctionHouseController(plugin.getServer(), created,
+        AuctionHouseController controller = new AuctionHouseController(plugin, plugin.getServer(), created,
             new AuctionMenus(created, bank, clock));
 
         registrations.registerListener("auction-house-listener", new AuctionHouseListener(controller,

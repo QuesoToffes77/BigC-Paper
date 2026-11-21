@@ -12,8 +12,25 @@ import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class YamlAuctionStoreTest {
+    @Test
+    void legacyFileWithoutItemReceiptsStillLoads(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("market.yml");
+        Files.writeString(file, "next-id: 1\nlistings: {}\nclaims: {}\n");
+        var snapshot = new YamlAuctionStore(file, Logger.getAnonymousLogger()).load();
+        assertTrue(snapshot.pendingClaims().isEmpty());
+        assertTrue(snapshot.pendingListings().isEmpty());
+    }
+
+    @Test
+    void corruptItemReceiptFailsClosed(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("market.yml");
+        Files.writeString(file, "pending-claims:\n  broken-player:\n    receipt-id: invalid\n");
+        assertThrows(IllegalStateException.class, () -> new YamlAuctionStore(file, Logger.getAnonymousLogger()).load());
+    }
+
     @Test
     void pendingPurchaseSurvivesDiskRoundTrip(@TempDir Path dir) {
         UUID buyer = UUID.randomUUID();

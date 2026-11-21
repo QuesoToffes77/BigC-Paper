@@ -101,6 +101,8 @@ final class AuctionHouseListener implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        controller.recoverListing(event.getPlayer());
+        controller.recoverClaim(event.getPlayer());
         int waiting = controller.service().claims(event.getPlayer().getUniqueId()).size();
         if (waiting > 0) {
             event.getPlayer().sendMessage("§dTenés " + waiting

@@ -43,6 +43,39 @@ class AuctionHouseServiceTest {
     }
 
     @Test
+    void interruptedListingDepositRemainsHiddenAfterRestart() {
+        AuctionHouseService.ListingPreparation prepared = service.prepareListing(SELLER, "Seller", "diamond", 200, "before");
+        assertEquals(AuctionHouseService.ListResult.LISTED, prepared.status());
+        AuctionHouseService<String> restarted = new AuctionHouseService<>(
+            AuctionHouseSettings.defaults(), bank, store, clock);
+        assertTrue(restarted.active().isEmpty());
+        assertEquals("diamond", store.saved.listings().getFirst().item());
+        assertEquals("before", store.saved.pendingListings().get(prepared.id()).inventoryBefore());
+        assertEquals(AuctionHouseService.BuyStatus.NOT_FOUND, restarted.buy(BUYER, prepared.id()).status());
+        assertTrue(restarted.cancel(SELLER, prepared.id()).isEmpty());
+        assertTrue(restarted.remove(prepared.id()).isEmpty());
+        restarted.addClaims(BUYER, List.of("unrelated"));
+        restarted.recordListingOutcome(prepared.id(), "after");
+        AuctionHouseService<String> afterRestart = new AuctionHouseService<>(
+            AuctionHouseSettings.defaults(), bank, store, clock);
+        assertEquals("after", afterRestart.pendingListing(SELLER).orElseThrow().getValue().inventoryAfter());
+        afterRestart.finishListing(prepared.id());
+        assertEquals(1, afterRestart.active().size());
+    }
+
+    @Test
+    void uncertainWriteFreezesFurtherChangesAndRetainsSavedDepositHold() {
+        store.failAfterSave = true;
+        assertThrows(IllegalStateException.class, () -> service.prepareListing(SELLER, "Seller", "diamond", 200, "before"));
+        store.failAfterSave = false;
+        assertThrows(IllegalStateException.class, () -> service.prepareListing(SELLER, "Seller", "diamond", 200, "before"));
+        AuctionHouseService<String> restarted = new AuctionHouseService<>(
+            AuctionHouseSettings.defaults(), bank, store, clock);
+        assertTrue(restarted.active().isEmpty());
+        assertTrue(restarted.pendingListing(SELLER).isPresent());
+    }
+
+    @Test
     void validatesPriceAndListingLimit() {
         assertEquals(AuctionHouseService.ListResult.PRICE_TOO_LOW, service.list(SELLER, "Seller", "dirt", 9));
         assertEquals(AuctionHouseService.ListResult.PRICE_TOO_HIGH, service.list(SELLER, "Seller", "dirt", 1_001));
@@ -66,6 +99,9 @@ class AuctionHouseServiceTest {
         assertEquals(180L, bank.balance(SELLER));
         assertTrue(service.active().isEmpty());
         assertTrue(store.saved.listings().isEmpty());
+        AuctionHouseService<String> restarted = new AuctionHouseService<>(
+            AuctionHouseSettings.defaults(), bank, store, clock);
+        assertEquals(List.of("diamond"), restarted.claims(BUYER));
         assertEquals(AuctionHouseService.BuyStatus.NOT_FOUND, service.buy(BUYER, id).status());
     }
 
@@ -192,8 +228,72 @@ class AuctionHouseServiceTest {
         assertEquals(List.of("diamond"), service.claims(SELLER));
         assertEquals(List.of("diamond"), store.saved.claims().get(SELLER));
         assertEquals(List.of("diamond"), service.takeClaims(SELLER));
-        assertTrue(service.claims(SELLER).isEmpty());
+        AuctionHouseService<String> restarted = new AuctionHouseService<>(
+            AuctionHouseSettings.defaults(), bank, store, clock);
+        assertEquals(List.of("diamond"), restarted.claims(SELLER));
+        assertTrue(restarted.takeClaims(SELLER).isEmpty());
         assertEquals(500L, bank.balance(BUYER));
+    }
+
+    @Test
+    void acknowledgedClaimPreservesLeftoversAndNewlyArrivedItems() {
+        service.addClaims(BUYER, List.of("diamond", "emerald"));
+        assertEquals(List.of("diamond", "emerald"), service.takeClaims(BUYER, "before"));
+        service.addClaims(BUYER, List.of("gold"));
+        service.recordClaimOutcome(BUYER, "after", List.of("emerald"));
+        service.finishClaim(BUYER);
+        AuctionHouseService<String> restarted = new AuctionHouseService<>(
+            AuctionHouseSettings.defaults(), bank, store, clock);
+        assertEquals(List.of("emerald", "gold"), restarted.claims(BUYER));
+        assertTrue(!restarted.hasPendingClaim(BUYER));
+    }
+
+    @Test
+    void uncertainClaimPersistsInventoryEvidenceAndCannotBeRetried() {
+        service.addClaims(BUYER, List.of("diamond"));
+        service.takeClaims(BUYER, "before");
+        service.recordClaimOutcome(BUYER, "after", List.of());
+        AuctionHouseService<String> restarted = new AuctionHouseService<>(
+            AuctionHouseSettings.defaults(), bank, store, clock);
+        assertTrue(restarted.hasPendingClaim(BUYER));
+        assertEquals("before", store.saved.pendingClaims().get(BUYER).inventoryBefore());
+        assertEquals("after", store.saved.pendingClaims().get(BUYER).inventoryAfter());
+        assertTrue(restarted.takeClaims(BUYER).isEmpty());
+    }
+
+    @Test
+    void claimResolutionRequiresTheExactReceiptAndPreservesItemsWhenNotDelivered() {
+        service.addClaims(BUYER, List.of("diamond"));
+        service.takeClaims(BUYER, "before");
+        String id = service.pendingClaim(BUYER).orElseThrow().receiptId();
+        assertTrue(!service.resolveClaim(BUYER, UUID.randomUUID().toString(), false));
+        assertTrue(service.resolveClaim(BUYER, id, false));
+        assertEquals(List.of("diamond"), service.claims(BUYER));
+        assertTrue(!service.hasPendingClaim(BUYER));
+    }
+
+    @Test
+    void listingResolutionRequiresTheExactReceiptAndRetiresAnUnremovedItem() {
+        var prepared = service.prepareListing(SELLER, "Seller", "diamond", 200, "before");
+        String id = service.pendingListing(SELLER).orElseThrow().getValue().receiptId();
+        assertTrue(!service.resolveListing(prepared.id(), UUID.randomUUID().toString(), false));
+        assertTrue(service.resolveListing(prepared.id(), id, false));
+        assertTrue(service.pendingListing(SELLER).isEmpty());
+        assertTrue(store.saved.listings().isEmpty());
+    }
+
+    @Test
+    void verifiedManualResolutionsCompleteOnlyTheSpecifiedReceipt() {
+        service.addClaims(BUYER, List.of("diamond", "emerald"));
+        service.takeClaims(BUYER, "before");
+        String claimId = service.pendingClaim(BUYER).orElseThrow().receiptId();
+        service.recordClaimOutcome(BUYER, "after", List.of("emerald"));
+        assertTrue(service.resolveClaim(BUYER, claimId, true));
+        assertEquals(List.of("emerald"), service.claims(BUYER));
+        var prepared = service.prepareListing(SELLER, "Seller", "gold", 200, "before");
+        String listingId = service.pendingListing(SELLER).orElseThrow().getValue().receiptId();
+        assertTrue(service.resolveListing(prepared.id(), listingId, true));
+        assertEquals(1, service.active().size());
     }
 
     @Test
@@ -205,8 +305,10 @@ class AuctionHouseServiceTest {
 
         assertEquals(Optional.empty(), service.cancel(BUYER, diamond));
         assertEquals(Optional.of("diamond"), service.cancel(SELLER, diamond));
+        assertEquals(List.of("diamond"), new AuctionHouseService<>(
+            AuctionHouseSettings.defaults(), bank, store, clock).claims(SELLER));
         assertEquals("emerald", service.remove(emerald).orElseThrow().item());
-        assertEquals(List.of("emerald"), service.claims(SELLER));
+        assertEquals(List.of("diamond", "emerald"), service.claims(SELLER));
         assertTrue(service.listingsOf(SELLER).isEmpty());
     }
 
@@ -260,6 +362,7 @@ class AuctionHouseServiceTest {
     private static final class MemoryStore implements AuctionStore<String> {
         private AuctionSnapshot<String> saved = AuctionSnapshot.empty();
         private boolean fail;
+        private boolean failAfterSave;
         private int saveCount;
         private int failOnSave = -1;
 
@@ -272,6 +375,7 @@ class AuctionHouseServiceTest {
         public void save(AuctionSnapshot<String> snapshot) {
             if (fail || ++saveCount == failOnSave) throw new IllegalStateException("disk unavailable");
             saved = snapshot;
+            if (failAfterSave) throw new IllegalStateException("unknown write result");
         }
     }
 

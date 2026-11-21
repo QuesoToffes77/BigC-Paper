@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
 
 /** Stores listings and claim boxes in {@code data/auction-house.yml}, written atomically. */
 final class YamlAuctionStore implements AuctionStore<ItemStack> {
@@ -70,7 +71,53 @@ final class YamlAuctionStore implements AuctionStore<ItemStack> {
                 }
             }
         }
-        return new AuctionSnapshot<>(yaml.getLong("next-id", 1), listings, claims, readPending(yaml, file));
+        Map<UUID, AuctionClaim<ItemStack>> pendingClaims = new LinkedHashMap<>();
+        ConfigurationSection pendingClaimSection = yaml.getConfigurationSection("pending-claims");
+        if (yaml.contains("pending-claims") && pendingClaimSection == null) {
+            throw new IllegalStateException("Invalid pending claims in " + file);
+        }
+        if (pendingClaimSection != null) {
+            for (String key : pendingClaimSection.getKeys(false)) {
+                try {
+                    ConfigurationSection entry = pendingClaimSection.getConfigurationSection(key);
+                    if (entry == null) throw new IllegalArgumentException("not a section");
+                    pendingClaims.put(UUID.fromString(key), new AuctionClaim<>(
+                        itemList(entry, "items"), entry.getString("inventory-before", ""),
+                        entry.getString("inventory-after"), itemList(entry, "leftovers"),
+                        entry.getString("receipt-id", "")));
+                } catch (RuntimeException invalid) {
+                    throw new IllegalStateException("Invalid pending claim " + key + " in " + file, invalid);
+                }
+            }
+        }
+        Map<Long, AuctionListingHold> pendingListings = new LinkedHashMap<>();
+        ConfigurationSection pendingListingSection = yaml.getConfigurationSection("pending-listings");
+        if (yaml.contains("pending-listings") && pendingListingSection == null) {
+            throw new IllegalStateException("Invalid pending listings in " + file);
+        }
+        if (pendingListingSection != null) {
+            for (String key : pendingListingSection.getKeys(false)) {
+                try {
+                    ConfigurationSection entry = pendingListingSection.getConfigurationSection(key);
+                    if (entry == null) throw new IllegalArgumentException("not a section");
+                    pendingListings.put(Long.parseLong(key), new AuctionListingHold(
+                        UUID.fromString(entry.getString("seller", "")), entry.getString("inventory-before", ""),
+                        entry.getString("inventory-after"), entry.getString("receipt-id", "")));
+                } catch (RuntimeException invalid) {
+                    throw new IllegalStateException("Invalid pending listing " + key + " in " + file, invalid);
+                }
+            }
+        }
+        return new AuctionSnapshot<>(yaml.getLong("next-id", 1), listings, claims, readPending(yaml, file), pendingClaims, pendingListings);
+    }
+
+    private static List<ItemStack> itemList(ConfigurationSection entry, String key) {
+        List<ItemStack> items = new ArrayList<>();
+        for (Object value : entry.getList(key, List.of())) {
+            if (!(value instanceof ItemStack item)) throw new IllegalArgumentException("invalid item");
+            items.add(item);
+        }
+        return items;
     }
 
     static Map<Long, AuctionPurchase> readPending(YamlConfiguration yaml, Path file) {
@@ -130,11 +177,34 @@ final class YamlAuctionStore implements AuctionStore<ItemStack> {
         ConfigurationSection claimSection = yaml.createSection("claims");
         snapshot.claims().forEach((player, items) -> claimSection.set(player.toString(), items));
         writePending(yaml, snapshot.pendingPurchases());
+        ConfigurationSection pendingClaimSection = yaml.createSection("pending-claims");
+        snapshot.pendingClaims().forEach((player, receipt) -> {
+            ConfigurationSection entry = pendingClaimSection.createSection(player.toString());
+            entry.set("items", receipt.items());
+            entry.set("inventory-before", receipt.inventoryBefore());
+            entry.set("inventory-after", receipt.inventoryAfter());
+            entry.set("leftovers", receipt.leftovers());
+            entry.set("receipt-id", receipt.receiptId());
+        });
+        ConfigurationSection pendingListingSection = yaml.createSection("pending-listings");
+        snapshot.pendingListings().forEach((id, hold) -> {
+            ConfigurationSection entry = pendingListingSection.createSection(Long.toString(id));
+            entry.set("seller", hold.seller().toString());
+            entry.set("inventory-before", hold.inventoryBefore());
+            entry.set("inventory-after", hold.inventoryAfter());
+            entry.set("receipt-id", hold.receiptId());
+        });
         try {
+            boolean newDirectory = !Files.isDirectory(file.getParent());
             Files.createDirectories(file.getParent());
+            if (newDirectory && file.getParent().getParent() != null) {
+                PlayerDataCheckpoint.forceDirectory(file.getParent().getParent());
+            }
             Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
             Files.writeString(temporary, yaml.saveToString());
+            PlayerDataCheckpoint.forceFile(temporary);
             Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            PlayerDataCheckpoint.forceDirectory(file.getParent());
         } catch (IOException failure) {
             throw new IllegalStateException("Could not save " + file, failure);
         }
