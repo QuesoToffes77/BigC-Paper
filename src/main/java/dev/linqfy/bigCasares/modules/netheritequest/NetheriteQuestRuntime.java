@@ -141,11 +141,15 @@ final class NetheriteQuestRuntime {
     void expireQuests() {
         long now = clock.getAsLong();
         for (NetheriteQuestBook.Expired expired : book.expireAll(now)) {
-            dirty = true;
-            Player player = server.getPlayer(expired.playerId());
-            if (player != null) {
-                player.sendMessage("§cSe venció el tiempo de la misión del " + expired.piece().displayName() + ".");
-            }
+            notifyExpired(expired.playerId(), expired.piece());
+        }
+    }
+
+    private void notifyExpired(UUID playerId, ArmorQuestPiece piece) {
+        dirty = true;
+        Player player = server.getPlayer(playerId);
+        if (player != null) {
+            player.sendMessage("§cSe venció el tiempo de la misión del " + piece.displayName() + ".");
         }
     }
 
@@ -212,7 +216,7 @@ final class NetheriteQuestRuntime {
 
     List<String> status(UUID playerId) {
         long now = clock.getAsLong();
-        book.expireAll(now);
+        book.expireFor(playerId, now).forEach(piece -> notifyExpired(playerId, piece));
         PlayerView view = book.view(playerId);
         List<String> lines = new ArrayList<>();
         lines.add("§6§lMisiones de Netherita");

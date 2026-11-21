@@ -39,7 +39,7 @@ public final class NetheriteQuestBook {
                                int playerLevels, long now) {
         Objects.requireNonNull(piece, "piece");
         PlayerQuests state = state(playerId);
-        expire(playerId, state, now);
+        expire(state, now);
         if (state.active.containsKey(piece)) {
             return Activation.refused(ActivationStatus.ALREADY_ACTIVE);
         }
@@ -109,9 +109,14 @@ public final class NetheriteQuestBook {
     /** Removes every quest past its deadline. */
     public List<Expired> expireAll(long now) {
         List<Expired> expired = new ArrayList<>();
-        players.forEach((playerId, state) -> expire(playerId, state, now).forEach(piece ->
+        players.forEach((playerId, state) -> expire(state, now).forEach(piece ->
             expired.add(new Expired(playerId, piece))));
         return expired;
+    }
+
+    List<ArmorQuestPiece> expireFor(UUID playerId, long now) {
+        PlayerQuests state = players.get(playerId);
+        return state == null ? List.of() : expire(state, now);
     }
 
     public long remainingMillis(ActiveQuest quest, long now) {
@@ -185,7 +190,7 @@ public final class NetheriteQuestBook {
         return true;
     }
 
-    private List<ArmorQuestPiece> expire(UUID playerId, PlayerQuests state, long now) {
+    private List<ArmorQuestPiece> expire(PlayerQuests state, long now) {
         List<ArmorQuestPiece> expired = new ArrayList<>();
         state.active.entrySet().removeIf(entry -> {
             if (isExpired(entry.getValue(), now)) {
