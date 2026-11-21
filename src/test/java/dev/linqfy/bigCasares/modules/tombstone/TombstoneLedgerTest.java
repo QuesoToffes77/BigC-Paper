@@ -1,8 +1,8 @@
 package dev.linqfy.bigCasares.modules.tombstone;
 
+import dev.linqfy.bigCasares.testsupport.CompiledClass;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
-import dev.linqfy.bigCasares.testsupport.CompiledClass;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
