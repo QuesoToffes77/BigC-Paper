@@ -74,6 +74,16 @@ class ArenaBuilderTest {
     }
 
     @Test
+    void completedChunkTicketIsReleasedWhenCancelledBeforePolling() {
+        FakeWorld fake = new FakeWorld();
+        ArenaBuilder builder = new ArenaBuilder(null, layout(), fake, false);
+        assertFalse(builder.step(7));
+        assertEquals(1, fake.ticketsAdded);
+        builder.close();
+        assertEquals(1, fake.ticketsRemoved);
+    }
+
+    @Test
     void fallbackRechecksBlocksChangedAfterPreflight() {
         FakeWorld fake = new FakeWorld();
         ArenaBuilder builder = new ArenaBuilder(null, layout(), fake, true);
@@ -110,14 +120,18 @@ class ArenaBuilderTest {
     private static final class FakeWorld implements ArenaBuilder.Access {
         private final Map<ArenaBuildPlan.Cell, Material> blocks = new HashMap<>();
         private int visits, writes, ticketsAdded, ticketsRemoved, loads;
-        private CompletableFuture<?> pending;
+        private CompletableFuture<Boolean> pending;
         private boolean available = true;
 
         public int minHeight() { return 0; }
         public int maxHeight() { return 256; }
-        public CompletableFuture<?> load(int x, int z) { loads++; return pending == null ? CompletableFuture.completedFuture(null) : pending; }
+        public CompletableFuture<Boolean> load(int x, int z) {
+            loads++;
+            if (pending != null) return pending;
+            ticketsAdded++;
+            return CompletableFuture.completedFuture(true);
+        }
         public boolean loaded(int x, int z) { return available; }
-        public boolean addTicket(int x, int z) { ticketsAdded++; return true; }
         public void removeTicket(int x, int z) { ticketsRemoved++; }
         public Material get(ArenaBuildPlan.Cell cell) { if (!available) throw new IllegalStateException("unloaded"); visits++; return blocks.getOrDefault(cell, Material.AIR); }
         public void set(ArenaBuildPlan.Cell cell, Material material) { writes++; blocks.put(cell, material); }

@@ -19,7 +19,7 @@ final class ArenaBuilder {
     private final int minChunkX, maxChunkX, minChunkZ, maxChunkZ;
     private int chunkX, chunkZ;
     private boolean checking;
-    private java.util.concurrent.CompletableFuture<?> loading;
+    private java.util.concurrent.CompletableFuture<Boolean> loading;
     private ArenaBuildPlan.Cursor cursor;
     private boolean ticketOwned;
     private boolean closed;
@@ -27,9 +27,8 @@ final class ArenaBuilder {
     interface Access {
         int minHeight();
         int maxHeight();
-        java.util.concurrent.CompletableFuture<?> load(int chunkX, int chunkZ);
+        java.util.concurrent.CompletableFuture<Boolean> load(int chunkX, int chunkZ);
         boolean loaded(int chunkX, int chunkZ);
-        boolean addTicket(int chunkX, int chunkZ);
         void removeTicket(int chunkX, int chunkZ);
         Material get(ArenaBuildPlan.Cell cell);
         void set(ArenaBuildPlan.Cell cell, Material material);
@@ -84,10 +83,12 @@ final class ArenaBuilder {
                     return false;
                 }
                 if (!loading.isDone()) return false;
-                loading.join();
+                ticketOwned = Boolean.TRUE.equals(loading.join());
                 loading = null;
-                if (!access.loaded(chunkX, chunkZ)) return false;
-                ticketOwned = access.addTicket(chunkX, chunkZ);
+                if (!access.loaded(chunkX, chunkZ)) {
+                    releaseChunk();
+                    return false;
+                }
                 cursor = new ArenaBuildPlan.Cursor(layout, chunkX, chunkZ);
             }
             while (visited < budget && cursor.hasNext()) {
@@ -123,7 +124,13 @@ final class ArenaBuilder {
         closed = true;
         releaseChunk();
         cursor = null;
-        loading = null;
+        if (loading != null) {
+            if (!loading.cancel(false) && !loading.isCompletedExceptionally()
+                && Boolean.TRUE.equals(loading.getNow(false))) {
+                access.removeTicket(chunkX, chunkZ);
+            }
+            loading = null;
+        }
     }
 
     private static boolean isAir(Material material) {
@@ -138,9 +145,21 @@ final class ArenaBuilder {
     private record BukkitAccess(World world, org.bukkit.plugin.Plugin plugin) implements Access {
         public int minHeight() { return world.getMinHeight(); }
         public int maxHeight() { return world.getMaxHeight(); }
-        public java.util.concurrent.CompletableFuture<?> load(int x, int z) { return world.getChunkAtAsync(x, z, true); }
+        public java.util.concurrent.CompletableFuture<Boolean> load(int x, int z) {
+            java.util.concurrent.CompletableFuture<Boolean> result = new java.util.concurrent.CompletableFuture<>();
+            // Paper runs the consumer on the main thread while the requested chunk is still loaded.
+            world.getChunkAtAsync(x, z, true, chunk -> {
+                if (result.isCancelled()) return;
+                try {
+                    boolean owned = world.addPluginChunkTicket(x, z, plugin);
+                    if (!result.complete(owned) && owned) world.removePluginChunkTicket(x, z, plugin);
+                } catch (RuntimeException failure) {
+                    result.completeExceptionally(failure);
+                }
+            });
+            return result;
+        }
         public boolean loaded(int x, int z) { return world.isChunkLoaded(x, z); }
-        public boolean addTicket(int x, int z) { return world.addPluginChunkTicket(x, z, plugin); }
         public void removeTicket(int x, int z) { world.removePluginChunkTicket(x, z, plugin); }
         public Material get(ArenaBuildPlan.Cell cell) { return world.getBlockAt(cell.x(), cell.y(), cell.z()).getType(); }
         public void set(ArenaBuildPlan.Cell cell, Material material) {
