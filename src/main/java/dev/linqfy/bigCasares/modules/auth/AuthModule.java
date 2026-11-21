@@ -88,7 +88,7 @@ public final class AuthModule implements PluginModule {
     private final Map<UUID, PreAuth> preAuthorized = new ConcurrentHashMap<>();
     private final Map<UUID, Location> originalSpawns = new ConcurrentHashMap<>();
     private final Set<String> authenticatedNames = ConcurrentHashMap.newKeySet();
-    private final Map<String, UUID> discordRequests = new ConcurrentHashMap<>();
+    private final Map<String, PlayerAuthState> discordRequests = new ConcurrentHashMap<>();
     private final Map<String, Long> lastDiscordPromptByName = new ConcurrentHashMap<>();
 
     private AuthSettings settings;
@@ -96,6 +96,7 @@ public final class AuthModule implements PluginModule {
     private InventoryStash stash;
     private AuthSecret secret;
     private PasswordHasher hasher;
+    private AuthHashExecutor hashExecutor;
     private LoginAttemptLimiter limiter;
     private PremiumGate premiumGate;
     private MojangProfiles mojangProfiles;
@@ -106,7 +107,7 @@ public final class AuthModule implements PluginModule {
     private NamespacedKey restoredStashKey;
     private NamespacedKey restoreCheckpointKey;
     private NamespacedKey premiumCookieKey;
-    private RuntimeRegistrationScope scope;
+    private volatile RuntimeRegistrationScope scope;
     private RuntimeRegistrationScope compatibilityScope;
     private boolean onlineModeServer;
 
@@ -158,6 +159,7 @@ public final class AuthModule implements PluginModule {
         scope.register("auth-state", this::clearState);
 
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        this.hashExecutor = registrations.ownCloseable("auth-hash-executor", new AuthHashExecutor(2, 32));
         var services = plugin.getServer().getServicesManager();
         try {
             services.register(InventoryCustody.class, custody, plugin, org.bukkit.plugin.ServicePriority.Normal);
@@ -411,9 +413,9 @@ public final class AuthModule implements PluginModule {
             return;
         }
         state.busy = true;
-        async(() -> {
+        async(player, state, () -> {
             PasswordHasher.HashedSecret hash = hasher.hash(password);
-            sync(player, current -> {
+            sync(player, state, current -> {
                 current.busy = false;
                 if (current.registered()) {
                     return;
@@ -472,9 +474,9 @@ public final class AuthModule implements PluginModule {
         }
         state.busy = true;
         PasswordHasher.HashedSecret stored = account.password();
-        async(() -> {
+        async(player, state, () -> {
             boolean valid = PasswordHasher.verify(input, stored);
-            sync(player, current -> {
+            sync(player, state, current -> {
                 current.busy = false;
                 if (valid) {
                     succeed(player, current, AuthMethod.PASSWORD);
@@ -502,9 +504,9 @@ public final class AuthModule implements PluginModule {
             }
             current.busy = true;
             PasswordHasher.HashedSecret stored = current.account.pattern();
-            async(() -> {
+            async(player, current, () -> {
                 boolean valid = PasswordHasher.verify(PatternMenu.secretOf(sequence), stored);
-                sync(player, latest -> {
+                sync(player, current, latest -> {
                     latest.busy = false;
                     if (valid) {
                         succeed(player, latest, AuthMethod.PATTERN);
@@ -545,7 +547,7 @@ public final class AuthModule implements PluginModule {
         state.discordRequestId = HexFormat.of().formatHex(randomBytes(8));
         state.discordCode = String.format(Locale.ROOT, "%06d", random.nextInt(1_000_000));
         state.discordExpiresAt = now + REQUEST_MILLIS;
-        discordRequests.put(state.discordRequestId, state.playerId);
+        discordRequests.put(state.discordRequestId, state);
         String message = "🔐 **Intento de ingreso a BigCasares**\n"
             + "Cuenta: `" + state.name + "`\n"
             + "Desde: `" + maskAddress(state.address) + "`\n"
@@ -768,9 +770,9 @@ public final class AuthModule implements PluginModule {
             return;
         }
         state.busy = true;
-        async(() -> {
+        async(player, state, () -> {
             PasswordHasher.HashedSecret hash = hasher.hash(secretValue);
-            sync(player, current -> {
+            sync(player, state, current -> {
                 current.busy = false;
                 onHashed.accept(current, hash);
             });
@@ -784,9 +786,9 @@ public final class AuthModule implements PluginModule {
             return;
         }
         state.busy = true;
-        async(() -> {
+        async(player, state, () -> {
             boolean valid = PasswordHasher.verify(secretValue, stored);
-            sync(player, current -> {
+            sync(player, state, current -> {
                 current.busy = false;
                 onVerified.accept(current, valid);
             });
@@ -1180,35 +1182,49 @@ public final class AuthModule implements PluginModule {
         }
     }
 
-    private String onDiscordDecision(String requestId, long discordUserId, boolean approved) {
-        UUID playerId = discordRequests.get(requestId);
-        PlayerAuthState state = playerId == null ? null : states.get(playerId);
-        if (state == null || state.authenticated || !requestId.equals(state.discordRequestId)
-            || System.currentTimeMillis() > state.discordExpiresAt
-            || linkedDiscord(state).filter(id -> id == discordUserId).isEmpty()) {
-            return "Esta solicitud ya no es válida.";
-        }
+    private void onDiscordDecision(String requestId, long discordUserId, boolean approved,
+                                   java.util.function.Consumer<String> reply) {
         RuntimeRegistrationScope owner = scope;
         if (owner == null) {
-            return "El sistema de login no está disponible ahora.";
+            reply.accept("El sistema de login no está disponible ahora.");
+            return;
         }
-        discordRequests.remove(requestId);
-        Bukkit.getScheduler().runTask(plugin, owner.guard(() -> {
-            Player player = Bukkit.getPlayer(playerId);
-            PlayerAuthState current = states.get(playerId);
-            if (player == null || current != state || current.authenticated) {
-                return;
-            }
-            current.clearDiscord();
-            if (approved) {
-                succeed(player, current, AuthMethod.DISCORD);
-            } else {
-                limiter.lock(current.addressKey, System.currentTimeMillis(), 30 * 60_000L);
-                player.kick(Component.text("El dueño de la cuenta rechazó este ingreso desde Discord.",
-                    NamedTextColor.RED));
-            }
-        }));
-        return approved ? "✅ Ingreso aprobado." : "⛔ Ingreso bloqueado. Esa dirección no podrá entrar por 30 minutos.";
+        try {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!owner.generation().isActive()) {
+                    reply.accept("El sistema de login no está disponible ahora.");
+                    return;
+                }
+                PlayerAuthState expected = discordRequests.get(requestId);
+                Player player = expected == null ? null : Bukkit.getPlayer(expected.playerId);
+                PlayerAuthState current = expected == null ? null : states.get(expected.playerId);
+                if (!validDiscordDecision(expected, current, player != null && player.isOnline(), requestId,
+                    System.currentTimeMillis(), current == null ? Optional.empty() : linkedDiscord(current), discordUserId)) {
+                    reply.accept("Esta solicitud ya no es válida.");
+                    return;
+                }
+                discordRequests.remove(requestId, expected);
+                current.clearDiscord();
+                if (approved) {
+                    succeed(player, current, AuthMethod.DISCORD);
+                    reply.accept("✅ Ingreso aprobado.");
+                } else {
+                    limiter.lock(current.addressKey, System.currentTimeMillis(), 30 * 60_000L);
+                    player.kick(Component.text("El dueño de la cuenta rechazó este ingreso desde Discord.",
+                        NamedTextColor.RED));
+                    reply.accept("⛔ Ingreso bloqueado. Esa dirección no podrá entrar por 30 minutos.");
+                }
+            });
+        } catch (RuntimeException unavailable) {
+            reply.accept("El sistema de login no está disponible ahora.");
+        }
+    }
+
+    static boolean validDiscordDecision(PlayerAuthState expected, PlayerAuthState current, boolean online,
+                                        String requestId, long now, Optional<Long> linkedId, long discordUserId) {
+        return online && expected != null && expected == current && !current.authenticated
+            && requestId != null && requestId.equals(current.discordRequestId) && now <= current.discordExpiresAt
+            && linkedId.filter(id -> id == discordUserId).isPresent();
     }
 
     private boolean bounce(PlayerConfigurationConnection connection) {
@@ -1295,24 +1311,59 @@ public final class AuthModule implements PluginModule {
         return module == null ? null : module.gateway();
     }
 
-    private void async(Runnable task) {
+    private void async(Player player, PlayerAuthState expected, Runnable task) {
         RuntimeRegistrationScope current = scope;
-        if (current != null) {
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, current.guard(task));
+        AuthHashExecutor executor = hashExecutor;
+        Runnable unavailable = () -> {
+            expected.busy = false;
+            player.sendMessage(PREFIX + "§cEl servicio de login está ocupado. Intentá de nuevo en unos segundos.");
+        };
+        if (current == null || executor == null) {
+            unavailable.run();
+            return;
         }
+        submitHash(executor, expected, guardedHash(current, () -> {
+            try {
+                task.run();
+            } catch (RuntimeException | LinkageError failure) {
+                plugin.getLogger().log(Level.WARNING, "auth-system: falló el procesamiento de credenciales", failure);
+                sync(player, expected, state -> {
+                    state.busy = false;
+                    player.sendMessage(PREFIX + "§cNo se pudo procesar el login. Intentá de nuevo.");
+                });
+            }
+        }), () -> player.sendMessage(PREFIX + "§cEl servicio de login está ocupado. Intentá de nuevo en unos segundos."));
     }
 
-    private void sync(Player player, java.util.function.Consumer<PlayerAuthState> callback) {
+    static Runnable guardedHash(RuntimeRegistrationScope owner, Runnable task) {
+        return () -> {
+            if (owner.generation().isActive()) {
+                task.run();
+            }
+        };
+    }
+
+    static boolean submitHash(AuthHashExecutor executor, PlayerAuthState state, Runnable task, Runnable notify) {
+        return executor.submit(task, () -> {
+            state.busy = false;
+            notify.run();
+        });
+    }
+
+    private void sync(Player player, PlayerAuthState expected, java.util.function.Consumer<PlayerAuthState> callback) {
         RuntimeRegistrationScope current = scope;
         if (current == null) {
             return;
         }
-        Bukkit.getScheduler().runTask(plugin, current.guard(() -> {
-            PlayerAuthState state = player.isOnline() ? states.get(player.getUniqueId()) : null;
-            if (state != null) {
-                callback.accept(state);
-            }
-        }));
+        Bukkit.getScheduler().runTask(plugin, current.guard(() ->
+            applyIfCurrent(expected, states.get(player.getUniqueId()), player.isOnline(), callback)));
+    }
+
+    static void applyIfCurrent(PlayerAuthState expected, PlayerAuthState actual, boolean online,
+                               java.util.function.Consumer<PlayerAuthState> callback) {
+        if (online && expected != null && actual == expected) {
+            callback.accept(actual);
+        }
     }
 
     private byte[] randomBytes(int length) {
@@ -1328,6 +1379,7 @@ public final class AuthModule implements PluginModule {
         authenticatedNames.clear();
         discordRequests.clear();
         verifier = null;
+        hashExecutor = null;
         scope = null;
     }
 

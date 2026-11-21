@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
+import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -108,7 +109,7 @@ public final class PremiumVerifierServer implements AutoCloseable {
                 }
                 return;
             }
-            if (!connections.tryAcquire() || !allowAttempt(client.getInetAddress())) {
+            if (!acquireForAllowedConnection(connections, () -> allowAttempt(client.getInetAddress()))) {
                 closeQuietly(client);
                 continue;
             }
@@ -127,6 +128,22 @@ public final class PremiumVerifierServer implements AutoCloseable {
                 }
             });
         }
+    }
+
+    static boolean acquireForAllowedConnection(Semaphore permits, BooleanSupplier allowed) {
+        if (!permits.tryAcquire()) {
+            return false;
+        }
+        try {
+            if (allowed.getAsBoolean()) {
+                return true;
+            }
+        } catch (RuntimeException | Error failure) {
+            permits.release();
+            throw failure;
+        }
+        permits.release();
+        return false;
     }
 
     private boolean allowAttempt(InetAddress address) {

@@ -1,5 +1,7 @@
 package dev.linqfy.bigCasares.modules.auth;
 
+import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -51,6 +53,9 @@ final class InventoryStash {
         yaml.set("revision", UUID.randomUUID().toString());
         try {
             Files.createDirectories(directory);
+            if (directory.getParent() != null) {
+                PlayerDataCheckpoint.forceDirectory(directory.getParent());
+            }
             Path target = file(playerId);
             Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
             Files.writeString(temporary, yaml.saveToString(), StandardCharsets.UTF_8);
@@ -58,6 +63,7 @@ final class InventoryStash {
                 channel.force(true);
             }
             Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            PlayerDataCheckpoint.forceDirectory(directory);
         } catch (IOException ex) {
             throw new IllegalStateException("Could not stash inventory of " + playerId, ex);
         }
