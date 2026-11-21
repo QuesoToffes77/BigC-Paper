@@ -12,6 +12,8 @@ import org.bukkit.inventory.ItemStack;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Random;
+import java.util.stream.Stream;
 
 /**
  * /caichet, para administradores: entregar los objetos del modulo, viajar entre sus mundos sin bloque ni totem y
@@ -19,11 +21,16 @@ import java.util.Locale;
  */
 final class CaiChetCommand implements CommandExecutor, TabCompleter {
 
-    static final List<String> SUBCOMMANDS = List.of("give", "tp", "tren", "hotel", "sueno", "pozo");
+    static final List<String> SUBCOMMANDS = List.of("give", "tp", "tren", "hotel", "sueno", "pozo", "cuadros");
     static final List<String> ITEMS = List.of("dimension", "mundo", "reloj", "despertar", "arma", "botella", "jarra",
-        "llave");
+        "llave", "cuadro");
+    /** En lugar del id de un cuadro: uno cualquiera. */
+    static final String RANDOM_PAINTING = "azar";
+    static final List<String> PAINTING_CHOICES = Stream.concat(DreamPaintings.ids().stream(), Stream.of(RANDOM_PAINTING))
+        .toList();
     private static final String USAGE = "Uso: /caichet give <" + String.join("|", ITEMS)
-        + "> [cantidad] | tp | tren [aqui] | hotel | sueno | pozo";
+        + "> [cantidad] | give cuadro [" + String.join("|", DreamPaintings.ids()) + "|" + RANDOM_PAINTING
+        + "] [cantidad] | tp | tren [aqui] | hotel | sueno | pozo | cuadros";
 
     private final TrainDirector director;
     private final PitStructure pits;
@@ -70,6 +77,7 @@ final class CaiChetCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage(result);
                 }
             }
+            case "cuadros" -> player.sendMessage(DreamChests.buildTestChest(player));
             case "tp" -> travel(player);
             default -> player.sendMessage(USAGE);
         }
@@ -90,15 +98,22 @@ final class CaiChetCommand implements CommandExecutor, TabCompleter {
     }
 
     private static void give(Player player, String[] args) {
-        ItemStack base = args.length >= 2 ? item(args[1].toLowerCase(Locale.ROOT)) : null;
+        boolean painting = args.length >= 2 && args[1].equalsIgnoreCase("cuadro");
+        String choice = painting ? paintingChoice(args) : null;
+        ItemStack base = painting ? paintingItem(player, choice) : args.length >= 2
+            ? item(args[1].toLowerCase(Locale.ROOT)) : null;
         if (base == null) {
-            player.sendMessage(USAGE);
+            if (!painting || choice == null) {
+                player.sendMessage(USAGE);
+            }
             return;
         }
+        // "give cuadro [id|azar] [cantidad]": sin id, la cantidad ocupa su lugar
+        int amountAt = painting ? amountIndex(args) : 2;
         int amount = 1;
-        if (args.length >= 3) {
+        if (args.length > amountAt) {
             try {
-                amount = amount(args[2], base.getMaxStackSize());
+                amount = amount(args[amountAt], base.getMaxStackSize());
             } catch (NumberFormatException exception) {
                 player.sendMessage("La cantidad tiene que ser un numero.");
                 return;
@@ -107,6 +122,38 @@ final class CaiChetCommand implements CommandExecutor, TabCompleter {
         base.setAmount(amount);
         player.getInventory().addItem(base).values()
             .forEach(rest -> player.getWorld().dropItem(player.getLocation(), rest));
+    }
+
+    /**
+     * Que cuadro pide {@code give cuadro ...}: un id, "azar" (tambien si no se dice nada o si lo que sigue es la
+     * cantidad) o null si el texto no es ni un id ni un numero.
+     */
+    static String paintingChoice(String[] args) {
+        if (args.length < 3) {
+            return RANDOM_PAINTING;
+        }
+        String typed = args[2].toLowerCase(Locale.ROOT);
+        if (typed.equals(RANDOM_PAINTING) || DreamPaintings.byId(typed) != null) {
+            return typed;
+        }
+        return typed.chars().allMatch(Character::isDigit) ? RANDOM_PAINTING : null;
+    }
+
+    /** Donde va la cantidad en {@code give cuadro ...}: tras el id, o en su lugar si no hay id. */
+    static int amountIndex(String[] args) {
+        return args.length >= 3 && args[2].chars().allMatch(Character::isDigit) ? 2 : 3;
+    }
+
+    private static ItemStack paintingItem(Player player, String choice) {
+        if (choice == null) {
+            return null;
+        }
+        String id = choice.equals(RANDOM_PAINTING) ? DreamPaintings.randomId(new Random()) : choice;
+        ItemStack item = DreamPaintings.create(id);
+        if (item == null) {
+            player.sendMessage("Los cuadros todavia no estan cargados: reinicia el servidor para que lea el datapack.");
+        }
+        return item;
     }
 
     /** La cantidad pedida, entre 1 y lo que entra en un stack de ese objeto. */
@@ -141,6 +188,9 @@ final class CaiChetCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
             return prefixed(ITEMS, args[1]);
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("give") && args[1].equalsIgnoreCase("cuadro")) {
+            return prefixed(PAINTING_CHOICES, args[2]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("tren")) {
             return prefixed(List.of("aqui"), args[1]);

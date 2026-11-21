@@ -54,6 +54,8 @@ public final class CaiChetModule implements PluginModule {
         DREAM_PROPS("caichet-dream-props"),
         EYE("caichet-eye"),
         LOOT("caichet-loot"),
+        PAINTINGS("caichet-paintings"),
+        DREAM_CHESTS("caichet-dream-chests"),
         LIGHTS("caichet-lights"),
         PIT("caichet-pit"),
         COMMAND("caichet-command");
@@ -132,6 +134,8 @@ public final class CaiChetModule implements PluginModule {
         tasks.repeating("dream", dreamEntities, 40L, 1L);
         registrations.registerListener(Resource.DESPERTAR.id, new DespertarListener());
         hotelLoot = registrations.registerListener(Resource.LOOT.id, new HotelLoot());
+        registrations.registerListener(Resource.PAINTINGS.id, new DreamPaintings());
+        registrations.registerListener(Resource.DREAM_CHESTS.id, new DreamChests());
         watchers = new Watchers();
         hotelLoot.setWatchers(watchers);
         keyDoors = new KeyDoors(plugin.getLogger());
@@ -167,7 +171,7 @@ public final class CaiChetModule implements PluginModule {
                 plugin.getServer().getLevelDirectory(), backups);
             if (result.changed()) {
                 plugin.getLogger().warning("[CaiChet] Datapack " + result.outcome().name().toLowerCase() + " en "
-                    + result.directory() + ". Reinicia el servidor: las dimensiones y los biomas solo se leen al"
+                    + result.directory() + ". Reinicia el servidor: las dimensiones, los biomas y los cuadros solo se leen al"
                     + " arrancar.");
             }
         } catch (IOException | RuntimeException exception) {

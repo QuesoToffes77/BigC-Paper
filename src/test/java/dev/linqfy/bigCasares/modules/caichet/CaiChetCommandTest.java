@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Autocompletado y cantidad de /caichet. */
 class CaiChetCommandTest {
@@ -58,5 +60,37 @@ class CaiChetCommandTest {
     @Test
     void amountRejectsNonNumbers() {
         assertThrows(NumberFormatException.class, () -> CaiChetCommand.amount("abc", 16));
+    }
+
+    @Test
+    void giveOffersTheCuadroItemAndItsChoices() {
+        assertEquals(List.of("cuadro"), CaiChetCommand.complete(new String[] {"give", "cu"}));
+        assertEquals(CaiChetCommand.PAINTING_CHOICES, CaiChetCommand.complete(new String[] {"give", "cuadro", ""}));
+        assertEquals(List.of("gotico", "grito"), CaiChetCommand.complete(new String[] {"give", "cuadro", "g"}));
+        assertTrue(CaiChetCommand.PAINTING_CHOICES.containsAll(DreamPaintings.ids()));
+        assertTrue(CaiChetCommand.PAINTING_CHOICES.contains("azar"));
+        assertEquals(List.of(), CaiChetCommand.complete(new String[] {"give", "cuadro", "grito", ""}));
+    }
+
+    @Test
+    void cuadrosIsASubcommandWithoutArguments() {
+        assertEquals(List.of("cuadros"), CaiChetCommand.complete(new String[] {"cu"}));
+        assertEquals(List.of(), CaiChetCommand.complete(new String[] {"cuadros", ""}));
+    }
+
+    @Test
+    void paintingChoiceTakesAnIdRandomOrNothing() {
+        assertEquals("azar", CaiChetCommand.paintingChoice(new String[] {"give", "cuadro"}));
+        assertEquals("azar", CaiChetCommand.paintingChoice(new String[] {"give", "cuadro", "azar"}));
+        assertEquals("grito", CaiChetCommand.paintingChoice(new String[] {"give", "cuadro", "GRITO"}));
+        assertEquals("azar", CaiChetCommand.paintingChoice(new String[] {"give", "cuadro", "3"}));
+        assertNull(CaiChetCommand.paintingChoice(new String[] {"give", "cuadro", "kebab"}));
+    }
+
+    @Test
+    void theAmountOfAPaintingGoesAfterTheIdOrInItsPlace() {
+        assertEquals(3, CaiChetCommand.amountIndex(new String[] {"give", "cuadro"}));
+        assertEquals(3, CaiChetCommand.amountIndex(new String[] {"give", "cuadro", "grito", "2"}));
+        assertEquals(2, CaiChetCommand.amountIndex(new String[] {"give", "cuadro", "2"}));
     }
 }

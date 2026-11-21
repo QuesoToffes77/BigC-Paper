@@ -11,10 +11,11 @@ import java.time.Clock;
 import java.util.List;
 
 /**
- * El datapack del modulo: la dimension del desierto ({@code caichet:cai_chet}) con su tipo, su terreno y su bioma, y
- * los biomas del Sueño (los colores de cielo, pasto y bruma). Los JSON viajan en el jar y se instalan en la carpeta
- * datapacks del mundo con el instalador de BigCasares. Minecraft solo lee dimensiones y biomas al arrancar: la primera
- * vez (o cuando cambian) hace falta reiniciar el servidor.
+ * El datapack del modulo: la dimension del desierto ({@code caichet:cai_chet}) con su tipo, su terreno y su bioma, los
+ * biomas del Sueño (los colores de cielo, pasto y bruma) y las variantes de cuadro de {@link DreamPaintings}. Los JSON
+ * viajan en el jar y se instalan en la carpeta datapacks del mundo con el instalador de BigCasares. Minecraft solo lee
+ * dimensiones, biomas y variantes de cuadro al arrancar: la primera vez (o cuando cambian) hace falta reiniciar el
+ * servidor. El instalador compara el contenido, asi que agregar o cambiar un JSON reinstala el pack solo.
  */
 final class CaiChetDatapack {
 
@@ -33,7 +34,14 @@ final class CaiChetDatapack {
         "data/caichet/worldgen/biome/sueno_collage.json",
         "data/caichet/worldgen/biome/sueno_ojos.json",
         "data/caichet/worldgen/biome/sueno_plaza.json",
-        "data/caichet/worldgen/biome/sueno_puertas.json");
+        "data/caichet/worldgen/biome/sueno_puertas.json",
+        "data/caichet/painting_variant/retrato.json",
+        "data/caichet/painting_variant/laptop.json",
+        "data/caichet/painting_variant/pintor.json",
+        "data/caichet/painting_variant/esfera.json",
+        "data/caichet/painting_variant/gotico.json",
+        "data/caichet/painting_variant/grito.json",
+        "data/caichet/painting_variant/cena.json");
 
     private CaiChetDatapack() {
     }
@@ -49,7 +57,7 @@ final class CaiChetDatapack {
                 builder.file(file, stream.readAllBytes());
             }
         }
-        return builder.build("BigCasares: dimension cai chet y biomas del Sueno");
+        return builder.build("BigCasares: dimension cai chet, biomas del Sueno y cuadros");
     }
 
     /**

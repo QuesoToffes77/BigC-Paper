@@ -68,11 +68,11 @@ final class DreamLayout {
         return HotelLayout.hash(seed ^ 0x5EED_D2EA_11L, a, b, salt);
     }
 
-    private static int roll(long seed, int a, int b, int salt, int bound) {
+    static int roll(long seed, int a, int b, int salt, int bound) {
         return (int) Math.floorMod(hash(seed, a, b, salt), (long) bound);
     }
 
-    private static boolean chance(long seed, int a, int b, int salt, int percent) {
+    static boolean chance(long seed, int a, int b, int salt, int percent) {
         return roll(seed, a, b, salt, 100) < percent;
     }
 
@@ -298,6 +298,105 @@ final class DreamLayout {
             c.set(base + 6 + peak, Material.WHITE_CONCRETE);
         }
         return true;
+    }
+
+    // ---- cofres dentro de las casas (los pone DreamChests)
+
+    /** Porcentaje de casas con un cofre. */
+    static final int CHEST_PERCENT = 30;
+
+    /**
+     * Donde va el cofre de una casa: la celda del piso (el aire donde se apoya), el material del piso que tiene que
+     * haber abajo (para no poner un cofre si el terreno no salio como se calculo) y hacia donde mira (0 N, 1 E, 2 S,
+     * 3 W).
+     */
+    record ChestSpot(int x, int y, int z, int facing, Theme theme, Material floor) {
+    }
+
+    /**
+     * Los cofres de las casas de este chunk. Sale solo de la semilla y repite las cuentas de {@link #house}, {@link
+     * #street} y {@link #field}: el cofre cae en una celda del interior hueco, nunca delante de la puerta de la casa
+     * de OJOS ni del cartel negro de la de CAMPO. Las casas de BARRIO y CAMPO no tienen puerta que se abra, asi que
+     * su cofre queda cerrado (se llega rompiendo una pared o un vidrio).
+     */
+    static List<ChestSpot> chestSpotsInChunk(long seed, int chunkX, int chunkZ) {
+        int minX = chunkX * 16;
+        int minZ = chunkZ * 16;
+        List<ChestSpot> spots = new ArrayList<>();
+        ojosChests(seed, minX, minZ, spots);
+        barrioChests(seed, minX, minZ, spots);
+        campoChests(seed, minX, minZ, spots);
+        spots.removeIf(spot -> spot.x < minX || spot.x > minX + 15 || spot.z < minZ || spot.z > minZ + 15);
+        return spots;
+    }
+
+    private static void ojosChests(long seed, int minX, int minZ, List<ChestSpot> out) {
+        for (int ix = Math.floorDiv(minX, 64); ix <= Math.floorDiv(minX + 15, 64); ix++) {
+            for (int iz = Math.floorDiv(minZ, 64); iz <= Math.floorDiv(minZ + 15, 64); iz++) {
+                Plot plot = plot(seed, ix * 64, iz * 64, 64, 30, 55, 6, 12);
+                if (plot == null) {
+                    continue;
+                }
+                int hx = plot.ox;
+                int hz = plot.oz - 8;
+                // house() solo arma la parte que cae en la parcela de la columna: una casa corrida al norte queda cortada
+                if (hz < iz * 64 || Math.abs(hx + 4) < 16 && Math.abs(hz + 3) < 16
+                    || !deepInside(seed, hx + 4, hz + 3, Theme.OJOS, 14) || !chance(seed, ix, iz, 90, CHEST_PERCENT)) {
+                    continue;
+                }
+                // interior: lx 1..7, lz 1..5; la fila lz 5 es la de la puerta y se deja libre
+                int x = hx + 1 + roll(seed, ix, iz, 91, 7);
+                int z = hz + 1 + roll(seed, ix, iz, 92, 4);
+                out.add(new ChestSpot(x, height(seed, hx + 4, hz + 3) + 1, z, 2, Theme.OJOS, Material.OAK_PLANKS));
+            }
+        }
+    }
+
+    private static void barrioChests(long seed, int minX, int minZ, List<ChestSpot> out) {
+        for (int gx = Math.floorDiv(minX, SITE) - 1; gx <= Math.floorDiv(minX + 15, SITE) + 1; gx++) {
+            for (int gz = Math.floorDiv(minZ, SITE) - 1; gz <= Math.floorDiv(minZ + 15, SITE) + 1; gz++) {
+                Site s = site(seed, gx, gz);
+                if (s.theme != Theme.BARRIO) {
+                    continue;
+                }
+                int zone = s.gx * 97 + s.gz;
+                int firstLot = Math.floorDiv(minX - s.x - 12, 13) - 1;
+                int lastLot = Math.floorDiv(minX + 15 - s.x, 13) + 1;
+                for (int lot = firstLot; lot <= lastLot; lot++) {
+                    for (int side = -1; side <= 1; side += 2) {
+                        if (!chance(seed, lot * side, zone, 80, 85) || !chance(seed, lot * side, zone, 95, CHEST_PERCENT)) {
+                            continue; // sin casa en este lote, o sin cofre
+                        }
+                        // casa de lx 2..10 y depth 0..7: el cofre queda lejos de las paredes
+                        int wx = s.x + lot * 13 + 4 + roll(seed, lot * side, zone, 96, 5);
+                        int roadZ = s.z + (int) Math.round(9 * Math.sin((wx - s.x) / 26.0));
+                        int wz = roadZ + side * (9 + 2 + roll(seed, lot * side, zone, 97, 3));
+                        Probe p = probe(seed, wx, wz);
+                        if (!p.a.equals(s) || p.border < 10) {
+                            continue;
+                        }
+                        out.add(new ChestSpot(wx, height(seed, wx, wz) + 1, wz, side > 0 ? 0 : 2, Theme.BARRIO,
+                            Material.SMOOTH_STONE));
+                    }
+                }
+            }
+        }
+    }
+
+    private static void campoChests(long seed, int minX, int minZ, List<ChestSpot> out) {
+        for (int ix = Math.floorDiv(minX, 70); ix <= Math.floorDiv(minX + 15, 70); ix++) {
+            for (int iz = Math.floorDiv(minZ, 70); iz <= Math.floorDiv(minZ + 15, 70); iz++) {
+                Plot plot = plot(seed, ix * 70, iz * 70, 70, 60, 50, 14, 6);
+                if (plot == null || !deepInside(seed, plot.ox + 2, plot.oz + 2, Theme.CAMPO, 12)
+                    || !chance(seed, ix, iz, 100, CHEST_PERCENT)) {
+                    continue;
+                }
+                // interior de 3 x 3 (x 1..3, z 1..3); la fila z 3 es la del cartel negro y se deja libre
+                int x = plot.ox + 1 + roll(seed, ix, iz, 101, 3);
+                int z = plot.oz + 1 + roll(seed, ix, iz, 102, 2);
+                out.add(new ChestSpot(x, height(seed, x, z) + 1, z, 2, Theme.CAMPO, Material.GRASS_BLOCK));
+            }
+        }
     }
 
     // ---- PUERTAS: una puerta suelta abierta (dc2); tambien la usa COLLAGE con el hueco rojo
