@@ -77,11 +77,11 @@ public final class TombstoneModule implements PluginModule {
             player.getItemOnCursor()
         );
         if (!TombstoneItemLayout.hasItems(items)) return false;
+        if (!current.create(player.getUniqueId(), player.getName(), location, items)) return false;
         player.getInventory().clear();
         player.getInventory().setArmorContents(new ItemStack[4]);
         player.getInventory().setItemInOffHand(null);
         player.setItemOnCursor(null);
-        current.create(player.getUniqueId(), player.getName(), location, items);
         return true;
     }
 

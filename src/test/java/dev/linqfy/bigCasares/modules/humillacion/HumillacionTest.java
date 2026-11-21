@@ -22,10 +22,11 @@ class HumillacionTest {
     void onlyAHugeOverkillHumiliates() {
         HumillacionPolicy policy = new HumillacionPolicy(HumillacionSettings.defaults());
 
-        assertFalse(policy.shouldHumiliate(25.0, 20.0, 0.0, true, null, NOW), "plain kill, 5 left over");
-        assertTrue(policy.shouldHumiliate(40.0, 20.0, 0.0, true, null, NOW));
-        assertFalse(policy.shouldHumiliate(40.0, 20.0, 4.0, true, null, NOW), "absorption soaks overkill");
-        assertTrue(policy.shouldHumiliate(30.0, 6.0, 0.0, true, null, NOW));
+        assertFalse(policy.shouldHumiliate(25.0, 20.0, true, null, NOW), "plain kill, 5 left over");
+        assertTrue(policy.shouldHumiliate(40.0, 20.0, true, null, NOW));
+        assertFalse(policy.shouldHumiliate(40.0 - 4.0, 20.0, true, null, NOW), "absorption leaves final damage below threshold");
+        assertTrue(policy.shouldHumiliate(44.0 - 4.0, 20.0, true, null, NOW), "final damage already includes absorption");
+        assertTrue(policy.shouldHumiliate(30.0, 6.0, true, null, NOW));
     }
 
     @Test
@@ -33,16 +34,16 @@ class HumillacionTest {
         HumillacionPolicy policy = new HumillacionPolicy(HumillacionSettings.defaults());
         HumillacionPolicy anySource = new HumillacionPolicy(new HumillacionSettings(20.0, 2.0, false, 60L, true));
 
-        assertFalse(policy.shouldHumiliate(100.0, 20.0, 0.0, false, null, NOW));
-        assertTrue(anySource.shouldHumiliate(100.0, 20.0, 0.0, false, null, NOW));
+        assertFalse(policy.shouldHumiliate(100.0, 20.0, false, null, NOW));
+        assertTrue(anySource.shouldHumiliate(100.0, 20.0, false, null, NOW));
     }
 
     @Test
     void recentlyHumiliatedPlayersDieNormally() {
         HumillacionPolicy policy = new HumillacionPolicy(HumillacionSettings.defaults());
 
-        assertFalse(policy.shouldHumiliate(100.0, 2.0, 0.0, true, NOW.minusSeconds(30), NOW));
-        assertTrue(policy.shouldHumiliate(100.0, 2.0, 0.0, true, NOW.minusSeconds(60), NOW));
+        assertFalse(policy.shouldHumiliate(100.0, 2.0, true, NOW.minusSeconds(30), NOW));
+        assertTrue(policy.shouldHumiliate(100.0, 2.0, true, NOW.minusSeconds(60), NOW));
     }
 
     @Test

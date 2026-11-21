@@ -13,9 +13,9 @@ final class HumillacionPolicy {
         this.settings = settings;
     }
 
-    /** Damage left over after the hit has emptied the victim's health and absorption. */
-    static double overkill(double finalDamage, double health, double absorption) {
-        return finalDamage - (Math.max(0.0, health) + Math.max(0.0, absorption));
+    /** Final damage already includes the absorption modifier. */
+    static double overkill(double finalDamage, double health) {
+        return finalDamage - Math.max(0.0, health);
     }
 
     /**
@@ -25,7 +25,6 @@ final class HumillacionPolicy {
     boolean shouldHumiliate(
         double finalDamage,
         double health,
-        double absorption,
         boolean attackerIsPlayer,
         Instant lastHumiliation,
         Instant now
@@ -35,7 +34,7 @@ final class HumillacionPolicy {
             && now.isBefore(lastHumiliation.plus(Duration.ofSeconds(settings.immunitySeconds())))) {
             return false;
         }
-        return overkill(finalDamage, health, absorption) >= settings.overkillThreshold();
+        return overkill(finalDamage, health) >= settings.overkillThreshold();
     }
 
     double healthAfter(double maxHealth) {

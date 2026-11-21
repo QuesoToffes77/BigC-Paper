@@ -44,7 +44,7 @@ final class HumillacionListener implements Listener {
         Player attacker = attackingPlayer(event.getDamager());
         if (attacker != null && attacker.getUniqueId().equals(victim.getUniqueId())) attacker = null;
         Instant now = clock.instant();
-        if (!policy.shouldHumiliate(event.getFinalDamage(), victim.getHealth(), victim.getAbsorptionAmount(),
+        if (!policy.shouldHumiliate(event.getFinalDamage(), victim.getHealth(),
             attacker != null, lastHumiliation.get(victim.getUniqueId()), now)) {
             return;
         }
