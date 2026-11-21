@@ -32,6 +32,9 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BooleanSupplier;
+import java.util.function.DoubleConsumer;
+import java.util.function.DoubleSupplier;
 
 /**
  * Los golpes a los Mutangos y a Neguechen (que los protege, que los deja caidos, cuando los vence un jugador y cuando
@@ -106,6 +109,10 @@ final class MutangoCombat implements Listener {
                 && mutango instanceof Mob neguechen && event.getFinalDamage() >= neguechen.getHealth()
                 && !fight.phaseThree.isProtected(neguechen.getUniqueId())) {
                 // la vencieron: no muere, frena y sube a decir sus ultimos versos
+                if (event instanceof EntityDamageByEntityEvent byEntity
+                    && attacker(byEntity.getDamager()) instanceof Player hitter) {
+                    fight.damage.merge(hitter.getUniqueId(), neguechen.getHealth(), Double::sum);
+                }
                 event.setCancelled(true);
                 defeatNeguechen(fight, neguechen);
                 return;
@@ -131,13 +138,45 @@ final class MutangoCombat implements Listener {
             mutango.getWorld().playSound(mutango.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1.0f, 0.6f);
             return;
         }
-        if (mutango instanceof Mob mob && event.getFinalDamage() >= mob.getHealth() && fight.battle.onLethal(mob)) {
-            // en la fase 1 no se mueren: quedan caidos hasta que caen los tres
-            event.setCancelled(true);
-            return;
+        if (mutango instanceof Mob mob && event.getFinalDamage() >= mob.getHealth()) {
+            double healthBefore = mob.getHealth();
+            if (knockDownAndCredit(healthBefore, () -> fight.battle.onLethal(mob), mob::getHealth, damage -> {
+                if (event instanceof EntityDamageByEntityEvent byEntity
+                    && attacker(byEntity.getDamager()) instanceof Player hitter) {
+                    fight.damage.merge(hitter.getUniqueId(), damage, Double::sum);
+                }
+            })) {
+                // This hit is cancelled because onLethal already reduced the boss to one health.
+                event.setCancelled(true);
+                return;
+            }
         }
         fight.battle.onDamaged(mutango.getUniqueId(), event.getFinalDamage());
         mutango.getWorld().playSound(mutango.getLocation(), Sound.BLOCK_STONE_HIT, 1.2f, 0.7f);
+    }
+
+    static boolean knockDownAndCredit(double healthBefore, BooleanSupplier knockDown,
+                                      DoubleSupplier healthAfter, DoubleConsumer credit) {
+        if (!knockDown.getAsBoolean()) {
+            return false;
+        }
+        double lost = Math.max(0.0, healthBefore - healthAfter.getAsDouble());
+        if (lost > 0.0) {
+            credit.accept(lost);
+        }
+        return true;
+    }
+
+    /** Anota el dano que los jugadores le hacen de verdad a la pelea (los golpes cancelados no cuentan). */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDamageDealt(EntityDamageByEntityEvent event) {
+        if (!(attacker(event.getDamager()) instanceof Player hitter) || event.getFinalDamage() <= 0
+            || isSummoned(event.getEntity()) || !isMutango(event.getEntity()) || shrine.isPart(event.getEntity())) {
+            return;
+        }
+        double dealt = event.getEntity() instanceof LivingEntity living
+            ? Math.min(event.getFinalDamage(), living.getHealth()) : event.getFinalDamage();
+        fights.fightOf(event.getEntity()).damage.merge(hitter.getUniqueId(), dealt, Double::sum);
     }
 
     /**
@@ -149,6 +188,10 @@ final class MutangoCombat implements Listener {
         // boss se recupera con su estado anterior y lo vencen de nuevo, no se anota otra
         neguechen.getPersistentDataContainer().remove(keys.phase);
         rewards.registerVictory(fight);
+        if (plugin instanceof dev.linqfy.bigCasares.BigCasares bigCasares) {
+            bigCasares.awardBossSouls("mutango", "Mutango", fight.damage);
+        }
+        fight.damage.clear(); // una sola entrega de almas por pelea
         neguechen.setHealth(1.0);
         fight.phaseThree.beginDeath();
         // la barra se va ya: si no, queda vacia todo el rato que habla y parece que ya murio
