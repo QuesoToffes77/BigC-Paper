@@ -1,13 +1,15 @@
 package dev.linqfy.bigCasares.modules.tombstone;
 
+import dev.linqfy.bigCasares.testsupport.CompiledClass;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,10 +45,29 @@ class TombstoneLedgerTest {
 
     @Test
     void visualsAreTransientBecauseTheLedgerOwnsPersistence() throws Exception {
-        String source = Files.readString(Path.of(
-            "src/main/java/dev/linqfy/bigCasares/modules/tombstone/TombstoneRuntime.java"));
+        // The runtime needs a live server, so its entity setup is read from the bytecode.
+        CompiledClass runtime = CompiledClass.of(getClass(), "dev.linqfy.bigCasares.modules.tombstone.TombstoneRuntime");
 
+        assertTrue(runtime.calls().stream().anyMatch(call -> call.name().equals("setPersistent")));
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+            "src/main/java/dev/linqfy/bigCasares/modules/tombstone/TombstoneRuntime.java"));
         assertEquals(3, source.split("setPersistent\\(false\\)", -1).length - 1);
+    }
+
+    @Test
+    void shutdownClosesEveryViewerWhenCloseRemovesATombstone() {
+        Map<Integer, Integer> active = new LinkedHashMap<>();
+        active.put(1, 1);
+        active.put(2, 2);
+        List<Integer> closed = new ArrayList<>();
+
+        TombstoneRuntime.closeViewersBeforeShutdown(active.values(), id -> {
+            closed.add(id);
+            active.remove(id);
+        });
+
+        assertEquals(List.of(1, 2), closed);
+        assertTrue(active.isEmpty());
     }
 
     private static TombstoneRecord record(Instant expiresAt) {

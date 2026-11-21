@@ -29,6 +29,9 @@ modules:
     enabled: true
   resource-pack-system:
     enabled: true
+  # Fondo dibujado para los menús de misiones y tienda (Java con el pack cargado). Apagado: títulos de siempre.
+  tideframe-ui:
+    enabled: false
   custom-item-catalog:
     enabled: true
   team-system:
@@ -60,6 +63,10 @@ modules:
   elytra-failure:
     enabled: true
   villager-mood:
+    enabled: true
+  pvp-quadrants:
+    enabled: true
+  domination-system:
     enabled: true
 
 # El Gran Casares. Las fichas son la moneda de Vault (hace falta Vault y un proveedor de economía).
@@ -253,6 +260,62 @@ moderation-system:
     inventory-click-rate: { points: 15 }
     rare-item-gain: { points: 25 }
     security-log: { points: 40 }
+    hover-flight: { points: 35 }
+    melee-multi-target: { points: 30 }
+    ground-spoof: { points: 30 }
+    killaura-angle: { points: 30 }
+    killaura-wall: { points: 30 }
+    killaura-inventory: { points: 25 }
+    killaura-use-item: { points: 25 }
+    block-break-rate: { points: 30 }
+    block-place-face: { points: 25 }
+    xray-ratio: { points: 20 }
+    # Las coincidencias de identidad se registran sin atribuir culpabilidad ni sumar puntos.
+    item-duplicate: { points: 0 }
+  # Reglas que solo se registran en la auditoría, sin sumar puntos (no prueban un cheat). Un valor 0 en points hace lo mismo.
+  audit-only-rules:
+    - rare-item-gain
+    - pack-cache-timing
+    - security-log
+    - ip-sudden-change
+    - ip-account-rate
+    - reconnect-rate
+    - xray-ratio
+  # Checks de movimiento y combate. Todo lo que mueve a un jugador sin el cliente (setVelocity de un módulo, knockback,
+  # explosiones, teleports, pistones) abre una ventana de gracia sola, así que los módulos no generan avisos.
+  anticheat:
+    enabled: true
+    # Los checks nuevos y la nueva medición de cadencia se auditan sin puntos hasta validarlos en el servidor.
+    enforce-new-checks: false
+    # Quien tenga este permiso no se mide (por defecto nadie, ni los OP). Vacío para desactivarlo.
+    bypass-permission: bigcasares.anticheat.bypass
+    # Bedrock (Geyser) tiene otra física y otra latencia: no se mide.
+    exempt-bedrock: true
+    # Con el servidor por debajo de estos TPS no se mide nada.
+    minimum-tps: 17.0
+    max-attacks-per-second: 22
+    # movement-speed, upward-movement, hover-flight, ground-spoof, melee-reach, melee-rate, melee-multi-target,
+    # killaura-angle, killaura-wall, killaura-inventory, killaura-use-item, block-break-rate, block-place-face,
+    # xray-ratio, item-duplicate
+    disabled-checks: []
+    # Anti-dupe: a estos items (sin apilar y sin datos de otros módulos) se les pone un id invisible; el mismo id en dos
+    # lugares a la vez genera una observación, no atribuye culpabilidad. Cada pasada revisa hasta 16 jugadores actuales,
+    # combinando una ventana rotativa y jugadores al azar; puede omitir copias que no coincidan en la misma pasada.
+    dupe-tracked-items:
+      - ELYTRA
+      - TOTEM_OF_UNDYING
+      - TRIDENT
+      - MACE
+      - NETHERITE_SWORD
+      - NETHERITE_PICKAXE
+      - NETHERITE_AXE
+      - NETHERITE_SHOVEL
+      - NETHERITE_HOE
+      - NETHERITE_HELMET
+      - NETHERITE_CHESTPLATE
+      - NETHERITE_LEGGINGS
+      - NETHERITE_BOOTS
+    dupe-track-shulker-boxes: true
 
 discord-integration:
   guild-id: 0
@@ -263,6 +326,10 @@ discord-integration:
   authorized-user-id: 0
   reconciliation-seconds: 120
   bridge-avatar-template: "https://mc-heads.net/avatar/%player%/128"
+  raid-alerts:
+    # Categoría donde se crea un canal privado por equipo para las alertas de raideo del Nexus.
+    # En 0 las alertas llegan por mensaje directo. El bot necesita Manage Channels y Manage Roles.
+    category-id: 0
   servidor:
     title: "BigCasares"
     description: "Información oficial del servidor"
@@ -739,6 +806,29 @@ keep-inventory-totem:
   keep-experience: true
   # Cuantos totems puede llevar encima un jugador.
   max-carried: 1
+
+# NW protegido, NE PvP consensuado, SW y SE PvP libre.
+pvp-quadrants:
+  # Mundos divididos en cuadrantes; en el resto no cambia nada.
+  worlds: [world]
+  center-x: 0
+  center-z: 0
+  # Tras un golpe PvP nadie puede entrar a la zona Chill durante este tiempo.
+  combat-tag-seconds: 150
+  quests:
+    enabled: true
+    rivals:
+      goal: 5
+      reward: 300.0
+    domination:
+      goal: 1
+      reward: 500.0
+
+# Dominaciones y Venganza: muertes seguidas sobre el mismo jugador.
+domination-system:
+  kills-to-dominate: 3
+  domination-sound: "minecraft:entity.ender_dragon.growl"
+  revenge-sound: "minecraft:ui.toast.challenge_complete"
 
 elytra-failure:
   # Cada cuanto se tira el dado mientras alguien planea con elytra.
@@ -1498,6 +1588,7 @@ mission-system:
       enabled: true
       params:
         entity: PIG
+        other-player: true
     daily-golem-kelp-2:
       scope: daily
       title: "Catering homicida"
@@ -1800,7 +1891,7 @@ mission-system:
     weekly-binding-pumpkin-y155:
       scope: weekly
       title: "Moda de altura"
-      description: "Ponete una calabaza con maldicion de ligadura y bancala toda la semana."
+      description: "Ponete una calabaza con maldicion de ligadura y subi a Y 155 o mas."
       type: EQUIP_SPECIFIC_ITEM
       goal: 1
       reward: 1750.0
@@ -1809,6 +1900,91 @@ mission-system:
       params:
         material: CARVED_PUMPKIN
         binding-curse: true
+        min-y: 155
+    weekly-admin-idea:
+      scope: weekly
+      title: "Mision propia"
+      description: "Dale una idea de mision al admin y que el admin la apruebe."
+      type: ADMIN_APPROVAL
+      goal: 1
+      reward: 2000.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-kiss-jeremy:
+      scope: daily
+      title: "Besar a Jeremy"
+      description: "Pegale un golpe a Jeremy (no importa si te esta persiguiendo o no)."
+      type: HIT_TARGET
+      goal: 1
+      reward: 600.0
+      weight: 1
+      enabled: true
+      params:
+        target: jeremy
+    weekly-kill-ghi-ghi:
+      scope: weekly
+      title: "Matar a Ghi Ghi"
+      description: "Mata a Ghi Ghi."
+      type: KILL_TARGET
+      goal: 1
+      reward: 5000.0
+      weight: 1
+      enabled: true
+      params:
+        target: "ghi ghi"
+    weekly-poppy-5-stacks:
+      scope: weekly
+      title: "Jardin de amapolas"
+      description: "Planta 5 stacks de amapolas (320)."
+      type: PLACE_BLOCK_COUNT
+      goal: 320
+      reward: 1500.0
+      weight: 1
+      enabled: true
+      params:
+        material: POPPY
+    weekly-clan-kill-20:
+      scope: weekly
+      title: "Fuego amigo"
+      description: "Mata 20 veces a alguien de tu clan (siempre al mismo)."
+      type: KILL_SAME_TEAMMATE
+      goal: 20
+      reward: 2500.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-whisper-spam-67:
+      scope: daily
+      title: "Spam"
+      description: "Un jugador te elige: mandale 67 susurros a ese mismo jugador."
+      type: WHISPER_SAME_PLAYER
+      goal: 67
+      reward: 400.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-break-cursed-helmet:
+      scope: daily
+      title: "Casco descartable"
+      description: "Ponete un casco con maldicion de ligadura y rompelo."
+      type: BREAK_CURSED_HELMET
+      goal: 1
+      reward: 700.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-horse-67:
+      scope: daily
+      title: "Caballo 67"
+      description: "Hace que un caballo haga el 67 (salta montado) 67 veces."
+      type: HORSE_JUMP_COUNT
+      goal: 67
+      reward: 450.0
+      weight: 1
+      enabled: true
+      params:
+        entity: HORSE
 
 bounty-system:
   economy:
@@ -1893,6 +2069,17 @@ nexus-system:
     minimum-open-faces: 2
     minimum-walkable-width: 2
     prevent-doorway-placement: true
+  # Mejoras de base: /nexus mejoras y /nexus mejorar <repulsor|saturacion> (se pagan con Vault).
+  upgrades:
+    interval-ticks: 40
+    repulsor:
+      price: 25000
+      radius: 24
+      push-strength: 0.8
+    saturacion:
+      price: 15000
+      radius: 16
+      food-per-pulse: 1
 
 entity-shop-system:
   bedrock:
