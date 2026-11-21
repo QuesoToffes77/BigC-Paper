@@ -3,6 +3,7 @@ package dev.linqfy.bigCasares.modules.staffevents;
 import dev.linqfy.bigCasares.dimension.DimensionPlatform;
 import dev.linqfy.bigCasares.dimension.DimensionStatus;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.InventoryCustody;
 import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -109,6 +110,7 @@ final class StaffEventRuntime implements Listener {
     private final Set<UUID> restoreAfterRespawn = new HashSet<>();
     // Players remain unable to interact until their restored inventory is confirmed on disk.
     private final Set<UUID> restoreBlocked = new LinkedHashSet<>();
+    private final InventoryCustody custody = this::ownsInventory;
     private final EventRewardJournal rewardJournal;
     // Evidence remains here only until its immutable journal file has been forced to disk.
     private final Map<String, EventRewardJournal.Pending> rewardEvidenceToRetry = new LinkedHashMap<>();
@@ -177,6 +179,21 @@ final class StaffEventRuntime implements Listener {
 
     boolean protectsDeath(UUID playerId) {
         return handledDeaths.contains(playerId) || restoreBlocked.contains(playerId);
+    }
+
+    InventoryCustody custody() {
+        return custody;
+    }
+
+    private boolean ownsInventory(UUID playerId) {
+        if (isParticipant(playerId) || restoreBlocked.contains(playerId) || restoreAfterRespawn.contains(playerId)) {
+            return true;
+        }
+        EventPlayerSnapshot snapshot = store.find(playerId).orElse(null);
+        if (snapshot == null) return false;
+        Player player = plugin.getServer().getPlayer(playerId);
+        return player == null || !snapshot.revision().toString().equals(
+            player.getPersistentDataContainer().get(RESTORED_SNAPSHOT, PersistentDataType.STRING));
     }
 
     List<String> status() {
@@ -260,12 +277,20 @@ final class StaffEventRuntime implements Listener {
             player.sendMessage(PREFIX + "§7Ya estás en el evento.");
             return;
         }
+        if (current.phase == Phase.PREPARING) {
+            player.sendMessage(PREFIX + "§7La arena todavía se está preparando.");
+            return;
+        }
         if (current.phase != Phase.LOBBY) {
             player.sendMessage(PREFIX + "§cEl evento ya empezó.");
             return;
         }
         if (player.isDead()) {
             player.sendMessage(PREFIX + "§cReaparecé antes de unirte.");
+            return;
+        }
+        if (InventoryCustody.ownedByOther(plugin.getServer(), playerId, custody)) {
+            player.sendMessage(PREFIX + "§cTu inventario está ocupado por otra actividad o recuperación.");
             return;
         }
         if (store.contains(playerId) && !restore(player)) {
@@ -1181,6 +1206,10 @@ final class StaffEventRuntime implements Listener {
             }
             restoreBlocked.remove(player.getUniqueId());
             return true;
+        }
+        if (InventoryCustody.ownedByOther(plugin.getServer(), player.getUniqueId(), custody)) {
+            restoreBlocked.add(player.getUniqueId());
+            return false;
         }
         restoreBlocked.add(player.getUniqueId());
         EventPlayerSnapshot before;

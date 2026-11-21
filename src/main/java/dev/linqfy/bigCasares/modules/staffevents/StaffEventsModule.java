@@ -5,10 +5,12 @@ import dev.linqfy.bigCasares.dimension.DimensionPlatform;
 import dev.linqfy.bigCasares.dimension.DimensionStatus;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.InventoryCustody;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.Material;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.ServicePriority;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -75,11 +77,24 @@ public final class StaffEventsModule implements PluginModule {
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         StaffEventRuntime created = new StaffEventRuntime(
             plugin, settings, store, dimensions, this::rewardItem, pvpBaseline, endHuntDeath, registrations);
-        runtime = created;
+        InventoryCustody custody = created.custody();
+        var services = plugin.getServer().getServicesManager();
+        try {
+            services.register(InventoryCustody.class, custody, plugin, ServicePriority.Normal);
+            scope.register("staff-events-custody", () -> services.unregister(InventoryCustody.class, custody));
+        } catch (RuntimeException | Error failure) {
+            try {
+                services.unregister(InventoryCustody.class, custody);
+            } catch (RuntimeException cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
+            throw failure;
+        }
         scope.register("staff-events-runtime", () -> {
             created.shutdown();
             runtime = null;
         });
+        runtime = created;
         registrations.registerListener("staff-events-listener", created);
         PluginCommand command = plugin.getCommand("evento");
         if (command == null) {
@@ -90,7 +105,8 @@ public final class StaffEventsModule implements PluginModule {
         registrations.scheduleRepeating("staff-events-tick", created::tick, 5L, 5L);
         registrations.scheduleRepeating("staff-events-prepare", created::prepareTick, 1L, 1L);
         registrations.scheduleRepeating("staff-events-recover", created::retryBlockedRestores, 100L, 100L);
-        created.restorePendingOnline();
+        // Other inventory owners register during module startup; recover only after they are visible.
+        registrations.scheduleImmediate("staff-events-initial-restore", created::restorePendingOnline);
     }
 
     @Override
