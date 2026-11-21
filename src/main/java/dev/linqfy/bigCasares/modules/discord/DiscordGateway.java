@@ -21,17 +21,26 @@ public interface DiscordGateway extends AuditSink {
     
     void sendPrivateMessage(long userId, String message);
 
-    /**
-     * Alerta privada para un equipo. Por defecto llega por mensaje directo a cada miembro vinculado;
-     * el gateway de Discord la publica en el canal privado del equipo cuando hay categoría configurada.
-     *
-     * @param teamKey   identificador estable del equipo
-     * @param teamTag   etiqueta visible, usada para nombrar el canal
-     * @param memberIds IDs de Discord de los miembros vinculados
-     */
+    /** Sends a login-approval DM; false means the gateway cannot currently send it. */
+    default boolean sendLoginApproval(long userId, String requestId, String message) {
+        return false;
+    }
+
+    /** Receives button decisions for login approvals; null removes the handler. */
+    default void setLoginApprovalHandler(LoginApprovalHandler handler) {
+    }
+
+    @FunctionalInterface
+    interface LoginApprovalHandler {
+        void onDecision(String requestId, long discordUserId, boolean approved,
+                        java.util.function.Consumer<String> reply);
+    }
+
+    /** Sends a private team alert; fall back to DMs when no team channel is available. */
     default void sendTeamAlert(String teamKey, String teamTag, Set<Long> memberIds, String message) {
         for (long memberId : memberIds) {
             sendPrivateMessage(memberId, message);
         }
     }
+
 }

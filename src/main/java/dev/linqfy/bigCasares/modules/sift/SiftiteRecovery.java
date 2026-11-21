@@ -4,6 +4,7 @@ import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent;
 import dev.linqfy.bigCasares.content.ContentItemFactory;
 import dev.linqfy.bigCasares.dimension.NamespacedId;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.modules.auth.AuthReadiness;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
@@ -192,7 +193,8 @@ final class SiftiteRecovery implements Listener {
 
     private boolean canStart(UUID id) {
         Player player = Bukkit.getPlayer(id);
-        return player != null && player.isOnline() && !player.isDead() && !sessions.containsKey(id);
+        return player != null && player.isOnline() && !player.isDead() && AuthReadiness.ready(plugin, player)
+            && !sessions.containsKey(id);
     }
 
     private void start(Player player) {

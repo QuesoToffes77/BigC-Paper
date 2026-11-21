@@ -62,6 +62,8 @@ import java.util.logging.Logger;
 
 public final class JdaDiscordGateway extends ListenerAdapter implements DiscordGateway {
     private static final int MAX_OUTAGE_EVENTS = 500;
+    private static final String LOGIN_APPROVE_PREFIX = "bigcasares:auth:approve:";
+    private static final String LOGIN_DENY_PREFIX = "bigcasares:auth:deny:";
     static final String TEAM_TOPIC_PREFIX = "bigcasares-team:";
     private static final EnumSet<Permission> TEAM_MEMBER_ALLOW =
         EnumSet.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_HISTORY);
@@ -95,6 +97,7 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
     private volatile boolean stopping;
     private volatile boolean serverOnline = true;
     private volatile List<String> visiblePlayers = List.of();
+    private volatile LoginApprovalHandler loginApprovalHandler;
     private DiscordMessageState messageState;
 
     public JdaDiscordGateway(
@@ -254,6 +257,31 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
         }, error -> {
             // Ignore if user not found
         });
+    }
+
+    @Override
+    public boolean sendLoginApproval(long userId, String requestId, String message) {
+        JDA current = jda;
+        if (!callbacksActive() || current == null) {
+            return false;
+        }
+        current.retrieveUserById(userId).queue(user -> user.openPrivateChannel().queue(channel ->
+            channel.sendMessage(message)
+                .addComponents(ActionRow.of(
+                    Button.success(LOGIN_APPROVE_PREFIX + requestId, "Aprobar ingreso"),
+                    Button.danger(LOGIN_DENY_PREFIX + requestId, "No fui yo")
+                ))
+                .queue(), error -> {
+                    // DMs closed: the player can still use another login method
+                }), error -> {
+                    // unknown user
+                });
+        return true;
+    }
+
+    @Override
+    public void setLoginApprovalHandler(LoginApprovalHandler handler) {
+        this.loginApprovalHandler = handler;
     }
 
     @Override
@@ -488,6 +516,18 @@ public final class JdaDiscordGateway extends ListenerAdapter implements DiscordG
             return;
         }
         String componentId = event.getComponentId();
+        if (componentId.startsWith(LOGIN_APPROVE_PREFIX) || componentId.startsWith(LOGIN_DENY_PREFIX)) {
+            boolean approved = componentId.startsWith(LOGIN_APPROVE_PREFIX);
+            String requestId = componentId.substring(componentId.lastIndexOf(':') + 1);
+            LoginApprovalHandler handler = loginApprovalHandler;
+            if (handler == null) {
+                event.editMessage("El sistema de login no está disponible ahora.").setComponents().queue();
+                return;
+            }
+            event.deferEdit().queue(hook -> handler.onDecision(requestId, event.getUser().getIdLong(), approved,
+                reply -> hook.editOriginal(reply).setComponents().queue()));
+            return;
+        }
         if (!(componentId.startsWith("bigcasares:confirm:") || componentId.startsWith("bigcasares:reject:"))) {
             return;
         }
