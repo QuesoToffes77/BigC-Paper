@@ -8,6 +8,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -84,6 +85,7 @@ final class KeyDoors implements Runnable {
         });
         portals.add(new Portal(bottom, hole, label));
         world.playSound(bottom.getLocation(), Sound.BLOCK_END_PORTAL_FRAME_FILL, 1f, 0.5f);
+        CaiChetSounds.play(world, bottom.getLocation(), CaiChetSounds.DOOR_KEY, SoundCategory.BLOCKS, 1.5f, 1f);
         return true;
     }
 
@@ -139,7 +141,9 @@ final class KeyDoors implements Runnable {
         portal.label.remove();
         if (portal.bottom.getBlockData() instanceof Door) {
             setOpen(portal.bottom, false);
-            portal.bottom.getWorld().playSound(portal.bottom.getLocation(), Sound.BLOCK_WOODEN_DOOR_CLOSE, 1f, 0.6f);
+            portal.bottom.getWorld().playSound(portal.bottom.getLocation(), Sound.BLOCK_WOODEN_DOOR_CLOSE, 0.4f, 0.6f);
+            CaiChetSounds.play(portal.bottom.getWorld(), portal.bottom.getLocation(), CaiChetSounds.DOOR_CREAK,
+                    SoundCategory.BLOCKS, 1.5f, 1f);
         }
     }
 

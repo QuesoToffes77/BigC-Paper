@@ -6,6 +6,7 @@ import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -155,6 +156,7 @@ public final class PortalListener implements Listener {
             return;
         }
         player.teleport(safe(loadReturn(player, RETURN_KEY)));
+        CaiChetSounds.playTo(player, player.getLocation(), CaiChetSounds.PIT_RETURN, SoundCategory.AMBIENT, 1f, 1f);
     }
 
     /**

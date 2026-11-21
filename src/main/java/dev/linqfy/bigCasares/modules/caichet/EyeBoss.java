@@ -12,6 +12,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -127,7 +128,8 @@ final class EyeBoss {
         bar = BossBar.bossBar(Component.text("El Ojo", NamedTextColor.LIGHT_PURPLE), 1f,
                 BossBar.Color.PINK, BossBar.Overlay.NOTCHED_6);
         owner.showBossBar(bar);
-        world.playSound(start, Sound.ENTITY_WARDEN_EMERGE, 1.2f, 1.6f);
+        CaiChetSounds.play(world, start, CaiChetSounds.EYE_ROAR, SoundCategory.HOSTILE, 3f, 1f);
+        world.playSound(start, Sound.ENTITY_WARDEN_EMERGE, 0.5f, 1.6f);
         owner.showTitle(Title.title(Component.empty(), Component.text("algo te está mirando", NamedTextColor.LIGHT_PURPLE)
                 .decoration(TextDecoration.ITALIC, true), Title.Times.times(Duration.ofMillis(600),
                 Duration.ofMillis(1800), Duration.ofMillis(800))));

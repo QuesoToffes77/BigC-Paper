@@ -11,6 +11,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -608,6 +609,9 @@ final class DreamEntities implements Runnable {
 
     // ------------------------------------------------------------------ frases y musica
 
+    private static final long CHIMES_MIN_TICKS = 20L * 60;
+    private static final long CHIMES_MAX_TICKS = 20L * 120;
+
     private void mood(Player p) {
         ThreadLocalRandom r = ThreadLocalRandom.current();
         UUID id = p.getUniqueId();
@@ -626,6 +630,10 @@ final class DreamEntities implements Runnable {
                         false, false, false));
                 p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.4f, 0.5f);
             }
+        }
+        // campanas lejanas cada 1-2 minutos; es aparte de la cajita de musica de abajo
+        if (CaiChetSounds.due(id, "dream-chimes", tick, CHIMES_MIN_TICKS, CHIMES_MAX_TICKS, r)) {
+            CaiChetSounds.playTo(p, p.getLocation(), CaiChetSounds.DREAM_CHIMES, SoundCategory.AMBIENT, 0.5f, 1f);
         }
         int musicAt = nextMusic.computeIfAbsent(id, k -> tick + 20 * r.nextInt(10, 30));
         if (tick >= musicAt) {

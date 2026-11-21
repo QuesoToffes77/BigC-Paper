@@ -17,6 +17,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -209,6 +210,7 @@ public final class HotelLoot implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         lastShot.remove(event.getPlayer().getUniqueId());
+        CaiChetSounds.forget(event.getPlayer().getUniqueId());
         drinkingUntil.remove(event.getPlayer().getUniqueId());
         // la jarra ya se gasto: si se va en medio del flashback, la comida se entrega ahora y no se pierde
         Integer owed = owedFood.remove(event.getPlayer().getUniqueId());
@@ -221,7 +223,8 @@ public final class HotelLoot implements Listener {
         World world = player.getWorld();
         Location eye = player.getEyeLocation();
         Vector dir = eye.getDirection().normalize();
-        world.playSound(eye, Sound.ENTITY_WARDEN_SONIC_BOOM, 1.5f, 1.3f);
+        CaiChetSounds.play(world, eye, CaiChetSounds.WEAPON_BEAM, SoundCategory.PLAYERS, 2f, 1f);
+        world.playSound(eye, Sound.ENTITY_WARDEN_SONIC_BOOM, 0.6f, 1.3f);
         // el rayo: polvo rojo a lo largo de la linea y anillos oscuros cada tanto
         for (double d = 1; d <= BEAM_RANGE; d += 0.4) {
             Location p = eye.clone().add(dir.clone().multiply(d));

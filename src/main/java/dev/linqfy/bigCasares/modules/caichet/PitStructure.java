@@ -8,6 +8,7 @@ import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.SoundCategory;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -284,6 +285,7 @@ final class PitStructure implements Listener {
             return;
         }
         quiet.put(player.getUniqueId(), now + TRAVEL_COOLDOWN_TICKS);
+        CaiChetSounds.playTo(player, player.getLocation(), CaiChetSounds.PIT_TRAVEL, SoundCategory.AMBIENT, 1f, 1f);
         // se vuelve sobre el borde, no en el fondo: si no, al volver caeria otra vez en el negro
         Location back = new Location(player.getWorld(), pit.returnX(), pit.returnY(), pit.returnZ());
         back.setDirection(pit.outward().getDirection());

@@ -1,8 +1,11 @@
 package dev.linqfy.bigCasares.modules.caichet;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
@@ -31,6 +34,9 @@ final class FlickerLights implements Listener, Runnable {
     private static final int FAULTY_PERCENT = 12;
     /** Solo titilan los que estan a esta distancia de algun jugador. */
     private static final double ACTIVE_RADIUS = 40;
+    /** El chisporroteo solo se oye si la luz esta a esta distancia, y a cada jugador como mucho cada 3 segundos. */
+    private static final double BUZZ_RADIUS = 12;
+    private static final long BUZZ_COOLDOWN_TICKS = 60;
 
     private static final class Light {
         final int x;
@@ -147,6 +153,7 @@ final class FlickerLights implements Listener, Runnable {
                     // parpadeo corto casi siempre; a veces se queda apagado un rato
                     light.off = random.nextInt(100) < 85 ? 1 + random.nextInt(3) : 8 + random.nextInt(20);
                     setLit(hotel, light, false);
+                    buzz(players, light, random);
                 }
             }
         }
@@ -166,6 +173,29 @@ final class FlickerLights implements Listener, Runnable {
                 }
             }
         }
+    }
+
+    /** Chisporroteo bajito para el jugador mas cercano (si esta a tiro), con tope por jugador. */
+    private static void buzz(List<Player> players, Light light, ThreadLocalRandom random) {
+        Player nearest = null;
+        double best = BUZZ_RADIUS * BUZZ_RADIUS;
+        for (Player player : players) {
+            double dx = player.getX() - light.x;
+            double dy = player.getY() - light.y;
+            double dz = player.getZ() - light.z;
+            double d = dx * dx + dy * dy + dz * dz;
+            if (d < best) {
+                best = d;
+                nearest = player;
+            }
+        }
+        if (nearest == null
+                || !CaiChetSounds.allow(nearest.getUniqueId(), "flicker", Bukkit.getCurrentTick(), BUZZ_COOLDOWN_TICKS)) {
+            return;
+        }
+        Location at = new Location(nearest.getWorld(), light.x + 0.5, light.y + 0.5, light.z + 0.5);
+        CaiChetSounds.playTo(nearest, at, CaiChetSounds.HOTEL_FLICKER, SoundCategory.BLOCKS, 0.6f,
+                0.9f + random.nextFloat() * 0.2f);
     }
 
     private static boolean near(List<Player> players, Light light, double radius) {

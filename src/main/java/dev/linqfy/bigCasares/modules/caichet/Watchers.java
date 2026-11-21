@@ -9,6 +9,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -157,6 +158,7 @@ final class Watchers implements Runnable {
             if (w.seen >= SEEN_BEFORE_CHASE_TICKS) {
                 w.chasing = true;
                 p.playSound(at, Sound.ENTITY_WARDEN_HEARTBEAT, 1.5f, 1.4f);
+                CaiChetSounds.playTo(p, at, CaiChetSounds.FIGURE_CHASE, SoundCategory.HOSTILE, 2.5f, 1f);
             }
         }
         if (w.age >= MAX_AGE_TICKS) {
@@ -255,6 +257,8 @@ final class Watchers implements Runnable {
             player.showEntity(plugin, watcher.stand);
         }
         byPlayer.put(player.getUniqueId(), watcher);
+        // respiro o fantasma: las dos variantes estan en el mismo evento y Minecraft sortea una
+        CaiChetSounds.playTo(player, spot, CaiChetSounds.FIGURE_APPEAR, SoundCategory.HOSTILE, 2f, 1f);
     }
 
     /** Te alcanzo: grito, un instante de oscuridad, y desaparece. */

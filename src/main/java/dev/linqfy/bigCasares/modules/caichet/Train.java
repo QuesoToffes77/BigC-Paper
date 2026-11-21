@@ -6,6 +6,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
@@ -24,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 /**
@@ -50,6 +52,16 @@ final class Train {
     static final double RUNOUT = 60.0;
     /** Tope de seguridad: si no termina antes, desaparece. */
     static final int MAX_TICKS = 20 * 30;
+
+    /** Cada cuanto se vuelve a emitir el motor (el archivo dura ~22 s y se pide un poco antes de que termine). */
+    static final int ENGINE_PERIOD_TICKS = 20 * 20;
+    /** El motor solo se manda a quien esta a menos de esto. */
+    static final double ENGINE_RADIUS = 100.0;
+    /** Cada cuanto se sortea un soplido de vapor, y con que chance. */
+    static final int STEAM_EVERY_TICKS = 30;
+    static final int STEAM_CHANCE_PERCENT = 50;
+    /** Segundo silbato cuando el tren ya esta cerca de su objetivo. */
+    private static final double WHISTLE_NEAR = 40.0;
 
     /** El modelo original mide ~3 bloques de largo; se agranda este factor. */
     static final float MODEL_SCALE = 3.0f;
@@ -85,6 +97,7 @@ final class Train {
     private boolean passed;
     private double runoutLeft = RUNOUT;
     private boolean finished;
+    private boolean whistledNear;
 
     /**
      * @param target de donde sacar a quien perseguir cada tick; si devuelve null el tren sigue derecho
@@ -128,6 +141,7 @@ final class Train {
             updateVisual(); // las figuras recien creadas van directo al techo
         }
         checkHits();
+        sounds();
 
         if (age % 6 == 0) {
             world.playSound(head(), Sound.ENTITY_MINECART_RIDING, 4f, 0.5f);
@@ -137,6 +151,50 @@ final class Train {
             return false;
         }
         return true;
+    }
+
+    /** El motor se emite al arrancar y despues cada {@link #ENGINE_PERIOD_TICKS}. */
+    static boolean engineDue(int age) {
+        return age % ENGINE_PERIOD_TICKS == 1;
+    }
+
+    /** Vapor a veces: solo en los multiplos de {@link #STEAM_EVERY_TICKS} y si el sorteo (0-99) sale bajo. */
+    static boolean steamDue(int age, int roll) {
+        return age > 0 && age % STEAM_EVERY_TICKS == 0 && roll < STEAM_CHANCE_PERCENT;
+    }
+
+    private void sounds() {
+        if (age == 1) {
+            whistle();
+        }
+        if (engineDue(age)) {
+            engine();
+        }
+        if (steamDue(age, ThreadLocalRandom.current().nextInt(100))) {
+            Location at = head().add(0, 4, 0);
+            CaiChetSounds.play(world, at, CaiChetSounds.TRAIN_STEAM, SoundCategory.NEUTRAL, 3f, 1f);
+            world.spawnParticle(Particle.CLOUD, at, 12, 0.6, 0.3, 0.6, 0.03);
+        }
+    }
+
+    private void whistle() {
+        CaiChetSounds.play(world, head(), CaiChetSounds.TRAIN_WHISTLE, SoundCategory.NEUTRAL, 8f, 1f);
+    }
+
+    /** El motor sigue al display de la locomotora; Bedrock no lo ve, asi que ahi suena en la posicion del tren. */
+    private void engine() {
+        Location at = head();
+        double limit = ENGINE_RADIUS * ENGINE_RADIUS;
+        for (Player player : world.getPlayers()) {
+            if (player.getLocation().distanceSquared(at) > limit) {
+                continue;
+            }
+            if (Bedrock.is(player) || !display.isValid()) {
+                CaiChetSounds.playTo(player, at, CaiChetSounds.TRAIN_ENGINE, SoundCategory.NEUTRAL, 6f, 1f);
+            } else {
+                CaiChetSounds.follow(player, display, CaiChetSounds.TRAIN_ENGINE, SoundCategory.NEUTRAL, 6f, 1f);
+            }
+        }
     }
 
     void remove() {
@@ -218,6 +276,10 @@ final class Train {
         double tx = t.getX() - hx;
         double tz = t.getZ() - hz;
         double dist = Math.hypot(tx, tz);
+        if (!whistledNear && dist < WHISTLE_NEAR) {
+            whistledNear = true;
+            whistle();
+        }
         if (dist < 0.001) {
             return;
         }

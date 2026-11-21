@@ -227,6 +227,7 @@ public final class CaiChetModule implements PluginModule {
         }
         LiquidRiser.reset();
         TeamLookup.clear();
+        CaiChetSounds.clear();
         director = null;
         watchers = null;
         flicker = null;
