@@ -70,7 +70,38 @@ final class YamlAuctionStore implements AuctionStore<ItemStack> {
                 }
             }
         }
-        return new AuctionSnapshot<>(yaml.getLong("next-id", 1), listings, claims);
+        return new AuctionSnapshot<>(yaml.getLong("next-id", 1), listings, claims, readPending(yaml, file));
+    }
+
+    static Map<Long, AuctionPurchase> readPending(YamlConfiguration yaml, Path file) {
+        Map<Long, AuctionPurchase> pending = new LinkedHashMap<>();
+        ConfigurationSection section = yaml.getConfigurationSection("pending-purchases");
+        if (yaml.contains("pending-purchases") && section == null) {
+            throw new IllegalStateException("Invalid pending purchases in " + file);
+        }
+        if (section != null) {
+            for (String key : section.getKeys(false)) {
+                try {
+                    ConfigurationSection entry = section.getConfigurationSection(key);
+                    if (entry == null) throw new IllegalArgumentException("not a section");
+                    pending.put(Long.parseLong(key), new AuctionPurchase(
+                        UUID.fromString(entry.getString("buyer", "")),
+                        AuctionPurchase.Phase.valueOf(entry.getString("phase", ""))));
+                } catch (RuntimeException invalid) {
+                    throw new IllegalStateException("Invalid pending purchase " + key + " in " + file, invalid);
+                }
+            }
+        }
+        return pending;
+    }
+
+    static void writePending(YamlConfiguration yaml, Map<Long, AuctionPurchase> pending) {
+        ConfigurationSection section = yaml.createSection("pending-purchases");
+        pending.forEach((id, purchase) -> {
+            ConfigurationSection entry = section.createSection(Long.toString(id));
+            entry.set("buyer", purchase.buyer().toString());
+            entry.set("phase", purchase.phase().name());
+        });
     }
 
     @Override
@@ -98,6 +129,7 @@ final class YamlAuctionStore implements AuctionStore<ItemStack> {
         }
         ConfigurationSection claimSection = yaml.createSection("claims");
         snapshot.claims().forEach((player, items) -> claimSection.set(player.toString(), items));
+        writePending(yaml, snapshot.pendingPurchases());
         try {
             Files.createDirectories(file.getParent());
             Path temporary = file.resolveSibling(file.getFileName() + ".tmp");

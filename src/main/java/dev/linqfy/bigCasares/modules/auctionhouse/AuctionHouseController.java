@@ -72,6 +72,7 @@ final class AuctionHouseController {
             case OWN_LISTING -> player.sendMessage("§cNo podés comprar tu propia subasta.");
             case INSUFFICIENT_FUNDS -> player.sendMessage("§cNo tenés suficiente dinero. Cuesta "
                 + AuctionFormat.money(listing.price()) + ".");
+            case PAYMENT_PENDING -> player.sendMessage("§cEl pago quedó pendiente de revisión. Contactá a un administrador.");
             case PAYMENT_FAILED -> player.sendMessage("§cNo se pudo completar el pago. Intentá de nuevo.");
         }
     }

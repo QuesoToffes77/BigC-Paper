@@ -21,7 +21,7 @@ public final class AuctionHouseService<I> {
 
     public enum ListResult { LISTED, PRICE_TOO_LOW, PRICE_TOO_HIGH, TOO_MANY_LISTINGS }
 
-    public enum BuyStatus { BOUGHT, NOT_FOUND, OWN_LISTING, INSUFFICIENT_FUNDS, PAYMENT_FAILED }
+    public enum BuyStatus { BOUGHT, NOT_FOUND, OWN_LISTING, INSUFFICIENT_FUNDS, PAYMENT_FAILED, PAYMENT_PENDING }
 
     public record BuyResult<I>(BuyStatus status, AuctionListing<I> listing) {
     }
@@ -36,6 +36,7 @@ public final class AuctionHouseService<I> {
     private final Clock clock;
     private final Map<Long, AuctionListing<I>> listings = new LinkedHashMap<>();
     private final Map<UUID, List<I>> claims = new LinkedHashMap<>();
+    private final Map<Long, AuctionPurchase> pendingPurchases = new LinkedHashMap<>();
     private long nextId;
 
     public AuctionHouseService(AuctionHouseSettings settings, AuctionBank bank, AuctionStore<I> store, Clock clock) {
@@ -46,6 +47,7 @@ public final class AuctionHouseService<I> {
         AuctionSnapshot<I> snapshot = store.load();
         snapshot.listings().forEach(listing -> listings.put(listing.id(), listing));
         snapshot.claims().forEach((player, items) -> claims.put(player, new ArrayList<>(items)));
+        pendingPurchases.putAll(snapshot.pendingPurchases());
         nextId = snapshot.nextId();
     }
 
@@ -69,7 +71,7 @@ public final class AuctionHouseService<I> {
             nextId, seller, sellerName, item, price, now, now.plus(settings.listingDuration()));
         List<AuctionListing<I>> proposed = new ArrayList<>(listings.values());
         proposed.add(listing);
-        store.saveListing(new AuctionSnapshot<>(nextId + 1, proposed, claims));
+        store.saveListing(new AuctionSnapshot<>(nextId + 1, proposed, claims, pendingPurchases));
         nextId++;
         listings.put(listing.id(), listing);
         return ListResult.LISTED;
@@ -78,6 +80,9 @@ public final class AuctionHouseService<I> {
     /** Charges the buyer, pays the seller (minus tax) and removes the listing. The item is in the result. */
     public BuyResult<I> buy(UUID buyer, long listingId) {
         AuctionListing<I> listing = listings.get(listingId);
+        if (pendingPurchases.containsKey(listingId)) {
+            return new BuyResult<>(BuyStatus.PAYMENT_PENDING, listing);
+        }
         if (listing == null || listing.expired(clock.instant())) {
             return new BuyResult<>(BuyStatus.NOT_FOUND, listing);
         }
@@ -87,23 +92,54 @@ public final class AuctionHouseService<I> {
         if (bank.balance(buyer) < listing.price()) {
             return new BuyResult<>(BuyStatus.INSUFFICIENT_FUNDS, listing);
         }
-        if (!bank.withdraw(buyer, listing.price())) {
+        pendingPurchases.put(listingId, new AuctionPurchase(buyer, AuctionPurchase.Phase.WITHDRAW));
+        try {
+            saveChecked();
+        } catch (RuntimeException failure) {
+            pendingPurchases.remove(listingId);
             return new BuyResult<>(BuyStatus.PAYMENT_FAILED, listing);
         }
-        long payout = listing.price() - settings.taxOf(listing.price());
-        if (!bank.deposit(listing.seller(), payout)) {
-            bank.deposit(buyer, listing.price());
-            return new BuyResult<>(BuyStatus.PAYMENT_FAILED, listing);
+        try {
+            if (!bank.withdraw(buyer, listing.price())) {
+                return finishFailedPurchase(listingId, listing);
+            }
+            pendingPurchases.put(listingId, new AuctionPurchase(buyer, AuctionPurchase.Phase.PAYOUT));
+            saveChecked();
+            long payout = listing.price() - settings.taxOf(listing.price());
+            if (!bank.deposit(listing.seller(), payout)) {
+                pendingPurchases.put(listingId, new AuctionPurchase(buyer, AuctionPurchase.Phase.REFUND));
+                saveChecked();
+                if (!bank.deposit(buyer, listing.price())) {
+                    return new BuyResult<>(BuyStatus.PAYMENT_PENDING, listing);
+                }
+                return finishFailedPurchase(listingId, listing);
+            }
+            List<AuctionListing<I>> remaining = new ArrayList<>(listings.values());
+            remaining.remove(listing);
+            Map<Long, AuctionPurchase> remainingPurchases = new LinkedHashMap<>(pendingPurchases);
+            remainingPurchases.remove(listingId);
+            store.saveListing(new AuctionSnapshot<>(nextId, remaining, claims, remainingPurchases));
+            listings.remove(listingId);
+            pendingPurchases.remove(listingId);
+            return new BuyResult<>(BuyStatus.BOUGHT, listing);
+        } catch (RuntimeException failure) {
+            // Vault or disk may have completed the operation before throwing. Never retry automatically.
+            return new BuyResult<>(BuyStatus.PAYMENT_PENDING, listing);
         }
-        listings.remove(listingId);
-        save();
-        return new BuyResult<>(BuyStatus.BOUGHT, listing);
+    }
+
+    private BuyResult<I> finishFailedPurchase(long listingId, AuctionListing<I> listing) {
+        Map<Long, AuctionPurchase> remaining = new LinkedHashMap<>(pendingPurchases);
+        remaining.remove(listingId);
+        store.saveListing(new AuctionSnapshot<>(nextId, List.copyOf(listings.values()), claims, remaining));
+        pendingPurchases.remove(listingId);
+        return new BuyResult<>(BuyStatus.PAYMENT_FAILED, listing);
     }
 
     /** Removes the seller's own listing and returns its item to the caller. */
     public Optional<I> cancel(UUID seller, long listingId) {
         AuctionListing<I> listing = listings.get(listingId);
-        if (listing == null || !listing.seller().equals(seller)) {
+        if (listing == null || pendingPurchases.containsKey(listingId) || !listing.seller().equals(seller)) {
             return Optional.empty();
         }
         listings.remove(listingId);
@@ -113,6 +149,7 @@ public final class AuctionHouseService<I> {
 
     /** Admin removal: the item goes back to the seller's claim box. */
     public Optional<AuctionListing<I>> remove(long listingId) {
+        if (pendingPurchases.containsKey(listingId)) return Optional.empty();
         AuctionListing<I> listing = listings.remove(listingId);
         if (listing == null) {
             return Optional.empty();
@@ -125,7 +162,7 @@ public final class AuctionHouseService<I> {
     /** Moves expired listings into their sellers' claim boxes; returns how many expired. */
     public int expire() {
         Instant now = clock.instant();
-        List<AuctionListing<I>> expired = listings.values().stream().filter(listing -> listing.expired(now)).toList();
+        List<AuctionListing<I>> expired = listings.values().stream().filter(listing -> !pendingPurchases.containsKey(listing.id()) && listing.expired(now)).toList();
         for (AuctionListing<I> listing : expired) {
             listings.remove(listing.id());
             claims.computeIfAbsent(listing.seller(), ignored -> new ArrayList<>()).add(listing.item());
@@ -138,13 +175,14 @@ public final class AuctionHouseService<I> {
 
     public Optional<AuctionListing<I>> find(long listingId) {
         AuctionListing<I> listing = listings.get(listingId);
-        return listing == null || listing.expired(clock.instant()) ? Optional.empty() : Optional.of(listing);
+        return listing == null || pendingPurchases.containsKey(listingId) || listing.expired(clock.instant())
+            ? Optional.empty() : Optional.of(listing);
     }
 
     /** Listings that can still be bought, newest first. */
     public List<AuctionListing<I>> active() {
         Instant now = clock.instant();
-        return listings.values().stream().filter(listing -> !listing.expired(now)).sorted(NEWEST_FIRST).toList();
+        return listings.values().stream().filter(listing -> !pendingPurchases.containsKey(listing.id()) && !listing.expired(now)).sorted(NEWEST_FIRST).toList();
     }
 
     /** Every listing of the seller that has not been moved to the claim box yet, newest first. */
@@ -175,7 +213,11 @@ public final class AuctionHouseService<I> {
         save();
     }
 
+    private void saveChecked() {
+        store.saveListing(new AuctionSnapshot<>(nextId, List.copyOf(listings.values()), claims, pendingPurchases));
+    }
+
     private void save() {
-        store.save(new AuctionSnapshot<>(nextId, List.copyOf(listings.values()), claims));
+        store.save(new AuctionSnapshot<>(nextId, List.copyOf(listings.values()), claims, pendingPurchases));
     }
 }
