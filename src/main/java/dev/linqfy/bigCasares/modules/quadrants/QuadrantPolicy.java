@@ -9,17 +9,20 @@ public final class QuadrantPolicy {
     }
 
     /**
-     * El PvP vale si ambos están en Anarquía. En la zona Chill solo sigue un combate ya iniciado
-     * (atacante y víctima en combate), por ejemplo si alguien entró por un método no controlado.
+     * La zona Chill siempre protege. En la zona consensuada ambos jugadores deben aceptar;
+     * fuera de ella rige el PvP libre, también en mundos no gestionados.
      */
     public static boolean allowsPvp(Optional<QuadrantZone> attackerZone, Optional<QuadrantZone> victimZone,
-                                    boolean attackerTagged, boolean victimTagged) {
-        if (attackerZone.isEmpty() && victimZone.isEmpty()) {
-            return true;
+                                    boolean attackerOptedIn, boolean victimOptedIn) {
+        if (attackerZone.filter(QuadrantZone.CHILL::equals).isPresent()
+            || victimZone.filter(QuadrantZone.CHILL::equals).isPresent()) {
+            return false;
         }
-        boolean bothAnarchy = attackerZone.orElse(QuadrantZone.ANARCHY) == QuadrantZone.ANARCHY
-            && victimZone.orElse(QuadrantZone.ANARCHY) == QuadrantZone.ANARCHY;
-        return bothAnarchy || (attackerTagged && victimTagged);
+        if (attackerZone.filter(QuadrantZone.CONSENSUAL::equals).isPresent()
+            || victimZone.filter(QuadrantZone.CONSENSUAL::equals).isPresent()) {
+            return attackerOptedIn && victimOptedIn;
+        }
+        return true;
     }
 
     /** Un jugador en combate no puede entrar a la zona Chill. */

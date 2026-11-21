@@ -436,7 +436,7 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(skillRatingModule);
         moduleManager.register(dangerModule);
         moduleManager.register(quadrantModule);
-        moduleManager.register(new DominationModule(this));
+        moduleManager.register(new DominationModule(this, quadrantModule::isFullPvp));
         moduleManager.register(tombstoneModule);
         moduleManager.register(keepInventoryTotemModule);
         moduleManager.register(new ElytraFailureModule(this));

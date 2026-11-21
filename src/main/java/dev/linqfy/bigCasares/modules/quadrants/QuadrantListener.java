@@ -6,24 +6,41 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.TNTPrimed;
+import org.bukkit.entity.Tameable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.AreaEffectCloudApplyEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.PotionSplashEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 final class QuadrantListener implements Listener {
 
     private final QuadrantRuntime runtime;
+    private final Predicate<Collection<PotionEffect>> harmful;
 
     QuadrantListener(QuadrantRuntime runtime) {
+        this(runtime, effects -> effects.stream().anyMatch(effect ->
+            effect.getType().getEffectCategory() == PotionEffectType.Category.HARMFUL));
+    }
+
+    QuadrantListener(QuadrantRuntime runtime, Predicate<Collection<PotionEffect>> harmful) {
         this.runtime = runtime;
+        this.harmful = harmful;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -31,16 +48,19 @@ final class QuadrantListener implements Listener {
         if (!(event.getEntity() instanceof Player victim)) {
             return;
         }
-        Player attacker = attackingPlayer(event.getDamager());
+        Player attacker = attackingPlayer(event.getDamageSource().getCausingEntity());
+        if (attacker == null) {
+            attacker = attackingPlayer(event.getDamager());
+        }
         if (attacker == null || attacker.getUniqueId().equals(victim.getUniqueId())) {
             return;
         }
         boolean allowed = QuadrantPolicy.allowsPvp(
             runtime.zoneAt(attacker.getLocation()), runtime.zoneAt(victim.getLocation()),
-            runtime.isTagged(attacker), runtime.isTagged(victim));
+            runtime.isOptedIn(attacker), runtime.isOptedIn(victim));
         if (!allowed) {
             event.setCancelled(true);
-            attacker.sendActionBar("§aZona SMP Chill: el PvP está desactivado.");
+            attacker.sendActionBar("§aPvP no permitido: zona protegida o falta consentimiento mutuo.");
         }
     }
 
@@ -49,13 +69,72 @@ final class QuadrantListener implements Listener {
         if (!(event.getEntity() instanceof Player victim)) {
             return;
         }
-        Player attacker = attackingPlayer(event.getDamager());
+        Player attacker = attackingPlayer(event.getDamageSource().getCausingEntity());
+        if (attacker == null) {
+            attacker = attackingPlayer(event.getDamager());
+        }
         if (attacker == null || attacker.getUniqueId().equals(victim.getUniqueId())) {
             return;
         }
         if (runtime.zoneAt(attacker.getLocation()).isEmpty() && runtime.zoneAt(victim.getLocation()).isEmpty()) {
             return;
         }
+        runtime.tag(attacker);
+        runtime.tag(victim);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onSplash(PotionSplashEvent event) {
+        Player attacker = attackingPlayer(event.getPotion());
+        if (attacker == null || !harmful.test(event.getPotion().getEffects())) return;
+        for (var target : List.copyOf(event.getAffectedEntities())) {
+            if (target instanceof Player victim && !attacker.getUniqueId().equals(victim.getUniqueId())
+                && !allows(attacker, victim)) {
+                event.setIntensity(victim, 0);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSplashApplied(PotionSplashEvent event) {
+        Player attacker = attackingPlayer(event.getPotion());
+        if (attacker == null || !harmful.test(event.getPotion().getEffects())) return;
+        for (var target : event.getAffectedEntities()) {
+            if (target instanceof Player victim && event.getIntensity(victim) > 0) tagPotionCombat(attacker, victim);
+        }
+    }
+
+    private Collection<PotionEffect> cloudEffects(AreaEffectCloud cloud) {
+        Collection<PotionEffect> effects = new ArrayList<>(cloud.getCustomEffects());
+        if (cloud.getBasePotionType() != null) effects.addAll(cloud.getBasePotionType().getPotionEffects());
+        return effects;
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onCloud(AreaEffectCloudApplyEvent event) {
+        Player attacker = attackingPlayer(event.getEntity());
+        if (attacker == null || !harmful.test(cloudEffects(event.getEntity()))) return;
+        event.getAffectedEntities().removeIf(target -> target instanceof Player victim
+            && !attacker.getUniqueId().equals(victim.getUniqueId()) && !allows(attacker, victim));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCloudApplied(AreaEffectCloudApplyEvent event) {
+        Player attacker = attackingPlayer(event.getEntity());
+        if (attacker == null || !harmful.test(cloudEffects(event.getEntity()))) return;
+        for (var target : event.getAffectedEntities()) {
+            if (target instanceof Player victim) tagPotionCombat(attacker, victim);
+        }
+    }
+
+    private boolean allows(Player attacker, Player victim) {
+        return QuadrantPolicy.allowsPvp(runtime.zoneAt(attacker.getLocation()), runtime.zoneAt(victim.getLocation()),
+            runtime.isOptedIn(attacker), runtime.isOptedIn(victim));
+    }
+
+    private void tagPotionCombat(Player attacker, Player victim) {
+        if (attacker.getUniqueId().equals(victim.getUniqueId()) || !allows(attacker, victim)
+            || runtime.zoneAt(attacker.getLocation()).isEmpty() && runtime.zoneAt(victim.getLocation()).isEmpty()) return;
         runtime.tag(attacker);
         runtime.tag(victim);
     }
@@ -108,7 +187,7 @@ final class QuadrantListener implements Listener {
         runtime.forget(event.getPlayer().getUniqueId());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDeath(PlayerDeathEvent event) {
         runtime.combat().clear(event.getEntity().getUniqueId());
     }
@@ -133,6 +212,9 @@ final class QuadrantListener implements Listener {
         }
         if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Player shooter) {
             return shooter;
+        }
+        if (damager instanceof Tameable pet && pet.getOwner() instanceof Player owner) {
+            return owner;
         }
         if (damager instanceof TNTPrimed tnt && tnt.getSource() instanceof Player source) {
             return source;

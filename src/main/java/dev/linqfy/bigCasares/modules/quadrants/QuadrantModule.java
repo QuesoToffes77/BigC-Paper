@@ -3,15 +3,17 @@ package dev.linqfy.bigCasares.modules.quadrants;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.modules.quadrants.quests.PvpQuestController;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Cuadrantes diagonales: dos cuadrantes opuestos son Anarquía (PvP) y los otros dos SMP Chill.
+ * Cuatro cuadrantes: protegido, consensuado y dos de PvP libre.
  * Un golpe PvP deja a ambos jugadores en combate y mientras dure no pueden entrar a la zona Chill.
  */
 public final class QuadrantModule implements PluginModule {
@@ -56,8 +58,36 @@ public final class QuadrantModule implements PluginModule {
         registrations.scheduleRepeating("quadrant-combat-tick", () -> tick(created), 20L, 20L);
         plugin.getServer().getOnlinePlayers().forEach(player -> created.observe(player, player.getLocation()));
         runtime = created;
-        plugin.getLogger().info("[Cuadrantes] Anarquía en " + settings.anarchyQuadrant() + " y "
-            + settings.anarchyQuadrant().opposite() + "; búfer de combate " + settings.combatTagSeconds() + "s.");
+        PvpQuestController quests = plugin.getConfig().getBoolean("pvp-quadrants.quests.enabled", true)
+            ? new PvpQuestController(plugin, this::isFullPvp) : null;
+        if (quests != null) registrations.registerListener("quadrant-pvp-quests", quests);
+        var command = plugin.getCommand("pvp");
+        if (command == null) throw new IllegalStateException("Missing pvp command");
+        registrations.bindCommand("quadrant-pvp-command", command, (sender, cmd, label, args) -> {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("Solo jugadores pueden usar este comando.");
+                return true;
+            }
+            if (args.length > 0) {
+                if (args[0].equalsIgnoreCase("quests") && quests != null) quests.command(player, args);
+                else player.sendMessage("§cUsá /pvp o /pvp quests.");
+                return true;
+            }
+            if (created.isOptedIn(player) && created.isTagged(player)) {
+                player.sendMessage("§cNo podés salir del PvP consensuado mientras estás en combate.");
+                return true;
+            }
+            boolean enabled = created.toggleOptIn(player);
+            player.sendMessage(enabled ? "§ePvP consensuado activado. Ambos jugadores deben aceptarlo."
+                : "§aPvP consensuado desactivado.");
+            return true;
+        }, null);
+        var services = plugin.getServer().getServicesManager();
+        FullPvpPolicy fullPvp = this::isFullPvp;
+        services.register(FullPvpPolicy.class, fullPvp, plugin, ServicePriority.Normal);
+        scope.register("quadrant-full-pvp-policy", () -> services.unregister(FullPvpPolicy.class, fullPvp));
+        plugin.getLogger().info("[Cuadrantes] NW protegido, NE consensuado, SW/SE PvP libre; búfer "
+            + settings.combatTagSeconds() + "s.");
     }
 
     @Override
@@ -78,6 +108,10 @@ public final class QuadrantModule implements PluginModule {
     public Optional<QuadrantZone> zoneAt(Location location) {
         QuadrantRuntime current = runtime;
         return current == null ? Optional.empty() : current.zoneAt(location);
+    }
+
+    public boolean isFullPvp(Location location) {
+        return zoneAt(location).filter(QuadrantZone.ANARCHY::equals).isPresent();
     }
 
     public boolean isInCombat(UUID playerId) {

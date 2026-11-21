@@ -20,7 +20,10 @@ public final class QuadrantMap {
     }
 
     public QuadrantZone zoneOf(Quadrant quadrant) {
-        Quadrant anarchy = settings.anarchyQuadrant();
-        return quadrant == anarchy || quadrant == anarchy.opposite() ? QuadrantZone.ANARCHY : QuadrantZone.CHILL;
+        return switch (quadrant) {
+            case NORTH_WEST -> QuadrantZone.CHILL;
+            case NORTH_EAST -> QuadrantZone.CONSENSUAL;
+            case SOUTH_WEST, SOUTH_EAST -> QuadrantZone.ANARCHY;
+        };
     }
 }

@@ -83,6 +83,9 @@ commands:
     description: Admin manage BigCasares teams
     usage: /<command> <delete|rename|tag|color|kick>
     permission: bigcasares.team.admin
+  pvp:
+    description: Toggle consent for PvP in the limited quadrant
+    usage: /<command> [quests [start|claim] <rivals|domination>]
   nexus:
     description: Manage your team Nexus
     usage: /<command> [place|claim|mejoras|mejorar <mejora>]

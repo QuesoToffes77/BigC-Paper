@@ -698,7 +698,7 @@ public final class NexusModule implements PluginModule {
     private void repelHostiles(Location origin, NexusUpgradeSettings current) {
         double radius = current.repulsorRadius();
         for (org.bukkit.entity.Entity entity : origin.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
-            if (!isRepellable(entity) || entity.getLocation().distanceSquared(origin) > radius * radius) {
+            if (!entity.isValid() || !isRepellable(entity) || entity.getLocation().distanceSquared(origin) > radius * radius) {
                 continue;
             }
             double[] push = NexusUpgradeSettings.pushAway(
@@ -716,8 +716,7 @@ public final class NexusModule implements PluginModule {
             && entity instanceof org.bukkit.entity.LivingEntity
             && !(entity instanceof org.bukkit.entity.Boss)
             && !(entity instanceof org.bukkit.entity.Player)
-            && entity.customName() == null
-            && entity.isValid();
+            && entity.getCustomName() == null;
     }
 
     private void feedTeam(Location origin, TeamId teamId, NexusUpgradeSettings current) {

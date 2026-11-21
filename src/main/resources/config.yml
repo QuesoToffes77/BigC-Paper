@@ -744,16 +744,22 @@ keep-inventory-totem:
   # Cuantos totems puede llevar encima un jugador.
   max-carried: 1
 
-# Cuadrantes diagonales: dos cuadrantes opuestos son Anarquía (PvP) y los otros dos SMP Chill (sin PvP).
+# NW protegido, NE PvP consensuado, SW y SE PvP libre.
 pvp-quadrants:
   # Mundos divididos en cuadrantes; en el resto no cambia nada.
   worlds: [world]
   center-x: 0
   center-z: 0
-  # noreste-suroeste o noroeste-sureste: la diagonal que es Anarquía.
-  anarchy-diagonal: noreste-suroeste
   # Tras un golpe PvP nadie puede entrar a la zona Chill durante este tiempo.
   combat-tag-seconds: 150
+  quests:
+    enabled: true
+    rivals:
+      goal: 5
+      reward: 300.0
+    domination:
+      goal: 1
+      reward: 500.0
 
 # Dominaciones y Venganza: muertes seguidas sobre el mismo jugador.
 domination-system:

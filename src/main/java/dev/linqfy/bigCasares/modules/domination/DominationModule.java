@@ -3,6 +3,7 @@ package dev.linqfy.bigCasares.modules.domination;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -15,7 +16,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 
 /**
@@ -27,13 +30,15 @@ public final class DominationModule implements PluginModule {
     public static final String MODULE_ID = "domination-system";
 
     private final JavaPlugin plugin;
+    private final Predicate<Location> fullPvp;
     private RuntimeRegistrationScope compatibilityScope;
     private DominationTracker tracker;
     private DominationSettings settings;
     private File storageFile;
 
-    public DominationModule(JavaPlugin plugin) {
-        this.plugin = plugin;
+    public DominationModule(JavaPlugin plugin, Predicate<Location> fullPvp) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin");
+        this.fullPvp = Objects.requireNonNull(fullPvp, "fullPvp");
     }
 
     @Override
@@ -61,7 +66,7 @@ public final class DominationModule implements PluginModule {
             storageFile = null;
         });
         new BukkitRuntimeRegistrations(plugin, scope).registerListener("domination-listener", new Listener() {
-            @EventHandler(priority = EventPriority.MONITOR)
+            @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
             public void onDeath(PlayerDeathEvent event) {
                 handleDeath(event.getEntity(), event.getEntity().getKiller());
             }
@@ -79,7 +84,8 @@ public final class DominationModule implements PluginModule {
 
     private void handleDeath(Player victim, Player killer) {
         DominationTracker current = tracker;
-        if (current == null || killer == null || killer.getUniqueId().equals(victim.getUniqueId())) {
+        if (current == null || killer == null || killer.getUniqueId().equals(victim.getUniqueId())
+            || !fullPvp.test(killer.getLocation()) || !fullPvp.test(victim.getLocation())) {
             return;
         }
         DominationOutcome outcome = current.recordKill(killer.getUniqueId(), victim.getUniqueId());

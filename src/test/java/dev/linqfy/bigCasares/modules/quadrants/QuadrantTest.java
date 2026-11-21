@@ -21,60 +21,52 @@ class QuadrantTest {
     private static final Optional<QuadrantZone> UNMANAGED = Optional.empty();
 
     @Test
+    void mapAndConsentPolicyProvideAdjacentProtectedAndLimitedZones() {
+        QuadrantMap map = QuadrantSettings.defaults().map();
+        Optional<QuadrantZone> limited = Optional.of(QuadrantZone.valueOf("CONSENSUAL"));
+        assertEquals(CHILL, map.zoneAt("world", -10, -10));
+        assertEquals(limited, map.zoneAt("world", 10, -10));
+        assertEquals(ANARCHY, map.zoneAt("world", -10, 10));
+        assertEquals(ANARCHY, map.zoneAt("world", 10, 10));
+        assertFalse(QuadrantPolicy.allowsPvp(limited, limited, false, false));
+        assertFalse(QuadrantPolicy.allowsPvp(limited, limited, true, false));
+        assertTrue(QuadrantPolicy.allowsPvp(limited, limited, true, true));
+        assertFalse(QuadrantPolicy.allowsPvp(CHILL, CHILL, true, true));
+    }
+
+    @Test
     void exposesStableModuleId() {
         assertEquals("pvp-quadrants", new QuadrantModule(null).getId());
     }
 
     @Test
-    void oppositeQuadrantsShareTheAnarchyRules() {
-        QuadrantMap map = QuadrantSettings.defaults().map();
-
-        assertEquals(ANARCHY, map.zoneAt("world", 100, -100), "noreste");
-        assertEquals(ANARCHY, map.zoneAt("world", -100, 100), "suroeste");
-        assertEquals(CHILL, map.zoneAt("world", -100, -100), "noroeste");
-        assertEquals(CHILL, map.zoneAt("world", 100, 100), "sureste");
+    void customCenterMovesTheAxes() {
+        QuadrantMap map = new QuadrantSettings(Set.of("world"), 500, 500, 150).map();
+        assertEquals(CHILL, map.zoneAt("world", 499, 499));
+        assertEquals(Optional.of(QuadrantZone.CONSENSUAL), map.zoneAt("world", 501, 499));
+        assertEquals(ANARCHY, map.zoneAt("world", 501, 501));
         assertEquals(UNMANAGED, map.zoneAt("world_nether", 100, -100));
     }
 
     @Test
-    void customCenterAndDiagonalMoveTheAxes() {
-        QuadrantMap map = new QuadrantSettings(Set.of("world"), 500, 500, Quadrant.NORTH_WEST, 150).map();
-
-        assertEquals(ANARCHY, map.zoneAt("world", 499, 499));
-        assertEquals(ANARCHY, map.zoneAt("world", 501, 501));
-        assertEquals(CHILL, map.zoneAt("world", 501, 499));
-        assertEquals(CHILL, map.zoneAt("world", 100, 900));
-    }
-
-    @Test
-    void settingsLoadFromConfigAndRejectUnknownDiagonals() {
+    void settingsLoadFromConfig() {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("pvp-quadrants.worlds", List.of("survival"));
         yaml.set("pvp-quadrants.center-x", 10);
-        yaml.set("pvp-quadrants.anarchy-diagonal", "noroeste-sureste");
         yaml.set("pvp-quadrants.combat-tag-seconds", 60);
-
         QuadrantSettings settings = QuadrantSettings.load(yaml);
-
         assertEquals(Set.of("survival"), settings.worlds());
         assertEquals(10.0, settings.centerX());
-        assertEquals(Quadrant.NORTH_WEST, settings.anarchyQuadrant());
         assertEquals(60L, settings.combatTagSeconds());
         assertEquals(150L, QuadrantSettings.load(new YamlConfiguration()).combatTagSeconds());
-
-        yaml.set("pvp-quadrants.anarchy-diagonal", "norte-sur");
-        assertThrows(IllegalArgumentException.class, () -> QuadrantSettings.load(yaml));
     }
 
     @Test
-    void pvpOnlyHappensInAnarchyUnlessAFightIsAlreadyGoing() {
+    void protectedZoneRemainsProtectedEvenWhenBothPlayersOptedIn() {
         assertTrue(QuadrantPolicy.allowsPvp(ANARCHY, ANARCHY, false, false));
-        assertFalse(QuadrantPolicy.allowsPvp(CHILL, CHILL, false, false));
-        assertFalse(QuadrantPolicy.allowsPvp(ANARCHY, CHILL, false, false), "no se golpea hacia la zona Chill");
-        assertFalse(QuadrantPolicy.allowsPvp(CHILL, ANARCHY, false, false), "ni desde la zona Chill");
-        assertTrue(QuadrantPolicy.allowsPvp(CHILL, CHILL, true, true), "un combate ya iniciado sigue");
-        assertFalse(QuadrantPolicy.allowsPvp(CHILL, CHILL, true, false));
-        assertTrue(QuadrantPolicy.allowsPvp(UNMANAGED, UNMANAGED, false, false), "otros mundos no cambian");
+        assertFalse(QuadrantPolicy.allowsPvp(CHILL, CHILL, true, true));
+        assertFalse(QuadrantPolicy.allowsPvp(ANARCHY, CHILL, true, true));
+        assertTrue(QuadrantPolicy.allowsPvp(UNMANAGED, UNMANAGED, false, false));
     }
 
     @Test

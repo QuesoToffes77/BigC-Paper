@@ -4,6 +4,8 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -17,6 +19,7 @@ final class QuadrantRuntime {
     private final QuadrantMap map;
     private final CombatTagTracker combat;
     private final Map<UUID, QuadrantZone> lastZones = new HashMap<>();
+    private final Set<UUID> optedIn = new HashSet<>();
     private final Map<UUID, Location> lastOutsideChill = new HashMap<>();
 
     QuadrantRuntime(QuadrantMap map, CombatTagTracker combat) {
@@ -46,6 +49,20 @@ final class QuadrantRuntime {
         }
     }
 
+    boolean isOptedIn(Player player) {
+        return optedIn.contains(player.getUniqueId());
+    }
+
+    boolean toggleOptIn(Player player) {
+        UUID id = player.getUniqueId();
+        if (optedIn.contains(id)) {
+            optedIn.remove(id);
+            return false;
+        }
+        optedIn.add(id);
+        return true;
+    }
+
     boolean exempt(Player player) {
         return player.hasPermission(BYPASS_PERMISSION);
     }
@@ -70,11 +87,13 @@ final class QuadrantRuntime {
     }
 
     void forget(UUID playerId) {
+        optedIn.remove(playerId);
         lastZones.remove(playerId);
         lastOutsideChill.remove(playerId);
     }
 
     void clear() {
+        optedIn.clear();
         lastZones.clear();
         lastOutsideChill.clear();
     }
