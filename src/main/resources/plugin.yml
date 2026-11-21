@@ -75,6 +75,11 @@ commands:
   casino:
     description: El Gran Casares (deuda, jackpot; admins construyen y colocan atracciones)
     usage: /<command> [deuda|jackpot|construir|colocar|quitar|lista|trago]
+  forex:
+    description: FOREX & Cryptos (esmeraldas virtuales, shitcoins, staking, rug pulls)
+    usage: /<command> [comprar|vender|ver|grafico|mercado|cartera|crear|stake|unstake|rugpull|clan|top|cementerio]
+    aliases: [ cripto, crypto ]
+    permission: bigcasares.forex
   ah:
     description: Casa de subastas (comprar y vender items entre jugadores)
     usage: /<command> [vender <precio>|mis|reclamar|quitar <id>]
@@ -234,6 +239,8 @@ permissions:
       bigcasares.celular.admin: true
       bigcasares.schizophrenia.admin: true
       bigcasares.casino.admin: true
+      bigcasares.forex: true
+      bigcasares.forex.admin: true
       bigcasares.auctionhouse.use: true
       bigcasares.auctionhouse.admin: true
       bigcasares.glider.admin: true
@@ -399,6 +406,13 @@ permissions:
     description: Build the casino, place or remove attractions and give drinks with /casino
     default: op
 
+  bigcasares.forex:
+    description: Trade virtual emeralds and shitcoins with /forex
+    default: true
+
+  bigcasares.forex.admin:
+    description: Force forex market cycles and 50/50 flips with /forex admin
+    default: op
   bigcasares.auctionhouse.use:
     description: Browse, buy and sell on the auction house with /ah
     default: true
