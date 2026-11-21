@@ -94,7 +94,8 @@ final class Doppelganger {
             mannequin.setDescription(null);
             mannequin.setVisibleByDefault(false);
             Bedrock.markSystem(mannequin);
-            mannequin.setImmovable(true);
+            // se mueve con velocidad hacia su gallina (ver sync): inmovil no caminaria; sin choques nadie lo empuja
+            mannequin.setCollidable(false);
             mannequin.setGravity(false);
             mannequin.setSilent(true);
             mannequin.setPersistent(false);
