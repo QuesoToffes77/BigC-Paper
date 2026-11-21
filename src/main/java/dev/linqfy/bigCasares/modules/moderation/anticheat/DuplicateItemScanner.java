@@ -75,12 +75,18 @@ public final class DuplicateItemScanner implements Listener {
             scanInventory(player.getEnderChest(), visited, holder(player, "ender chest"));
             Inventory top = player.getOpenInventory().getTopInventory();
             if (top.getType() != InventoryType.CREATIVE && realContainer(top)) {
-                scanInventory(top, visited, holder(player, "contenedor " + describe(top)));
+                scanInventory(top, visited, new DuplicateLedger.Holder(player.getUniqueId(), player.getName(),
+                    "contenedor " + describe(top), true));
             }
         }
         for (DuplicateLedger.Duplicate duplicate : ledger.endPass(System.currentTimeMillis())) {
             String evidence = duplicate.item() + " con el mismo id en " + where(duplicate.first())
                 + " y en " + where(duplicate.second());
+            if (duplicate.hasSharedContainer()) {
+                DuplicateLedger.Holder observer = duplicate.first().sharedContainer() ? duplicate.first() : duplicate.second();
+                report(observer.playerId(), new Detection("item-duplicate-shared", evidence));
+                continue;
+            }
             Detection detection = new Detection("item-duplicate", evidence);
             report(duplicate.first().playerId(), detection);
             if (!duplicate.second().playerId().equals(duplicate.first().playerId())) {
@@ -220,7 +226,8 @@ public final class DuplicateItemScanner implements Listener {
     }
 
     private static String where(DuplicateLedger.Holder holder) {
-        return holder.place() + " de " + holder.playerName();
+        return holder.place() + (holder.sharedContainer() ? " (observado por " + holder.playerName() + ")"
+            : " de " + holder.playerName());
     }
 
     static boolean shouldScan(AnticheatSettings settings, GameMode mode, boolean bypass, ClientPlatform platform) {

@@ -188,6 +188,12 @@ public final class ModerationModule implements PluginModule {
     }
 
     private void acceptDetection(Player player, Detection detection) {
+        if (detection.rule().equals("item-duplicate-shared")) {
+            audit.publish(new AuditEvent(Instant.now(), AuditSeverity.INFO, "abuse", "observation", java.util.Optional.empty(),
+                "", "Item duplicado en contenedor compartido (sin atribución)",
+                Map.of("rule", detection.rule(), "evidence", detection.evidence())));
+            return;
+        }
         acceptSignal(new AbuseSignal(
             Instant.now(), player.getUniqueId(), player.getName(), detection.rule(),
             DEFAULT_DETECTION_POINTS.getOrDefault(detection.rule(), 25), detection.evidence()

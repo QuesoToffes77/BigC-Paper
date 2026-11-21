@@ -203,15 +203,16 @@ public final class AnticheatListener implements Listener {
         }
         Player attacker = event.getPlayer();
         long tick = server.getCurrentTick();
-        if (!settings.enabled() || bypassed(attacker) || attacker.getGameMode() == GameMode.CREATIVE
-            || attacker.getGameMode() == GameMode.SPECTATOR) {
+        if (attacker.getGameMode() == GameMode.CREATIVE || attacker.getGameMode() == GameMode.SPECTATOR
+            || !CombatCheck.shouldSample(settings.enabled(), bypassed(attacker), lagging(), settings.exemptBedrock(),
+                platform.apply(attacker.getUniqueId()) == ClientPlatform.BEDROCK)) {
             return;
         }
         Entity target = event.getAttacked();
         double distance = Double.NaN;
         double allowed = Double.NaN;
         if (target instanceof Player victim && victim.getWorld() == attacker.getWorld()
-            && !attacker.isInsideVehicle() && !victim.isInsideVehicle() && !lagging()) {
+            && !attacker.isInsideVehicle() && !victim.isInsideVehicle()) {
             Location eye = attacker.getEyeLocation();
             BoundingBox box = victim.getBoundingBox();
             distance = CombatCheck.distanceToBox(eye.getX(), eye.getY(), eye.getZ(),
@@ -226,8 +227,7 @@ public final class AnticheatListener implements Listener {
             target.getUniqueId(), distance, allowed);
         detections.forEach(detection -> report(attacker, detection));
         if (target instanceof LivingEntity living && !(target instanceof ArmorStand)
-            && living.getWorld() == attacker.getWorld() && !lagging()
-            && !(settings.exemptBedrock() && platform.apply(attacker.getUniqueId()) == ClientPlatform.BEDROCK)) {
+            && living.getWorld() == attacker.getWorld()) {
             checkAura(attacker, living, tick);
         }
     }

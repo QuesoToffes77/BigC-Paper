@@ -14,6 +14,26 @@ final class DuplicateLedgerTest {
     private final DuplicateLedger.Holder bob = new DuplicateLedger.Holder(UUID.randomUUID(), "Bob", "inventario");
 
     @Test
+    void sharedContainerObservationIsNotAttributedToItsViewer() {
+        DuplicateLedger.Holder shared = new DuplicateLedger.Holder(bob.playerId(), "Bob", "cofre", true);
+        ledger.beginPass();
+        ledger.seen("id-1", "ELYTRA", alice);
+        ledger.seen("id-1", "ELYTRA", bob);
+        ledger.seen("id-1", "ELYTRA", shared);
+        assertEquals(1, ledger.endPass(0).size());
+    }
+
+    @Test
+    void sharedLocationWinsEvenWhenPrivatePairWasSeenFirst() {
+        DuplicateLedger.Holder shared = new DuplicateLedger.Holder(bob.playerId(), "Bob", "cofre", true);
+        ledger.beginPass();
+        ledger.seen("id-1", "ELYTRA", alice);
+        ledger.seen("id-1", "ELYTRA", bob);
+        ledger.seen("id-1", "ELYTRA", shared);
+        assertTrue(ledger.endPass(0).getFirst().hasSharedContainer());
+    }
+
+    @Test
     void anItemMovingBetweenPassesIsNotADupe() {
         ledger.beginPass();
         ledger.seen("id-1", "ELYTRA", alice);

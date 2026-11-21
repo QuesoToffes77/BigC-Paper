@@ -29,6 +29,10 @@ public final class CombatCheck {
         this.maxAttacksPerSecond = maxAttacksPerSecond;
     }
 
+    static boolean shouldSample(boolean enabled, boolean bypass, boolean lagging, boolean exemptBedrock, boolean bedrock) {
+        return enabled && !bypass && !lagging && !(exemptBedrock && bedrock);
+    }
+
     /**
      * @param distance distancia de los ojos del atacante a la caja del objetivo, o NaN si no se mide el alcance
      * @param allowed  alcance permitido (atributo de alcance + compensacion de latencia)

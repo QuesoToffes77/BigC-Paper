@@ -7,12 +7,23 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class CombatCheckTest {
     private final CombatCheck check = new CombatCheck(22);
     private final UUID attacker = UUID.randomUUID();
     private final UUID target = UUID.randomUUID();
+
+    @Test
+    void combatSamplingHonorsLagAndBedrockExemptions() {
+        assertTrue(CombatCheck.shouldSample(true, false, false, true, false));
+        assertFalse(CombatCheck.shouldSample(true, false, true, true, false));
+        assertFalse(CombatCheck.shouldSample(true, false, false, true, true));
+        assertTrue(CombatCheck.shouldSample(true, false, false, false, true));
+        assertFalse(CombatCheck.shouldSample(false, false, false, false, false));
+        assertFalse(CombatCheck.shouldSample(true, true, false, false, false));
+    }
 
     @Test
     void measuresDistanceToTheTargetBox() {

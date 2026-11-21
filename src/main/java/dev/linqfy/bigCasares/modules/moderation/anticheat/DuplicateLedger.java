@@ -3,6 +3,7 @@ package dev.linqfy.bigCasares.modules.moderation.anticheat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,10 +20,16 @@ public final class DuplicateLedger {
     private final List<Duplicate> found = new ArrayList<>();
 
     /** Quien tiene el item: el jugador (si hay) y una descripcion del lugar para la evidencia. */
-    public record Holder(UUID playerId, String playerName, String place) {
+    public record Holder(UUID playerId, String playerName, String place, boolean sharedContainer) {
+        public Holder(UUID playerId, String playerName, String place) {
+            this(playerId, playerName, place, false);
+        }
     }
 
     public record Duplicate(String itemId, String item, Holder first, Holder second) {
+        public boolean hasSharedContainer() {
+            return first.sharedContainer() || second.sharedContainer();
+        }
     }
 
     public void beginPass() {
@@ -40,8 +47,13 @@ public final class DuplicateLedger {
     /** Duplicados de esta pasada que no se reportaron hace poco. */
     public List<Duplicate> endPass(long nowMillis) {
         reported.values().removeIf(at -> at < nowMillis - REPORT_COOLDOWN_MILLIS);
-        List<Duplicate> fresh = new ArrayList<>();
+        Map<String, Duplicate> byItem = new LinkedHashMap<>();
         for (Duplicate duplicate : found) {
+            byItem.merge(duplicate.itemId(), duplicate,
+                (previous, current) -> current.hasSharedContainer() ? current : previous);
+        }
+        List<Duplicate> fresh = new ArrayList<>();
+        for (Duplicate duplicate : byItem.values()) {
             if (reported.putIfAbsent(duplicate.itemId(), nowMillis) == null) {
                 fresh.add(duplicate);
             }
