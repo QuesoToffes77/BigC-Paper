@@ -321,9 +321,15 @@ public final class ForexMarket {
         victims.remove(coin.creator());
         Map<UUID, Long> refunds = split(leftover, victims);
         if (stolen > 0) {
-            bank.deposit(coin.creator(), stolen);
+            if (!bank.deposit(coin.creator(), stolen)) {
+                throw new ForexException("El banco no pudo acreditar el rug pull.");
+            }
         }
-        refunds.forEach(bank::deposit);
+        refunds.forEach((recipient, amount) -> {
+            if (!bank.deposit(recipient, amount)) {
+                throw new ForexException("El banco no pudo acreditar una devolución.");
+            }
+        });
         Account account = account(player);
         account.rugPulls++;
         account.lastRugAt = now();

@@ -29,6 +29,10 @@ final class ForexCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (runtime.paused()) {
+            sender.sendMessage(ForexAnnouncer.PREFIX + "§cMercado pausado: avisá a un administrador.");
+            return true;
+        }
         String sub = args.length == 0 ? "menu" : args[0].toLowerCase(Locale.ROOT);
         try {
             switch (sub) {

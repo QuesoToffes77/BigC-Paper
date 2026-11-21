@@ -62,6 +62,18 @@ class ForexMarketTest {
     }
 
     @Test
+    void rejectedCreatorFeeIsNotSilentlyDiscarded() {
+        ForexBank failingDeposits = new ForexBank() {
+            public long balance(UUID player) { return 100_000; }
+            public boolean withdraw(UUID player, long amount) { return true; }
+            public boolean deposit(UUID player, long amount) { return false; }
+        };
+        ForexMarket testMarket = new ForexMarket(ForexSettings.defaults(), failingDeposits, new ScriptedRandom(), () -> now[0]);
+        testMarket.create(creator, "MOON", "Moon Coin");
+        assertThrows(IllegalStateException.class, () -> testMarket.buy(alice, "MOON", 10_000));
+    }
+
+    @Test
     void tradesPayTheCreatorFeeAndSetAsideTheStakersShare() {
         market.create(creator, "MOON", "Moon Coin");
         long before = bank.balance(creator);

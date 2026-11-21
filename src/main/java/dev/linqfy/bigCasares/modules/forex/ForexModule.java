@@ -57,7 +57,9 @@ public final class ForexModule implements PluginModule {
         }
         ForexSettings settings = ForexSettings.load(plugin.getConfig());
         ForexRuntime created = new ForexRuntime(plugin, settings, new VaultForexBank(plugin.getServer(), economy), teams);
-        created.start();
+        if (!created.start()) {
+            return;
+        }
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         registrations.ownCleanup("forex-runtime", created::stop);
         registrations.registerListener("forex-listener", new ForexListener());
@@ -80,19 +82,19 @@ public final class ForexModule implements PluginModule {
     }
 
     public boolean isOpen() {
-        return runtime != null;
+        return runtime != null && !runtime.paused();
     }
 
     /** Holds enough of the team's official coin to walk through its protected chests. */
     public boolean hasClanPass(UUID player, String teamId) {
         ForexRuntime current = runtime;
-        return current != null && current.market().hasClanPass(player, teamId);
+        return current != null && !current.paused() && current.market().hasClanPass(player, teamId);
     }
 
     /** Multiplier Don Casares applies to this player's loan interest: below 1 is prestige, above is a record. */
     public double creditMultiplier(UUID player) {
         ForexRuntime current = runtime;
-        return current == null ? 1.0 : current.market().creditMultiplier(player);
+        return current == null || current.paused() ? 1.0 : current.market().creditMultiplier(player);
     }
 
     private Economy resolveEconomy() {

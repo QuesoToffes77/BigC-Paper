@@ -2,14 +2,26 @@ package dev.linqfy.bigCasares.modules.forex;
 
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ForexStoreTest {
+
+    @Test
+    void saveFailureIsReportedToTheCaller(@TempDir Path directory) throws Exception {
+        Path notDirectory = Files.createFile(directory.resolve("not-a-directory"));
+        ForexStore store = new ForexStore(notDirectory.resolve("market.yml").toFile(), Logger.getAnonymousLogger());
+        ForexMarket market = new ForexMarket(ForexSettings.defaults(), new FakeBank(), new ScriptedRandom(), () -> 0L);
+        assertThrows(IllegalStateException.class, () -> store.save(market));
+    }
 
     @Test
     void theWholeMarketSurvivesARestart() throws Exception {

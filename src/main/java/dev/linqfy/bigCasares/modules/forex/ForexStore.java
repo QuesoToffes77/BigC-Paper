@@ -6,14 +6,16 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /** Saves the whole market to {@code forex/market.yml}. Writes go to a temporary file first. */
@@ -31,7 +33,7 @@ public final class ForexStore {
         try {
             write(serialize(market));
         } catch (IOException failure) {
-            logger.log(Level.SEVERE, "[Forex] Could not save the market", failure);
+            throw new IllegalStateException("[Forex] Could not save the market", failure);
         }
     }
 
@@ -202,13 +204,16 @@ public final class ForexStore {
 
     private void write(YamlConfiguration yaml) throws IOException {
         Path target = file.toPath();
-        Files.createDirectories(target.getParent());
+        JournaledForexBank.ensureDirectory(target.getParent());
         Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
-        Files.writeString(temporary, yaml.saveToString(), StandardCharsets.UTF_8);
-        try {
-            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException atomicUnsupported) {
-            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+        byte[] bytes = yaml.saveToString().getBytes(StandardCharsets.UTF_8);
+        try (FileChannel channel = FileChannel.open(temporary, StandardOpenOption.CREATE,
+            StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            while (buffer.hasRemaining()) channel.write(buffer);
+            channel.force(true);
         }
+        Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        JournaledForexBank.syncDirectory(target.getParent());
     }
 }
