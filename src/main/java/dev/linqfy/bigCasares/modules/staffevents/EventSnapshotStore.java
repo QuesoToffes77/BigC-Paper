@@ -7,9 +7,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 
 import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -87,8 +90,15 @@ public final class EventSnapshotStore {
     }
 
     public synchronized void remove(UUID playerId) throws IOException {
-        if (snapshots.remove(playerId) != null) {
+        EventPlayerSnapshot removed = snapshots.remove(playerId);
+        if (removed == null) {
+            return;
+        }
+        try {
             save();
+        } catch (IOException failure) {
+            snapshots.put(playerId, removed);
+            throw failure;
         }
     }
 
@@ -100,12 +110,16 @@ public final class EventSnapshotStore {
         Files.createDirectories(file.getParent());
         Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
         Files.writeString(temporary, yaml.saveToString());
+        try (FileChannel channel = FileChannel.open(temporary, StandardOpenOption.WRITE)) {
+            channel.force(true);
+        }
         Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     }
 
     private static void write(ConfigurationSection section, EventPlayerSnapshot snapshot) {
         ItemStack[] contents = snapshot.contents();
         section.set("size", contents.length);
+        section.set("revision", snapshot.revision().toString());
         for (int slot = 0; slot < contents.length; slot++) {
             ItemStack item = contents[slot];
             if (item != null && !item.getType().isAir()) {
@@ -150,8 +164,13 @@ public final class EventSnapshotStore {
                 effects.add(effect);
             }
         }
+        String storedRevision = section.getString("revision");
+        UUID revision = storedRevision == null
+            ? UUID.nameUUIDFromBytes(("staff-events:" + playerId).getBytes(StandardCharsets.UTF_8))
+            : UUID.fromString(storedRevision);
         return new EventPlayerSnapshot(
             playerId,
+            revision,
             contents,
             new EventPlayerSnapshot.StoredLocation(
                 section.getString("location.world", ""),

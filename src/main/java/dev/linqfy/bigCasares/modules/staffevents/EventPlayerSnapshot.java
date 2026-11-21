@@ -14,6 +14,7 @@ import java.util.UUID;
  */
 public record EventPlayerSnapshot(
     UUID playerId,
+    UUID revision,
     ItemStack[] contents,
     StoredLocation location,
     String gameMode,
@@ -26,10 +27,17 @@ public record EventPlayerSnapshot(
 ) {
     public EventPlayerSnapshot {
         Objects.requireNonNull(playerId, "playerId");
+        Objects.requireNonNull(revision, "revision");
         Objects.requireNonNull(location, "location");
         contents = contents == null ? new ItemStack[0] : Arrays.copyOf(contents, contents.length);
         gameMode = gameMode == null || gameMode.isBlank() ? "SURVIVAL" : gameMode;
         effects = List.copyOf(effects);
+    }
+
+    public EventPlayerSnapshot(UUID playerId, ItemStack[] contents, StoredLocation location, String gameMode,
+                               double health, int foodLevel, float saturation, int level, float exp,
+                               List<PotionEffect> effects) {
+        this(playerId, UUID.randomUUID(), contents, location, gameMode, health, foodLevel, saturation, level, exp, effects);
     }
 
     @Override

@@ -13,6 +13,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -44,6 +45,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -78,6 +80,7 @@ final class StaffEventRuntime implements Listener {
 
     static final String PREFIX = "§6[Eventos] §r";
     static final String ADMIN_PERMISSION = "bigcasares.events.admin";
+    private static final NamespacedKey RESTORED_SNAPSHOT = new NamespacedKey("bigcasares", "staff_event_restored_snapshot");
 
     private enum Phase { LOBBY, RUNNING }
 
@@ -342,7 +345,6 @@ final class StaffEventRuntime implements Listener {
 
     private void onLifestealDeath(Session current, PlayerDeathEvent event) {
         Player victim = event.getEntity();
-        keepEverything(event);
         Player killer = victim.getKiller();
         if (killer == null || killer.equals(victim)) {
             return;
@@ -729,6 +731,7 @@ final class StaffEventRuntime implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        retireRestoredSnapshot(player);
         Session current = session;
         hearts.clearUnlessSession(player,
             current != null && current.type == StaffEventType.LIFESTEAL ? current.id : null);
@@ -756,27 +759,31 @@ final class StaffEventRuntime implements Listener {
     }
 
     // LOW: before the keep-inventory totem (NORMAL), which skips deaths that already keep the inventory.
-    @EventHandler(priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onDeath(PlayerDeathEvent event) {
         Session current = session;
-        if (current == null) {
-            return;
-        }
+        if (current == null) return;
         Player victim = event.getEntity();
-        if (current.participants.contains(victim.getUniqueId())) {
+        if (current.participants.contains(victim.getUniqueId())
+            || (current.type == StaffEventType.LIFESTEAL && !victim.getWorld().equals(arenaWorld().orElse(null)))) {
             handledDeaths.add(victim.getUniqueId());
             keepEverything(event);
-            restoreAfterRespawn.add(victim.getUniqueId());
-            eliminate(current, victim.getUniqueId(), "§cmurió", false);
-        } else if (current.type == StaffEventType.LIFESTEAL && !victim.getWorld().equals(arenaWorld().orElse(null))) {
-            handledDeaths.add(victim.getUniqueId());
-            onLifestealDeath(current, event);
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDeathResolved(PlayerDeathEvent event) {
-        handledDeaths.remove(event.getEntity().getUniqueId());
+        Player victim = event.getEntity();
+        UUID playerId = victim.getUniqueId();
+        boolean handled = handledDeaths.remove(playerId);
+        Session current = session;
+        if (!handled || event.isCancelled() || current == null) return;
+        if (current.participants.contains(playerId)) {
+            restoreAfterRespawn.add(playerId);
+            eliminate(current, playerId, "§cmurió", false);
+        } else if (current.type == StaffEventType.LIFESTEAL && !victim.getWorld().equals(arenaWorld().orElse(null))) {
+            onLifestealDeath(current, event);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -990,7 +997,26 @@ final class StaffEventRuntime implements Listener {
         return item;
     }
 
-    /** Gives a player their saved state back. False when nothing was saved or the file could not be updated. */
+    private void retireRestoredSnapshot(Player player) {
+        var playerData = player.getPersistentDataContainer();
+        String restored = playerData.get(RESTORED_SNAPSHOT, PersistentDataType.STRING);
+        if (restored == null) {
+            return;
+        }
+        if (store.find(player.getUniqueId()).stream().noneMatch(snapshot -> snapshot.revision().toString().equals(restored))) {
+            playerData.remove(RESTORED_SNAPSHOT);
+            return;
+        }
+        try {
+            store.remove(player.getUniqueId());
+            playerData.remove(RESTORED_SNAPSHOT);
+        } catch (IOException failure) {
+            plugin.getLogger().log(Level.WARNING, "[Eventos] Could not retire the restored snapshot of "
+                + player.getName(), failure);
+        }
+    }
+
+    /** Restores a snapshot once per revision; a fresh join confirms it reached durable player data. */
     private boolean restore(Player player) {
         Optional<EventPlayerSnapshot> found = store.find(player.getUniqueId());
         if (found.isEmpty()) {
@@ -1001,6 +1027,11 @@ final class StaffEventRuntime implements Listener {
             return false;
         }
         EventPlayerSnapshot snapshot = found.get();
+        var playerData = player.getPersistentDataContainer();
+        String revision = snapshot.revision().toString();
+        if (revision.equals(playerData.get(RESTORED_SNAPSHOT, PersistentDataType.STRING))) {
+            return true;
+        }
         PlayerInventory inventory = player.getInventory();
         inventory.clear();
         inventory.setContents(Arrays.copyOf(snapshot.contents(), inventory.getSize()));
@@ -1021,12 +1052,8 @@ final class StaffEventRuntime implements Listener {
         player.setFireTicks(0);
         player.setFallDistance(0);
         teleport(player, locationOf(snapshot));
-        try {
-            store.remove(player.getUniqueId());
-        } catch (IOException failure) {
-            plugin.getLogger().log(Level.SEVERE, "[Eventos] Could not clear the saved inventory of "
-                + player.getName() + "; it will be restored again on the next login", failure);
-        }
+        playerData.set(RESTORED_SNAPSHOT, PersistentDataType.STRING, revision);
+        player.saveData();
         return true;
     }
 

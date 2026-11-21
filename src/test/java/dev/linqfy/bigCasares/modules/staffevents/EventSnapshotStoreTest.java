@@ -4,6 +4,7 @@ import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class EventSnapshotStoreTest {
 
@@ -45,4 +47,18 @@ class EventSnapshotStoreTest {
         empty.load();
         assertFalse(empty.contains(playerId));
     }
+    @Test
+    void anUnsuccessfulRetirementKeepsTheSnapshotAvailable() throws Exception {
+        Path file = temp.resolve("snapshots.yml");
+        UUID playerId = UUID.randomUUID();
+        EventSnapshotStore store = new EventSnapshotStore(file);
+        store.put(new EventPlayerSnapshot(playerId, new ItemStack[41],
+            new EventPlayerSnapshot.StoredLocation("world", 0, 64, 0, 0, 0),
+            "SURVIVAL", 20, 20, 5, 0, 0, List.of()));
+        Files.createDirectory(temp.resolve("snapshots.yml.tmp"));
+
+        assertThrows(IOException.class, () -> store.remove(playerId));
+        assertTrue(store.contains(playerId));
+    }
+
 }
