@@ -52,6 +52,7 @@ public final class VillagerMoodModule implements PluginModule {
         registrations.scheduleRepeating("villager-mood-check",
             () -> created.check(Bukkit.getWorlds(), Bukkit.getOnlinePlayers()),
             settings.checkIntervalTicks(), settings.checkIntervalTicks());
+        registrations.scheduleRepeating("villager-mood-check-batch", created::tickChecks, 1L, 1L);
         registrations.scheduleRepeating("villager-mood-actions", created::tickActions,
             VillagerMoodRuntime.ACTION_INTERVAL_TICKS, VillagerMoodRuntime.ACTION_INTERVAL_TICKS);
         runtime = created;

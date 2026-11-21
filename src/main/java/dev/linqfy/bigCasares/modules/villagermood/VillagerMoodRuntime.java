@@ -60,6 +60,11 @@ final class VillagerMoodRuntime {
     private final Map<UUID, Riot> riots = new HashMap<>();
     private final Map<UUID, Long> riotCooldownUntil = new HashMap<>();
     private final Map<UUID, CliffWalk> cliffWalks = new HashMap<>();
+    private final VillagerWorkBatch<Villager> pendingVillagers = new VillagerWorkBatch<>();
+    private final VillagerWorkBatch<Player> pendingPlayers = new VillagerWorkBatch<>();
+    private final Map<UUID, Long> lastMoodCheck = new HashMap<>();
+    private static final int VILLAGERS_PER_TICK = 32;
+    private static final int PLAYERS_PER_TICK = 2;
 
     VillagerMoodRuntime(VillagerMoodSettings settings, NamespacedKey confinedKey, NamespacedKey annoyanceKey,
                         NamespacedKey golemKey, DoubleSupplier random, LongSupplier clock,
@@ -156,32 +161,52 @@ final class VillagerMoodRuntime {
         long now = clock.getAsLong();
         spamTracker.cleanup(now);
         riotCooldownUntil.values().removeIf(until -> until <= now);
+        // Do not enqueue duplicate work if a large batch takes longer than one interval.
+        if (!pendingVillagers.isEmpty() || !pendingPlayers.isEmpty()) {
+            return;
+        }
+        Set<UUID> loaded = new java.util.HashSet<>();
         for (World world : worlds) {
-            BlockProbe probe = new BukkitBlockProbe(world);
-            for (Villager villager : world.getEntitiesByClass(Villager.class)) {
-                if (isOrdinary(villager)) {
-                    updateMood(villager, probe);
-                }
-            }
+            List<Villager> villagers = new ArrayList<>(world.getEntitiesByClass(Villager.class));
+            villagers.forEach(villager -> loaded.add(villager.getUniqueId()));
+            pendingVillagers.addAll(villagers);
         }
-        if (settings.riot().enabled()) {
-            for (Player player : players) {
-                considerRiot(player, now);
-            }
-        }
-        for (Player player : players) {
-            mafia.consider(player, now);
-        }
+        lastMoodCheck.keySet().retainAll(loaded);
+        List<Player> playerBatch = new ArrayList<>();
+        players.forEach(playerBatch::add);
+        pendingPlayers.addAll(playerBatch);
     }
 
-    private void updateMood(Villager villager, BlockProbe probe) {
+    /** Apply a bounded portion of the current snapshot each tick. */
+    void tickChecks() {
+        long now = clock.getAsLong();
+        pendingVillagers.drain(VILLAGERS_PER_TICK, villager -> {
+            if (!isOrdinary(villager)) {
+                lastMoodCheck.remove(villager.getUniqueId());
+                return;
+            }
+            Long previous = lastMoodCheck.put(villager.getUniqueId(), now);
+            long elapsed = previous == null ? settings.checkIntervalTicks() : Math.max(1L, now - previous);
+            updateMood(villager, new BukkitBlockProbe(villager.getWorld()), elapsed);
+        });
+        pendingPlayers.drain(PLAYERS_PER_TICK, player -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            if (settings.riot().enabled()) {
+                considerRiot(player, now);
+            }
+            mafia.consider(player, now);
+        });
+    }
+
+    private void updateMood(Villager villager, BlockProbe probe, long interval) {
         Location at = villager.getLocation();
         int x = at.getBlockX();
         int y = at.getBlockY();
         int z = at.getBlockZ();
         boolean inVehicle = villager.isInsideVehicle();
         boolean confined = inVehicle || VillagerMoodPolicy.isConfined(probe, x, y, z);
-        long interval = settings.checkIntervalTicks();
 
         long before = read(villager, confinedKey);
         long confinedTicks = policy.nextConfinedTicks(before, confined, interval);
@@ -373,6 +398,9 @@ final class VillagerMoodRuntime {
 
     void shutdown() {
         mafia.shutdown();
+        pendingVillagers.clear();
+        pendingPlayers.clear();
+        lastMoodCheck.clear();
         for (Riot riot : riots.values()) {
             if (riot.golem != null && riot.golem.isValid()) {
                 riot.golem.remove();
