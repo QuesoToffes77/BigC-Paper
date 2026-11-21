@@ -92,6 +92,15 @@ class ShopServiceTest {
         assertTrue(service.sell(List.of(new ItemStack(Material.STICK, 1)), entry).success());
     }
 
+    @Test
+    void vanillaEntryRejectsStackWhenCustomIdentificationFails() {
+        ShopItemResolver resolver = new ShopItemResolver(new CustomItemRegistry(), stack -> {
+            throw new IllegalStateException("catalog unavailable");
+        });
+        ShopEntry entry = new ShopEntry("stick", 1, Material.STICK, null, 1, 1.0, 1.0, null, List.of());
+        assertFalse(resolver.matches(new ItemStack(Material.STICK, 1), entry));
+    }
+
     /** Identifies only {@code custom} as the copper apple, like a PDC-tagged stack in game. */
     private static ShopItemResolver taggedOnly(CustomItemRegistry registry, ItemStack custom) {
         return new ShopItemResolver(registry, stack -> stack == custom

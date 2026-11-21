@@ -10,7 +10,10 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 
 import java.util.HashSet;
 import java.util.List;
@@ -22,8 +25,7 @@ public final class TombstoneListener implements Listener {
     private final TombstoneRuntime runtime;
     private final BukkitRuntimeRegistrations registrations;
     private final Predicate<UUID> deathCaptureEligibility;
-    /** Tombstones with a reconcile already queued; shift-click spam then costs one save per tick. */
-    private final Set<UUID> pendingReconcile = new HashSet<>();
+    private final Set<UUID> pendingReconciles = new HashSet<>();
 
     public TombstoneListener(
         TombstoneRuntime runtime,
@@ -41,28 +43,43 @@ public final class TombstoneListener implements Listener {
         if (!deathCaptureEligibility.test(player.getUniqueId())) {
             return;
         }
-        List<ItemStack> items = snapshot(player);
+        List<ItemStack> layout = snapshot(player);
+        // The drops are what this death really loses once every other listener ran (vanishing curse, items other
+        // modules keep or destroy). With keepInventory nothing drops, so the inventory minus the kept items counts.
+        List<ItemStack> items = event.getKeepInventory()
+            ? TombstoneItemLayout.withoutKept(layout, event.getItemsToKeep(), ItemStack::isSimilar)
+            : TombstoneItemLayout.claimDrops(layout, event.getDrops(), ItemStack::isSimilar);
+        if (!TombstoneItemLayout.hasItems(items)) {
+            return;
+        }
+
         runtime.logDeathInventory(player.getName(), items);
 
         org.bukkit.Location loc = player.getLocation();
-        player.sendMessage(org.bukkit.ChatColor.YELLOW + "Has muerto en las coordenadas: " + 
+        player.sendMessage(org.bukkit.ChatColor.YELLOW + "Has muerto en las coordenadas: " +
             org.bukkit.ChatColor.RED + "X: " + loc.getBlockX() + " Y: " + loc.getBlockY() + " Z: " + loc.getBlockZ());
 
-        event.getDrops().clear();
+        // Recorded first: if it cannot be saved, the drops and inventory stay untouched and fall as in vanilla.
+        if (!runtime.create(player.getUniqueId(), player.getName(), loc, items)) {
+            return;
+        }
+        TombstoneItemLayout.finishDrops(event.getDrops(), event.getKeepInventory(), items, ItemStack::isSimilar);
         event.setKeepInventory(false);
-        player.getInventory().clear();
-        player.getInventory().setArmorContents(new ItemStack[4]);
-        player.getInventory().setItemInOffHand(null);
-        player.setItemOnCursor(null);
-        runtime.create(player.getUniqueId(), player.getName(), player.getLocation(), items);
+        takeStoredItems(player, layout, items);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInteract(PlayerInteractEntityEvent event) {
-        UUID id = runtime.tombstoneId(event.getRightClicked());
-        if (id == null) return;
+        if (runtime.tombstoneId(event.getRightClicked()) == null) return;
         event.setCancelled(true);
-        runtime.open(id, event.getPlayer());
+        // The client sends one interaction per hand; opening twice closes and reopens the inventory mid-click.
+        if (event.getHand() != EquipmentSlot.HAND) return;
+        runtime.openFromEntity(event.getRightClicked(), event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onEntitiesLoad(EntitiesLoadEvent event) {
+        runtime.discardStrays(event.getEntities());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -76,7 +93,9 @@ public final class TombstoneListener implements Listener {
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player)) return;
         holder.tombstoneAt(event.getRawSlot()).ifPresent(id -> registrations.scheduleDelayed(
-            "tombstone-selection-open", () -> runtime.open(id, player), 1L
+            "tombstone-selection-open", () -> {
+                if (player.isOnline()) runtime.open(id, player);
+            }, 1L
         ));
     }
 
@@ -95,16 +114,16 @@ public final class TombstoneListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() instanceof TombstoneInventoryHolder holder) {
-            runtime.reconcile(holder.tombstoneId());
+            runtime.reconcile(holder.tombstoneId(), event.getPlayer());
         }
     }
 
     private void reconcileNextTick(org.bukkit.inventory.InventoryHolder holder) {
-        if (holder instanceof TombstoneInventoryHolder tombstone && pendingReconcile.add(tombstone.tombstoneId())) {
-            UUID id = tombstone.tombstoneId();
+        if (holder instanceof TombstoneInventoryHolder tombstone && pendingReconciles.add(tombstone.tombstoneId())) {
+            // Several clicks in one tick share one save.
             registrations.scheduleDelayed("tombstone-inventory-reconcile", () -> {
-                pendingReconcile.remove(id);
-                runtime.reconcile(id);
+                pendingReconciles.remove(tombstone.tombstoneId());
+                runtime.reconcile(tombstone.tombstoneId(), null);
             }, 1L);
         }
     }
@@ -116,5 +135,20 @@ public final class TombstoneListener implements Listener {
             player.getInventory().getItemInOffHand(),
             player.getItemOnCursor()
         );
+    }
+
+    /**
+     * Takes out of the inventory exactly what went into the tombstone. Whatever is left is handled by vanilla:
+     * items kept by other listeners stay, the rest is cleared because keepInventory is now off.
+     */
+    private static void takeStoredItems(Player player, List<ItemStack> layout, List<ItemStack> stored) {
+        List<ItemStack> remaining = TombstoneItemLayout.remainder(layout, stored);
+        PlayerInventory inventory = player.getInventory();
+        for (int slot = 0; slot < TombstoneItemLayout.CURSOR_SLOT; slot++) {
+            if (layout.get(slot) != null) inventory.setItem(slot, remaining.get(slot));
+        }
+        if (layout.get(TombstoneItemLayout.CURSOR_SLOT) != null) {
+            player.setItemOnCursor(remaining.get(TombstoneItemLayout.CURSOR_SLOT));
+        }
     }
 }

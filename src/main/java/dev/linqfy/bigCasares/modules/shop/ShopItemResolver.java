@@ -35,7 +35,13 @@ public final class ShopItemResolver {
         if (stack == null || stack.getAmount() < 1) {
             return false;
         }
-        String customId = customItemId(stack);
+        String customId;
+        try {
+            customId = customIdLookup.apply(stack).orElse(null);
+        } catch (RuntimeException unavailable) {
+            // Unknown identity must not be treated as a confirmed vanilla item.
+            return false;
+        }
         if (entry.material() != null) {
             // A custom item built on this material is not the vanilla item the entry trades.
             return stack.getType() == entry.material() && customId == null;
@@ -45,11 +51,4 @@ public final class ShopItemResolver {
         return customId != null && customId.equalsIgnoreCase(entry.customItemId());
     }
 
-    private String customItemId(ItemStack stack) {
-        try {
-            return customIdLookup.apply(stack).orElse(null);
-        } catch (RuntimeException ex) {
-            return null;
-        }
-    }
 }
