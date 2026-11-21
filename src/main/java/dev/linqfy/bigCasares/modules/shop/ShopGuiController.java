@@ -1,5 +1,9 @@
 package dev.linqfy.bigCasares.modules.shop;
 
+import dev.linqfy.bigCasares.modules.tideframe.MenuScreen;
+import dev.linqfy.bigCasares.modules.tideframe.MenuTitle;
+import dev.linqfy.bigCasares.modules.tideframe.MenuTitleStyle;
+import dev.linqfy.bigCasares.modules.tideframe.MenuTitles;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -8,7 +12,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -17,9 +20,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Objects;
+import java.util.function.Supplier;
 
 public final class ShopGuiController implements Listener {
 
@@ -29,42 +32,37 @@ public final class ShopGuiController implements Listener {
     private final ShopModule module;
     private final ShopCatalog catalog;
     private final ShopService service;
-    private final Set<Player> viewers = new HashSet<>();
+    private final Supplier<MenuTitleStyle> titleStyle;
 
     public ShopGuiController(ShopModule module, ShopCatalog catalog, ShopService service) {
+        this(module, catalog, service, () -> MenuTitleStyle.PLAIN);
+    }
+
+    public ShopGuiController(ShopModule module, ShopCatalog catalog, ShopService service, Supplier<MenuTitleStyle> titleStyle) {
         this.module = module;
         this.catalog = catalog;
         this.service = service;
+        this.titleStyle = Objects.requireNonNull(titleStyle, "titleStyle");
     }
 
     public void openCategories(Player player) {
-        Inventory inventory = Bukkit.createInventory(new CategoryMenuHolder(), 27, ChatColor.GOLD + "Shop");
-        fill(inventory, Material.GRAY_STAINED_GLASS_PANE, " ");
+        MenuTitle title = titleStyle.get().title(player, MenuScreen.SHOP_CATEGORIES, ChatColor.GOLD + "Shop");
+        Inventory inventory = MenuTitles.create(new CategoryMenuHolder(), MenuScreen.SHOP_CATEGORIES.size(), title);
+        // A drawn background has its own slot frames; the glass filler is only for the plain chest.
+        if (!title.drawsBackground()) {
+            fill(inventory, Material.GRAY_STAINED_GLASS_PANE, " ");
+        }
         for (ShopCategory category : catalog.categories()) {
             inventory.setItem(category.slot(), categoryItem(category));
         }
-        viewers.add(player);
         player.openInventory(inventory);
     }
 
     public void closeAll() {
-        for (Player viewer : new ArrayList<>(viewers)) {
-            viewer.closeInventory();
-        }
-        viewers.clear();
-    }
-
-    @EventHandler
-    public void onInventoryClose(InventoryCloseEvent event) {
-        if (event.getPlayer() instanceof Player player) {
-            viewers.remove(player);
-        }
-    }
-
-    @EventHandler
-    public void onInventoryDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder() instanceof ShopMenuHolder) {
-            event.setCancelled(true);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof ShopMenuHolder) {
+                player.closeInventory();
+            }
         }
     }
 
@@ -92,6 +90,14 @@ public final class ShopGuiController implements Listener {
         }
     }
 
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        Inventory top = event.getView().getTopInventory();
+        if (top.getHolder() instanceof ShopMenuHolder && event.getRawSlots().stream().anyMatch(slot -> slot < top.getSize())) {
+            event.setCancelled(true);
+        }
+    }
+
     private void handleCategoryClick(Player player, int slot) {
         catalog.categories().stream()
             .filter(category -> category.slot() == slot)
@@ -100,14 +106,16 @@ public final class ShopGuiController implements Listener {
     }
 
     public void openCategory(Player player, ShopCategory category) {
-        Inventory inventory = Bukkit.createInventory(new ItemMenuHolder(category), 54, ChatColor.GOLD + stripColor(category.name()));
-        fill(inventory, Material.BLACK_STAINED_GLASS_PANE, " ");
+        MenuTitle title = titleStyle.get().title(player, MenuScreen.SHOP_ITEMS, ChatColor.GOLD + stripColor(category.name()));
+        Inventory inventory = MenuTitles.create(new ItemMenuHolder(category), MenuScreen.SHOP_ITEMS.size(), title);
+        if (!title.drawsBackground()) {
+            fill(inventory, Material.BLACK_STAINED_GLASS_PANE, " ");
+        }
         inventory.setItem(BACK_SLOT, simpleItem(Material.ARROW, ChatColor.YELLOW + "Volver"));
         inventory.setItem(CLOSE_SLOT, simpleItem(Material.BARRIER, ChatColor.RED + "Cerrar"));
         for (ShopEntry entry : category.entries()) {
             inventory.setItem(entry.slot(), entryItem(entry));
         }
-        viewers.add(player);
         player.openInventory(inventory);
     }
 

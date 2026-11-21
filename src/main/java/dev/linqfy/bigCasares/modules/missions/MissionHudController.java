@@ -1,5 +1,9 @@
 package dev.linqfy.bigCasares.modules.missions;
 
+import dev.linqfy.bigCasares.modules.tideframe.MenuScreen;
+import dev.linqfy.bigCasares.modules.tideframe.MenuTitle;
+import dev.linqfy.bigCasares.modules.tideframe.MenuTitleStyle;
+import dev.linqfy.bigCasares.modules.tideframe.MenuTitles;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -19,6 +23,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Supplier;
 
 public final class MissionHudController implements Listener {
 
@@ -30,15 +36,22 @@ public final class MissionHudController implements Listener {
 
     private final MissionModule module;
     private final VaultEconomyGateway economyGateway;
+    private final Supplier<MenuTitleStyle> titleStyle;
 
     public MissionHudController(MissionModule module, VaultEconomyGateway economyGateway) {
+        this(module, economyGateway, () -> MenuTitleStyle.PLAIN);
+    }
+
+    public MissionHudController(MissionModule module, VaultEconomyGateway economyGateway, Supplier<MenuTitleStyle> titleStyle) {
         this.module = module;
         this.economyGateway = economyGateway;
+        this.titleStyle = Objects.requireNonNull(titleStyle, "titleStyle");
     }
 
     public void open(Player player, MissionHudView view) {
         MissionPlayerState state = module.getOrCreateState(player);
-        Inventory inventory = Bukkit.createInventory(new MissionMenuHolder(view), INVENTORY_SIZE, MissionTexts.title(view));
+        MenuTitle title = titleStyle.get().title(player, MenuScreen.MISSIONS, MissionTexts.title(view));
+        Inventory inventory = MenuTitles.create(new MissionMenuHolder(view), INVENTORY_SIZE, title);
 
         switch (view) {
             case MAIN_MENU -> populateMainMenu(inventory, state);
@@ -64,14 +77,15 @@ public final class MissionHudController implements Listener {
         if (!(clicker instanceof Player player)) {
             return;
         }
-
+        // Recognised by its holder, not by its title: a drawn title carries glyphs besides the text.
         if (!(event.getView().getTopInventory().getHolder() instanceof MissionMenuHolder holder)) {
             return;
         }
 
         event.setCancelled(true);
         int slot = event.getRawSlot();
-        if (holder.view() == MissionHudView.MAIN_MENU) {
+        MissionHudView view = holder.view();
+        if (view == MissionHudView.MAIN_MENU) {
             if (slot == DAILY_SLOT) {
                 open(player, MissionHudView.DAILY_LIST);
             } else if (slot == WEEKLY_SLOT) {
@@ -85,9 +99,17 @@ public final class MissionHudController implements Listener {
 
         if (slot == BACK_SLOT) {
             open(player, MissionHudView.MAIN_MENU);
-        } else if (holder.view() == MissionHudView.CLAIMABLES && slot == CLAIM_SLOT) {
+        } else if (view == MissionHudView.CLAIMABLES && slot == CLAIM_SLOT) {
             module.claimAll(player);
             open(player, MissionHudView.CLAIMABLES);
+        }
+    }
+
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        Inventory top = event.getView().getTopInventory();
+        if (top.getHolder() instanceof MissionMenuHolder && event.getRawSlots().stream().anyMatch(slot -> slot < top.getSize())) {
+            event.setCancelled(true);
         }
     }
 
@@ -144,6 +166,14 @@ public final class MissionHudController implements Listener {
         return createMenuItem(iconFor(assignment), ChatColor.WHITE + assignment.definition().title(), lore);
     }
 
+    /** Marks a missions menu and the view it shows. */
+    record MissionMenuHolder(MissionHudView view) implements InventoryHolder {
+        @Override
+        public Inventory getInventory() {
+            return null;
+        }
+    }
+
     private ItemStack createMenuItem(Material material, String name, List<String> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
@@ -160,20 +190,5 @@ public final class MissionHudController implements Listener {
             case DAILY -> Material.PAPER;
             case WEEKLY -> Material.BOOK;
         };
-    }
-
-    @EventHandler
-    public void onInventoryDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder() instanceof MissionMenuHolder) {
-            event.setCancelled(true);
-        }
-    }
-
-    /** Identifies mission menus by holder: titles are plain text and can be spoofed or collide. */
-    private record MissionMenuHolder(MissionHudView view) implements InventoryHolder {
-        @Override
-        public Inventory getInventory() {
-            return null;
-        }
     }
 }
