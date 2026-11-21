@@ -203,7 +203,7 @@ public record VillagerMoodSettings(
             || cliff.attemptTicks() <= 0L) {
             throw new IllegalArgumentException("La configuración de escape o precipicio no es válida.");
         }
-        if (riot.radius() <= 0.0 || riot.minRioters() < 1 || riot.durationTicks() <= 0L
+        if (!Double.isFinite(riot.radius()) || riot.radius() <= 0.0 || riot.minRioters() < 1 || riot.durationTicks() <= 0L
             || riot.cooldownTicks() < 0L || riot.damage() < 0.0) {
             throw new IllegalArgumentException("La configuración de motín no es válida.");
         }

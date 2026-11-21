@@ -74,6 +74,15 @@ class VillagerMoodTest {
     }
 
     @Test
+    void nonFiniteRiotRadiiFallBackToTheDefault() {
+        YamlConfiguration config = new YamlConfiguration();
+        for (double radius : new double[] {Double.NaN, Double.POSITIVE_INFINITY}) {
+            config.set("villager-mood.riot.radius", radius);
+            assertEquals(VillagerMoodSettings.defaults().riot().radius(), VillagerMoodSettings.load(config).riot().radius());
+        }
+    }
+
+    @Test
     void detectsTradingHallCells() {
         assertFalse(VillagerMoodPolicy.isConfined(new Grid(), 0, 0, 0), "open field");
         assertTrue(VillagerMoodPolicy.isConfined(new Grid().cell(), 0, 0, 0));
