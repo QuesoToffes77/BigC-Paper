@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.function.Predicate;
 
 /**
  * {@code staff-events}: events only staff can start (Lifesteal, KOTH, TNT Tag, Spleef).
@@ -27,17 +28,20 @@ public final class StaffEventsModule implements PluginModule {
     private final BigCasares plugin;
     private final Supplier<Optional<DimensionPlatform>> dimensions;
     private final Supplier<Optional<Boolean>> pvpBaseline;
+    private final Predicate<UUID> endHuntDeath;
     private RuntimeRegistrationScope compatibilityScope;
     private StaffEventRuntime runtime;
 
     public StaffEventsModule(
         BigCasares plugin,
         Supplier<Optional<DimensionPlatform>> dimensions,
-        Supplier<Optional<Boolean>> pvpBaseline
+        Supplier<Optional<Boolean>> pvpBaseline,
+        Predicate<UUID> endHuntDeath
     ) {
         this.plugin = plugin;
         this.dimensions = dimensions;
         this.pvpBaseline = pvpBaseline;
+        this.endHuntDeath = endHuntDeath;
     }
 
     @Override
@@ -70,7 +74,7 @@ public final class StaffEventsModule implements PluginModule {
 
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         StaffEventRuntime created = new StaffEventRuntime(
-            plugin, settings, store, dimensions, this::rewardItem, pvpBaseline, registrations);
+            plugin, settings, store, dimensions, this::rewardItem, pvpBaseline, endHuntDeath, registrations);
         runtime = created;
         scope.register("staff-events-runtime", () -> {
             created.shutdown();

@@ -429,7 +429,8 @@ public final class BigCasares extends JavaPlugin {
         DimensionModule dimensions = dimensionModule;
         this.siftModule = new SiftModule(this, dimensions::platform, customBlocks, contentItems, javaModels,
             this::resolveClientPlatform);
-        this.staffEventsModule = new StaffEventsModule(this, dimensions::platform, this::serverControlPvp);
+        this.staffEventsModule = new StaffEventsModule(this, dimensions::platform, this::serverControlPvp,
+            endEventModule::bypassTombstone);
         this.shopModule.configurePlatform(this::resolveClientPlatform, this::sendBedrockShopForm);
 
         moduleManager.register(resourcePackModule);

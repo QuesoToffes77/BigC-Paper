@@ -31,6 +31,6 @@ class StaffEventTypeTest {
 
     @Test
     void moduleIdIsStable() {
-        assertEquals("staff-events", new StaffEventsModule(null, null, null).getId());
+        assertEquals("staff-events", new StaffEventsModule(null, null, null, null).getId());
     }
 }

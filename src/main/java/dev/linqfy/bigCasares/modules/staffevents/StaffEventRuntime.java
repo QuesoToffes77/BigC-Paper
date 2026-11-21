@@ -65,6 +65,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 
@@ -90,6 +91,7 @@ final class StaffEventRuntime implements Listener {
     private final Supplier<Optional<DimensionPlatform>> dimensions;
     private final Function<RewardItem, Optional<ItemStack>> rewardItems;
     private final Supplier<Optional<Boolean>> pvpBaseline;
+    private final Predicate<UUID> endHuntDeath;
     private final BukkitRuntimeRegistrations registrations;
     private final LifestealHearts hearts;
     private final Random random = new Random();
@@ -131,6 +133,7 @@ final class StaffEventRuntime implements Listener {
         Supplier<Optional<DimensionPlatform>> dimensions,
         Function<RewardItem, Optional<ItemStack>> rewardItems,
         Supplier<Optional<Boolean>> pvpBaseline,
+        Predicate<UUID> endHuntDeath,
         BukkitRuntimeRegistrations registrations
     ) {
         this.plugin = plugin;
@@ -139,6 +142,7 @@ final class StaffEventRuntime implements Listener {
         this.dimensions = dimensions;
         this.rewardItems = rewardItems;
         this.pvpBaseline = pvpBaseline;
+        this.endHuntDeath = endHuntDeath;
         this.registrations = registrations;
         this.hearts = new LifestealHearts(plugin);
     }
@@ -765,7 +769,8 @@ final class StaffEventRuntime implements Listener {
         if (current == null) return;
         Player victim = event.getEntity();
         if (current.participants.contains(victim.getUniqueId())
-            || (current.type == StaffEventType.LIFESTEAL && !victim.getWorld().equals(arenaWorld().orElse(null)))) {
+            || (current.type == StaffEventType.LIFESTEAL && LifestealRules.handlesDeath(
+                victim.getWorld().equals(arenaWorld().orElse(null)), endHuntDeath.test(victim.getUniqueId())))) {
             handledDeaths.add(victim.getUniqueId());
             keepEverything(event);
         }

@@ -24,6 +24,11 @@ public record LifestealRules(int heartsPerKill, int floorHearts, int maxHearts, 
         }
     }
 
+    /** The End hunt owns its participants' deaths and its prepared drops. */
+    static boolean handlesDeath(boolean arenaWorld, boolean endHuntDeath) {
+        return !arenaWorld && !endHuntDeath;
+    }
+
     /** Result of one kill: hearts the victim loses and the killer gains (equal unless the cap trims it). */
     public record KillOutcome(int victimLoss, int killerGain, boolean floorProtected) {
     }

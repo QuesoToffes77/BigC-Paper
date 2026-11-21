@@ -43,6 +43,14 @@ class LifestealRulesTest {
     }
 
     @Test
+    void endHuntOwnsItsParticipantDeathsDuringLifesteal() {
+        assertFalse(LifestealRules.handlesDeath(false, true));
+        assertTrue(LifestealRules.handlesDeath(false, false));
+        assertFalse(LifestealRules.handlesDeath(true, false));
+        assertFalse(LifestealRules.handlesDeath(true, true));
+    }
+
+    @Test
     void invalidRulesAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> new LifestealRules(0, 3, 20, 12));
         assertThrows(IllegalArgumentException.class, () -> new LifestealRules(1, 5, 4, 12));
