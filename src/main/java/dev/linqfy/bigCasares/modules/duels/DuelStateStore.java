@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -55,13 +56,14 @@ final class DuelStateStore {
     }
 
     /** Writes the snapshot; returns false (and changes nothing in game) when it could not be stored. */
-    boolean save(Player player, long escrow) {
+    boolean save(Player player, long escrow, BooleanSupplier available) {
         if (has(player.getUniqueId()) && !restoredInMemory(player)) {
             logger.warning("[Duelos] Hay un estado pendiente de " + player.getName() + "; no se reemplazará.");
             return false;
         }
         // Return any item held on the cursor before taking the inventory snapshot.
         player.closeInventory();
+        if (!available.getAsBoolean()) return false;
         YamlConfiguration yaml = new YamlConfiguration();
         Location home = player.getLocation();
         yaml.set("location.world", home.getWorld().getUID().toString());
@@ -141,6 +143,12 @@ final class DuelStateStore {
      *     was nothing to restore
      */
     long restore(Player player) {
+        return restore(player, () -> true);
+    }
+
+    /** Returns -2 when another inventory owner defers recovery without changing the snapshot. */
+    long restore(Player player, BooleanSupplier available) {
+        if (!available.getAsBoolean()) return -2L;
         File file = file(player.getUniqueId());
         if (!file.isFile()) {
             return -1L;
@@ -160,6 +168,9 @@ final class DuelStateStore {
             player.sendMessage("§cTu restauración requiere revisión del staff antes de continuar.");
             return -1L;
         }
+        player.closeInventory();
+        // Closing a view can invoke plugins that acquire inventory custody.
+        if (!available.getAsBoolean()) return -2L;
         ItemStack[] contents = new ItemStack[player.getInventory().getContents().length];
         try {
             var decoded = DuelSnapshotCodec.decode(yaml.getConfigurationSection("inventory"), contents.length,
@@ -184,7 +195,6 @@ final class DuelStateStore {
             logger.log(Level.SEVERE, "[Duelos] No se pudo registrar la restauración de " + player.getName(), failure);
             return -1L;
         }
-        player.closeInventory();
         player.getInventory().setContents(contents);
         player.setItemOnCursor(null);
         for (PotionEffect effect : player.getActivePotionEffects()) {

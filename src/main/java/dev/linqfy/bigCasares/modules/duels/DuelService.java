@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.duels;
 
+import dev.linqfy.bigCasares.module.runtime.InventoryCustody;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -38,7 +39,7 @@ import java.util.logging.Logger;
  * both have chosen, their state is saved to disk, they get the kit and are taken to an arena in the duel world.
  * When the fight ends they are sent back exactly as they were.
  */
-final class DuelService {
+final class DuelService implements InventoryCustody {
 
     private final Server server;
     private final Logger logger;
@@ -53,6 +54,11 @@ final class DuelService {
     private final Map<UUID, Map<UUID, DuelRequest>> requests = new HashMap<>();
     /** Players whose saved state must be given back as soon as they are online and alive. */
     private final Set<UUID> pendingRestore = new HashSet<>();
+    /** Checkpoint callbacks can reenter while an in-memory marker is not yet verified on disk. */
+    private final Set<UUID> restoring = new HashSet<>();
+    private final Set<UUID> starting = new HashSet<>();
+    private final DuelCustodyLifetime custodyLifetime = new DuelCustodyLifetime();
+    private boolean closing;
     private final Map<DuelSession, Long> returning = new LinkedHashMap<>();
     private final Map<Integer, DuelSession> clearing = new LinkedHashMap<>();
     private static final int CLEAR_BUDGET = 4096;
@@ -94,7 +100,7 @@ final class DuelService {
             return;
         }
         if (busy(challenger.getUniqueId()) || busy(target.getUniqueId())) {
-            challenger.sendMessage(Component.text("Alguno de los dos ya está en un duelo.", NamedTextColor.RED));
+            challenger.sendMessage(Component.text("Alguno de los dos tiene el inventario ocupado por un evento.", NamedTextColor.RED));
             return;
         }
         if (settings.kits().isEmpty()) {
@@ -153,7 +159,7 @@ final class DuelService {
             return;
         }
         if (busy(challenger.getUniqueId()) || busy(target.getUniqueId())) {
-            target.sendMessage(Component.text("Alguno de los dos ya está en un duelo.", NamedTextColor.RED));
+            target.sendMessage(Component.text("Alguno de los dos tiene el inventario ocupado por un evento.", NamedTextColor.RED));
             return;
         }
         if (!escrow.canAfford(challenger.getUniqueId(), request.wager())
@@ -254,10 +260,25 @@ final class DuelService {
         return request;
     }
 
+    @Override
+    public boolean ownsInventory(UUID player) {
+        boolean snapshot = store.has(player);
+        Player online = snapshot ? server.getPlayer(player) : null;
+        return DuelCustodyPolicy.owns(sessions.containsKey(player) || restoring.contains(player) || starting.contains(player),
+            pendingRestore.contains(player), snapshot,
+            online != null, online != null && store.restoredInMemory(online));
+    }
+
+    private boolean ownedByOther(UUID player) {
+        return InventoryCustody.ownedByOther(server, player, this);
+    }
+
     private boolean busy(UUID player) {
-        Player online = server.getPlayer(player);
-        return sessions.containsKey(player) || pendingRestore.contains(player)
-            || store.has(player) && (online == null || !store.restoredInMemory(online));
+        return ownsInventory(player) || ownedByOther(player);
+    }
+
+    private boolean eitherOwnedByOther(DuelSession session) {
+        return session.players().stream().anyMatch(this::ownedByOther);
     }
 
     private String describe(DuelRequest request) {
@@ -389,6 +410,10 @@ final class DuelService {
             abortDraft(session, "El duelo no pudo empezar.");
             return;
         }
+        if (eitherOwnedByOther(session)) {
+            abortDraft(session, "Otro evento está usando un inventario.");
+            return;
+        }
         if (arenas.world() == null) {
             logger.severe("[Duelos] No se pudo crear el mundo de duelos " + settings.worldName());
             abortDraft(session, "El mundo de duelos no está disponible.");
@@ -404,7 +429,10 @@ final class DuelService {
     }
 
     private void finishBuild(DuelSession session) {
+        starting.addAll(session.players());
+        custodyLifetime.enter();
         try {
+            ensureRunning();
             finishBuildUnchecked(session);
         } catch (RuntimeException failure) {
             logger.log(java.util.logging.Level.SEVERE, "[Duelos] Falló el inicio del duelo", failure);
@@ -414,7 +442,18 @@ final class DuelService {
                 session.players().forEach(this::scheduleRestoreIfSaved);
                 processRestores();
             }
+        } finally {
+            starting.removeAll(session.players());
+            custodyLifetime.leave();
         }
+    }
+
+    private void ensureRunning() {
+        if (closing) throw new IllegalStateException("El módulo de duelos se está cerrando");
+    }
+
+    void unregisterCustodyWhenSafe(Runnable cleanup) {
+        custodyLifetime.closeWhenIdle(cleanup);
     }
 
     private void finishBuildUnchecked(DuelSession session) {
@@ -427,23 +466,36 @@ final class DuelService {
             abortDraft(session, "El duelo no pudo empezar.");
             return;
         }
-        if (!store.save(first, 0L)) {
+        if (eitherOwnedByOther(session)) {
+            abortDraft(session, "Otro evento está usando un inventario.");
+            return;
+        }
+        if (!store.save(first, 0L, () -> !closing && !ownedByOther(first.getUniqueId()))) {
             arenas.releaseSlot(session.slot());
             session.slot(-1);
             abortDraft(session, "No se pudo guardar tu inventario; duelo cancelado.");
             return;
         }
-        if (!store.save(second, 0L)) {
-            store.restore(first);
-            arenas.releaseSlot(session.slot());
-            session.slot(-1);
+        ensureRunning();
+        if (eitherOwnedByOther(session) || !store.save(second, 0L, () -> !closing && !ownedByOther(second.getUniqueId()))) {
             abortDraft(session, "No se pudo guardar tu inventario; duelo cancelado.");
+            scheduleRestoreIfSaved(first.getUniqueId());
+            processRestores();
+            return;
+        }
+        ensureRunning();
+        if (eitherOwnedByOther(session)) {
+            abortDraft(session, "Otro evento está usando un inventario.");
+            session.players().forEach(this::scheduleRestoreIfSaved);
+            processRestores();
             return;
         }
         int slot = session.slot();
         try {
             prepare(first, kit, arenas.spawn(slot, session.arena(), true));
+            if (eitherOwnedByOther(session)) throw new IllegalStateException("Inventario adquirido por otro evento");
             prepare(second, kit, arenas.spawn(slot, session.arena(), false));
+            if (eitherOwnedByOther(session)) throw new IllegalStateException("Inventario adquirido por otro evento");
         } catch (RuntimeException failure) {
             logger.log(java.util.logging.Level.SEVERE, "[Duelos] No se pudo preparar a los jugadores", failure);
             try {
@@ -464,6 +516,8 @@ final class DuelService {
 
     private void prepare(Player player, DuelKit kit, Location spawn) {
         player.closeInventory();
+        ensureRunning();
+        if (ownedByOther(player.getUniqueId())) throw new IllegalStateException("Inventario adquirido por otro evento");
         for (PotionEffect effect : player.getActivePotionEffects()) {
             player.removePotionEffect(effect.getType());
         }
@@ -476,6 +530,7 @@ final class DuelService {
         if (!player.teleport(spawn, PlayerTeleportEvent.TeleportCause.PLUGIN)) {
             throw new IllegalStateException("El teletransporte a la arena fue cancelado para " + player.getName());
         }
+        ensureRunning();
         AttributeInstance maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
         player.setHealth(maxHealth == null ? 20.0 : maxHealth.getValue());
         player.setFoodLevel(20);
@@ -564,7 +619,7 @@ final class DuelService {
     // ---------------------------------------------------------------- restore
 
     void onFreshJoin(Player player) {
-        store.retireOnJoin(player);
+        if (!ownedByOther(player.getUniqueId())) store.retireOnJoin(player);
         scheduleRestoreIfSaved(player.getUniqueId());
     }
 
@@ -583,12 +638,33 @@ final class DuelService {
                 iterator.remove();
                 continue;
             }
+            if (restoring.contains(id)) {
+                continue;
+            }
             Player player = server.getPlayer(id);
             if (player == null || player.isDead()) {
                 continue;
             }
+            if (ownedByOther(id)) {
+                continue;
+            }
+            if (store.restoredInMemory(player)) {
+                iterator.remove();
+                continue;
+            }
+            long owed;
+            restoring.add(id);
+            custodyLifetime.enter();
+            try {
+                owed = store.restore(player, () -> !ownedByOther(id));
+            } finally {
+                restoring.remove(id);
+                custodyLifetime.leave();
+            }
+            if (owed == -2L) {
+                continue;
+            }
             iterator.remove();
-            long owed = store.restore(player);
             if (owed > 0) {
                 // The server stopped mid-duel: the stake was never settled, so it goes back.
                 logger.severe("[Duelos] Apuesta anterior al diario requiere conciliación manual: " + id + " $" + owed);
@@ -710,6 +786,7 @@ final class DuelService {
 
     /** Module shutdown: every duel ends without a winner, stakes go back and online players go home now. */
     void shutdown() {
+        closing = true;
         for (DuelSession session : new ArrayList<>(new HashSet<>(sessions.values()))) {
             if (session.phase() == DuelSession.Phase.DRAFT || session.phase() == DuelSession.Phase.BUILDING) {
                 abortDraft(session, "Los duelos se reiniciaron.");

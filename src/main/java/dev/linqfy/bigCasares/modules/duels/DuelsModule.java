@@ -3,11 +3,13 @@ package dev.linqfy.bigCasares.modules.duels;
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.InventoryCustody;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.plugin.ServicePriority;
 
 import java.io.File;
 
@@ -66,6 +68,16 @@ public final class DuelsModule implements PluginModule {
             System::currentTimeMillis
         );
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        var services = plugin.getServer().getServicesManager();
+        services.register(InventoryCustody.class, service, plugin, ServicePriority.Normal);
+        try {
+            // Register this cleanup first so custody remains visible throughout service shutdown.
+            registrations.ownCleanup("duels-custody", () ->
+                service.unregisterCustodyWhenSafe(() -> services.unregister(InventoryCustody.class, service)));
+        } catch (RuntimeException | Error failure) {
+            services.unregister(InventoryCustody.class, service);
+            throw failure;
+        }
         registrations.ownCleanup("duels-service", service::shutdown);
         registrations.registerListener("duels-listener", new DuelListener(service));
         DuelCommand handler = new DuelCommand(service, plugin.getServer());
