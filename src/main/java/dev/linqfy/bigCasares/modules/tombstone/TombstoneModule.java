@@ -9,7 +9,13 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.List;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.CraftingInventory;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.Arrays;
 
 public final class TombstoneModule implements PluginModule {
     private final BigCasares plugin;
@@ -47,6 +53,7 @@ public final class TombstoneModule implements PluginModule {
             created.shutdown();
         });
         created.load();
+        plugin.getServer().getOnlinePlayers().forEach(created::recoverBurial);
         this.runtime = created;
     }
 
@@ -60,6 +67,31 @@ public final class TombstoneModule implements PluginModule {
     public boolean openNearby(Player player, double radius) {
         TombstoneRuntime current = runtime;
         return current != null && current.openNearby(player, radius);
+    }
+
+    /**
+     * Moves the player's whole inventory into a new tombstone at {@code location}, without a death.
+     * Returns false (and leaves the inventory untouched) when the module is off or there is nothing to bury.
+     */
+    public boolean bury(Player player, Location location) {
+        TombstoneRuntime current = runtime;
+        if (current == null) return false;
+        ItemStack cursor = player.getItemOnCursor();
+        // The native player data file does not contain the cursor stack.
+        if (cursor != null && !cursor.getType().isAir()) return false;
+        if (player.getOpenInventory().getTopInventory() instanceof CraftingInventory crafting
+            && Arrays.stream(crafting.getMatrix()).anyMatch(item -> item != null && !item.getType().isAir())) return false;
+        List<ItemStack> items = TombstoneItemLayout.snapshot(
+            player.getInventory().getStorageContents(),
+            player.getInventory().getArmorContents(),
+            player.getInventory().getItemInOffHand(),
+            null
+        );
+        return current.bury(player, location, items);
+    }
+
+    public boolean capturesDeathOf(UUID playerId) {
+        return shouldCaptureDeath(playerId);
     }
 
     public void setDeathCaptureEligibility(Predicate<UUID> eligibility) {
