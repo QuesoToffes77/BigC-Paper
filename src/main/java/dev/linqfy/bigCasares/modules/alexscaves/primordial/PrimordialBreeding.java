@@ -284,6 +284,9 @@ public final class PrimordialBreeding implements Listener, Runnable {
     }
 
     private void pickUp(Interaction box, Player player) {
+        if (player.getGameMode() == GameMode.ADVENTURE || player.getGameMode() == GameMode.SPECTATOR) {
+            return;
+        }
         String link = box.getPersistentDataContainer().get(linkKey, PersistentDataType.STRING);
         Entity display = link == null ? null : linked(link);
         if (display instanceof ItemDisplay egg && egg.getPersistentDataContainer().has(eggKey, PersistentDataType.STRING)) {

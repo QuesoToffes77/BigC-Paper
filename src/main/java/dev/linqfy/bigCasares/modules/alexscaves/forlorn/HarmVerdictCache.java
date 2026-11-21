@@ -6,7 +6,7 @@ import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 /** Remembers for a while whether an owner may hurt a target, so protections are not asked on every tick. */
-final class HarmVerdictCache {
+public final class HarmVerdictCache {
     static final long TTL_TICKS = 40;
     private static final int PRUNE_SIZE = 256;
 
@@ -19,7 +19,7 @@ final class HarmVerdictCache {
     private final Map<Key, Verdict> verdicts = new HashMap<>();
 
     /** The cached verdict while it is fresh; otherwise {@code check} is asked and its answer kept. */
-    boolean allowed(UUID owner, UUID target, long now, BooleanSupplier check) {
+    public boolean allowed(UUID owner, UUID target, long now, BooleanSupplier check) {
         Key key = new Key(owner, target);
         Verdict known = verdicts.get(key);
         if (known != null && known.expiresAt() > now) {

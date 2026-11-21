@@ -104,7 +104,7 @@ final class AlexsCavesBedrockModels {
             Plugin geyser = plugin.getServer().getPluginManager().getPlugin(name);
             if (geyser != null) {
                 return geyser.getDataFolder().toPath().resolve("extensions").resolve("geysermodelengineextension")
-                    .resolve("input");
+                    .resolve("input").toAbsolutePath().normalize();
             }
         }
         return null;

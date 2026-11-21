@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.alexscaves.toxic;
 
+import dev.linqfy.bigCasares.modules.alexscaves.forlorn.HarmVerdictCache;
 import org.bukkit.damage.DamageSource;
 import org.bukkit.damage.DamageType;
 import org.bukkit.entity.Entity;
@@ -10,6 +11,9 @@ import org.bukkit.event.entity.EntityDamageEvent;
 
 /** Tells whether a hit really reached its victim, so radiation is only applied where protections let damage through. */
 final class DamageProbe {
+    /** Clouds ask every few ticks; plugins must not see a fake hit each time (combat tags, deny messages). */
+    private static final HarmVerdictCache VERDICTS = new HarmVerdictCache();
+
     private DamageProbe() {
     }
 
@@ -34,7 +38,9 @@ final class DamageProbe {
         if (source == null || !source.isValid()) {
             return false;
         }
-        DamageSource damage = DamageSource.builder(DamageType.GENERIC).withCausingEntity(source).withDirectEntity(source).build();
-        return new EntityDamageByEntityEvent(source, victim, EntityDamageEvent.DamageCause.ENTITY_ATTACK, damage, 1.0).callEvent();
+        return VERDICTS.allowed(source.getUniqueId(), victim.getUniqueId(), victim.getWorld().getGameTime(), () -> {
+            DamageSource damage = DamageSource.builder(DamageType.GENERIC).withCausingEntity(source).withDirectEntity(source).build();
+            return new EntityDamageByEntityEvent(source, victim, EntityDamageEvent.DamageCause.ENTITY_ATTACK, damage, 1.0).callEvent();
+        });
     }
 }

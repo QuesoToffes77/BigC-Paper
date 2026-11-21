@@ -106,6 +106,7 @@ public final class ToxicRaygun implements Listener, Runnable {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         stop(event.getPlayer());
+        pending.remove(event.getPlayer().getUniqueId());
     }
 
     /** Changing slot ends the beam; what it used so far is written to the slot it was fired from. */
@@ -164,24 +165,34 @@ public final class ToxicRaygun implements Listener, Runnable {
     @Override
     public void run() {
         tick++;
-        firing.entrySet().removeIf(entry -> {
-            Player player = mobs.plugin().getServer().getPlayer(entry.getKey());
-            Firing state = entry.getValue();
+        // A copy: a beam hit can kill its own user, whose death handler edits the map.
+        for (UUID id : java.util.List.copyOf(firing.keySet())) {
+            Firing state = firing.get(id);
+            if (state == null) {
+                continue;
+            }
+            Player player = mobs.plugin().getServer().getPlayer(id);
             ItemStack held = player == null ? null : player.getInventory().getItemInMainHand();
             boolean stop = player == null || !player.isValid() || tick - state.lastUse() > HOLD_TICKS || !isRaygun(held)
                 || player.getInventory().getHeldItemSlot() != state.slot()
                 || !fire(player, held, (int) (tick - state.startedAt()));
             if (stop || (tick - state.startedAt()) % SAVE_TICKS == 0) {
-                flushTo(entry.getKey(), player == null ? null : slotItem(player, state.slot()));
+                flushTo(id, player == null ? null : slotItem(player, state.slot()));
             }
-            return stop;
-        });
+            if (stop) {
+                firing.remove(id, state);
+            }
+        }
     }
 
     /** Writes the charge used since the last flush to the raygun it was fired from. */
     private void flushTo(UUID player, ItemStack raygun) {
+        if (raygun == null) {
+            // The raygun left its slot unseen: keep the debt for the next one rather than give the charge back.
+            return;
+        }
         Integer used = pending.remove(player);
-        if (used != null && used > 0 && raygun != null) {
+        if (used != null && used > 0) {
             setChargeUsed(raygun, withPending(chargeUsed(raygun), used));
         }
     }

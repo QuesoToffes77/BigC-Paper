@@ -179,9 +179,10 @@ public final class MagneticBlocks implements Listener {
     }
 
     private void startBurst(Block block, Entity source) {
-        if (isTesla(block) && mayBreak(block, source)) {
-            bursting.putIfAbsent(new BlockKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()),
-                new Burst(source));
+        BlockKey key = new BlockKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
+        // Ask protections once per burst: every punch would otherwise raise a break that never happens.
+        if (!bursting.containsKey(key) && isTesla(block) && mayBreak(block, source)) {
+            bursting.put(key, new Burst(source));
         }
     }
 

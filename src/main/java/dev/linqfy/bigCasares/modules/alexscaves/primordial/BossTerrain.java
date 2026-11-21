@@ -58,6 +58,9 @@ public final class BossTerrain implements Listener, Runnable, AutoCloseable {
     private final Map<UUID, Map<Long, Set<Long>>> fissures = new HashMap<>();
     private final Map<UUID, Map<Long, Set<Long>>> lit = new HashMap<>();
     private long tick;
+    /** Chunks changed this tick, written once at the end of it instead of once per block. */
+    private final Map<UUID, Set<Long>> dirty = new HashMap<>();
+
     public BossTerrain(Plugin plugin, PrimordialBlocks blocks) {
         this.plugin = plugin;
         this.blocks = blocks;
@@ -88,11 +91,29 @@ public final class BossTerrain implements Listener, Runnable, AutoCloseable {
         markDirty(block.getWorld(), block.getX() >> 4, block.getZ() >> 4);
     }
 
-    /** Writes the chunk's records at once, so a crash or an unclean stop cannot lose a fissure or a lit block. */
+    /** Writes the chunk's records by the end of the tick, so a crash or an unclean stop cannot lose a fissure or a lit block. */
     private void markDirty(World world, int chunkX, int chunkZ) {
-        if (world.isChunkLoaded(chunkX, chunkZ)) {
-            save(world.getChunkAt(chunkX, chunkZ), false);
+        dirty.computeIfAbsent(world.getUID(), id -> new HashSet<>()).add(chunkKey(chunkX << 4, chunkZ << 4));
+    }
+
+    private void flushDirty() {
+        if (dirty.isEmpty()) {
+            return;
         }
+        for (Map.Entry<UUID, Set<Long>> entry : dirty.entrySet()) {
+            World world = plugin.getServer().getWorld(entry.getKey());
+            if (world == null) {
+                continue;
+            }
+            for (long key : entry.getValue()) {
+                int chunkX = (int) (key >> 32);
+                int chunkZ = (int) key;
+                if (world.isChunkLoaded(chunkX, chunkZ)) {
+                    save(world.getChunkAt(chunkX, chunkZ), false);
+                }
+            }
+        }
+        dirty.clear();
     }
 
     private void addLit(Block block) {
@@ -168,6 +189,7 @@ public final class BossTerrain implements Listener, Runnable, AutoCloseable {
         if (tick % 10 == 0) {
             burn();
         }
+        flushDirty();
     }
 
     /** Mod random tick of {@code PrimalMagmaBlock}: with a boss erupting an inactive magma block lights up. */
@@ -373,6 +395,7 @@ public final class BossTerrain implements Listener, Runnable, AutoCloseable {
 
     @Override
     public void close() {
+        dirty.clear();
         for (World world : plugin.getServer().getWorlds()) {
             for (Chunk chunk : world.getLoadedChunks()) {
                 save(chunk, false);

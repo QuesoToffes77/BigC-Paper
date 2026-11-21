@@ -136,6 +136,7 @@ public final class Atlatitan {
         private int wanderTime;
 
         private boolean pinned;
+        private boolean pinnedKnown;
 
         /** Stomp meter of the rider (mod {@code METER_AMOUNT}). */
         private float meter;
@@ -241,7 +242,15 @@ public final class Atlatitan {
 
         /** A ridden Atlatitan must not despawn under its rider; the flag is released once the rider is gone. */
         private void keepWhileRidden(LivingEntity entity, boolean ridden) {
-            if (!(entity instanceof org.bukkit.entity.Mob mob) || ridden == pinned) {
+            if (!(entity instanceof org.bukkit.entity.Mob mob)) {
+                return;
+            }
+            if (!pinnedKnown) {
+                // The flag is saved with the entity: one left by a rider before a restart must still be released.
+                pinned = mob.isPersistent();
+                pinnedKnown = true;
+            }
+            if (ridden == pinned) {
                 return;
             }
             pinned = ridden;
