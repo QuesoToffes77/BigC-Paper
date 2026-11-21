@@ -3,6 +3,8 @@ package dev.linqfy.bigCasares.modules.auth;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.module.runtime.InventoryCustody;
+import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
 import dev.linqfy.bigCasares.modules.auth.premium.MojangProfiles;
 import dev.linqfy.bigCasares.modules.auth.premium.MojangSessionClient;
 import dev.linqfy.bigCasares.modules.auth.premium.PremiumTicket;
@@ -79,6 +81,10 @@ public final class AuthModule implements PluginModule {
     private final VanishSessionRegistry vanish;
     private final SecureRandom random = new SecureRandom();
     private final Map<UUID, PlayerAuthState> states = new ConcurrentHashMap<>();
+    private final InventoryCustody custody = playerId -> {
+        PlayerAuthState state = states.get(playerId);
+        return state != null && !state.authenticated;
+    };
     private final Map<UUID, PreAuth> preAuthorized = new ConcurrentHashMap<>();
     private final Map<UUID, Location> originalSpawns = new ConcurrentHashMap<>();
     private final Set<String> authenticatedNames = ConcurrentHashMap.newKeySet();
@@ -98,6 +104,7 @@ public final class AuthModule implements PluginModule {
     private Location limboSpawn;
     private NamespacedKey qrKey;
     private NamespacedKey restoredStashKey;
+    private NamespacedKey restoreCheckpointKey;
     private NamespacedKey premiumCookieKey;
     private RuntimeRegistrationScope scope;
     private RuntimeRegistrationScope compatibilityScope;
@@ -143,6 +150,7 @@ public final class AuthModule implements PluginModule {
         this.mojangProfiles = new MojangProfiles("https://api.mojang.com");
         this.qrKey = new NamespacedKey(plugin, "auth_qr_map");
         this.restoredStashKey = new NamespacedKey(plugin, "auth_restored_stash");
+        this.restoreCheckpointKey = new NamespacedKey(plugin, "auth_restore_checkpoint");
         this.premiumCookieKey = NamespacedKey.fromString(PremiumVerifierServer.COOKIE_KEY);
         this.onlineModeServer = Bukkit.getOnlineMode();
         this.limbo = LimboWorld.createOrLoad(settings.limboWorld());
@@ -150,6 +158,18 @@ public final class AuthModule implements PluginModule {
         scope.register("auth-state", this::clearState);
 
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        var services = plugin.getServer().getServicesManager();
+        try {
+            services.register(InventoryCustody.class, custody, plugin, org.bukkit.plugin.ServicePriority.Normal);
+            registrations.ownCleanup("auth-inventory-custody", () -> services.unregister(InventoryCustody.class, custody));
+        } catch (RuntimeException | Error failure) {
+            try {
+                services.unregister(InventoryCustody.class, custody);
+            } catch (RuntimeException cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
+            throw failure;
+        }
         registrations.registerListener("auth-listener", new AuthListener(this));
         AuthCommands commands = new AuthCommands(this);
         for (String label : List.of("login", "register", "auth", "premium")) {
@@ -847,7 +867,7 @@ public final class AuthModule implements PluginModule {
         return states.get(player.getUniqueId());
     }
 
-    boolean isPending(Player player) {
+    public boolean isPending(Player player) {
         PlayerAuthState state = states.get(player.getUniqueId());
         return state != null && !state.authenticated;
     }
@@ -964,6 +984,9 @@ public final class AuthModule implements PluginModule {
             state.account.recordLogin(state.addressKey, System.currentTimeMillis());
             accounts.save(state.account);
         }
+        if (fromLimbo) {
+            Bukkit.getPluginManager().callEvent(new AuthReadyEvent(player));
+        }
         if (state.deferredJoinMessage != null) {
             Bukkit.getServer().sendMessage(state.deferredJoinMessage);
             state.deferredJoinMessage = null;
@@ -1023,21 +1046,19 @@ public final class AuthModule implements PluginModule {
             World main = Bukkit.getWorlds().getFirst();
             target = main.getSpawnLocation();
         }
-        if (player.getWorld().equals(limbo)) {
-            teleportOwned(player, state, target);
+        if (player.getWorld().equals(limbo) && !teleportOwned(player, state, target)) {
+            throw new IllegalStateException("Could not return player from authentication limbo");
         }
         if (stashed.isPresent()) {
             InventoryStash.Stashed snapshot = stashed.get();
             var playerData = player.getPersistentDataContainer();
             String restoredRevision = playerData.get(restoredStashKey, PersistentDataType.STRING);
-            if (!snapshot.revision().equals(restoredRevision)) {
+            InventoryRestoreCheckpoint.restore(snapshot.revision().equals(restoredRevision), () -> {
                 removeQrMaps(player);
                 // A player file can still contain the original inventory after an interrupted stash.
-                // Replace its contents so either version of that player file restores the same items.
                 player.getInventory().setContents(snapshot.items());
                 playerData.set(restoredStashKey, PersistentDataType.STRING, snapshot.revision());
-                player.saveData();
-            }
+            }, () -> PlayerDataCheckpoint.save(player, restoreCheckpointKey, UUID.randomUUID().toString()));
         }
     }
 
@@ -1064,10 +1085,10 @@ public final class AuthModule implements PluginModule {
         player.kick(Component.text("No se pudo recuperar tu inventario. Volvé a entrar o avisá al staff.", NamedTextColor.RED));
     }
 
-    private void teleportOwned(Player player, PlayerAuthState state, Location target) {
+    private boolean teleportOwned(Player player, PlayerAuthState state, Location target) {
         state.allowTeleport = true;
         try {
-            player.teleport(target);
+            return player.teleport(target);
         } finally {
             state.allowTeleport = false;
         }

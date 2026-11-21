@@ -42,6 +42,43 @@ class SahurRewardServiceTest {
     }
 
     @Test
+    void pendingAuthenticationDefersOnlineRewardsUntilReady() {
+        UUID player = UUID.randomUUID();
+        InMemoryStore store = new InMemoryStore();
+        RecordingDelivery delivery = new RecordingDelivery();
+        delivery.online = true;
+        boolean[] ready = {false};
+        SahurRewardService service = new SahurRewardService(store, delivery, id -> ready[0]);
+
+        service.award(player, new BossReward("ECHO_SHARD", 3));
+        assertEquals(0, service.deliverPending(player));
+        assertEquals(1, store.pending(player).size());
+        assertTrue(delivery.delivered.isEmpty());
+        ready[0] = true;
+        assertEquals(1, service.deliverPending(player));
+        assertTrue(store.pending(player).isEmpty());
+    }
+
+    @Test
+    void queuedRewardRetriesAfterAnotherInventoryOwnerReleasesCustody() {
+        UUID player = UUID.randomUUID();
+        InMemoryStore store = new InMemoryStore();
+        RecordingDelivery delivery = new RecordingDelivery();
+        delivery.online = true;
+        boolean[] ready = {false};
+        SahurRewardService service = new SahurRewardService(store, delivery, id -> ready[0]);
+
+        service.award(player, new BossReward("ECHO_SHARD", 3));
+        service.retryDeferred();
+        assertEquals(1, store.pending(player).size());
+        assertTrue(delivery.delivered.isEmpty());
+        ready[0] = true;
+        service.retryDeferred();
+        assertTrue(store.pending(player).isEmpty());
+        assertEquals(1, delivery.delivered.size());
+    }
+
+    @Test
     void persistsBeforeAttemptingOnlineDeliveryAndRetainsRewardWhenDeliveryFails() {
         UUID winner = UUID.randomUUID();
         List<String> events = new ArrayList<>();

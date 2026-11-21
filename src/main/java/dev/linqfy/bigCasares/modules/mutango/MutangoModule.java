@@ -147,7 +147,8 @@ public final class MutangoModule implements PluginModule {
             plugin.getLogger().warning("[Mutango] Ruinas desactivadas: " + exception);
         }
         recovery.restoreLeftoverBlocks();
-        plugin.getServer().getOnlinePlayers().forEach(rewards::claimPending);
+        // Wait for all modules to register inventory custody before delivering on reload.
+        tasks.next("claim-online-after-start", () -> plugin.getServer().getOnlinePlayers().forEach(rewards::claimPending));
         plugin.getLogger().info("[Mutango] Module enabled. Usa /mutango para spawnear los tres.");
     }
 

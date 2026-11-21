@@ -2,6 +2,7 @@ package dev.linqfy.bigCasares.modules.pveboss;
 
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelHandle;
@@ -119,12 +120,17 @@ public final class PveBossModule implements PluginModule {
         scope.register("sahur-delayed-model-reload", delayedModelReload::cancel);
         rewardService = new SahurRewardService(
             new YamlBossRewardStore(Path.of(plugin.getDataFolder().getPath(), "boss-rewards.yml")),
-            new PaperSahurRewardDelivery(plugin.getCustomItemRegistry()));
-        rewardListener = new SahurRewardListener(rewardService);
+            new PaperSahurRewardDelivery(plugin.getCustomItemRegistry()), playerId -> {
+                var player = plugin.getServer().getPlayer(playerId);
+                return player != null && dev.linqfy.bigCasares.modules.auth.AuthReadiness.ready(plugin, player);
+            });
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        rewardListener = new SahurRewardListener(rewardService, registrations);
         plugin.getServer().getPluginManager().registerEvents(rewardListener, plugin);
         scope.register("sahur-reward-listener", () -> HandlerList.unregisterAll(rewardListener));
-        rewardService.deliverPendingForOnline(plugin.getServer().getOnlinePlayers().stream()
-            .map(org.bukkit.entity.Player::getUniqueId).toList());
+        registrations.scheduleImmediate("sahur-initial-rewards", () -> rewardService.deliverPendingForOnline(
+            plugin.getServer().getOnlinePlayers().stream().map(org.bukkit.entity.Player::getUniqueId).toList()));
+        registrations.scheduleRepeating("sahur-deferred-rewards", rewardService::retryDeferred, 20L, 20L);
         AbyssGuardianDefinitionLoader loader = new AbyssGuardianDefinitionLoader();
         List<AbyssGuardianDefinition> loaded = supportedBossIds().stream().map(id -> {
             String resourcePath = "bosses/" + id + ".yml";
