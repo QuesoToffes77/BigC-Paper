@@ -21,10 +21,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 public final class TombstoneRuntime {
@@ -157,11 +159,15 @@ public final class TombstoneRuntime {
     public void shutdown() {
         // Close viewers first: an inventory left open after the runtime is gone would
         // still hand out items that were already persisted, duplicating them.
-        active.values().forEach(ActiveTombstone::closeViewers);
+        closeViewersBeforeShutdown(active.values(), ActiveTombstone::closeViewers);
         active.values().forEach(this::syncRecord);
         persist();
         active.values().forEach(ActiveTombstone::removeVisuals);
         active.clear();
+    }
+
+    static <T> void closeViewersBeforeShutdown(Collection<T> tombstones, Consumer<T> close) {
+        List.copyOf(tombstones).forEach(close);
     }
 
     private void activate(TombstoneRecord record) {

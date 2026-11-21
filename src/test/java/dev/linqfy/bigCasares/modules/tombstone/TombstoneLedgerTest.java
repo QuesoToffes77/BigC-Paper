@@ -7,7 +7,10 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,6 +50,22 @@ class TombstoneLedgerTest {
             "src/main/java/dev/linqfy/bigCasares/modules/tombstone/TombstoneRuntime.java"));
 
         assertEquals(3, source.split("setPersistent\\(false\\)", -1).length - 1);
+    }
+
+    @Test
+    void shutdownClosesEveryViewerWhenCloseRemovesATombstone() {
+        Map<Integer, Integer> active = new LinkedHashMap<>();
+        active.put(1, 1);
+        active.put(2, 2);
+        List<Integer> closed = new ArrayList<>();
+
+        TombstoneRuntime.closeViewersBeforeShutdown(active.values(), id -> {
+            closed.add(id);
+            active.remove(id);
+        });
+
+        assertEquals(List.of(1, 2), closed);
+        assertTrue(active.isEmpty());
     }
 
     private static TombstoneRecord record(Instant expiresAt) {
