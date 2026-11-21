@@ -158,17 +158,20 @@ final class NmsSniperScopeView implements SniperScopeView {
                     if (operation.equals("handlerAdded") || operation.equals("handlerRemoved")) {
                         return null;
                     }
-                    Object[] forwarded = Arrays.copyOfRange(arguments, 1, arguments.length);
-                    if (operation.equals("write") && active) {
-                        try {
-                            forwarded[0] = access.present(arguments[1], inventory);
-                        } catch (ReflectiveOperationException | RuntimeException failure) {
-                            report(failure);
+                    Method forward = access.forwardingMethods.get(method);
+                    if (operation.equals("write")) {
+                        Object packet = arguments[1];
+                        if (active) {
+                            try {
+                                packet = access.present(packet, inventory);
+                            } catch (ReflectiveOperationException | RuntimeException failure) {
+                                report(failure);
+                            }
                         }
+                        forward.invoke(arguments[0], packet, arguments[2]);
+                    } else {
+                        forward.invoke(arguments[0], Arrays.copyOfRange(arguments, 1, arguments.length));
                     }
-                    String target = operation.equals("exceptionCaught") ? "fireExceptionCaught" : operation;
-                    Class<?>[] types = Arrays.copyOfRange(method.getParameterTypes(), 1, method.getParameterCount());
-                    access.contextType.getMethod(target, types).invoke(arguments[0], forwarded);
                     return null;
                 });
             access.pipelineType.getMethod("addBefore", String.class, String.class, access.handlerType)
@@ -207,7 +210,17 @@ final class NmsSniperScopeView implements SniperScopeView {
         private final Constructor<?> contentsPacket;
         private final Class<?> outboundHandler;
         private final Class<?> handlerType;
-        private final Class<?> contextType;
+        private final Map<Method, Method> forwardingMethods;
+        private final Method inventorySlot;
+        private final Method inventoryContents;
+        private final Method setSlotContainer;
+        private final Method setSlotIndex;
+        private final Method setSlotState;
+        private final Method setSlotItem;
+        private final Method setContentsContainer;
+        private final Method setContentsItems;
+        private final Method setContentsState;
+        private final Method setContentsCarried;
         private final Class<?> channelType;
         private final Class<?> pipelineType;
 
@@ -240,7 +253,28 @@ final class NmsSniperScopeView implements SniperScopeView {
             contentsPacket = contentsType.getConstructor(int.class, int.class, List.class, item);
             outboundHandler = Class.forName("io.netty.channel.ChannelOutboundHandler");
             handlerType = Class.forName("io.netty.channel.ChannelHandler");
-            contextType = Class.forName("io.netty.channel.ChannelHandlerContext");
+            Class<?> contextType = Class.forName("io.netty.channel.ChannelHandlerContext");
+            Map<Method, Method> forwards = new HashMap<>();
+            for (Method callback : outboundHandler.getMethods()) {
+                String name = callback.getName();
+                if (name.equals("handlerAdded") || name.equals("handlerRemoved")) {
+                    continue;
+                }
+                String target = name.equals("exceptionCaught") ? "fireExceptionCaught" : name;
+                Class<?>[] arguments = callback.getParameterTypes();
+                forwards.put(callback, contextType.getMethod(target, Arrays.copyOfRange(arguments, 1, arguments.length)));
+            }
+            forwardingMethods = Map.copyOf(forwards);
+            inventorySlot = inventoryType.getMethod("slot");
+            inventoryContents = inventoryType.getMethod("contents");
+            setSlotContainer = slotType.getMethod("getContainerId");
+            setSlotIndex = slotType.getMethod("getSlot");
+            setSlotState = slotType.getMethod("getStateId");
+            setSlotItem = slotType.getMethod("getItem");
+            setContentsContainer = contentsType.getMethod("containerId");
+            setContentsItems = contentsType.getMethod("items");
+            setContentsState = contentsType.getMethod("stateId");
+            setContentsCarried = contentsType.getMethod("carriedItem");
             channelType = Class.forName("io.netty.channel.Channel");
             pipelineType = Class.forName("io.netty.channel.ChannelPipeline");
         }
@@ -264,28 +298,28 @@ final class NmsSniperScopeView implements SniperScopeView {
 
         Object present(Object packet, SniperScopeInventory<Object> inventory) throws ReflectiveOperationException {
             if (inventoryType.isInstance(packet)) {
-                int slot = (Integer) inventoryType.getMethod("slot").invoke(packet);
-                Object original = inventoryType.getMethod("contents").invoke(packet);
+                int slot = (Integer) inventorySlot.invoke(packet);
+                Object original = inventoryContents.invoke(packet);
                 Object presented = inventory.playerSlot(slot, original);
                 if (presented != original) {
                     return inventoryPacket.newInstance(slot, presented);
                 }
             } else if (slotType.isInstance(packet)) {
-                int container = (Integer) slotType.getMethod("getContainerId").invoke(packet);
-                int slot = (Integer) slotType.getMethod("getSlot").invoke(packet);
-                Object original = slotType.getMethod("getItem").invoke(packet);
+                int container = (Integer) setSlotContainer.invoke(packet);
+                int slot = (Integer) setSlotIndex.invoke(packet);
+                Object original = setSlotItem.invoke(packet);
                 Object presented = inventory.containerSlot(container, slot, original);
                 if (presented != original) {
-                    return slotPacket.newInstance(container, slotType.getMethod("getStateId").invoke(packet), slot, presented);
+                    return slotPacket.newInstance(container, setSlotState.invoke(packet), slot, presented);
                 }
             } else if (contentsType.isInstance(packet)) {
-                int container = (Integer) contentsType.getMethod("containerId").invoke(packet);
+                int container = (Integer) setContentsContainer.invoke(packet);
                 @SuppressWarnings("unchecked")
-                List<Object> items = (List<Object>) contentsType.getMethod("items").invoke(packet);
+                List<Object> items = (List<Object>) setContentsItems.invoke(packet);
                 List<Object> presented = inventory.containerContents(container, items);
                 if (presented != items) {
-                    return contentsPacket.newInstance(container, contentsType.getMethod("stateId").invoke(packet),
-                        presented, contentsType.getMethod("carriedItem").invoke(packet));
+                    return contentsPacket.newInstance(container, setContentsState.invoke(packet),
+                        presented, setContentsCarried.invoke(packet));
                 }
             }
             return packet;

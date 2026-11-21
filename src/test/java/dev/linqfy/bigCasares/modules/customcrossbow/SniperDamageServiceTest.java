@@ -27,9 +27,12 @@ class SniperDamageServiceTest {
     private double health = 20;
     private int noDamageTicks = 10;
     private boolean cancel;
+    private boolean blocking;
+    private double absorption = 2.0;
     private EntityDamageByEntityEvent hit;
     private final LivingEntity target = proxy(LivingEntity.class, (method, args) -> switch (method) {
         case "getNoDamageTicks" -> noDamageTicks;
+        case "getAbsorptionAmount" -> absorption;
         case "setNoDamageTicks" -> { noDamageTicks = (int) args[0]; yield null; }
         case "damage" -> {
             assertEquals(0, noDamageTicks);
@@ -48,12 +51,31 @@ class SniperDamageServiceTest {
     private Entity targetEntity() { return target; }
 
     @Test
-    void hitRemovesExactlySixHeartsThroughArmorResistanceAndAbsorption() {
+    void hitIgnoresArmorAndResistanceButConsumesAbsorption() {
         assertTrue(service.damage(shooter, target, 12.0));
-        assertEquals(8.0, health);
-        assertEquals(12.0, hit.getFinalDamage());
+        assertEquals(10.0, health);
+        assertEquals(10.0, hit.getFinalDamage());
+        assertEquals(-2.0, hit.getDamage(DamageModifier.ABSORPTION));
         assertEquals(shooter, hit.getDamager());
         assertEquals(10, noDamageTicks);
+    }
+
+    @Test
+    void activelyBlockingShieldHalvesDamageBeforeAbsorption() {
+        blocking = true;
+        assertTrue(service.damage(shooter, target, 12.0));
+        assertEquals(16.0, health);
+        assertEquals(-6.0, hit.getDamage(DamageModifier.BLOCKING));
+        assertEquals(-2.0, hit.getDamage(DamageModifier.ABSORPTION));
+    }
+
+    @Test
+    void absorptionNeverConsumesMoreThanTheRemainingHit() {
+        blocking = true;
+        absorption = 10.0;
+        assertFalse(service.damage(shooter, target, 12.0));
+        assertEquals(20.0, health);
+        assertEquals(-6.0, hit.getDamage(DamageModifier.ABSORPTION));
     }
 
     @Test
@@ -75,6 +97,7 @@ class SniperDamageServiceTest {
     private EntityDamageByEntityEvent armoredHit(Entity attacker, Entity victim, double base) {
         Map<DamageModifier, Double> modifiers = new EnumMap<>(DamageModifier.class);
         modifiers.put(DamageModifier.BASE, base);
+        modifiers.put(DamageModifier.BLOCKING, blocking ? -base : 0.0);
         modifiers.put(DamageModifier.ARMOR, -6.0);
         modifiers.put(DamageModifier.RESISTANCE, -2.0);
         modifiers.put(DamageModifier.MAGIC, -1.0);

@@ -39,17 +39,26 @@ final class SniperDamageService implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDamage(EntityDamageByEntityEvent event) {
         Hit hit = pending.get(event.getEntity().getUniqueId());
-        if (event.isCancelled() || hit == null || hit.event != null || !hit.shooter.equals(event.getDamager())) {
+        if (event.isCancelled() || hit == null || hit.event != null || !hit.shooter.equals(event.getDamager())
+            || !(event.getEntity() instanceof LivingEntity target)) {
             return;
         }
         hit.event = event;
+        boolean blocked = event.isApplicable(DamageModifier.BLOCKING)
+            && event.getDamage(DamageModifier.BLOCKING) < 0;
+        double shieldReduction = blocked ? hit.damage * 0.5 : 0.0;
+        double absorption = Math.min(hit.damage - shieldReduction, target.getAbsorptionAmount());
         event.setDamage(hit.damage);
-        // Include absorption, resistance, Protection and shields: this shot
-        // spends real red hearts and removes the same number from its victim.
         for (DamageModifier modifier : DamageModifier.values()) {
-            if (modifier != DamageModifier.BASE && event.isApplicable(modifier)) {
-                event.setDamage(modifier, 0.0);
+            if (modifier == DamageModifier.BASE || !event.isApplicable(modifier)) {
+                continue;
             }
+            double reduction = switch (modifier) {
+                case BLOCKING -> shieldReduction;
+                case ABSORPTION -> absorption;
+                default -> 0.0;
+            };
+            event.setDamage(modifier, -reduction);
         }
     }
 
