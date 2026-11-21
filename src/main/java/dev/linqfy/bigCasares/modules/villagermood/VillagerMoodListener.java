@@ -1,6 +1,8 @@
 package dev.linqfy.bigCasares.modules.villagermood;
 
 import io.papermc.paper.event.player.PlayerTradeEvent;
+import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent;
+import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -69,8 +71,18 @@ final class VillagerMoodListener implements Listener {
     }
 
     @EventHandler
+    public void onEntityAdd(EntityAddToWorldEvent event) {
+        runtime.entityAdded(event.getEntity());
+    }
+
+    @EventHandler
+    public void onEntityRemove(EntityRemoveFromWorldEvent event) {
+        runtime.entityRemoved(event.getEntity());
+    }
+
+    @EventHandler
     public void onEntitiesLoad(EntitiesLoadEvent event) {
-        event.getEntities().forEach(runtime::removeMafiaOrphan);
+        runtime.entitiesLoaded(event.getEntities());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

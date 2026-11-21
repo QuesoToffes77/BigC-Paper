@@ -8,6 +8,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.Chunk;
 import org.bukkit.entity.AbstractVillager;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.IronGolem;
@@ -23,7 +24,10 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -58,13 +62,26 @@ final class VillagerMoodRuntime {
     private final TradeSpamTracker spamTracker;
     private final VillagerMafiaRuntime mafia;
     private final Map<UUID, Riot> riots = new HashMap<>();
+    private final Queue<Riot> riotWork = new ArrayDeque<>();
     private final Map<UUID, Long> riotCooldownUntil = new HashMap<>();
     private final Map<UUID, CliffWalk> cliffWalks = new HashMap<>();
-    private final VillagerWorkBatch<Villager> pendingVillagers = new VillagerWorkBatch<>();
+    private final LoadedVillagerIndex<Villager> loadedVillagers = new LoadedVillagerIndex<>();
+    private final Queue<Chunk> seedChunks = new ArrayDeque<>();
+    private final Queue<Iterator<Entity>> loadedEntityBatches = new ArrayDeque<>();
+    private boolean loadedBatchTurn;
+    private Entity[] seedEntities;
+    private int seedCursor;
+    private long moodCursor;
+    private long moodLimit;
+    private boolean moodScan;
+    private boolean seedTurn;
+    private PlayerScan playerScan;
     private final VillagerWorkBatch<Player> pendingPlayers = new VillagerWorkBatch<>();
     private final Map<UUID, Long> lastMoodCheck = new HashMap<>();
     private static final int VILLAGERS_PER_TICK = 32;
     private static final int PLAYERS_PER_TICK = 2;
+    private static final int NEARBY_CANDIDATES_PER_TICK = 32;
+    private static final int RIOT_ACTIONS_PER_TICK = 32;
 
     VillagerMoodRuntime(VillagerMoodSettings settings, NamespacedKey confinedKey, NamespacedKey annoyanceKey,
                         NamespacedKey golemKey, DoubleSupplier random, LongSupplier clock,
@@ -157,47 +174,131 @@ final class VillagerMoodRuntime {
     // --- periodic mood check ---------------------------------------------------------------------
 
     /** Runs every {@code check-interval-ticks}. */
-    void check(Iterable<World> worlds, Iterable<? extends Player> players) {
+    void check(Iterable<? extends Player> players) {
         long now = clock.getAsLong();
         spamTracker.cleanup(now);
         riotCooldownUntil.values().removeIf(until -> until <= now);
-        // Do not enqueue duplicate work if a large batch takes longer than one interval.
-        if (!pendingVillagers.isEmpty() || !pendingPlayers.isEmpty()) {
-            return;
+        // Advance mood independently of slow nearby-player scans, without copying world entities.
+        if (!moodScan) {
+            moodCursor = 0L;
+            moodLimit = loadedVillagers.watermark();
+            moodScan = true;
         }
-        Set<UUID> loaded = new java.util.HashSet<>();
-        for (World world : worlds) {
-            List<Villager> villagers = new ArrayList<>(world.getEntitiesByClass(Villager.class));
-            villagers.forEach(villager -> loaded.add(villager.getUniqueId()));
-            pendingVillagers.addAll(villagers);
+        if ((settings.riot().enabled() || settings.mafia().enabled())
+            && playerScan == null && pendingPlayers.isEmpty()) {
+            List<Player> playerBatch = new ArrayList<>();
+            players.forEach(playerBatch::add);
+            pendingPlayers.addAll(playerBatch);
         }
-        lastMoodCheck.keySet().retainAll(loaded);
-        List<Player> playerBatch = new ArrayList<>();
-        players.forEach(playerBatch::add);
-        pendingPlayers.addAll(playerBatch);
     }
 
     /** Apply a bounded portion of the current snapshot each tick. */
     void tickChecks() {
         long now = clock.getAsLong();
-        pendingVillagers.drain(VILLAGERS_PER_TICK, villager -> {
+        boolean hasPlayerWork = playerScan != null || !pendingPlayers.isEmpty();
+        boolean hasSeedWork = seedEntities != null || !seedChunks.isEmpty() || !loadedEntityBatches.isEmpty();
+        boolean seedThisTick = hasSeedWork && (!hasPlayerWork || (seedTurn = !seedTurn));
+        if (seedThisTick) seedOneChunk();
+        for (int i = 0; i < VILLAGERS_PER_TICK && moodScan; i++) {
+            var next = loadedVillagers.next(moodCursor, moodLimit);
+            if (next.isEmpty()) {
+                moodScan = false;
+                break;
+            }
+            moodCursor = next.get().sequence();
+            Villager villager = next.get().value();
             if (!isOrdinary(villager)) {
                 lastMoodCheck.remove(villager.getUniqueId());
-                return;
+                continue;
             }
             Long previous = lastMoodCheck.put(villager.getUniqueId(), now);
             long elapsed = previous == null ? settings.checkIntervalTicks() : Math.max(1L, now - previous);
             updateMood(villager, new BukkitBlockProbe(villager.getWorld()), elapsed);
-        });
-        pendingPlayers.drain(PLAYERS_PER_TICK, player -> {
-            if (!player.isOnline()) {
-                return;
+        }
+        tickPlayerScans(now, seedThisTick);
+    }
+
+    /** One loaded chunk snapshot per tick, and a bounded number of entities or candidates. */
+    private void tickPlayerScans(long now, boolean snapshotTaken) {
+        int budget = NEARBY_CANDIDATES_PER_TICK;
+        int completed = 0;
+        while (budget > 0 && completed < PLAYERS_PER_TICK) {
+            if (playerScan == null) {
+                Player player = pendingPlayers.poll();
+                if (player == null) return;
+                if (!player.isOnline()) { completed++; continue; }
+                playerScan = new PlayerScan(player);
             }
-            if (settings.riot().enabled()) {
-                considerRiot(player, now);
+            PlayerScan scan = playerScan;
+            if (!scan.player.isOnline() || scan.player.getWorld() != scan.center.getWorld()) {
+                playerScan = null;
+                completed++;
+                continue;
             }
-            mafia.consider(player, now);
-        });
+            if (!scan.validating) {
+                if (scan.chunkEntities != null && scan.entityCursor < scan.chunkEntities.length) {
+                    budget--;
+                    Entity entity = scan.chunkEntities[scan.entityCursor++];
+                    if (entity instanceof Villager villager && scan.seen.add(villager.getUniqueId())) {
+                        scan.nearby.add(villager);
+                    }
+                    continue;
+                }
+                scan.chunkEntities = null;
+                if (scan.chunkX > scan.maxChunkX) {
+                    scan.validating = true;
+                    scan.validationCenter = scan.player.getLocation().clone();
+                    continue;
+                }
+                if (snapshotTaken) return;
+                int chunkX = scan.chunkX;
+                int chunkZ = scan.chunkZ;
+                if (++scan.chunkZ > scan.maxChunkZ) {
+                    scan.chunkZ = scan.minChunkZ;
+                    scan.chunkX++;
+                }
+                // Count even an unloaded chunk against the per-tick traversal budget.
+                snapshotTaken = true;
+                World world = scan.center.getWorld();
+                if (world != null && world.isChunkLoaded(chunkX, chunkZ)) {
+                    scan.chunkEntities = world.getChunkAt(chunkX, chunkZ).getEntities();
+                    scan.entityCursor = 0;
+                }
+                continue;
+            }
+            if (scan.validationCursor >= scan.nearby.size()) {
+                if (scan.player.getLocation().distanceSquared(scan.validationCenter) > 64.0) {
+                    playerScan = null;
+                    completed++;
+                    continue;
+                }
+                if (scan.riotEligible && scan.rioters.size() >= settings.riot().minRioters()
+                    && random.getAsDouble() < settings.riot().chancePerCheck()) {
+                    startRiot(scan.player, scan.rioters);
+                }
+                mafia.consider(scan.player, scan.sources, now);
+                playerScan = null;
+                completed++;
+                continue;
+            }
+            budget--;
+            Villager villager = scan.nearby.get(scan.validationCursor++);
+            if (!isOrdinary(villager) || villager.getWorld() != scan.player.getWorld()) continue;
+            Location at = villager.getLocation();
+            Location playerAt = scan.player.getLocation();
+            double dx = Math.abs(at.getX() - playerAt.getX());
+            double dy = Math.abs(at.getY() - playerAt.getY());
+            double dz = Math.abs(at.getZ() - playerAt.getZ());
+            double riotRadius = settings.riot().radius();
+            if (scan.riotEligible && dx <= riotRadius && dy <= riotRadius && dz <= riotRadius
+                && policy.joinsRiot(policy.depressionLevel(read(villager, confinedKey)),
+                    policy.annoyanceLevel(read(villager, annoyanceKey)))) scan.rioters.add(villager);
+            double mafiaRadius = settings.mafia().radius();
+            if (settings.mafia().enabled() && VillagerMafiaRuntime.canTarget(scan.player)
+                && dx * dx + dy * dy + dz * dz <= mafiaRadius * mafiaRadius) {
+                scan.sources.add(mafia.source(villager));
+            }
+        }
     }
 
     private void updateMood(Villager villager, BlockProbe probe, long interval) {
@@ -293,27 +394,16 @@ final class VillagerMoodRuntime {
 
     // --- riots -----------------------------------------------------------------------------------
 
-    private void considerRiot(Player player, long now) {
-        UUID id = player.getUniqueId();
-        if (riots.containsKey(id) || riotCooldownUntil.containsKey(id) || !player.isValid()
-            || player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
-            return;
-        }
-        double radius = settings.riot().radius();
-        List<Villager> unhappy = new ArrayList<>();
-        for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
-            if (entity instanceof Villager villager && isOrdinary(villager)
-                && policy.joinsRiot(policy.depressionLevel(read(villager, confinedKey)),
-                    policy.annoyanceLevel(read(villager, annoyanceKey)))) {
-                unhappy.add(villager);
-            }
-        }
-        if (unhappy.size() >= settings.riot().minRioters() && random.getAsDouble() < settings.riot().chancePerCheck()) {
-            startRiot(player, unhappy);
-        }
-    }
-
     private void startRiot(Player player, List<Villager> rioters) {
+        if (rioters.isEmpty() || !player.isOnline() || !player.isValid()
+            || riots.containsKey(player.getUniqueId()) || riotCooldownUntil.containsKey(player.getUniqueId())
+            || player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR
+            || !isOrdinary(rioters.getFirst()) || rioters.getFirst().getWorld() != player.getWorld()) return;
+        Location first = rioters.getFirst().getLocation();
+        Location target = player.getLocation();
+        double radius = settings.riot().radius();
+        if (Math.abs(first.getX() - target.getX()) > radius || Math.abs(first.getY() - target.getY()) > radius
+            || Math.abs(first.getZ() - target.getZ()) > radius) return;
         IronGolem golem = null;
         if (settings.riot().summonGolem()) {
             Location spawn = rioters.getFirst().getLocation();
@@ -324,50 +414,56 @@ final class VillagerMoodRuntime {
             });
             golem.setTarget(player);
         }
-        riots.put(player.getUniqueId(), new Riot(player, List.copyOf(rioters), golem, settings.riot().durationTicks()));
+        Riot riot = new Riot(player, rioters, golem, clock.getAsLong() + settings.riot().durationTicks());
+        riots.put(player.getUniqueId(), riot);
+        riotWork.add(riot);
         player.sendTitle(ChatColor.RED + "¡MOTÍN!", ChatColor.GOLD + "Los aldeanos se rebelan contra vos", 5, 50, 10);
-        for (Villager rioter : rioters) {
-            rioter.getWorld().playSound(rioter.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 0.7f);
-        }
         player.sendMessage(speaker() + pick(settings.riotShouts()));
     }
 
     private void tickRiots() {
         long now = clock.getAsLong();
-        Iterator<Riot> iterator = riots.values().iterator();
-        while (iterator.hasNext()) {
-            Riot riot = iterator.next();
+        for (int step = 0; step < RIOT_ACTIONS_PER_TICK; step++) {
+            Riot riot = riotWork.poll();
+            if (riot == null) return;
             Player player = riot.player;
-            riot.remainingTicks -= ACTION_INTERVAL_TICKS;
-            if (!player.isOnline() || player.isDead() || riot.remainingTicks <= 0) {
-                iterator.remove();
+            if (riots.get(player.getUniqueId()) != riot) continue;
+            if (!player.isOnline() || player.isDead() || now >= riot.expiresAt) {
+                riots.remove(player.getUniqueId());
                 endRiot(riot, now);
                 continue;
             }
-            for (Villager rioter : riot.rioters) {
-                if (!rioter.isValid() || rioter.getWorld() != player.getWorld()) {
-                    continue;
-                }
-                rioter.getWorld().spawnParticle(Particle.ANGRY_VILLAGER, rioter.getEyeLocation(), 1, 0.3, 0.3, 0.3);
-                double distance = rioter.getLocation().distance(player.getLocation());
-                Long lastPunch = riot.lastPunch.get(rioter.getUniqueId());
-                if (distance <= PUNCH_REACH && (lastPunch == null || now - lastPunch >= PUNCH_COOLDOWN_TICKS)) {
-                    riot.lastPunch.put(rioter.getUniqueId(), now);
-                    player.damage(settings.riot().damage(), rioter);
-                    Vector knockback = player.getLocation().toVector().subtract(rioter.getLocation().toVector()).setY(0);
-                    if (knockback.lengthSquared() > 0.0) {
-                        player.setVelocity(player.getVelocity().add(knockback.normalize().multiply(0.3).setY(0.2)));
+            if (riot.pulse != now) {
+                riot.pulse = now;
+                riot.remainingThisPulse = riot.rioters.size();
+                if (riot.golem != null && riot.golem.isValid()) riot.golem.setTarget(player);
+            }
+            if (riot.remainingThisPulse > 0 && !riot.rioters.isEmpty()) {
+                Villager rioter = riot.rioters.get(riot.nextRioter);
+                riot.nextRioter = (riot.nextRioter + 1) % riot.rioters.size();
+                riot.remainingThisPulse--;
+                if (rioter.isValid() && rioter.getWorld() == player.getWorld()) {
+                    if (riot.initialSoundsRemaining > 0) {
+                        rioter.getWorld().playSound(rioter.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 0.7f);
                     }
-                } else if (distance > PUNCH_REACH && distance <= settings.riot().radius() * 2) {
-                    rioter.getPathfinder().moveTo(player, 0.7);
+                    rioter.getWorld().spawnParticle(Particle.ANGRY_VILLAGER, rioter.getEyeLocation(), 1, 0.3, 0.3, 0.3);
+                    double distance = rioter.getLocation().distance(player.getLocation());
+                    Long lastPunch = riot.lastPunch.get(rioter.getUniqueId());
+                    if (distance <= PUNCH_REACH && (lastPunch == null || now - lastPunch >= PUNCH_COOLDOWN_TICKS)) {
+                        riot.lastPunch.put(rioter.getUniqueId(), now);
+                        player.damage(settings.riot().damage(), rioter);
+                        Vector knockback = player.getLocation().toVector().subtract(rioter.getLocation().toVector()).setY(0);
+                        if (knockback.lengthSquared() > 0.0) {
+                            player.setVelocity(player.getVelocity().add(knockback.normalize().multiply(0.3).setY(0.2)));
+                        }
+                    } else if (distance > PUNCH_REACH && distance <= settings.riot().radius() * 2) {
+                        rioter.getPathfinder().moveTo(player, 0.7);
+                    }
+                    if (random.getAsDouble() < 0.04) player.sendMessage(speaker() + pick(settings.riotShouts()));
                 }
-                if (random.getAsDouble() < 0.04) {
-                    player.sendMessage(speaker() + pick(settings.riotShouts()));
-                }
+                if (riot.initialSoundsRemaining > 0) riot.initialSoundsRemaining--;
             }
-            if (riot.golem != null && riot.golem.isValid()) {
-                riot.golem.setTarget(player);
-            }
+            riotWork.add(riot);
         }
     }
 
@@ -398,7 +494,12 @@ final class VillagerMoodRuntime {
 
     void shutdown() {
         mafia.shutdown();
-        pendingVillagers.clear();
+        loadedVillagers.clear();
+        seedChunks.clear();
+        loadedEntityBatches.clear();
+        seedEntities = null;
+        moodScan = false;
+        playerScan = null;
         pendingPlayers.clear();
         lastMoodCheck.clear();
         for (Riot riot : riots.values()) {
@@ -407,9 +508,56 @@ final class VillagerMoodRuntime {
             }
         }
         riots.clear();
+        riotWork.clear();
         riotCooldownUntil.clear();
         cliffWalks.clear();
         spamTracker.clear();
+    }
+
+    void seedLoadedChunks(Chunk[] chunks) {
+        for (Chunk chunk : chunks) seedChunks.add(chunk);
+    }
+
+    void entitiesLoaded(List<Entity> entities) {
+        if (!entities.isEmpty()) loadedEntityBatches.add(entities.iterator());
+    }
+
+    private void seedOneChunk() {
+        boolean haveChunks = seedEntities != null || !seedChunks.isEmpty();
+        if (!loadedEntityBatches.isEmpty() && (!haveChunks || (loadedBatchTurn = !loadedBatchTurn))) {
+            Iterator<Entity> batch = loadedEntityBatches.peek();
+            for (int i = 0; i < VILLAGERS_PER_TICK && batch.hasNext(); i++) {
+                Entity entity = batch.next();
+                if (entity.isValid()) removeMafiaOrphan(entity);
+            }
+            if (!batch.hasNext()) loadedEntityBatches.remove();
+            return;
+        }
+        if (seedEntities == null) {
+            Chunk chunk = seedChunks.poll();
+            if (chunk == null || !chunk.isLoaded()) return;
+            seedEntities = chunk.getEntities();
+            seedCursor = 0;
+        }
+        int end = Math.min(seedEntities.length, seedCursor + VILLAGERS_PER_TICK);
+        while (seedCursor < end) {
+            Entity entity = seedEntities[seedCursor++];
+            // The chunk may have unloaded after its snapshot was taken.
+            if (!entity.isValid()) continue;
+            removeMafiaOrphan(entity);
+            entityAdded(entity);
+        }
+        if (seedCursor == seedEntities.length) seedEntities = null;
+    }
+
+    void entityAdded(Entity entity) {
+        if (entity instanceof Villager villager) loadedVillagers.add(villager.getUniqueId(), villager);
+    }
+
+    void entityRemoved(Entity entity) {
+        if (entity instanceof Villager villager && loadedVillagers.remove(villager.getUniqueId(), villager)) {
+            lastMoodCheck.remove(villager.getUniqueId());
+        }
     }
 
     boolean isMafiaEntity(Entity entity) {
@@ -481,6 +629,41 @@ final class VillagerMoodRuntime {
         return ChatColor.GREEN + "[Aldeano] " + ChatColor.WHITE;
     }
 
+    private final class PlayerScan {
+        private final Player player;
+        private final Location center;
+        private final int minChunkZ, maxChunkX, maxChunkZ;
+        private int chunkX, chunkZ;
+        private Entity[] chunkEntities;
+        private int entityCursor;
+        private final Set<UUID> seen = new HashSet<>();
+        private final List<Villager> nearby = new ArrayList<>();
+        private boolean validating;
+        private Location validationCenter;
+        private int validationCursor;
+        private final boolean riotEligible;
+        private final List<Villager> rioters = new ArrayList<>();
+        private final List<VillagerMafiaService.Source> sources = new ArrayList<>();
+
+        private PlayerScan(Player player) {
+            this.player = player;
+            this.center = player.getLocation().clone();
+            // Include a small movement margin; candidates are checked against the current position later.
+            double riotRadius = settings.riot().enabled() ? settings.riot().radius() : 0.0;
+            double mafiaRadius = settings.mafia().enabled() ? settings.mafia().radius() : 0.0;
+            double radius = Math.max(riotRadius, mafiaRadius) + 8.0;
+            this.chunkX = (int) Math.floor((center.getX() - radius) / 16.0);
+            this.maxChunkX = (int) Math.floor((center.getX() + radius) / 16.0);
+            this.minChunkZ = (int) Math.floor((center.getZ() - radius) / 16.0);
+            this.maxChunkZ = (int) Math.floor((center.getZ() + radius) / 16.0);
+            this.chunkZ = minChunkZ;
+            UUID id = player.getUniqueId();
+            this.riotEligible = settings.riot().enabled() && !riots.containsKey(id)
+                && !riotCooldownUntil.containsKey(id) && player.isValid()
+                && player.getGameMode() != GameMode.CREATIVE && player.getGameMode() != GameMode.SPECTATOR;
+        }
+    }
+
     private static final class CliffWalk {
         private final Villager villager;
         private final Location edge;
@@ -498,13 +681,18 @@ final class VillagerMoodRuntime {
         private final List<Villager> rioters;
         private final IronGolem golem;
         private final Map<UUID, Long> lastPunch = new HashMap<>();
-        private long remainingTicks;
+        private final long expiresAt;
+        private long pulse = Long.MIN_VALUE;
+        private int remainingThisPulse;
+        private int nextRioter;
+        private int initialSoundsRemaining;
 
-        private Riot(Player player, List<Villager> rioters, IronGolem golem, long remainingTicks) {
+        private Riot(Player player, List<Villager> rioters, IronGolem golem, long expiresAt) {
             this.player = player;
             this.rioters = rioters;
             this.golem = golem;
-            this.remainingTicks = remainingTicks;
+            this.expiresAt = expiresAt;
+            this.initialSoundsRemaining = rioters.size();
         }
     }
 }

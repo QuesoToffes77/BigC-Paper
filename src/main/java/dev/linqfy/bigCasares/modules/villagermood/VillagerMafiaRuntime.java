@@ -51,24 +51,17 @@ final class VillagerMafiaRuntime {
         this.ordinary = ordinary;
     }
 
-    void consider(Player player, long now) {
-        if (!settings.enabled() || !canTarget(player)) {
-            return;
-        }
-        double radius = settings.radius();
-        Location center = player.getLocation();
-        BlockProbe probe = new BukkitBlockProbe(player.getWorld());
-        List<VillagerMafiaService.Source> sources = new ArrayList<>();
-        for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
-            if (entity instanceof Villager villager && ordinary.test(villager)
-                && villager.getLocation().distanceSquared(center) <= radius * radius) {
-                Location at = villager.getLocation();
-                boolean confined = villager.isInsideVehicle()
-                    || VillagerMoodPolicy.isConfined(probe, at.getBlockX(), at.getBlockY(), at.getBlockZ());
-                Long ticks = villager.getPersistentDataContainer().get(confinedKey, PersistentDataType.LONG);
-                sources.add(new VillagerMafiaService.Source(villager.getUniqueId(), confined, ticks == null ? 0L : ticks));
-            }
-        }
+    VillagerMafiaService.Source source(Villager villager) {
+        Location at = villager.getLocation();
+        BlockProbe probe = new BukkitBlockProbe(villager.getWorld());
+        boolean confined = villager.isInsideVehicle()
+            || VillagerMoodPolicy.isConfined(probe, at.getBlockX(), at.getBlockY(), at.getBlockZ());
+        Long ticks = villager.getPersistentDataContainer().get(confinedKey, PersistentDataType.LONG);
+        return new VillagerMafiaService.Source(villager.getUniqueId(), confined, ticks == null ? 0L : ticks);
+    }
+
+    void consider(Player player, List<VillagerMafiaService.Source> sources, long now) {
+        if (!settings.enabled() || !canTarget(player)) return;
         service.consider(player.getUniqueId(), sources, now, (id, size, driveBy) -> spawn(player, size, driveBy));
     }
 

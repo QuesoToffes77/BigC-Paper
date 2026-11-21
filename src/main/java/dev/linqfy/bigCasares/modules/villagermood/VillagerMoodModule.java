@@ -47,10 +47,10 @@ public final class VillagerMoodModule implements PluginModule {
             callback -> registrations.scheduleImmediate("villager-mood-close-trade", callback)
         );
         scope.register("villager-mood-runtime", created::shutdown);
-        Bukkit.getWorlds().forEach(world -> world.getEntities().forEach(created::removeMafiaOrphan));
         registrations.registerListener("villager-mood-listener", new VillagerMoodListener(created));
+        Bukkit.getWorlds().forEach(world -> created.seedLoadedChunks(world.getLoadedChunks()));
         registrations.scheduleRepeating("villager-mood-check",
-            () -> created.check(Bukkit.getWorlds(), Bukkit.getOnlinePlayers()),
+            () -> created.check(Bukkit.getOnlinePlayers()),
             settings.checkIntervalTicks(), settings.checkIntervalTicks());
         registrations.scheduleRepeating("villager-mood-check-batch", created::tickChecks, 1L, 1L);
         registrations.scheduleRepeating("villager-mood-actions", created::tickActions,

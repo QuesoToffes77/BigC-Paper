@@ -13,6 +13,10 @@ final class VillagerWorkBatch<T> {
         pending.addAll(entries);
     }
 
+    T poll() {
+        return pending.poll();
+    }
+
     boolean isEmpty() {
         return pending.isEmpty();
     }
