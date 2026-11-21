@@ -2,6 +2,7 @@ package dev.linqfy.bigCasares.modules.tombstone;
 
 import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -12,11 +13,13 @@ import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Interaction;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,6 +29,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -38,8 +42,10 @@ public final class TombstoneRuntime {
     private final Clock clock;
     private final Duration lifetime;
     private final NamespacedKey tombstoneIdKey;
+    private final NamespacedKey burialReceiptKey;
     private final TombstoneLedger ledger = new TombstoneLedger();
     private final Map<UUID, ActiveTombstone> active = new LinkedHashMap<>();
+    private final Map<UUID, UUID> pendingBurials = new LinkedHashMap<>();
     private boolean closed;
     private boolean loaded;
 
@@ -55,6 +61,7 @@ public final class TombstoneRuntime {
         this.clock = clock;
         this.lifetime = lifetime;
         this.tombstoneIdKey = new NamespacedKey(plugin, "tombstone_id");
+        this.burialReceiptKey = new NamespacedKey(plugin, "burial_receipt");
         registrations.scheduleRepeating("tombstone-heartbeat", this::heartbeat, 20L, 20L);
     }
 
@@ -62,8 +69,13 @@ public final class TombstoneRuntime {
         removeOrphanVisuals();
         Instant now = clock.instant();
         ledger.restore(storage.loadAll(), now);
-        loaded = true;
         for (TombstoneRecord record : ledger.all()) {
+            if (record.awaitingBurial()) {
+                if (pendingBurials.putIfAbsent(record.ownerId(), record.id()) != null) {
+                    throw new IllegalStateException("Multiple pending burials for " + record.ownerId());
+                }
+                continue;
+            }
             try {
                 activate(record);
             } catch (RuntimeException failure) {
@@ -71,7 +83,103 @@ public final class TombstoneRuntime {
                     "No se pudo mostrar la tumba " + record.id() + "; se reintentará.", failure);
             }
         }
+        loaded = true;
         persist();
+    }
+
+    boolean bury(Player player, Location requested, List<ItemStack> items) {
+        if (closed || !loaded || pendingBurials.containsKey(player.getUniqueId())
+            || !TombstoneItemLayout.hasItems(items)) return false;
+        UUID id = UUID.randomUUID();
+        TombstoneRecord pending;
+        try {
+            Location location = safeLocation(requested);
+            pending = new TombstoneRecord(id, player.getUniqueId(), player.getName(), location.getWorld().getUID(),
+                location.getX(), location.getY(), location.getZ(), location.getYaw(), clock.instant().plus(lifetime),
+                items, true, false);
+            PlayerDataCheckpoint.save(player, burialReceiptKey, burialReceipt(id, false));
+            ledger.put(pending);
+            try {
+                storage.saveBurials(ledger.all());
+            } catch (RuntimeException failure) {
+                ledger.remove(id);
+                throw failure;
+            }
+        } catch (IOException | RuntimeException failure) {
+            plugin.getLogger().log(Level.WARNING, "No se pudo preparar la tumba " + id, failure);
+            return false;
+        }
+        pendingBurials.put(player.getUniqueId(), id);
+        player.getInventory().clear();
+        player.getInventory().setArmorContents(new ItemStack[4]);
+        player.getInventory().setItemInOffHand(null);
+        try {
+            PlayerDataCheckpoint.save(player, burialReceiptKey, burialReceipt(id, true));
+            finishBurial(pending, true);
+        } catch (IOException | RuntimeException failure) {
+            // Keep the grave inaccessible until a later verified player save confirms who holds the items.
+            plugin.getLogger().log(Level.SEVERE, "La transferencia de la tumba " + id + " quedó pendiente.", failure);
+            player.sendMessage("§cTus objetos quedaron pendientes de recuperar. Avisá al staff si no aparece tu tumba.");
+        }
+        return true;
+    }
+
+    void recoverBurial(Player player) {
+        UUID id = pendingBurials.get(player.getUniqueId());
+        if (id == null || closed) return;
+        TombstoneRecord pending = ledger.find(id).orElseThrow();
+        String receipt = player.getPersistentDataContainer().get(burialReceiptKey, PersistentDataType.STRING);
+        String after = burialReceipt(id, true);
+        try {
+            if (after.equals(receipt)) {
+                PlayerDataCheckpoint.confirm(player, burialReceiptKey, after);
+                finishBurial(pending, true);
+            } else if (burialReceipt(id, false).equals(receipt)
+                && PlayerDataCheckpoint.contains(player, burialReceiptKey, receipt)
+                && sameLayout(pending.items(), TombstoneItemLayout.snapshot(player.getInventory().getStorageContents(),
+                    player.getInventory().getArmorContents(), player.getInventory().getItemInOffHand(), player.getItemOnCursor()))) {
+                // The save from before removal still owns the inventory.
+                finishBurial(pending, false);
+            }
+        } catch (IOException | RuntimeException failure) {
+            plugin.getLogger().log(Level.SEVERE, "No se pudo resolver la transferencia de la tumba " + id, failure);
+        }
+    }
+
+    private void finishBurial(TombstoneRecord pending, boolean transferred) {
+        TombstoneRecord visible = transferred
+            ? new TombstoneRecord(pending.id(), pending.ownerId(), pending.ownerName(), pending.worldId(),
+                pending.x(), pending.y(), pending.z(), pending.yaw(), clock.instant().plus(lifetime), pending.items(), false, true)
+            : null;
+        if (visible == null) ledger.remove(pending.id());
+        else ledger.put(visible);
+        try {
+            storage.saveBurials(ledger.all());
+        } catch (RuntimeException failure) {
+            ledger.put(pending);
+            throw failure;
+        }
+        pendingBurials.remove(pending.ownerId());
+        if (visible != null) {
+            try {
+                activate(visible);
+            } catch (RuntimeException failure) {
+                plugin.getLogger().log(Level.WARNING, "No se pudo mostrar la tumba " + pending.id() + "; se reintentará.", failure);
+            }
+        }
+    }
+
+    private static String burialReceipt(UUID id, boolean transferred) {
+        return (transferred ? "after-" : "before-") + id;
+    }
+
+    static boolean sameLayout(List<ItemStack> expected, List<ItemStack> actual) {
+        for (int slot = 0; slot < Math.max(expected.size(), actual.size()); slot++) {
+            ItemStack before = slot < expected.size() ? expected.get(slot) : null;
+            ItemStack current = slot < actual.size() ? actual.get(slot) : null;
+            if (!Objects.equals(before, current)) return false;
+        }
+        return true;
     }
 
     /**
@@ -124,7 +232,7 @@ public final class TombstoneRuntime {
     public boolean open(UUID tombstoneId, org.bukkit.entity.Player player) {
         if (closed || player.isDead()) return false;
         TombstoneRecord record = ledger.find(tombstoneId).orElse(null);
-        if (record == null) return false;
+        if (record == null || record.awaitingBurial()) return false;
         if (!record.expiresAt().isAfter(clock.instant())) {
             remove(tombstoneId, null);
             return false;
@@ -321,6 +429,7 @@ public final class TombstoneRuntime {
         if (closed) return;
         Instant now = clock.instant();
         for (TombstoneRecord record : ledger.all()) {
+            if (record.awaitingBurial()) continue;
             try {
                 if (!record.expiresAt().isAfter(now)) {
                     remove(record.id(), null);
@@ -356,7 +465,8 @@ public final class TombstoneRuntime {
         TombstoneRecord updated = new TombstoneRecord(
             tombstone.record.id(), tombstone.record.ownerId(), tombstone.record.ownerName(),
             tombstone.record.worldId(), tombstone.record.x(), tombstone.record.y(), tombstone.record.z(),
-            tombstone.record.yaw(), tombstone.record.expiresAt(), contents(tombstone)
+            tombstone.record.yaw(), tombstone.record.expiresAt(), contents(tombstone), false,
+            tombstone.record.verifiedBurial()
         );
         tombstone.record = updated;
         ledger.put(updated);

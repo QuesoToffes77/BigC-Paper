@@ -44,6 +44,27 @@ class TombstoneLedgerTest {
     }
 
     @Test
+    void pendingBurialSurvivesReloadAndExpiryWithoutAppearingInNearbyLookup() {
+        Instant now = Instant.parse("2026-07-18T12:00:00Z");
+        TombstoneRecord pending = new TombstoneRecord(UUID.randomUUID(), UUID.randomUUID(), "Jugador",
+            UUID.randomUUID(), 1.5, 64, 2.5, 0, now.minusSeconds(1), List.of(new ItemStack(Material.STONE)), true, false);
+        TombstoneLedger ledger = new TombstoneLedger();
+
+        ledger.restore(List.of(pending), now);
+
+        assertEquals(pending, ledger.find(pending.id()).orElseThrow());
+        assertEquals(List.of(), TombstoneProximity.nearby(ledger.all(), pending.worldId(), 1.5, 64, 2.5, 10));
+    }
+
+    @Test
+    void beforeReceiptRequiresMatchingInventorySlotsWhileIgnoringTrailingEmptySlots() {
+        ItemStack item = new ItemStack(Material.STONE);
+        assertTrue(TombstoneRuntime.sameLayout(List.of(item), java.util.Arrays.asList(item, null, null)));
+        assertFalse(TombstoneRuntime.sameLayout(List.of(item), java.util.Arrays.asList(null, item, null)));
+        assertFalse(TombstoneRuntime.sameLayout(List.of(item), List.of()));
+    }
+
+    @Test
     void visualsAreTransientBecauseTheLedgerOwnsPersistence() throws Exception {
         // The runtime needs a live server, so its entity setup is read from the bytecode.
         CompiledClass runtime = CompiledClass.of(getClass(), "dev.linqfy.bigCasares.modules.tombstone.TombstoneRuntime");
