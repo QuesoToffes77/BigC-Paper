@@ -1,5 +1,7 @@
 package dev.linqfy.bigCasares.modules.moderation;
 
+import dev.linqfy.bigCasares.communication.CredentialCommandSanitizer;
+
 import dev.linqfy.bigCasares.BigCasares;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -59,24 +61,26 @@ public final class ModerationListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
-        tracker.command(Instant.now(), player.getUniqueId(), player.getName(), event.getMessage(), player.isOp())
+        String safeCommand = CredentialCommandSanitizer.redact(event.getMessage());
+        tracker.command(Instant.now(), player.getUniqueId(), player.getName(), safeCommand, player.isOp())
             .forEach(module::acceptSignal);
         module.audit().publish(AuditEvent.player(
             player.isOp() ? AuditSeverity.WARNING : AuditSeverity.INFO,
             "command", player.isOp() ? "admin-command" : "player-command",
-            player.getUniqueId(), player.getName(), event.getMessage()
+            player.getUniqueId(), player.getName(), safeCommand
         ));
         if (player.isOp()) {
-            module.markAdminGive(event.getMessage());
+            module.markAdminGive(safeCommand);
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onServerCommand(ServerCommandEvent event) {
+        String safeCommand = CredentialCommandSanitizer.redact(event.getCommand());
         module.audit().publish(AuditEvent.system(
-            AuditSeverity.WARNING, "command", "console-command", event.getCommand()
+            AuditSeverity.WARNING, "command", "console-command", safeCommand
         ));
-        module.markAdminGive(event.getCommand());
+        module.markAdminGive(safeCommand);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

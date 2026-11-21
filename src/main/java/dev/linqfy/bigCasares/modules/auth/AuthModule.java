@@ -134,6 +134,8 @@ public final class AuthModule implements PluginModule {
     @Override
     public void onEnable(RuntimeRegistrationScope scope) {
         this.scope = scope;
+        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        registrations.ownCloseable("auth-command-log-guard", CredentialCommandLogGuard.install());
         this.settings = AuthSettings.load(plugin.getConfig());
         Path data = plugin.getDataFolder().toPath().resolve("data").resolve("auth");
         try {
@@ -158,7 +160,6 @@ public final class AuthModule implements PluginModule {
         this.limboSpawn = LimboWorld.spawn(limbo);
         scope.register("auth-state", this::clearState);
 
-        BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         this.hashExecutor = registrations.ownCloseable("auth-hash-executor", new AuthHashExecutor(2, 32));
         var services = plugin.getServer().getServicesManager();
         try {
