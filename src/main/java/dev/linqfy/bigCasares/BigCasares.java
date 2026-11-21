@@ -34,6 +34,10 @@ import dev.linqfy.bigCasares.modules.elytrafailure.ElytraFailureModule;
 import dev.linqfy.bigCasares.modules.humillacion.HumillacionModule;
 import dev.linqfy.bigCasares.modules.villagermood.VillagerMoodModule;
 import dev.linqfy.bigCasares.modules.specialitems.SpecialItemsModule;
+import dev.linqfy.bigCasares.modules.duels.DuelsModule;
+import dev.linqfy.bigCasares.modules.phasearrows.PhaseArrowsModule;
+import dev.linqfy.bigCasares.modules.piranhas.PiranhasModule;
+import dev.linqfy.bigCasares.modules.trimabilities.TrimAbilitiesModule;
 import dev.linqfy.bigCasares.modules.warp.WarpModule;
 
 import dev.linqfy.bigCasares.modules.missions.MissionModule;
@@ -448,9 +452,11 @@ public final class BigCasares extends JavaPlugin {
         );
         this.endEventModule = new EndEventModule(this);
         this.keepInventoryTotemModule = new KeepInventoryTotemModule(this);
+        DuelsModule duelsModule = new DuelsModule(this);
         this.tombstoneModule.setDeathCaptureEligibility(playerId ->
             (endEventModule == null || !endEventModule.bypassTombstone(playerId))
                 && (keepInventoryTotemModule == null || !keepInventoryTotemModule.protectsDeath(playerId))
+                && !duelsModule.protectsDeath(playerId)
                 && (staffEventsModule == null || !staffEventsModule.protectsDeath(playerId)));
         this.discordIntegrationModule = new DiscordIntegrationModule(
             this, moderationModule.audit(), serverControlModule, emojiAliasService
@@ -487,8 +493,12 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(quadrantModule);
         moduleManager.register(new DominationModule(this, quadrantModule::isFullPvp));
         moduleManager.register(tombstoneModule);
+        moduleManager.register(duelsModule);
         moduleManager.register(keepInventoryTotemModule);
         moduleManager.register(new ElytraFailureModule(this));
+        moduleManager.register(new TrimAbilitiesModule(this));
+        moduleManager.register(new PhaseArrowsModule(this));
+        moduleManager.register(new PiranhasModule(this));
         moduleManager.register(new HumillacionModule(this, tombstoneModule));
         moduleManager.register(specialItemsModule);
         moduleManager.register(warpModule);
