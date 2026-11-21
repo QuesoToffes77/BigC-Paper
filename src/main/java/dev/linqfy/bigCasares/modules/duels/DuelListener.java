@@ -95,7 +95,7 @@ final class DuelListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDeath(PlayerDeathEvent event) {
         Player player = event.getPlayer();
-        if (!service.inArena(player) && !service.isDuelWorld(player.getWorld())) {
+        if (!service.controlsDeath(player)) {
             return;
         }
         // A death that slipped past the damage check (e.g. /kill): kit items stay out of the world.

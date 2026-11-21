@@ -12,6 +12,7 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
 
 import java.io.File;
+import java.util.UUID;
 
 /**
  * 1v1 duels: {@code /duel <jugador>} with a fixed kit or a ban/pick menu, three arena sizes in a separate void
@@ -23,6 +24,7 @@ public final class DuelsModule implements PluginModule {
 
     private final BigCasares plugin;
     private RuntimeRegistrationScope compatibilityScope;
+    private DuelService runtime;
 
     public DuelsModule(BigCasares plugin) {
         this.plugin = plugin;
@@ -78,7 +80,14 @@ public final class DuelsModule implements PluginModule {
             services.unregister(InventoryCustody.class, service);
             throw failure;
         }
-        registrations.ownCleanup("duels-service", service::shutdown);
+        registrations.ownCleanup("duels-service", () -> {
+            try {
+                service.shutdown();
+            } finally {
+                runtime = null;
+            }
+        });
+        runtime = service;
         registrations.registerListener("duels-listener", new DuelListener(service));
         DuelCommand handler = new DuelCommand(service, plugin.getServer());
         registrations.bindCommand("duels-command", command, handler, handler);
@@ -95,6 +104,15 @@ public final class DuelsModule implements PluginModule {
         if (scope != null) {
             scope.close();
         }
+    }
+
+    public boolean protectsDeath(UUID playerId) {
+        DuelService current = runtime;
+        if (current == null) {
+            return false;
+        }
+        Player player = plugin.getServer().getPlayer(playerId);
+        return player != null && current.controlsDeath(player);
     }
 
     private Economy resolveEconomy() {

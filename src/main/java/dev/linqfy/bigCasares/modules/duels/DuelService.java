@@ -88,6 +88,10 @@ final class DuelService implements InventoryCustody {
         return session != null && session.inArena();
     }
 
+    boolean controlsDeath(Player player) {
+        return inArena(player) || isDuelWorld(player.getWorld());
+    }
+
     boolean isDuelWorld(World world) {
         return arenas.isDuelWorld(world);
     }
