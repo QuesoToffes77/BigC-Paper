@@ -102,6 +102,26 @@ final class TombstoneItemLayout {
         return Collections.unmodifiableList(remaining);
     }
 
+    /**
+     * Keep-inventory normally leaves no vanilla drops. Another listener may have enabled it after
+     * the drop list was populated, so subtract what is stored in the tombstone before retaining extras.
+     */
+    static void finishDrops(List<ItemStack> drops, boolean keepInventory, List<ItemStack> stored,
+                            BiPredicate<ItemStack, ItemStack> similar) {
+        if (!keepInventory) {
+            drops.clear();
+            return;
+        }
+        List<ItemStack> remaining = presentClones(drops);
+        for (ItemStack item : stored) {
+            if (isPresent(item)) {
+                consume(remaining, item, item.getAmount(), similar);
+            }
+        }
+        drops.clear();
+        drops.addAll(remaining);
+    }
+
     static boolean hasItems(List<ItemStack> items) {
         return items.stream().anyMatch(TombstoneItemLayout::isPresent);
     }

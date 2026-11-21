@@ -69,7 +69,7 @@ public final class TombstoneListener implements Listener {
         if (!runtime.create(player.getUniqueId(), player.getName(), loc, items)) {
             return;
         }
-        event.getDrops().clear();
+        TombstoneItemLayout.finishDrops(event.getDrops(), event.getKeepInventory(), items, ItemStack::isSimilar);
         event.setKeepInventory(false);
         takeStoredItems(player, layout, items);
     }

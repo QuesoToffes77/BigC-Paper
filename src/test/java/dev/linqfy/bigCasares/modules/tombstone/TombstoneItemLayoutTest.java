@@ -12,6 +12,7 @@ import java.util.function.BiPredicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TombstoneItemLayoutTest {
 
@@ -122,6 +123,37 @@ class TombstoneItemLayoutTest {
         assertEquals(Material.DIAMOND_SWORD, remaining.get(1).getType());
         assertNull(remaining.get(40));
         assertFalse(TombstoneItemLayout.hasItems(remaining.subList(2, 40)));
+    }
+
+    @Test
+    void keepsAdditionalDropsWhenCapturingKeepInventoryDeath() {
+        List<ItemStack> drops = new ArrayList<>(List.of(new ItemStack(Material.DIAMOND)));
+
+        TombstoneItemLayout.finishDrops(drops, true, List.of(new ItemStack(Material.STONE, 4)), SAME_TYPE);
+
+        assertEquals(1, drops.size());
+        assertEquals(Material.DIAMOND, drops.getFirst().getType());
+    }
+
+    @Test
+    void clearsDropsAlreadyCapturedForNormalDeath() {
+        List<ItemStack> drops = new ArrayList<>(List.of(new ItemStack(Material.STONE)));
+
+        TombstoneItemLayout.finishDrops(drops, false, List.of(new ItemStack(Material.STONE)), SAME_TYPE);
+
+        assertTrue(drops.isEmpty());
+    }
+
+    @Test
+    void preservesAdditionalDropsWithoutRetainingItemsAlreadyStored() {
+        List<ItemStack> drops = new ArrayList<>(List.of(
+            new ItemStack(Material.STONE, 10), new ItemStack(Material.DIAMOND)));
+
+        TombstoneItemLayout.finishDrops(drops, true, List.of(new ItemStack(Material.STONE, 6)), SAME_TYPE);
+
+        assertEquals(2, drops.size());
+        assertEquals(4, drops.getFirst().getAmount());
+        assertEquals(Material.DIAMOND, drops.get(1).getType());
     }
 
     private static List<ItemStack> layout() {
