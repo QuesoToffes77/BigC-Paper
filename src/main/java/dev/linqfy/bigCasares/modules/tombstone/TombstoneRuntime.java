@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 public final class TombstoneRuntime {
@@ -104,6 +105,20 @@ public final class TombstoneRuntime {
                 "No se pudo mostrar la tumba " + record.id() + "; se reintentará.", failure);
         }
         return true;
+    }
+
+    /** Summarizes stored item types for support without logging item metadata. */
+    public void logDeathInventory(String playerName, List<ItemStack> items) {
+        StringBuilder summary = new StringBuilder();
+        for (ItemStack item : items) {
+            if (item != null && !item.getType().isAir()) {
+                if (!summary.isEmpty()) summary.append(", ");
+                summary.append(item.getAmount()).append('x').append(item.getType().name());
+            }
+        }
+        if (!summary.isEmpty()) {
+            plugin.getLogger().info("Tumba de " + playerName + ": " + summary);
+        }
     }
 
     public boolean open(UUID tombstoneId, org.bukkit.entity.Player player) {
@@ -216,7 +231,7 @@ public final class TombstoneRuntime {
         try {
             // Nobody may keep taking items from an inventory that is about to be saved and forgotten: after a
             // reload the new runtime would restore the same items again.
-            tombstones.forEach(tombstone -> closeViewers(tombstone.inventory, null));
+            closeViewersBeforeShutdown(tombstones, tombstone -> closeViewers(tombstone.inventory, null));
             tombstones.forEach(this::syncRecord);
             // Without a completed load the ledger is not the file's content; saving it would erase the file.
             if (loaded) persist();
@@ -224,6 +239,10 @@ public final class TombstoneRuntime {
             tombstones.forEach(ActiveTombstone::removeVisuals);
             active.clear();
         }
+    }
+
+    static <T> void closeViewersBeforeShutdown(Collection<T> tombstones, Consumer<T> close) {
+        List.copyOf(tombstones).forEach(close);
     }
 
     private void activate(TombstoneRecord record) {

@@ -53,13 +53,7 @@ public final class TombstoneListener implements Listener {
             return;
         }
 
-        StringBuilder logMessage = new StringBuilder("Inventario de " + player.getName() + " antes de morir:\n");
-        for (ItemStack item : items) {
-            if (item != null && item.getType() != org.bukkit.Material.AIR) {
-                logMessage.append("- ").append(item.getAmount()).append("x ").append(item.getType().name()).append("\n");
-            }
-        }
-        org.bukkit.Bukkit.getLogger().info(logMessage.toString());
+        runtime.logDeathInventory(player.getName(), items);
 
         org.bukkit.Location loc = player.getLocation();
         player.sendMessage(org.bukkit.ChatColor.YELLOW + "Has muerto en las coordenadas: " +

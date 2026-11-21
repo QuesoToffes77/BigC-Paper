@@ -118,6 +118,7 @@ public final class BigCasares extends JavaPlugin {
     private EmojiAliasService emojiAliasService;
     private final VanishSessionRegistry vanishSessionRegistry = new VanishSessionRegistry();
     private final ReloadCoordinator reloadCoordinator = new ReloadCoordinator();
+    private dev.linqfy.bigCasares.command.TimerCommand timerCommand;
 
     @Override
     public void onEnable() {
@@ -144,6 +145,7 @@ public final class BigCasares extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        shutdownTimer();
         disableCurrentRuntime();
         logCleanupFailures(cleanupBukkitRuntime());
     }
@@ -172,8 +174,6 @@ public final class BigCasares extends JavaPlugin {
         return skillRatingModule;
     }
 
-
-    
     public DangerModule getDangerModule() {
         return dangerModule;
     }
@@ -553,7 +553,9 @@ public final class BigCasares extends JavaPlugin {
             command.setTabCompleter(handler);
         }
         
+        shutdownTimer();
         dev.linqfy.bigCasares.command.TimerCommand timerCmd = new dev.linqfy.bigCasares.command.TimerCommand(this);
+        timerCommand = timerCmd;
         PluginCommand timerPluginCmd = getCommand("timer");
         if (timerPluginCmd != null) {
             timerPluginCmd.setExecutor(timerCmd);
@@ -566,6 +568,13 @@ public final class BigCasares extends JavaPlugin {
         if (warpPluginCmd != null) {
             warpPluginCmd.setExecutor(warpCmd);
             warpPluginCmd.setTabCompleter(warpCmd);
+        }
+    }
+
+    private void shutdownTimer() {
+        if (timerCommand != null) {
+            timerCommand.shutdown();
+            timerCommand = null;
         }
     }
 
@@ -632,8 +641,14 @@ public final class BigCasares extends JavaPlugin {
         geyserIntegrationModule = null;
         airdropModule = null;
         acidRainModule = null;
+        bloodMoonModule = null;
+        jeremyModule = null;
+        donPollosModule = null;
+        mutangoModule = null;
+        celularModule = null;
         casinoModule = null;
         grapplingHookModule = null;
+        gliderModule = null;
         mobScalingModule = null;
         moderationModule = null;
         serverControlModule = null;

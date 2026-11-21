@@ -57,7 +57,7 @@ public final class MissionListener implements Listener {
     @EventHandler
     public void onPlayerToggleSneak(PlayerToggleSneakEvent event) {
         Player player = event.getPlayer();
-        module.revalidatePassiveMissions(player);
+        module.requestPassiveRevalidation(player);
         if (!event.isSneaking()) {
             return;
         }
@@ -83,7 +83,7 @@ public final class MissionListener implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.getWhoClicked() instanceof Player player) {
-            module.revalidatePassiveMissions(player);
+            module.requestPassiveRevalidation(player);
         }
     }
 
@@ -131,7 +131,7 @@ public final class MissionListener implements Listener {
 
     @EventHandler
     public void onInteractRevalidate(PlayerInteractEvent event) {
-        module.revalidatePassiveMissions(event.getPlayer());
+        module.requestPassiveRevalidation(event.getPlayer());
     }
 
     static boolean takesAnvilResult(InventoryAction action) {
@@ -153,7 +153,7 @@ public final class MissionListener implements Listener {
         Material placed = event.getBlockPlaced().getType();
         module.incrementWhere(player, MissionType.PLACE_BLOCK_COUNT,
             definition -> placed.name().equalsIgnoreCase(String.valueOf(definition.params().get("material"))), 1);
-        module.revalidatePassiveMissions(player);
+        module.requestPassiveRevalidation(player);
     }
 
     @EventHandler
@@ -197,7 +197,7 @@ public final class MissionListener implements Listener {
     public void onDamage(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Player player) {
             module.recordTargetEvent(player, MissionType.HIT_TARGET, targetNames(event.getEntity()));
-            module.revalidatePassiveMissions(player);
+            module.requestPassiveRevalidation(player);
         }
     }
 
@@ -241,7 +241,7 @@ public final class MissionListener implements Listener {
     @EventHandler
     public void onEntityToggleGlide(EntityToggleGlideEvent event) {
         if (event.getEntity() instanceof Player player) {
-            module.revalidatePassiveMissions(player);
+            module.requestPassiveRevalidation(player);
         }
     }
 
