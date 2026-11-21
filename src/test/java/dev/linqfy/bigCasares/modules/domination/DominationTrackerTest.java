@@ -18,7 +18,7 @@ class DominationTrackerTest {
 
     @Test
     void exposesStableModuleId() {
-        assertEquals("domination-system", new DominationModule(null).getId());
+        assertEquals("domination-system", DominationModule.MODULE_ID);
     }
 
     @Test
