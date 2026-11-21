@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
  */
 public record AnticheatSettings(
     boolean enabled,
+    boolean enforceNewChecks,
     String bypassPermission,
     boolean exemptBedrock,
     double minimumTps,
@@ -32,7 +33,7 @@ public record AnticheatSettings(
     ));
 
     public static AnticheatSettings defaults() {
-        return new AnticheatSettings(true, DEFAULT_BYPASS_PERMISSION, true, 17.0, 22, Set.of(),
+        return new AnticheatSettings(true, false, DEFAULT_BYPASS_PERMISSION, true, 17.0, 22, Set.of(),
             DEFAULT_DUPE_TRACKED, true);
     }
 
@@ -42,6 +43,7 @@ public record AnticheatSettings(
         String permission = config.getString(prefix + "bypass-permission", defaults.bypassPermission());
         return new AnticheatSettings(
             config.getBoolean(prefix + "enabled", defaults.enabled()),
+            config.getBoolean(prefix + "enforce-new-checks", defaults.enforceNewChecks()),
             permission == null || permission.isBlank() ? "" : permission.trim(),
             config.getBoolean(prefix + "exempt-bedrock", defaults.exemptBedrock()),
             Math.max(0, Math.min(20, config.getDouble(prefix + "minimum-tps", defaults.minimumTps()))),

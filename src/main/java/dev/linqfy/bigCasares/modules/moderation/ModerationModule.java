@@ -5,6 +5,7 @@ import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import dev.linqfy.bigCasares.modules.moderation.anticheat.AnticheatListener;
+import dev.linqfy.bigCasares.modules.moderation.anticheat.AuditThrottle;
 import dev.linqfy.bigCasares.modules.moderation.anticheat.Detection;
 import dev.linqfy.bigCasares.modules.moderation.anticheat.DuplicateItemScanner;
 import org.bukkit.entity.Player;
@@ -23,10 +24,11 @@ public final class ModerationModule implements PluginModule {
         Map.entry("ground-spoof", 30), Map.entry("melee-reach", 30), Map.entry("melee-rate", 25),
         Map.entry("melee-multi-target", 30), Map.entry("killaura-angle", 30), Map.entry("killaura-wall", 30),
         Map.entry("killaura-inventory", 25), Map.entry("killaura-use-item", 25), Map.entry("block-break-rate", 30),
-        Map.entry("block-place-face", 25), Map.entry("xray-ratio", 20), Map.entry("item-duplicate", 60)
+        Map.entry("block-place-face", 25), Map.entry("xray-ratio", 20), Map.entry("item-duplicate", 0)
     );
     private final BigCasares plugin;
     private final AuditService audit = new AuditService();
+    private final AuditThrottle anticheatAuditThrottle = new AuditThrottle(java.util.concurrent.TimeUnit.SECONDS.toNanos(30), 4096);
     private ModerationSettings settings;
     private AbuseScoringService scoring;
     private ObservationStorage observations;
@@ -188,9 +190,19 @@ public final class ModerationModule implements PluginModule {
     }
 
     private void acceptDetection(Player player, Detection detection) {
-        if (detection.rule().equals("item-duplicate-shared")) {
+        boolean auditOnly = !detection.countsForScore(settings.anticheat().enforceNewChecks());
+        if (auditOnly && !anticheatAuditThrottle.allow(player.getUniqueId(), detection.rule(), System.nanoTime())) {
+            return;
+        }
+        if (detection.requiresUnattributedAudit()) {
             audit.publish(new AuditEvent(Instant.now(), AuditSeverity.INFO, "abuse", "observation", java.util.Optional.empty(),
-                "", "Item duplicado en contenedor compartido (sin atribución)",
+                "", "Coincidencia de identidad de item (sin atribución)",
+                Map.of("rule", detection.rule(), "evidence", detection.evidence())));
+            return;
+        }
+        if (auditOnly) {
+            audit.publish(new AuditEvent(Instant.now(), AuditSeverity.INFO, "abuse", "observation",
+                java.util.Optional.of(player.getUniqueId()), player.getName(), "Observación (sin puntos): " + detection.rule(),
                 Map.of("rule", detection.rule(), "evidence", detection.evidence())));
             return;
         }
@@ -338,6 +350,7 @@ public final class ModerationModule implements PluginModule {
         listener = null;
         anticheat = null;
         technicalFlight.clear();
+        anticheatAuditThrottle.clear();
         logHandler = null;
         registrations = null;
         rareItemTracker = null;

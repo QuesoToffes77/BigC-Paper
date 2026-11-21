@@ -25,22 +25,25 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
  * Anti-dupe. A los items valiosos que no se apilan (elytra, totems, equipo de netherite, shulkers...) les pone un id
- * unico invisible; despues, en cada pasada, mira inventarios, cursores, ender chests y contenedores abiertos de todos los
- * jugadores en el mismo tick. Dos lugares con el mismo id a la vez es un dupe.
+ * unico invisible; en cada pasada revisa un grupo acotado de inventarios y contenedores en el mismo tick.
+ * Una coincidencia se registra como observacion, sin atribuir responsabilidad a sus poseedores.
  *
  * <p>Solo marca items vanilla sin otros datos persistentes: los items de otros modulos (que se comparan por sus propios
  * datos) no se tocan. Los jugadores en creativo no se escanean, y lo que clonan con el clic del medio pierde el id.
  */
 public final class DuplicateItemScanner implements Listener {
     public static final long SCAN_PERIOD_TICKS = 40;
+    static final int MAX_PLAYERS_PER_PASS = 16;
 
     private final Server server;
     private final NamespacedKey key;
@@ -48,6 +51,7 @@ public final class DuplicateItemScanner implements Listener {
     private final BiConsumer<Player, Detection> sink;
     private final Function<UUID, ClientPlatform> platform;
     private final DuplicateLedger ledger = new DuplicateLedger();
+    private int scanStart;
 
     public DuplicateItemScanner(
         Server server, NamespacedKey key, AnticheatSettings settings, BiConsumer<Player, Detection> sink,
@@ -66,7 +70,11 @@ public final class DuplicateItemScanner implements Listener {
         }
         ledger.beginPass();
         Set<Object> visited = new HashSet<>();
-        for (Player player : server.getOnlinePlayers()) {
+        var online = new ArrayList<>(server.getOnlinePlayers());
+        var selected = ScanBatch.select(online, scanStart, MAX_PLAYERS_PER_PASS,
+            ThreadLocalRandom.current());
+        if (!online.isEmpty()) scanStart = (scanStart + MAX_PLAYERS_PER_PASS / 2) % online.size();
+        for (Player player : selected) {
             if (!eligible(player)) {
                 continue;
             }
@@ -89,9 +97,6 @@ public final class DuplicateItemScanner implements Listener {
             }
             Detection detection = new Detection("item-duplicate", evidence);
             report(duplicate.first().playerId(), detection);
-            if (!duplicate.second().playerId().equals(duplicate.first().playerId())) {
-                report(duplicate.second().playerId(), detection);
-            }
         }
     }
 
@@ -125,6 +130,7 @@ public final class DuplicateItemScanner implements Listener {
 
     public void clear() {
         ledger.clear();
+        scanStart = 0;
     }
 
     private void scanInventory(Inventory inventory, Set<Object> visited, DuplicateLedger.Holder holder) {

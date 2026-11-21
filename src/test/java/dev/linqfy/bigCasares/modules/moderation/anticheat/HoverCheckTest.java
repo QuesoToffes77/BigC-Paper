@@ -6,11 +6,19 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class HoverCheckTest {
     private final HoverCheck check = new HoverCheck();
     private final UUID player = UUID.randomUUID();
+
+    @Test
+    void skippedSamplingIntervalsBreakConsecutiveEvidence() {
+        assertFalse(HoverCheck.contiguous(null, 100, 5));
+        assertTrue(HoverCheck.contiguous(95L, 100, 5));
+        assertFalse(HoverCheck.contiguous(90L, 100, 5));
+    }
 
     @Test
     void aFallingPlayerIsNeverFlagged() {

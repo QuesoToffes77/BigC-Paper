@@ -72,7 +72,7 @@ public record ModerationSettings(
             Map.entry("ground-spoof", 30), Map.entry("killaura-angle", 30), Map.entry("killaura-wall", 30),
             Map.entry("killaura-inventory", 25), Map.entry("killaura-use-item", 25),
             Map.entry("block-break-rate", 30), Map.entry("block-place-face", 25),
-            Map.entry("xray-ratio", 20), Map.entry("item-duplicate", 60)
+            Map.entry("xray-ratio", 20), Map.entry("item-duplicate", 0)
         );
         defaults.forEach((rule, fallback) -> points.put(
             rule, Math.max(0, config.getInt(root + "signals." + rule + ".points", fallback))

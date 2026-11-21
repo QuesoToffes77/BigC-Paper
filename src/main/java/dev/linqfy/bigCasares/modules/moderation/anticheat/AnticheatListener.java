@@ -50,6 +50,7 @@ import org.bukkit.util.BoundingBox;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +58,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -83,6 +85,7 @@ public final class AnticheatListener implements Listener {
     static final double EXPLOSION_RADIUS = 12;
     static final double PISTON_RADIUS = 4;
     public static final long HOVER_PERIOD_TICKS = 5;
+    static final int MAX_HOVER_PLAYERS_PER_PASS = 16;
     static final double VANILLA_GRAVITY = 0.08;
     private static final Set<Material> RARE_ORES = EnumSet.of(
         Material.DIAMOND_ORE, Material.DEEPSLATE_DIAMOND_ORE, Material.ANCIENT_DEBRIS,
@@ -107,6 +110,8 @@ public final class AnticheatListener implements Listener {
     private final GroundSpoofCheck ground = new GroundSpoofCheck();
     private final XrayTracker xray = new XrayTracker();
     private final Map<UUID, Integer> lastMoveTick = new HashMap<>();
+    private final Map<UUID, Long> lastHoverTick = new HashMap<>();
+    private int hoverStart;
     private final Map<UUID, Integer> containerOpenedTick = new HashMap<>();
     private final Map<UUID, Integer> breakDepth = new HashMap<>();
 
@@ -136,10 +141,15 @@ public final class AnticheatListener implements Listener {
             return;
         }
         long tick = server.getCurrentTick();
-        for (Player player : server.getOnlinePlayers()) {
+        var online = new ArrayList<>(server.getOnlinePlayers());
+        var selected = ScanBatch.select(online, hoverStart, MAX_HOVER_PLAYERS_PER_PASS, ThreadLocalRandom.current());
+        if (!online.isEmpty()) hoverStart = (hoverStart + MAX_HOVER_PLAYERS_PER_PASS / 2) % online.size();
+        for (Player player : selected) {
+            UUID id = player.getUniqueId();
+            if (!HoverCheck.contiguous(lastHoverTick.put(id, tick), tick, HOVER_PERIOD_TICKS)) hover.forget(id);
             boolean exempt = exempt(player, tick);
             boolean airborne = !exempt && EnvironmentProbe.airborne(player);
-            hover.sample(player.getUniqueId(), player.getLocation().getY(), airborne, exempt)
+            hover.sample(id, player.getLocation().getY(), airborne, exempt)
                 .ifPresent(detection -> report(player, detection));
         }
     }
@@ -154,6 +164,8 @@ public final class AnticheatListener implements Listener {
         ground.clear();
         xray.clear();
         lastMoveTick.clear();
+        lastHoverTick.clear();
+        hoverStart = 0;
         containerOpenedTick.clear();
         breakDepth.clear();
     }
@@ -167,10 +179,17 @@ public final class AnticheatListener implements Listener {
         }
         Player player = event.getPlayer();
         UUID id = player.getUniqueId();
-        int tick = server.getCurrentTick();
-        Integer previous = lastMoveTick.put(id, tick);
         if (!settings.checkEnabled("movement-speed") && !settings.checkEnabled("upward-movement")
             && !settings.checkEnabled("ground-spoof")) {
+            return;
+        }
+        int tick = server.getCurrentTick();
+        Integer previous = lastMoveTick.put(id, tick);
+        if (!MovementCheck.shouldSampleTick(previous, tick)) {
+            // A later packet may cross a special-physics block that the first sample did not see.
+            grace(id, ENVIRONMENT_GRACE, "movement-batch");
+            movement.forget(id);
+            ground.forget(id);
             return;
         }
         int elapsed = previous == null ? MovementCheck.MAX_ELAPSED_TICKS + 1 : Math.max(1, tick - previous);
@@ -466,6 +485,7 @@ public final class AnticheatListener implements Listener {
         ground.forget(id);
         xray.forget(id);
         lastMoveTick.remove(id);
+        lastHoverTick.remove(id);
         containerOpenedTick.remove(id);
         breakDepth.remove(id);
     }
@@ -548,6 +568,7 @@ public final class AnticheatListener implements Listener {
         ground.forget(playerId);
         movement.forget(playerId);
         hover.forget(playerId);
+        lastHoverTick.remove(playerId);
         lastMoveTick.remove(playerId);
     }
 

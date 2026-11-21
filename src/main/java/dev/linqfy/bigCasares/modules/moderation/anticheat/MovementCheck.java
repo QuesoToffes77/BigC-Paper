@@ -28,6 +28,10 @@ public final class MovementCheck {
 
     private final Map<UUID, State> states = new HashMap<>();
 
+    static boolean shouldSampleTick(Integer previousTick, int tick) {
+        return previousTick == null || previousTick != tick;
+    }
+
     public Optional<Detection> sample(UUID playerId, MovementSample sample) {
         State state = states.computeIfAbsent(playerId, ignored -> new State());
         if (sample.exempt() || sample.elapsedTicks() > MAX_ELAPSED_TICKS) {

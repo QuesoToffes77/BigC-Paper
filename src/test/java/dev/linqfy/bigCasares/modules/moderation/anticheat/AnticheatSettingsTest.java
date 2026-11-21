@@ -16,6 +16,7 @@ final class AnticheatSettingsTest {
         AnticheatSettings settings = AnticheatSettings.load(new YamlConfiguration(), "moderation-system.");
         assertEquals(AnticheatSettings.defaults(), settings);
         assertTrue(settings.checkEnabled("movement-speed"));
+        assertFalse(settings.enforceNewChecks());
     }
 
     @Test
@@ -25,6 +26,7 @@ final class AnticheatSettingsTest {
         config.set("moderation-system.anticheat.max-attacks-per-second", 3);
         config.set("moderation-system.anticheat.minimum-tps", 40);
         config.set("moderation-system.anticheat.bypass-permission", "");
+        config.set("moderation-system.anticheat.enforce-new-checks", true);
 
         AnticheatSettings settings = AnticheatSettings.load(config, "moderation-system.");
 
@@ -33,5 +35,6 @@ final class AnticheatSettingsTest {
         assertEquals(10, settings.maxAttacksPerSecond());
         assertEquals(20.0, settings.minimumTps());
         assertEquals("", settings.bypassPermission());
+        assertTrue(settings.enforceNewChecks());
     }
 }

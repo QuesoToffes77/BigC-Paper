@@ -19,6 +19,10 @@ public final class HoverCheck {
 
     private final Map<UUID, State> states = new HashMap<>();
 
+    static boolean contiguous(Long previousTick, long tick, long period) {
+        return previousTick != null && tick - previousTick == period;
+    }
+
     /**
      * @param y        altura actual del jugador
      * @param airborne no hay ningun apoyo posible cerca (bloque, liquido, trepable, entidad plataforma)

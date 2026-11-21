@@ -17,7 +17,7 @@ class DuplicateScanPolicyTest {
 
     @Test void bedrockExemptionCanBeDisabled() {
         var base = AnticheatSettings.defaults();
-        var settings = new AnticheatSettings(base.enabled(), base.bypassPermission(), false,
+        var settings = new AnticheatSettings(base.enabled(), base.enforceNewChecks(), base.bypassPermission(), false,
             base.minimumTps(), base.maxAttacksPerSecond(), base.disabledChecks(), base.dupeTrackedItems(),
             base.trackShulkerBoxes());
         assertTrue(DuplicateItemScanner.shouldScan(settings, GameMode.SURVIVAL, false, ClientPlatform.BEDROCK));
