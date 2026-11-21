@@ -1,13 +1,15 @@
 package dev.linqfy.bigCasares.modules.tombstone;
 
+import dev.linqfy.bigCasares.testsupport.CompiledClass;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,11 +44,51 @@ class TombstoneLedgerTest {
     }
 
     @Test
-    void visualsAreTransientBecauseTheLedgerOwnsPersistence() throws Exception {
-        String source = Files.readString(Path.of(
-            "src/main/java/dev/linqfy/bigCasares/modules/tombstone/TombstoneRuntime.java"));
+    void pendingBurialSurvivesReloadAndExpiryWithoutAppearingInNearbyLookup() {
+        Instant now = Instant.parse("2026-07-18T12:00:00Z");
+        TombstoneRecord pending = new TombstoneRecord(UUID.randomUUID(), UUID.randomUUID(), "Jugador",
+            UUID.randomUUID(), 1.5, 64, 2.5, 0, now.minusSeconds(1), List.of(new ItemStack(Material.STONE)), true, false);
+        TombstoneLedger ledger = new TombstoneLedger();
 
+        ledger.restore(List.of(pending), now);
+
+        assertEquals(pending, ledger.find(pending.id()).orElseThrow());
+        assertEquals(List.of(), TombstoneProximity.nearby(ledger.all(), pending.worldId(), 1.5, 64, 2.5, 10));
+    }
+
+    @Test
+    void beforeReceiptRequiresMatchingInventorySlotsWhileIgnoringTrailingEmptySlots() {
+        ItemStack item = new ItemStack(Material.STONE);
+        assertTrue(TombstoneRuntime.sameLayout(List.of(item), java.util.Arrays.asList(item, null, null)));
+        assertFalse(TombstoneRuntime.sameLayout(List.of(item), java.util.Arrays.asList(null, item, null)));
+        assertFalse(TombstoneRuntime.sameLayout(List.of(item), List.of()));
+    }
+
+    @Test
+    void visualsAreTransientBecauseTheLedgerOwnsPersistence() throws Exception {
+        // The runtime needs a live server, so its entity setup is read from the bytecode.
+        CompiledClass runtime = CompiledClass.of(getClass(), "dev.linqfy.bigCasares.modules.tombstone.TombstoneRuntime");
+
+        assertTrue(runtime.calls().stream().anyMatch(call -> call.name().equals("setPersistent")));
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+            "src/main/java/dev/linqfy/bigCasares/modules/tombstone/TombstoneRuntime.java"));
         assertEquals(3, source.split("setPersistent\\(false\\)", -1).length - 1);
+    }
+
+    @Test
+    void shutdownClosesEveryViewerWhenCloseRemovesATombstone() {
+        Map<Integer, Integer> active = new LinkedHashMap<>();
+        active.put(1, 1);
+        active.put(2, 2);
+        List<Integer> closed = new ArrayList<>();
+
+        TombstoneRuntime.closeViewersBeforeShutdown(active.values(), id -> {
+            closed.add(id);
+            active.remove(id);
+        });
+
+        assertEquals(List.of(1, 2), closed);
+        assertTrue(active.isEmpty());
     }
 
     private static TombstoneRecord record(Instant expiresAt) {

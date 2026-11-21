@@ -37,10 +37,6 @@ public class MobScalingListener implements Listener {
     private final NamespacedKey tombstoneKey;
     private final MobScalingMutations mutations;
 
-    public MobScalingListener(JavaPlugin plugin, MobScalingSettings settings) {
-        this(plugin, settings, plugin != null ? new MobScalingMutations(plugin) : null);
-    }
-
     MobScalingListener(JavaPlugin plugin, MobScalingSettings settings, MobScalingMutations mutations) {
         this.plugin = plugin;
         this.settings = settings;

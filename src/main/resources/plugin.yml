@@ -80,6 +80,10 @@ commands:
     usage: /<command> [comprar|vender|ver|grafico|mercado|cartera|crear|stake|unstake|rugpull|clan|top|cementerio]
     aliases: [ cripto, crypto ]
     permission: bigcasares.forex
+  ah:
+    description: Casa de subastas (comprar y vender items entre jugadores)
+    usage: /<command> [vender <precio>|mis|reclamar|quitar <id>]
+    aliases: [ subastas, auctionhouse ]
   glider:
     description: Give one of the six BigCasares Glider tiers
     usage: /<command> give <1-6> [player] [amount]
@@ -92,9 +96,12 @@ commands:
     description: Admin manage BigCasares teams
     usage: /<command> <delete|rename|tag|color|kick>
     permission: bigcasares.team.admin
+  pvp:
+    description: Toggle consent for PvP in the limited quadrant
+    usage: /<command> [quests [start|claim] <rivals|domination>]
   nexus:
     description: Manage your team Nexus
-    usage: /<command> [place|claim]
+    usage: /<command> [place|claim|mejoras|mejorar <mejora>]
   boss:
     description: Manage BigCasares PvE bosses
     usage: /<command> spawn abyss-guardian
@@ -161,6 +168,9 @@ permissions:
   bigcasares.donpollos.admin:
     description: Manage Don Pollos (spawn, boss, cities, dances and items)
     default: op
+  bigcasares.anticheat.bypass:
+    description: Skip BigCasares movement and combat checks (not granted to operators by default)
+    default: false
   bigcasares.*:
     description: Full access to BigCasares commands
     default: op
@@ -209,6 +219,8 @@ permissions:
       bigcasares.casino.admin: true
       bigcasares.forex: true
       bigcasares.forex.admin: true
+      bigcasares.auctionhouse.use: true
+      bigcasares.auctionhouse.admin: true
       bigcasares.glider.admin: true
       bigcasares.glider.give: true
       bigcasares.dimension.admin: true
@@ -370,6 +382,15 @@ permissions:
   bigcasares.forex.admin:
     description: Force forex market cycles and 50/50 flips with /forex admin
     default: op
+  bigcasares.auctionhouse.use:
+    description: Browse, buy and sell on the auction house with /ah
+    default: true
+
+  bigcasares.auctionhouse.admin:
+    description: Remove any auction house listing with /ah quitar
+    default: op
+    children:
+      bigcasares.auctionhouse.use: true
 
   bigcasares.glider.admin:
     description: Full Glider administration
@@ -412,6 +433,10 @@ permissions:
   bigcasares.nexus.claim:
     description: Claim the Nexus owned by the player's team
     default: true
+
+  bigcasares.quadrants.bypass:
+    description: Ignore the PvP quadrant combat tag when entering the Chill zone
+    default: false
 
   bigcasares.boss.spawn:
     description: Spawn a configured PvE boss
