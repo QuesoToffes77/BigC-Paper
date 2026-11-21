@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -95,7 +96,7 @@ public final class TombstoneRuntime {
             Location location = safeLocation(requested);
             pending = new TombstoneRecord(id, player.getUniqueId(), player.getName(), location.getWorld().getUID(),
                 location.getX(), location.getY(), location.getZ(), location.getYaw(), clock.instant().plus(lifetime),
-                items, true);
+                items, true, false);
             PlayerDataCheckpoint.save(player, burialReceiptKey, burialReceipt(id, false));
             ledger.put(pending);
             try {
@@ -134,7 +135,9 @@ public final class TombstoneRuntime {
                 PlayerDataCheckpoint.confirm(player, burialReceiptKey, after);
                 finishBurial(pending, true);
             } else if (burialReceipt(id, false).equals(receipt)
-                && PlayerDataCheckpoint.contains(player, burialReceiptKey, receipt)) {
+                && PlayerDataCheckpoint.contains(player, burialReceiptKey, receipt)
+                && sameLayout(pending.items(), TombstoneItemLayout.snapshot(player.getInventory().getStorageContents(),
+                    player.getInventory().getArmorContents(), player.getInventory().getItemInOffHand(), player.getItemOnCursor()))) {
                 // The save from before removal still owns the inventory.
                 finishBurial(pending, false);
             }
@@ -146,7 +149,7 @@ public final class TombstoneRuntime {
     private void finishBurial(TombstoneRecord pending, boolean transferred) {
         TombstoneRecord visible = transferred
             ? new TombstoneRecord(pending.id(), pending.ownerId(), pending.ownerName(), pending.worldId(),
-                pending.x(), pending.y(), pending.z(), pending.yaw(), clock.instant().plus(lifetime), pending.items())
+                pending.x(), pending.y(), pending.z(), pending.yaw(), clock.instant().plus(lifetime), pending.items(), false, true)
             : null;
         if (visible == null) ledger.remove(pending.id());
         else ledger.put(visible);
@@ -168,6 +171,15 @@ public final class TombstoneRuntime {
 
     private static String burialReceipt(UUID id, boolean transferred) {
         return (transferred ? "after-" : "before-") + id;
+    }
+
+    static boolean sameLayout(List<ItemStack> expected, List<ItemStack> actual) {
+        for (int slot = 0; slot < Math.max(expected.size(), actual.size()); slot++) {
+            ItemStack before = slot < expected.size() ? expected.get(slot) : null;
+            ItemStack current = slot < actual.size() ? actual.get(slot) : null;
+            if (!Objects.equals(before, current)) return false;
+        }
+        return true;
     }
 
     /**
@@ -453,7 +465,8 @@ public final class TombstoneRuntime {
         TombstoneRecord updated = new TombstoneRecord(
             tombstone.record.id(), tombstone.record.ownerId(), tombstone.record.ownerName(),
             tombstone.record.worldId(), tombstone.record.x(), tombstone.record.y(), tombstone.record.z(),
-            tombstone.record.yaw(), tombstone.record.expiresAt(), contents(tombstone)
+            tombstone.record.yaw(), tombstone.record.expiresAt(), contents(tombstone), false,
+            tombstone.record.verifiedBurial()
         );
         tombstone.record = updated;
         ledger.put(updated);

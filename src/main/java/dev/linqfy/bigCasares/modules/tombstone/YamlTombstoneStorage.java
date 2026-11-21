@@ -22,6 +22,8 @@ import java.util.UUID;
 
 public final class YamlTombstoneStorage implements TombstoneStorage {
     private final Path file;
+    private boolean storedBurialCustody;
+    private boolean directoryAncestryForced;
 
     public YamlTombstoneStorage(Path file) {
         this.file = file;
@@ -55,7 +57,7 @@ public final class YamlTombstoneStorage implements TombstoneStorage {
                     entry.getString("owner-name", "Desconocido"), UUID.fromString(entry.getString("world-id")),
                     entry.getDouble("x"), entry.getDouble("y"), entry.getDouble("z"),
                     (float) entry.getDouble("yaw"), Instant.parse(entry.getString("expires-at")), items,
-                    entry.getBoolean("awaiting-burial")
+                    entry.getBoolean("awaiting-burial"), entry.getBoolean("verified-burial")
                 ));
             } catch (RuntimeException ignored) {
                 // A malformed entry must not prevent other tombstones from loading.
@@ -63,6 +65,7 @@ public final class YamlTombstoneStorage implements TombstoneStorage {
             }
         }
         if (unreadable[0] > 0) backupUnreadable();
+        storedBurialCustody = records.stream().anyMatch(TombstoneRecord::holdsBurialCustody);
         return List.copyOf(records);
     }
 
@@ -86,7 +89,9 @@ public final class YamlTombstoneStorage implements TombstoneStorage {
         save(records, true);
     }
 
-    private void save(Collection<TombstoneRecord> records, boolean durable) {
+    private void save(Collection<TombstoneRecord> records, boolean burialOperation) {
+        boolean newBurialCustody = records.stream().anyMatch(TombstoneRecord::holdsBurialCustody);
+        boolean durable = burialOperation || storedBurialCustody || newBurialCustody;
         try {
             Files.createDirectories(file.getParent());
             YamlConfiguration yaml = new YamlConfiguration();
@@ -101,6 +106,7 @@ public final class YamlTombstoneStorage implements TombstoneStorage {
                 yaml.set(path + ".yaw", record.yaw());
                 yaml.set(path + ".expires-at", record.expiresAt().toString());
                 if (record.awaitingBurial()) yaml.set(path + ".awaiting-burial", true);
+                if (record.verifiedBurial()) yaml.set(path + ".verified-burial", true);
                 for (Map.Entry<Integer, ItemStack> item : encodeItems(record.items()).entrySet()) {
                     yaml.set(path + ".items-by-slot." + item.getKey(), item.getValue());
                 }
@@ -114,7 +120,17 @@ public final class YamlTombstoneStorage implements TombstoneStorage {
                 if (durable) throw unsupportedAtomicMove;
                 Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
             }
-            if (durable) PlayerDataCheckpoint.forceDirectory(file.getParent());
+            if (durable) {
+                Path directory = file.toAbsolutePath().getParent();
+                PlayerDataCheckpoint.forceDirectory(directory);
+                if (!directoryAncestryForced) {
+                    for (Path parent = directory.getParent(); parent != null; parent = parent.getParent()) {
+                        PlayerDataCheckpoint.forceDirectory(parent);
+                    }
+                    directoryAncestryForced = true;
+                }
+            }
+            storedBurialCustody = newBurialCustody;
         } catch (IOException exception) {
             throw new IllegalStateException("Could not save tombstones", exception);
         }

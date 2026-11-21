@@ -12,7 +12,10 @@ import java.util.function.Predicate;
 import java.util.List;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.ItemStack;
+
+import java.util.Arrays;
 
 public final class TombstoneModule implements PluginModule {
     private final BigCasares plugin;
@@ -76,6 +79,8 @@ public final class TombstoneModule implements PluginModule {
         ItemStack cursor = player.getItemOnCursor();
         // The native player data file does not contain the cursor stack.
         if (cursor != null && !cursor.getType().isAir()) return false;
+        if (player.getOpenInventory().getTopInventory() instanceof CraftingInventory crafting
+            && Arrays.stream(crafting.getMatrix()).anyMatch(item -> item != null && !item.getType().isAir())) return false;
         List<ItemStack> items = TombstoneItemLayout.snapshot(
             player.getInventory().getStorageContents(),
             player.getInventory().getArmorContents(),
