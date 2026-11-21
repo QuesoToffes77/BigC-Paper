@@ -3,6 +3,7 @@ package dev.linqfy.bigCasares.modules.staffevents;
 import dev.linqfy.bigCasares.dimension.DimensionPlatform;
 import dev.linqfy.bigCasares.dimension.DimensionStatus;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
+import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -33,10 +34,18 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -83,7 +92,7 @@ final class StaffEventRuntime implements Listener {
     static final String ADMIN_PERMISSION = "bigcasares.events.admin";
     private static final NamespacedKey RESTORED_SNAPSHOT = new NamespacedKey("bigcasares", "staff_event_restored_snapshot");
 
-    private enum Phase { LOBBY, RUNNING }
+    private enum Phase { PREPARING, LOBBY, RUNNING }
 
     private final JavaPlugin plugin;
     private final StaffEventSettings settings;
@@ -97,6 +106,10 @@ final class StaffEventRuntime implements Listener {
     private final Random random = new Random();
     private final Set<UUID> teleportBypass = new HashSet<>();
     private final Set<UUID> restoreAfterRespawn = new HashSet<>();
+    // Players remain unable to interact until their restored inventory is confirmed on disk.
+    private final Set<UUID> restoreBlocked = new LinkedHashSet<>();
+    // Kept in this runtime until checkpoint recovery succeeds; not durable across a restart.
+    private final Map<UUID, StaffEventSettings.Rewards> pendingRewards = new HashMap<>();
     /** Deaths handled by an event, until the death event finishes (the tombstone runs after us). */
     private final Set<UUID> handledDeaths = new HashSet<>();
     private Session session;
@@ -111,6 +124,7 @@ final class StaffEventRuntime implements Listener {
         private Phase phase;
         private int secondsLeft;
         private int totalSeconds;
+        private int lobbySeconds;
         private World world;
         private ArenaLayout layout;
         private ArenaBuilder arena;
@@ -150,7 +164,7 @@ final class StaffEventRuntime implements Listener {
     // --- queries -------------------------------------------------------------------------------
 
     boolean protectsDeath(UUID playerId) {
-        return handledDeaths.contains(playerId);
+        return handledDeaths.contains(playerId) || restoreBlocked.contains(playerId);
     }
 
     List<String> status() {
@@ -160,7 +174,8 @@ final class StaffEventRuntime implements Listener {
         }
         List<String> lines = new ArrayList<>();
         lines.add(PREFIX + "§e" + current.type.displayName() + " §7— "
-            + (current.phase == Phase.LOBBY ? "esperando jugadores" : "en juego")
+            + (current.phase == Phase.PREPARING ? "preparando arena"
+                : current.phase == Phase.LOBBY ? "esperando jugadores" : "en juego")
             + " §7(" + formatTime(current.secondsLeft) + ")");
         if (current.type.arena()) {
             lines.add("§7Participantes (" + current.participants.size() + "): §f" + names(current.participants));
@@ -377,29 +392,49 @@ final class StaffEventRuntime implements Listener {
             return;
         }
         ArenaLayout layout = ArenaLayout.of(type, settings);
-        ArenaBuilder arena = new ArenaBuilder(world.get(), layout);
+        boolean dedicated = dimensions.get().flatMap(platform -> platform.world(EventArenaDimension.KEY))
+            .filter(world.get()::equals).isPresent();
+        ArenaBuilder arena;
         try {
-            arena.build();
-            world.get().setTime(6000L);
+            arena = new ArenaBuilder(world.get(), layout, plugin, !dedicated);
         } catch (RuntimeException failure) {
-            plugin.getLogger().log(Level.SEVERE, "[Eventos] Could not build the " + type.id() + " arena", failure);
-            sender.sendMessage(PREFIX + "§cNo se pudo construir la arena; revisá la consola.");
+            plugin.getLogger().log(Level.WARNING, "[Eventos] Could not prepare the " + type.id() + " arena", failure);
+            sender.sendMessage(PREFIX + "§cNo se pudo preparar la arena; revisá la consola.");
             return;
         }
         BossBar bar = Bukkit.createBossBar(type.displayName(), BarColor.YELLOW, BarStyle.SOLID);
         Session current = new Session(type, bar);
-        current.phase = Phase.LOBBY;
+        current.phase = Phase.PREPARING;
         current.world = world.get();
         current.layout = layout;
         current.arena = arena;
-        current.totalSeconds = Math.max(5, lobbySeconds);
-        current.secondsLeft = current.totalSeconds;
+        current.lobbySeconds = Math.max(5, lobbySeconds);
         session = current;
-        Bukkit.getOnlinePlayers().forEach(bar::addPlayer);
-        broadcast(PREFIX + "§e§l" + type.displayName() + " §7lo abrió §f" + sender.getName() + "§7.");
-        broadcast("§7" + describe(type));
-        announceJoin(current);
-        updateBar(current);
+        sender.sendMessage(PREFIX + "§7Preparando la arena de " + type.displayName() + ".");
+    }
+
+    /** Build without blocking the command tick; the lobby only opens after every chunk is ready. */
+    void prepareTick() {
+        Session current = session;
+        if (current == null || current.phase != Phase.PREPARING) return;
+        try {
+            if (!current.arena.step(512)) return;
+            current.arena.close();
+            current.world.setTime(6000L);
+            if (session != current) return;
+            current.phase = Phase.LOBBY;
+            current.totalSeconds = current.lobbySeconds;
+            current.secondsLeft = current.totalSeconds;
+            Bukkit.getOnlinePlayers().forEach(current.bar::addPlayer);
+            broadcast(PREFIX + "§e§l" + current.type.displayName() + " §7está listo.");
+            broadcast("§7" + describe(current.type));
+            announceJoin(current);
+            updateBar(current);
+        } catch (RuntimeException failure) {
+            plugin.getLogger().log(Level.SEVERE, "[Eventos] Could not build the " + current.type.id() + " arena", failure);
+            broadcast(PREFIX + "§cNo se pudo preparar la arena; revisá la consola.");
+            if (session == current) finishArena(List.of(), null);
+        }
     }
 
     private void announceJoin(Session current) {
@@ -633,15 +668,16 @@ final class StaffEventRuntime implements Listener {
         }
         current.taggers.remove(playerId);
         Player player = Bukkit.getPlayer(playerId);
+        boolean restored = false;
         if (player != null) {
             current.bar.removePlayer(player);
             if (restoreNow) {
-                restore(player);
+                restored = restore(player);
             }
         }
         participantsMessage(current, PREFIX + "§f" + name(playerId) + " " + reason + " §7(quedan "
             + current.participants.size() + ").");
-        if (player != null && restoreNow) {
+        if (player != null && restored) {
             player.sendMessage(PREFIX + "§7Recuperaste tu inventario.");
         }
         if (current.phase != Phase.RUNNING) {
@@ -663,6 +699,7 @@ final class StaffEventRuntime implements Listener {
             return;
         }
         current.bar.removeAll();
+        if (current.arena != null) current.arena.close();
         restorePvp(current);
         for (UUID playerId : List.copyOf(current.participants)) {
             Player player = Bukkit.getPlayer(playerId);
@@ -677,8 +714,8 @@ final class StaffEventRuntime implements Listener {
         for (UUID winnerId : winners) {
             Player winner = Bukkit.getPlayer(winnerId);
             if (winner != null) {
-                winner.playSound(winner.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
-                giveRewards(winner, rewards);
+                if (restoreBlocked.contains(winnerId)) pendingRewards.put(winnerId, rewards);
+                else giveWinnerRewards(winner, rewards);
             }
         }
     }
@@ -688,7 +725,7 @@ final class StaffEventRuntime implements Listener {
     /** Every 5 ticks; full seconds every fourth call. */
     void tick() {
         Session current = session;
-        if (current == null) {
+        if (current == null || current.phase == Phase.PREPARING) {
             return;
         }
         if (current.type.arena()) {
@@ -736,13 +773,18 @@ final class StaffEventRuntime implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         retireRestoredSnapshot(player);
+        if (!store.contains(player.getUniqueId())) {
+            restoreBlocked.remove(player.getUniqueId());
+            deliverPendingRewards(player);
+        }
         Session current = session;
         hearts.clearUnlessSession(player,
             current != null && current.type == StaffEventType.LIFESTEAL ? current.id : null);
         if (current != null && (current.type == StaffEventType.LIFESTEAL || current.phase == Phase.LOBBY)) {
             current.bar.addPlayer(player);
         }
-        if (store.contains(player.getUniqueId())) {
+        if (store.contains(player.getUniqueId()) && !isParticipant(player.getUniqueId())) {
+            restoreBlocked.add(player.getUniqueId());
             registrations.scheduleImmediate("staff-events-join-restore", () -> {
                 if (player.isOnline() && !isParticipant(player.getUniqueId())) {
                     if (restore(player)) {
@@ -765,9 +807,14 @@ final class StaffEventRuntime implements Listener {
     // LOW: before the keep-inventory totem (NORMAL), which skips deaths that already keep the inventory.
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onDeath(PlayerDeathEvent event) {
+        Player victim = event.getEntity();
+        if (restoreBlocked.contains(victim.getUniqueId())) {
+            handledDeaths.add(victim.getUniqueId());
+            keepEverything(event);
+            return;
+        }
         Session current = session;
         if (current == null) return;
-        Player victim = event.getEntity();
         if (current.participants.contains(victim.getUniqueId())
             || (current.type == StaffEventType.LIFESTEAL && LifestealRules.handlesDeath(
                 victim.getWorld().equals(arenaWorld().orElse(null)), endHuntDeath.test(victim.getUniqueId())))) {
@@ -781,8 +828,13 @@ final class StaffEventRuntime implements Listener {
         Player victim = event.getEntity();
         UUID playerId = victim.getUniqueId();
         boolean handled = handledDeaths.remove(playerId);
+        if (!handled || event.isCancelled()) return;
+        if (restoreBlocked.contains(playerId)) {
+            restoreAfterRespawn.add(playerId);
+            return;
+        }
         Session current = session;
-        if (!handled || event.isCancelled() || current == null) return;
+        if (current == null) return;
         if (current.participants.contains(playerId)) {
             restoreAfterRespawn.add(playerId);
             eliminate(current, playerId, "§cmurió", false);
@@ -839,6 +891,10 @@ final class StaffEventRuntime implements Listener {
     public void onBreak(BlockBreakEvent event) {
         Session current = session;
         Player player = event.getPlayer();
+        if (restoreBlocked.contains(player.getUniqueId())) {
+            event.setCancelled(true);
+            return;
+        }
         if (current == null || !current.type.arena()) {
             if (isArenaWorld(event.getBlock().getWorld()) && !player.hasPermission(ADMIN_PERMISSION)) {
                 event.setCancelled(true);
@@ -865,7 +921,8 @@ final class StaffEventRuntime implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlace(BlockPlaceEvent event) {
-        if (isParticipant(event.getPlayer().getUniqueId())
+        if (restoreBlocked.contains(event.getPlayer().getUniqueId())
+            || isParticipant(event.getPlayer().getUniqueId())
             || (isArenaWorld(event.getBlock().getWorld()) && !event.getPlayer().hasPermission(ADMIN_PERMISSION))) {
             event.setCancelled(true);
         }
@@ -873,7 +930,7 @@ final class StaffEventRuntime implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onDrop(PlayerDropItemEvent event) {
-        if (isParticipant(event.getPlayer().getUniqueId())) {
+        if (restoreBlocked.contains(event.getPlayer().getUniqueId()) || isParticipant(event.getPlayer().getUniqueId())) {
             event.setCancelled(true);
         }
     }
@@ -888,6 +945,10 @@ final class StaffEventRuntime implements Listener {
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
+        if (restoreBlocked.contains(player.getUniqueId())) {
+            event.setCancelled(true);
+            return;
+        }
         if (!isParticipant(player.getUniqueId()) || player.hasPermission(ADMIN_PERMISSION)) {
             return;
         }
@@ -903,13 +964,67 @@ final class StaffEventRuntime implements Listener {
     public void onTeleport(PlayerTeleportEvent event) {
         Session current = session;
         Player player = event.getPlayer();
-        if (current == null || !current.participants.contains(player.getUniqueId())
-            || teleportBypass.contains(player.getUniqueId())) {
+        if (teleportBypass.contains(player.getUniqueId())) return;
+        if (restoreBlocked.contains(player.getUniqueId())) {
+            event.setCancelled(true);
             return;
         }
+        if (current == null || !current.participants.contains(player.getUniqueId())) return;
         if (event.getTo() != null && !current.world.equals(event.getTo().getWorld())) {
             event.setCancelled(true);
             player.sendMessage(PREFIX + "§cPara salir del evento usá /evento salir.");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedMove(PlayerMoveEvent event) {
+        if (restoreBlocked.contains(event.getPlayer().getUniqueId()) && !teleportBypass.contains(event.getPlayer().getUniqueId())) {
+            event.setTo(event.getFrom());
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedInteraction(PlayerInteractEvent event) {
+        if (restoreBlocked.contains(event.getPlayer().getUniqueId())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedEntityInteraction(PlayerInteractEntityEvent event) {
+        if (restoreBlocked.contains(event.getPlayer().getUniqueId())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedInventoryClick(InventoryClickEvent event) {
+        if (restoreBlocked.contains(event.getWhoClicked().getUniqueId())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedInventoryDrag(InventoryDragEvent event) {
+        if (restoreBlocked.contains(event.getWhoClicked().getUniqueId())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedSwap(PlayerSwapHandItemsEvent event) {
+        if (restoreBlocked.contains(event.getPlayer().getUniqueId())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedConsume(PlayerItemConsumeEvent event) {
+        if (restoreBlocked.contains(event.getPlayer().getUniqueId())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedPickup(EntityPickupItemEvent event) {
+        if (restoreBlocked.contains(event.getEntity().getUniqueId())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedDamage(EntityDamageEvent event) {
+        if (restoreBlocked.isEmpty()) return;
+        if (restoreBlocked.contains(event.getEntity().getUniqueId())) event.setCancelled(true);
+        if (event instanceof EntityDamageByEntityEvent byEntity) {
+            Player attacker = attackingPlayer(byEntity.getDamager());
+            if (attacker != null && restoreBlocked.contains(attacker.getUniqueId())) event.setCancelled(true);
         }
     }
 
@@ -1029,14 +1144,66 @@ final class StaffEventRuntime implements Listener {
         }
         if (player.isDead()) {
             restoreAfterRespawn.add(player.getUniqueId());
+            restoreBlocked.add(player.getUniqueId());
             return false;
         }
         EventPlayerSnapshot snapshot = found.get();
         var playerData = player.getPersistentDataContainer();
         String revision = snapshot.revision().toString();
         if (revision.equals(playerData.get(RESTORED_SNAPSHOT, PersistentDataType.STRING))) {
+            if (restoreBlocked.contains(player.getUniqueId())) {
+                try {
+                    PlayerDataCheckpoint.confirm(player, RESTORED_SNAPSHOT, revision);
+                } catch (IOException | RuntimeException failure) {
+                    quarantineRestore(player, failure);
+                    return false;
+                }
+            }
+            restoreBlocked.remove(player.getUniqueId());
+            deliverPendingRewards(player);
             return true;
         }
+        restoreBlocked.add(player.getUniqueId());
+        EventPlayerSnapshot before;
+        ItemStack cursor;
+        String previousReceipt;
+        try {
+            player.closeInventory();
+            before = capture(player);
+            ItemStack currentCursor = player.getItemOnCursor();
+            cursor = currentCursor == null ? null : currentCursor.clone();
+            previousReceipt = playerData.get(RESTORED_SNAPSHOT, PersistentDataType.STRING);
+        } catch (RuntimeException failure) {
+            quarantineRestore(player, failure);
+            return false;
+        }
+        boolean restored = StaffEventRestore.attempt(() -> {
+            applySnapshot(player, snapshot);
+            PlayerDataCheckpoint.save(player, RESTORED_SNAPSHOT, revision);
+        }, () -> {
+            if (previousReceipt == null) playerData.remove(RESTORED_SNAPSHOT);
+            else playerData.set(RESTORED_SNAPSHOT, PersistentDataType.STRING, previousReceipt);
+            applySnapshot(player, before);
+            player.setItemOnCursor(cursor);
+        }, failure -> quarantineRestore(player, failure));
+        if (restored) {
+            restoreBlocked.remove(player.getUniqueId());
+            deliverPendingRewards(player);
+        }
+        return restored;
+    }
+
+    private void quarantineRestore(Player player, Exception failure) {
+        try {
+            player.setGameMode(GameMode.SPECTATOR);
+        } catch (RuntimeException spectatorFailure) {
+            failure.addSuppressed(spectatorFailure);
+        }
+        plugin.getLogger().log(Level.SEVERE, "[Eventos] Inventory restore is pending for " + player.getName(), failure);
+        player.sendMessage(PREFIX + "§cTu inventario sigue protegido; se reintentará al poder guardarlo.");
+    }
+
+    private void applySnapshot(Player player, EventPlayerSnapshot snapshot) {
         PlayerInventory inventory = player.getInventory();
         inventory.clear();
         inventory.setContents(Arrays.copyOf(snapshot.contents(), inventory.getSize()));
@@ -1057,9 +1224,25 @@ final class StaffEventRuntime implements Listener {
         player.setFireTicks(0);
         player.setFallDistance(0);
         teleport(player, locationOf(snapshot));
-        playerData.set(RESTORED_SNAPSHOT, PersistentDataType.STRING, revision);
-        player.saveData();
-        return true;
+    }
+
+    /** Retry one player at a time to keep recovery I/O bounded. */
+    void retryBlockedRestores() {
+        for (UUID playerId : List.copyOf(restoreBlocked)) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player == null || !player.isOnline()) {
+                restoreBlocked.remove(playerId);
+                continue;
+            }
+            if (isParticipant(playerId)) continue;
+            if (restore(player)) {
+                player.sendMessage(PREFIX + "§7Recuperaste el inventario que tenías antes del evento.");
+            } else {
+                restoreBlocked.remove(playerId);
+                restoreBlocked.add(playerId);
+            }
+            break;
+        }
     }
 
     private static Location locationOf(EventPlayerSnapshot snapshot) {
@@ -1108,6 +1291,16 @@ final class StaffEventRuntime implements Listener {
         };
     }
 
+    private void deliverPendingRewards(Player player) {
+        StaffEventSettings.Rewards rewards = pendingRewards.remove(player.getUniqueId());
+        if (rewards != null) giveWinnerRewards(player, rewards);
+    }
+
+    private void giveWinnerRewards(Player winner, StaffEventSettings.Rewards rewards) {
+        winner.playSound(winner.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+        giveRewards(winner, rewards);
+    }
+
     private void giveRewards(Player winner, StaffEventSettings.Rewards rewards) {
         for (String entry : rewards.items()) {
             Optional<ItemStack> item = RewardItem.parse(entry).flatMap(rewardItems);
@@ -1126,6 +1319,7 @@ final class StaffEventRuntime implements Listener {
 
     private void updateBar(Session current) {
         String title = switch (current.phase) {
+            case PREPARING -> "§e" + current.type.displayName() + " §7— preparando arena";
             case LOBBY -> "§e" + current.type.displayName() + " §7— /evento unirse §8(§f"
                 + formatTime(current.secondsLeft) + "§8)";
             case RUNNING -> "§e" + current.type.displayName() + " §8(§f" + formatTime(current.secondsLeft) + "§8)"

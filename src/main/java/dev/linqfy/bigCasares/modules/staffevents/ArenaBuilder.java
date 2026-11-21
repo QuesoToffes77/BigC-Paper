@@ -13,21 +13,138 @@ final class ArenaBuilder {
 
     private final World world;
     private final ArenaLayout layout;
+    private final Access access;
+    private final ArenaBuildPlan plan;
+    private final boolean guarded;
+    private final int minChunkX, maxChunkX, minChunkZ, maxChunkZ;
+    private int chunkX, chunkZ;
+    private boolean checking;
+    private java.util.concurrent.CompletableFuture<?> loading;
+    private ArenaBuildPlan.Cursor cursor;
+    private boolean ticketOwned;
+    private boolean closed;
 
-    ArenaBuilder(World world, ArenaLayout layout) {
-        this.world = world;
-        this.layout = layout;
+    interface Access {
+        int minHeight();
+        int maxHeight();
+        java.util.concurrent.CompletableFuture<?> load(int chunkX, int chunkZ);
+        boolean loaded(int chunkX, int chunkZ);
+        boolean addTicket(int chunkX, int chunkZ);
+        void removeTicket(int chunkX, int chunkZ);
+        Material get(ArenaBuildPlan.Cell cell);
+        void set(ArenaBuildPlan.Cell cell, Material material);
     }
 
-    void build() {
-        loadChunks();
-        clear();
-        switch (layout.type()) {
-            case KOTH -> buildKoth();
-            case TNT_TAG -> buildTntTag();
-            case SPLEEF -> buildSpleef();
-            case LIFESTEAL -> {
+    ArenaBuilder(World world, ArenaLayout layout, org.bukkit.plugin.Plugin plugin,
+                 boolean guarded) {
+        this(world, layout, new BukkitAccess(world, plugin), guarded);
+    }
+
+    ArenaBuilder(World world, ArenaLayout layout, Access access,
+                 boolean guarded) {
+        this.world = world;
+        this.layout = layout;
+        this.access = access;
+        this.plan = new ArenaBuildPlan(layout);
+        this.guarded = guarded;
+        this.checking = guarded;
+        if (layout.clearMinY() < access.minHeight() || plan.maxY() >= access.maxHeight()) {
+            throw new IllegalArgumentException("La arena excede la altura del mundo.");
+        }
+        int radius = layout.clearRadius();
+        minChunkX = (layout.centerX() - radius) >> 4;
+        maxChunkX = (layout.centerX() + radius) >> 4;
+        minChunkZ = (layout.centerZ() - radius) >> 4;
+        maxChunkZ = (layout.centerZ() + radius) >> 4;
+        chunkX = minChunkX;
+        chunkZ = minChunkZ;
+    }
+
+    /** Loads at most one chunk asynchronously and visits at most budget blocks on the main thread. */
+    boolean step(int budget) {
+        if (closed) return false;
+        if (budget <= 0) throw new IllegalArgumentException("budget must be positive");
+        int visited = 0;
+        while (visited < budget) {
+            if (chunkX > maxChunkX) {
+                if (!checking) return true;
+                checking = false;
+                chunkX = minChunkX;
+                chunkZ = minChunkZ;
+                return false;
             }
+            if (cursor != null && !access.loaded(chunkX, chunkZ)) {
+                releaseChunk();
+                cursor = null;
+                loading = null;
+            }
+            if (cursor == null) {
+                if (loading == null) {
+                    loading = access.load(chunkX, chunkZ);
+                    return false;
+                }
+                if (!loading.isDone()) return false;
+                loading.join();
+                loading = null;
+                if (!access.loaded(chunkX, chunkZ)) return false;
+                ticketOwned = access.addTicket(chunkX, chunkZ);
+                cursor = new ArenaBuildPlan.Cursor(layout, chunkX, chunkZ);
+            }
+            while (visited < budget && cursor.hasNext()) {
+                ArenaBuildPlan.Cell cell = cursor.next();
+                visited++;
+                Material wanted = plan.material(cell.x(), cell.y(), cell.z());
+                if (wanted == null) continue;
+                Material current = access.get(cell);
+                // In a fallback world, never replace existing non-air blocks. Matching arena blocks
+                // are already correct; this permits safe reuse without assuming block ownership.
+                if (guarded && !isAir(current) && current != wanted) {
+                    throw new IllegalStateException("Hay bloques ajenos en el mundo de respaldo; no se modificó esa zona.");
+                }
+                if (!checking && current != wanted) {
+                    access.set(cell, wanted);
+                }
+            }
+            if (!cursor.hasNext()) {
+                releaseChunk();
+                cursor = null;
+                if (++chunkZ > maxChunkZ) {
+                    chunkZ = minChunkZ;
+                    chunkX++;
+                }
+                return false;
+            }
+        }
+        return false;
+    }
+
+    void close() {
+        if (closed) return;
+        closed = true;
+        releaseChunk();
+        cursor = null;
+        loading = null;
+    }
+
+    private static boolean isAir(Material material) {
+        return material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
+    }
+
+    private void releaseChunk() {
+        if (ticketOwned) access.removeTicket(chunkX, chunkZ);
+        ticketOwned = false;
+    }
+
+    private record BukkitAccess(World world, org.bukkit.plugin.Plugin plugin) implements Access {
+        public int minHeight() { return world.getMinHeight(); }
+        public int maxHeight() { return world.getMaxHeight(); }
+        public java.util.concurrent.CompletableFuture<?> load(int x, int z) { return world.getChunkAtAsync(x, z, true); }
+        public boolean loaded(int x, int z) { return world.isChunkLoaded(x, z); }
+        public boolean addTicket(int x, int z) { return world.addPluginChunkTicket(x, z, plugin); }
+        public void removeTicket(int x, int z) { world.removePluginChunkTicket(x, z, plugin); }
+        public Material get(ArenaBuildPlan.Cell cell) { return world.getBlockAt(cell.x(), cell.y(), cell.z()).getType(); }
+        public void set(ArenaBuildPlan.Cell cell, Material material) {
+            world.getBlockAt(cell.x(), cell.y(), cell.z()).setType(material, false);
         }
     }
 
@@ -60,86 +177,4 @@ final class ArenaBuilder {
         return spot;
     }
 
-    private void loadChunks() {
-        int radius = layout.clearRadius();
-        for (int cx = (layout.centerX() - radius) >> 4; cx <= (layout.centerX() + radius) >> 4; cx++) {
-            for (int cz = (layout.centerZ() - radius) >> 4; cz <= (layout.centerZ() + radius) >> 4; cz++) {
-                world.getChunkAt(cx, cz).load(true);
-            }
-        }
-    }
-
-    private void clear() {
-        int radius = layout.clearRadius();
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                for (int y = layout.clearMinY(); y <= layout.clearMaxY(); y++) {
-                    set(dx, y, dz, Material.AIR);
-                }
-            }
-        }
-    }
-
-    private void buildKoth() {
-        int floor = layout.floorY() - 1;
-        int radius = layout.radius();
-        int hill = layout.hillRadius();
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                if (!ArenaLayout.inDisc(dx, dz, radius)) {
-                    continue;
-                }
-                boolean edge = !ArenaLayout.inDisc(dx, dz, radius - 1);
-                set(dx, floor, dz, edge ? Material.POLISHED_BLACKSTONE : Material.SMOOTH_STONE);
-                if (ArenaLayout.inDisc(dx, dz, hill + 2)) {
-                    set(dx, layout.floorY(), dz, Material.STONE_BRICKS);
-                }
-                if (ArenaLayout.inDisc(dx, dz, hill)) {
-                    set(dx, layout.floorY(), dz, Material.GOLD_BLOCK);
-                }
-            }
-        }
-    }
-
-    private void buildTntTag() {
-        int floor = layout.floorY() - 1;
-        int radius = layout.radius();
-        for (int dx = -radius - 1; dx <= radius + 1; dx++) {
-            for (int dz = -radius - 1; dz <= radius + 1; dz++) {
-                if (ArenaLayout.inDisc(dx, dz, radius)) {
-                    boolean stripe = ((dx + radius) / 3 + (dz + radius) / 3) % 2 == 0;
-                    set(dx, floor, dz, stripe ? Material.RED_CONCRETE : Material.WHITE_CONCRETE);
-                } else if (ArenaLayout.inDisc(dx, dz, radius + 1)) {
-                    set(dx, floor, dz, Material.BLACK_CONCRETE);
-                    for (int y = layout.floorY(); y < layout.floorY() + 4; y++) {
-                        set(dx, y, dz, Material.BARRIER);
-                    }
-                }
-            }
-        }
-    }
-
-    private void buildSpleef() {
-        int radius = layout.radius();
-        for (int floor : layout.layerFloors()) {
-            for (int dx = -radius - 1; dx <= radius + 1; dx++) {
-                for (int dz = -radius - 1; dz <= radius + 1; dz++) {
-                    if (ArenaLayout.inDisc(dx, dz, radius)) {
-                        set(dx, floor, dz, Material.SNOW_BLOCK);
-                    } else if (ArenaLayout.inDisc(dx, dz, radius + 1)) {
-                        for (int y = floor; y < floor + layout.layerGap(); y++) {
-                            set(dx, y, dz, Material.BARRIER);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private void set(int dx, int y, int dz, Material material) {
-        var block = world.getBlockAt(layout.centerX() + dx, y, layout.centerZ() + dz);
-        if (block.getType() != material) {
-            block.setType(material, false);
-        }
-    }
 }

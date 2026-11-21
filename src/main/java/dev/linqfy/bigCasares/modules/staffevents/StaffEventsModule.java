@@ -88,6 +88,8 @@ public final class StaffEventsModule implements PluginModule {
         StaffEventCommand handler = new StaffEventCommand(created);
         registrations.bindCommand("staff-events-command", command, handler, handler);
         registrations.scheduleRepeating("staff-events-tick", created::tick, 5L, 5L);
+        registrations.scheduleRepeating("staff-events-prepare", created::prepareTick, 1L, 1L);
+        registrations.scheduleRepeating("staff-events-recover", created::retryBlockedRestores, 100L, 100L);
         created.restorePendingOnline();
     }
 
