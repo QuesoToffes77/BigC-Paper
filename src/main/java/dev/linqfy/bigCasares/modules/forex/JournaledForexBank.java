@@ -55,7 +55,9 @@ final class JournaledForexBank implements ForexBank {
             }
             append(intent);
             boolean succeeded = deposit ? delegate.deposit(player, amount) : delegate.withdraw(player, amount);
-            append((succeeded ? "SUCCEEDED " : "REJECTED ") + operation);
+            // The forced intent already blocks replay. Worker-side settlement (or the next forced
+            // intent in a multi-transfer action) flushes successful outcomes before committing.
+            append((succeeded ? "SUCCEEDED " : "REJECTED ") + operation, !succeeded);
             if (succeeded) {
                 successfulTransfer = true;
             } else if (successfulTransfer) {
@@ -142,14 +144,19 @@ final class JournaledForexBank implements ForexBank {
     }
 
     private void append(String line) throws IOException {
+        append(line, true);
+    }
+
+    private void append(String line, boolean force) throws IOException {
         ensureDirectory(journal.getParent());
         boolean newFile = !Files.exists(journal);
+        if (newFile && !force) throw new IOException("FOREX transfer journal disappeared before recording its result");
         byte[] bytes = (line + "\n").getBytes(StandardCharsets.UTF_8);
         try (FileChannel channel = FileChannel.open(journal, StandardOpenOption.CREATE, StandardOpenOption.WRITE,
             StandardOpenOption.APPEND)) {
             ByteBuffer buffer = ByteBuffer.wrap(bytes);
             while (buffer.hasRemaining()) channel.write(buffer);
-            channel.force(true);
+            if (force) channel.force(true);
         }
         if (newFile) syncDirectory(journal.getParent());
     }

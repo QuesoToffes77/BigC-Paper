@@ -286,6 +286,7 @@ final class ForexCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (runtime.busy()) return List.of();
         if (args.length == 1) {
             List<String> options = new ArrayList<>(SUBCOMMANDS);
             if (sender.hasPermission(ADMIN_PERMISSION)) {

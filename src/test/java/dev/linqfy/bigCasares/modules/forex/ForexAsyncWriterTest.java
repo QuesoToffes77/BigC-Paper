@@ -53,6 +53,7 @@ class ForexAsyncWriterTest {
             writer.submit(() -> { entered.countDown(); try { release.await(); } catch (InterruptedException e) { throw new RuntimeException(e); } }, ignored -> fail());
             assertTrue(entered.await(5, TimeUnit.SECONDS));
             writer.close();
+            assertTrue(ForexAsyncWriter.leased(path));
             assertThrows(IllegalStateException.class, () -> new ForexAsyncWriter(path));
         } finally { release.countDown(); }
         waitFor(() -> {
@@ -119,6 +120,20 @@ class ForexAsyncWriterTest {
             assertTrue(new JournaledForexBank(delegate, journalPath).paused());
             assertEquals(80, delegate.balance(id));
         } finally { writer.close(); }
+    }
+
+    @Test
+    void fastCompletionAndCloseNeverLeakTheStoreLease(@TempDir Path dir) throws Exception {
+        Path path = dir.resolve("market.yml");
+        for (int i = 0; i < 100; i++) {
+            ForexAsyncWriter writer = new ForexAsyncWriter(path);
+            writer.submit(() -> {}, ignored -> {});
+            writer.close();
+            waitFor(() -> {
+                try (ForexAsyncWriter next = new ForexAsyncWriter(path)) { return true; }
+                catch (IllegalStateException busy) { return false; }
+            });
+        }
     }
 
     private static void waitFor(java.util.function.BooleanSupplier condition) throws Exception {

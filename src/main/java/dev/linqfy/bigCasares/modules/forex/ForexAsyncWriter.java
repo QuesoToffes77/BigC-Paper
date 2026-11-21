@@ -6,7 +6,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /** One writer per market path. Results are applied only by the owner's main-thread poll. */
@@ -15,8 +14,10 @@ final class ForexAsyncWriter implements AutoCloseable {
     private final Path path;
     private final ExecutorService executor;
     private final ConcurrentLinkedQueue<Result> results = new ConcurrentLinkedQueue<>();
+    private final Object lifecycle = new Object();
     private volatile boolean closed;
-    private boolean busy;
+    private volatile boolean busy;
+    private boolean active;
 
     ForexAsyncWriter(Path path) {
         this.path = path.toAbsolutePath().normalize();
@@ -28,24 +29,38 @@ final class ForexAsyncWriter implements AutoCloseable {
         });
     }
 
+    static boolean leased(Path path) {
+        return LEASES.containsKey(path.toAbsolutePath().normalize());
+    }
+
     boolean busy() { return busy; }
 
     void submit(Runnable write, Consumer<Throwable> completion) {
         Objects.requireNonNull(write, "write");
         Objects.requireNonNull(completion, "completion");
-        if (closed || busy) throw new IllegalStateException("FOREX writer unavailable");
-        busy = true;
+        synchronized (lifecycle) {
+            if (closed || busy) throw new IllegalStateException("FOREX writer unavailable");
+            busy = true;
+            active = true;
+        }
         try {
             executor.execute(() -> {
                 Throwable failure = null;
                 try { write.run(); } catch (Throwable thrown) { failure = thrown; }
                 finally {
-                    results.add(new Result(completion, failure));
-                    if (closed) LEASES.remove(path, this);
+                    synchronized (lifecycle) {
+                        active = false;
+                        results.add(new Result(completion, failure));
+                        if (closed) LEASES.remove(path, this);
+                    }
                 }
             });
         } catch (RuntimeException failure) {
-            busy = false;
+            synchronized (lifecycle) {
+                busy = false;
+                active = false;
+                if (closed) LEASES.remove(path, this);
+            }
             throw failure;
         }
     }
@@ -59,13 +74,11 @@ final class ForexAsyncWriter implements AutoCloseable {
 
     @Override
     public void close() {
-        closed = true;
-        executor.shutdown();
-        try {
-            if (executor.awaitTermination(250, TimeUnit.MILLISECONDS)) LEASES.remove(path, this);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
+        synchronized (lifecycle) {
+            closed = true;
+            if (!active) LEASES.remove(path, this);
         }
+        executor.shutdown();
     }
 
     private record Result(Consumer<Throwable> completion, Throwable failure) { }

@@ -11,11 +11,9 @@ import org.bukkit.entity.Player;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.LongSupplier;
 
@@ -78,13 +76,6 @@ final class ForexAnnouncer {
         server.getConsoleSender().sendMessage(PREFIX + message);
     }
 
-    void tell(UUID playerId, String message) {
-        Player player = server.getPlayer(playerId);
-        if (player != null) {
-            player.sendMessage(PREFIX + message);
-        }
-    }
-
     String name(UUID playerId) {
         OfflinePlayer player = server.getOfflinePlayer(playerId);
         return player.getName() == null ? "un anónimo" : player.getName();
@@ -121,9 +112,8 @@ final class ForexAnnouncer {
             case MarketEvent.FlipWarning warning -> {
                 broadcast("§c⚠ §e$" + warning.ticker() + "§7: la moneda se tira al aire en §f"
                     + ForexFormat.duration(warning.millisLeft()) + "§7. ¿Vendés o aguantás?");
-                for (UUID holder : warning.holders()) {
-                    Player player = server.getPlayer(holder);
-                    if (player != null) {
+                for (Player player : server.getOnlinePlayers()) {
+                    if (warning.holders().contains(player.getUniqueId())) {
                         player.showTitle(title("§c⚠ $" + warning.ticker(), "§750/50 en §f"
                             + ForexFormat.duration(warning.millisLeft()), 3));
                         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, SoundCategory.MASTER, 1f, 0.6f);
@@ -145,22 +135,30 @@ final class ForexAnnouncer {
                 mourn(collapse.victims(), "§4§lCOLAPSO TOTAL", "§7$" + collapse.ticker() + " §c-99,999%");
             }
             case MarketEvent.Dividends dividends -> {
-                for (Map.Entry<UUID, Long> payout : dividends.payouts().entrySet()) {
-                    tell(payout.getKey(), "§a+" + ForexFormat.money(payout.getValue()) + " §7de dividendos de §e$"
-                        + dividends.ticker() + " §8(staking)");
+                for (Player player : server.getOnlinePlayers()) {
+                    Long payout = dividends.payouts().get(player.getUniqueId());
+                    if (payout != null) {
+                        player.sendMessage(PREFIX + "§a+" + ForexFormat.money(payout) + " §7de dividendos de §e$"
+                            + dividends.ticker() + " §8(staking)");
+                    }
                 }
             }
         }
     }
 
-    void rugPulled(RugPull rug, Collection<UUID> victims) {
+    void rugPulled(RugPull rug, Set<UUID> victims) {
         broadcast("§4§l🧹 RUG PULL! §c" + name(rug.creator()) + " §7se llevó §c" + ForexFormat.money(rug.stolen())
             + " §8(" + ForexFormat.percent(rug.fraction()) + ") §7del pozo de §e$" + rug.ticker()
             + "§7. Los holders se reparten las migajas.");
         siren();
         mourn(victims, "§4§lRUG PULL", "§7" + name(rug.creator()) + " se llevó la plata de $" + rug.ticker());
-        rug.refunds().forEach((holder, refund) -> tell(holder, "§7Te tocaron §f" + ForexFormat.money(refund)
-            + " §7de migajas de §e$" + rug.ticker() + "§7."));
+        for (Player player : server.getOnlinePlayers()) {
+            Long refund = rug.refunds().get(player.getUniqueId());
+            if (refund != null) {
+                player.sendMessage(PREFIX + "§7Te tocaron §f" + ForexFormat.money(refund)
+                    + " §7de migajas de §e$" + rug.ticker() + "§7.");
+            }
+        }
     }
 
     /** Wee-woo for everyone online. */
@@ -173,8 +171,9 @@ final class ForexAnnouncer {
     }
 
     /** Title plus the funeral march for every victim online. */
-    void mourn(Collection<UUID> victims, String headline, String subtitle) {
-        List<Player> online = victims.stream().map(server::getPlayer).filter(Objects::nonNull).toList();
+    void mourn(Set<UUID> victims, String headline, String subtitle) {
+        var online = server.getOnlinePlayers().stream()
+            .filter(player -> victims.contains(player.getUniqueId())).toList();
         for (Player player : online) {
             player.showTitle(title(headline, subtitle, 5));
         }

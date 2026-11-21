@@ -7,7 +7,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /** Read-only cross-module views of the last successfully saved market. */
-record ForexCommittedViews(Map<UUID, Double> credit, double defaultCredit, Map<String, Set<UUID>> clanPass) {
+record ForexCommittedViews(Map<UUID, Double> credit, double defaultCredit, Map<String, Set<UUID>> clanPass,
+                           Set<UUID> whales) {
     static ForexCommittedViews capture(ForexMarket market) {
         Map<UUID, Double> bestCaps = new HashMap<>();
         Map<String, Set<UUID>> teams = new HashMap<>();
@@ -31,7 +32,7 @@ record ForexCommittedViews(Map<UUID, Double> credit, double defaultCredit, Map<S
             ForexMarket.Account account = market.accounts().get(id);
             credit.put(id, multiplier(market, bestCaps.getOrDefault(id, 0.0), account == null ? 0 : account.rugPulls));
         }
-        return new ForexCommittedViews(Map.copyOf(credit), defaultCredit, Map.copyOf(teams));
+        return new ForexCommittedViews(Map.copyOf(credit), defaultCredit, Map.copyOf(teams), Set.copyOf(market.whales()));
     }
 
     private static double multiplier(ForexMarket market, double best, int rugPulls) {
