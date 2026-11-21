@@ -12,6 +12,24 @@ class JournaledForexBankTest {
     private final UUID player = UUID.randomUUID();
 
     @Test
+    void writesIntentBeforeCallingVault() {
+        Path journal = directory.resolve("transfers.log");
+        ForexBank observing = new ForexBank() {
+            public long balance(UUID ignored) { return 100; }
+            public boolean withdraw(UUID ignored, long amount) {
+                try {
+                    assertTrue(Files.readString(journal).contains("INTENT"));
+                } catch (java.io.IOException failure) {
+                    throw new java.io.UncheckedIOException(failure);
+                }
+                return true;
+            }
+            public boolean deposit(UUID ignored, long amount) { throw new AssertionError("unexpected deposit"); }
+        };
+        assertTrue(new JournaledForexBank(observing, journal).withdraw(player, 20));
+    }
+
+    @Test
     void successfulTransferIsRetainedUntilSnapshotCommitAndBlocksRestart() throws Exception {
         Path journal = directory.resolve("transfers.log");
         FakeBank delegate = new FakeBank().give(player, 100);

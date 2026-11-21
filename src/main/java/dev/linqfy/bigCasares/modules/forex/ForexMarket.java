@@ -583,7 +583,9 @@ public final class ForexMarket {
         long toStakers = (long) Math.floor(fee * coin.stakingShare());
         coin.dividendPot(coin.dividendPot() + toStakers);
         if (fee - toStakers > 0) {
-            bank.deposit(coin.creator(), fee - toStakers);
+            if (!bank.deposit(coin.creator(), fee - toStakers)) {
+                throw new IllegalStateException("Creator fee deposit was rejected; market state requires review");
+            }
         }
     }
 
