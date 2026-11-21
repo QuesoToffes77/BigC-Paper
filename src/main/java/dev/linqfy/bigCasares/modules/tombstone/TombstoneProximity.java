@@ -32,7 +32,7 @@ final class TombstoneProximity {
         if (radius < 0.0) throw new IllegalArgumentException("radius cannot be negative");
         double radiusSquared = radius * radius;
         return records.stream()
-            .filter(record -> record.worldId().equals(worldId))
+            .filter(record -> !record.awaitingBurial() && record.worldId().equals(worldId))
             .filter(record -> distanceSquared(record, x, y, z) <= radiusSquared)
             .sorted(Comparator.comparingDouble(record -> distanceSquared(record, x, y, z)))
             .toList();
