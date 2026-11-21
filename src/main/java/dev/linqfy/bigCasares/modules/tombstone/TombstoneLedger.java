@@ -14,24 +14,13 @@ final class TombstoneLedger {
     void restore(Collection<TombstoneRecord> restored, Instant now) {
         records.clear();
         restored.stream()
-            .filter(record -> record.expiresAt().isAfter(now))
+            .filter(record -> record.awaitingBurial() || record.expiresAt().isAfter(now))
             .filter(record -> TombstoneItemLayout.hasItems(record.items()))
             .forEach(record -> records.put(record.id(), record));
     }
 
     void put(TombstoneRecord record) {
         records.put(record.id(), record);
-    }
-
-    void putPersisted(TombstoneRecord record, TombstoneStorage storage) {
-        TombstoneRecord previous = records.put(record.id(), record);
-        try {
-            storage.saveAll(all());
-        } catch (RuntimeException failure) {
-            if (previous == null) records.remove(record.id());
-            else records.put(record.id(), previous);
-            throw failure;
-        }
     }
 
     Optional<TombstoneRecord> find(UUID id) {

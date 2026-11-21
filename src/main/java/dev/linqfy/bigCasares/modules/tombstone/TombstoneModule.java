@@ -37,18 +37,21 @@ public final class TombstoneModule implements PluginModule {
     public void onEnable(RuntimeRegistrationScope scope) {
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
         long lifetimeSeconds = Math.max(1L, plugin.getConfig().getLong("death-tombstone-system.lifetime-seconds", 900L));
-        this.runtime = new TombstoneRuntime(
+        TombstoneRuntime created = new TombstoneRuntime(
             plugin,
             new YamlTombstoneStorage(plugin.getDataFolder().toPath().resolve("data/tombstones/tombstones.yml")),
             Clock.systemUTC(), Duration.ofSeconds(lifetimeSeconds), registrations
         );
         registrations.registerListener("tombstone-listener",
-            new TombstoneListener(runtime, registrations, this::shouldCaptureDeath));
-        runtime.load();
+            new TombstoneListener(created, registrations, this::shouldCaptureDeath));
+        // Registered before load(): a failed load still removes whatever visuals it already spawned.
         scope.register("tombstone-runtime", () -> {
-            if (runtime != null) runtime.shutdown();
-            runtime = null;
+            if (runtime == created) runtime = null;
+            created.shutdown();
         });
+        created.load();
+        plugin.getServer().getOnlinePlayers().forEach(created::recoverBurial);
+        this.runtime = created;
     }
 
     @Override
@@ -70,19 +73,16 @@ public final class TombstoneModule implements PluginModule {
     public boolean bury(Player player, Location location) {
         TombstoneRuntime current = runtime;
         if (current == null) return false;
+        ItemStack cursor = player.getItemOnCursor();
+        // The native player data file does not contain the cursor stack.
+        if (cursor != null && !cursor.getType().isAir()) return false;
         List<ItemStack> items = TombstoneItemLayout.snapshot(
             player.getInventory().getStorageContents(),
             player.getInventory().getArmorContents(),
             player.getInventory().getItemInOffHand(),
-            player.getItemOnCursor()
+            null
         );
-        if (!TombstoneItemLayout.hasItems(items)) return false;
-        if (!current.create(player.getUniqueId(), player.getName(), location, items)) return false;
-        player.getInventory().clear();
-        player.getInventory().setArmorContents(new ItemStack[4]);
-        player.getInventory().setItemInOffHand(null);
-        player.setItemOnCursor(null);
-        return true;
+        return current.bury(player, location, items);
     }
 
     public boolean capturesDeathOf(UUID playerId) {
