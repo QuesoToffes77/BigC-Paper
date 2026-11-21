@@ -79,7 +79,7 @@ public final class MissionModule implements PluginModule {
 
         scope.register("module-state", this::clearRuntimeState);
         scope.register("hud-open-views", hudController::closeOpenViews);
-        registrations.registerListener("mission-listener", new MissionListener(this, plugin));
+        registrations.registerListener("mission-listener", new MissionListener(this, plugin, registrations));
         registrations.registerListener("hud-listener", hudController);
         registrations.scheduleRepeating("mission-state-flush", this::flushDirtyStates, 600L, 600L);
         this.enabled = true;

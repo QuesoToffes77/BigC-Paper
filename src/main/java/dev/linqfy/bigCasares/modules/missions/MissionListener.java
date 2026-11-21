@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.missions;
 
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -20,6 +21,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.event.entity.HorseJumpEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -44,10 +46,12 @@ public final class MissionListener implements Listener {
 
     private final MissionModule module;
     private final NamespacedKey customEntityKey;
+    private final BukkitRuntimeRegistrations registrations;
 
-    public MissionListener(MissionModule module, Plugin plugin) {
+    public MissionListener(MissionModule module, Plugin plugin, BukkitRuntimeRegistrations registrations) {
         this.module = module;
         this.customEntityKey = new NamespacedKey(plugin, "custom_entity");
+        this.registrations = registrations;
     }
 
     @EventHandler
@@ -88,6 +92,7 @@ public final class MissionListener implements Listener {
         // Count the rename when the result is actually taken, not while it is only previewed.
         if (!(event.getInventory() instanceof AnvilInventory)
             || event.getRawSlot() != ANVIL_RESULT_SLOT
+            || !takesAnvilResult(event.getAction())
             || !(event.getWhoClicked() instanceof Player player)) {
             return;
         }
@@ -105,16 +110,41 @@ public final class MissionListener implements Listener {
         module.completeRenameMission(player, result.getType(), result.getItemMeta().getDisplayName());
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent event) {
-        if (event.getAction() == Action.RIGHT_CLICK_BLOCK
-            && event.useInteractedBlock() != Event.Result.DENY
-            && event.getItem() != null
-            && event.getItem().getType() == Material.HONEYCOMB
-            && isUnwaxedCopper(event.getClickedBlock())) {
-            module.incrementMatchingMissions(event.getPlayer(), MissionType.WAX_BLOCK_COUNT, 1);
+        Block block = event.getClickedBlock();
+        if (event.getAction() == Action.RIGHT_CLICK_BLOCK && block != null
+            && event.useItemInHand() != Event.Result.DENY
+            && event.getItem() != null && event.getItem().getType() == Material.HONEYCOMB) {
+            Material before = block.getType();
+            Material waxed = Material.matchMaterial("WAXED_" + before.name());
+            if (waxed != null) {
+                Player player = event.getPlayer();
+                registrations.scheduleImmediate("mission-wax-confirm", () -> {
+                    if (player.isOnline() && wasWaxed(before, block.getType())) {
+                        module.incrementMatchingMissions(player, MissionType.WAX_BLOCK_COUNT, 1);
+                    }
+                });
+            }
         }
+    }
+
+    @EventHandler
+    public void onInteractRevalidate(PlayerInteractEvent event) {
         module.revalidatePassiveMissions(event.getPlayer());
+    }
+
+    static boolean takesAnvilResult(InventoryAction action) {
+        return switch (action) {
+            case PICKUP_ALL, PICKUP_HALF, PICKUP_ONE, PICKUP_SOME, MOVE_TO_OTHER_INVENTORY,
+                HOTBAR_SWAP, HOTBAR_MOVE_AND_READD -> true;
+            default -> false;
+        };
+    }
+
+    static boolean wasWaxed(Material before, Material after) {
+        Material waxed = Material.matchMaterial("WAXED_" + before.name());
+        return waxed != null && waxed == after;
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -270,15 +300,6 @@ public final class MissionListener implements Listener {
             names.add(ChatColor.stripColor(customName));
         }
         return names;
-    }
-
-    private static boolean isUnwaxedCopper(Block block) {
-        if (block == null) {
-            return false;
-        }
-        String name = block.getType().name();
-        return name.contains("COPPER") && !name.startsWith("WAXED_") && !name.contains("ORE")
-            && block.getType() != Material.RAW_COPPER_BLOCK;
     }
 
     private String biomeKey(org.bukkit.Location location) {
