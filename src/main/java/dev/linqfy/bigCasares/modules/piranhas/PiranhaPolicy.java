@@ -27,6 +27,11 @@ final class PiranhaPolicy {
         return settings.schoolMin() + Math.min(span - 1, (int) Math.floor(roll * span));
     }
 
+    /** Limit natural schools to the remaining nearby capacity. */
+    int schoolSize(double roll, int nearbyPiranhas) {
+        return Math.min(schoolSize(roll), Math.max(0, settings.maxNearby() - nearbyPiranhas));
+    }
+
     double huntSpeed(double health, double maxHealth) {
         boolean bleeding = maxHealth > 0.0 && health / maxHealth <= FRENZY_HEALTH;
         return bleeding ? settings.speed() * FRENZY_SPEED_MULTIPLIER : settings.speed();

@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.duels;
 
+import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -153,6 +154,12 @@ final class DuelStateStore {
             player.sendMessage("§cNo se pudo restaurar tu estado de duelo. Contactá al staff antes de continuar.");
             return -1L;
         }
+        if (!DuelSnapshotCodec.mayApply(yaml.getBoolean("recovery-pending", false))) {
+            logger.severe("[Duelos] Restauración de " + player.getName()
+                + " incierta; se conserva " + file.getName() + " para revisión manual.");
+            player.sendMessage("§cTu restauración requiere revisión del staff antes de continuar.");
+            return -1L;
+        }
         ItemStack[] contents = new ItemStack[player.getInventory().getContents().length];
         try {
             var decoded = DuelSnapshotCodec.decode(yaml.getConfigurationSection("inventory"), contents.length,
@@ -168,12 +175,14 @@ final class DuelStateStore {
         if (revision == null) {
             revision = UUID.randomUUID().toString();
             yaml.set("revision", revision);
-            try {
-                saveSnapshot(file, yaml);
-            } catch (IOException failure) {
-                logger.log(Level.SEVERE, "[Duelos] No se pudo actualizar el estado guardado de " + player.getName(), failure);
-                return -1L;
-            }
+        }
+        // Record uncertainty before the inventory changes: never replay after an interrupted restore.
+        yaml.set("recovery-pending", true);
+        try {
+            saveSnapshot(file, yaml);
+        } catch (IOException failure) {
+            logger.log(Level.SEVERE, "[Duelos] No se pudo registrar la restauración de " + player.getName(), failure);
+            return -1L;
         }
         player.closeInventory();
         player.getInventory().setContents(contents);
@@ -201,10 +210,23 @@ final class DuelStateStore {
         player.setExhaustion((float) yaml.getDouble("exhaustion", 0.0));
         player.setFireTicks(yaml.getInt("fire-ticks", 0));
         player.setFallDistance(0f);
-        player.teleport(home(yaml), PlayerTeleportEvent.TeleportCause.PLUGIN);
+        if (!player.teleport(home(yaml), PlayerTeleportEvent.TeleportCause.PLUGIN)) {
+            logger.severe("[Duelos] Se canceló el regreso de " + player.getName() + "; la restauración requiere revisión manual");
+            player.sendMessage("§cNo se pudo completar tu regreso. Contactá al staff antes de continuar.");
+            return -1L;
+        }
         long escrow = yaml.getLong("escrow", 0L);
-        player.getPersistentDataContainer().set(RESTORED_REVISION, PersistentDataType.STRING, revision);
-        player.saveData();
+        String previous = player.getPersistentDataContainer().get(RESTORED_REVISION, PersistentDataType.STRING);
+        try {
+            PlayerDataCheckpoint.save(player, RESTORED_REVISION, revision);
+        } catch (IOException | RuntimeException failure) {
+            if (previous == null) player.getPersistentDataContainer().remove(RESTORED_REVISION);
+            else player.getPersistentDataContainer().set(RESTORED_REVISION, PersistentDataType.STRING, previous);
+            logger.log(Level.SEVERE, "[Duelos] No se pudo confirmar la restauración de " + player.getName()
+                + "; el archivo se conserva para revisión manual", failure);
+            player.sendMessage("§cNo se pudo confirmar tu restauración. Contactá al staff antes de continuar.");
+            return -1L;
+        }
         return escrow;
     }
 

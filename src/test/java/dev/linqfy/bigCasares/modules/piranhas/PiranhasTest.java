@@ -36,6 +36,13 @@ class PiranhasTest {
     }
 
     @Test
+    void naturalSchoolDoesNotExceedNearbyCap() {
+        assertEquals(1, policy.schoolSize(0.999, 7));
+        assertEquals(0, policy.schoolSize(0.999, 8));
+        assertEquals(5, policy.schoolSize(0.999, 0));
+    }
+
+    @Test
     void bleedingSwimmersMakeThemFaster() {
         double base = PiranhaSettings.defaults().speed();
         assertEquals(base, policy.huntSpeed(20.0, 20.0), 1.0E-9);

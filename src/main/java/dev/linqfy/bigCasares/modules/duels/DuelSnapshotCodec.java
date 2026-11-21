@@ -24,6 +24,10 @@ final class DuelSnapshotCodec {
         return items;
     }
 
+    static boolean mayApply(boolean recoveryPending) {
+        return !recoveryPending;
+    }
+
     static boolean mayReplace(String revision, String marker) {
         return revision != null && revision.equals(marker);
     }

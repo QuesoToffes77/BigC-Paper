@@ -72,7 +72,7 @@ final class PiranhaRuntime {
             if (policy.shouldSpawn(biome, nearby, random.nextDouble())) {
                 Location water = findWater(at, random);
                 if (water != null) {
-                    spawnSchool(water, policy.schoolSize(random.nextDouble()));
+                    spawnSchool(water, policy.schoolSize(random.nextDouble(), nearby));
                 }
             }
         }

@@ -13,6 +13,11 @@ class DuelSnapshotRecoveryTest {
         assertThrows(IllegalArgumentException.class, () -> DuelSnapshotCodec.decode(yaml, 2, bytes -> bytes[0]));
     }
 
+    @Test void uncertainRecoveryIsNeverReplayedAutomatically() {
+        assertTrue(DuelSnapshotCodec.mayApply(false));
+        assertFalse(DuelSnapshotCodec.mayApply(true));
+    }
+
     @Test void onlyMatchingLiveRevisionCanReplaceAnExistingSnapshot() {
         assertTrue(DuelSnapshotCodec.mayReplace("one", "one"));
         assertFalse(DuelSnapshotCodec.mayReplace("one", "old"));

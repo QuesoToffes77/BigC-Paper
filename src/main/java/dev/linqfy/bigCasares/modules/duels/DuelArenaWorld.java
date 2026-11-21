@@ -33,6 +33,7 @@ final class DuelArenaWorld {
     private final BitSet usedSlots = new BitSet();
     private World world;
     private final Map<Integer, DuelArenaWork> work = new HashMap<>();
+    private final Map<Integer, DuelArenaWork.Build> builds = new HashMap<>();
 
     DuelArenaWorld(Server server, String worldName) {
         this.server = server;
@@ -104,31 +105,29 @@ final class DuelArenaWorld {
         return new BoundingBox(cx - half, FLOOR_Y, -half, cx + half, FLOOR_Y + WALL_HEIGHT + 1, half);
     }
 
-    void build(int slot, DuelArenaSize size) {
+    void startBuild(int slot, DuelArenaSize size) {
+        builds.put(slot, new DuelArenaWork.Build(size));
+    }
+
+    boolean isBuilding(int slot) {
+        return builds.containsKey(slot);
+    }
+
+    boolean stepBuild(int slot, int budget) {
+        DuelArenaWork.Build job = builds.get(slot);
+        if (job == null) throw new IllegalStateException("No arena build for slot " + slot);
         World target = world();
-        int half = (int) Math.ceil(size.halfSide());
+        if (target == null) throw new IllegalStateException("Duel world unavailable");
         int cx = (int) Math.floor(centerX(slot));
-        for (int dx = -half; dx < half; dx++) {
-            for (int dz = -half; dz < half; dz++) {
-                boolean border = dx == -half || dz == -half || dx == half - 1 || dz == half - 1;
-                boolean stripe = dx == 0 || dx == -1;
-                Material floor = border ? Material.POLISHED_BLACKSTONE_BRICKS
-                    : stripe ? Material.RED_CONCRETE : Material.STONE_BRICKS;
-                target.getBlockAt(cx + dx, FLOOR_Y, dz).setType(floor, false);
-            }
-        }
-        for (int y = FLOOR_Y; y <= FLOOR_Y + WALL_HEIGHT; y++) {
-            for (int i = -half - 1; i <= half; i++) {
-                target.getBlockAt(cx + i, y, -half - 1).setType(Material.BARRIER, false);
-                target.getBlockAt(cx + i, y, half).setType(Material.BARRIER, false);
-                target.getBlockAt(cx - half - 1, y, i).setType(Material.BARRIER, false);
-                target.getBlockAt(cx + half, y, i).setType(Material.BARRIER, false);
-            }
-        }
+        job.step(budget, (dx, y, dz, material) -> target.getBlockAt(cx + dx, y, dz).setType(material, false));
+        if (!job.done()) return false;
+        builds.remove(slot);
+        return true;
     }
 
     /** Schedule a bounded clear; the slot remains reserved until completion. */
     void startClear(int slot) {
+        builds.remove(slot);
         work.put(slot, new DuelArenaWork());
     }
 
@@ -136,7 +135,7 @@ final class DuelArenaWorld {
         DuelArenaWork job = work.get(slot);
         if (job == null) return true;
         World target = world();
-        if (target == null) return false;
+        if (target == null) throw new IllegalStateException("Duel world unavailable");
         int cx = (int) Math.floor(centerX(slot));
         job.step(budget, (dx, y, dz) -> {
             var block = target.getBlockAt(cx + dx, y, dz);

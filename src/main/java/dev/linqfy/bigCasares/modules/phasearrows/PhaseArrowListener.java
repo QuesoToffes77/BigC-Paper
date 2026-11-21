@@ -57,18 +57,23 @@ final class PhaseArrowListener implements Listener {
         if (exit.isEmpty()) {
             return;
         }
-        event.setCancelled(true);
         Location target = start.clone().add(direction.clone().multiply(exit.getAsDouble()));
         target.setDirection(direction);
+        if (!arrow.teleport(target, PlayerTeleportEvent.TeleportCause.PLUGIN)) {
+            return;
+        }
+        event.setCancelled(true);
         data.set(phasesKey, PersistentDataType.INTEGER, phases + 1);
         world.spawnParticle(Particle.REVERSE_PORTAL, start, 12, 0.1, 0.1, 0.1, 0.02);
-        arrow.teleport(target, PlayerTeleportEvent.TeleportCause.PLUGIN);
         arrow.setVelocity(velocity);
         world.spawnParticle(Particle.END_ROD, target, 8, 0.1, 0.1, 0.1, 0.02);
         world.playSound(target, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 1.9f);
     }
 
     private PhasePath.Cell cellAt(World world, Location location) {
+        if (!world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
+            return PhasePath.Cell.BLOCKED;
+        }
         Block block = world.getBlockAt(location);
         if (settings.unphaseable().contains(block.getType().name())) {
             return PhasePath.Cell.BLOCKED;

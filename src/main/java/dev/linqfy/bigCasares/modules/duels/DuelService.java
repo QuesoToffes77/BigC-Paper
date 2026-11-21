@@ -358,7 +358,10 @@ final class DuelService {
 
     private void abortDraft(DuelSession session, String reason) {
         end(session);
-        if (session.slot() >= 0) clearing.put(session.slot(), null);
+        if (session.slot() >= 0) {
+            arenas.startClear(session.slot());
+            clearing.put(session.slot(), null);
+        }
         for (UUID id : session.players()) {
             escrow.refund(id, session.wager());
             Player player = server.getPlayer(id);
@@ -401,6 +404,20 @@ final class DuelService {
     }
 
     private void finishBuild(DuelSession session) {
+        try {
+            finishBuildUnchecked(session);
+        } catch (RuntimeException failure) {
+            logger.log(java.util.logging.Level.SEVERE, "[Duelos] Falló el inicio del duelo", failure);
+            try {
+                if (sessions.get(session.first()) == session) abortDraft(session, "No se pudo comenzar el duelo.");
+            } finally {
+                session.players().forEach(this::scheduleRestoreIfSaved);
+                processRestores();
+            }
+        }
+    }
+
+    private void finishBuildUnchecked(DuelSession session) {
         DuelKit kit = settings.kits().get(session.kitId());
         Player first = server.getPlayer(session.first());
         Player second = server.getPlayer(session.second());
@@ -424,9 +441,19 @@ final class DuelService {
             return;
         }
         int slot = session.slot();
-        arenas.build(slot, session.arena());
-        prepare(first, kit, arenas.spawn(slot, session.arena(), true));
-        prepare(second, kit, arenas.spawn(slot, session.arena(), false));
+        try {
+            prepare(first, kit, arenas.spawn(slot, session.arena(), true));
+            prepare(second, kit, arenas.spawn(slot, session.arena(), false));
+        } catch (RuntimeException failure) {
+            logger.log(java.util.logging.Level.SEVERE, "[Duelos] No se pudo preparar a los jugadores", failure);
+            try {
+                abortDraft(session, "No se pudo comenzar el duelo.");
+            } finally {
+                session.players().forEach(this::scheduleRestoreIfSaved);
+                processRestores();
+            }
+            return;
+        }
         session.phase(DuelSession.Phase.COUNTDOWN, clock.getAsLong() + settings.countdownSeconds() * 1000L);
         for (Player player : List.of(first, second)) {
             player.sendMessage(Component.text("Arena " + session.arena().displayName() + " · kit " + kit.displayName()
@@ -446,7 +473,9 @@ final class DuelService {
         player.setFireTicks(0);
         player.setFallDistance(0f);
         kitItems.equip(player, kit);
-        player.teleport(spawn, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        if (!player.teleport(spawn, PlayerTeleportEvent.TeleportCause.PLUGIN)) {
+            throw new IllegalStateException("El teletransporte a la arena fue cancelado para " + player.getName());
+        }
         AttributeInstance maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
         player.setHealth(maxHealth == null ? 20.0 : maxHealth.getValue());
         player.setFoodLevel(20);
@@ -600,13 +629,29 @@ final class DuelService {
         int slot = next.getKey();
         DuelSession session = next.getValue();
         iterator.remove();
-        if (!arenas.stepClear(slot, CLEAR_BUDGET)) {
-            clearing.put(slot, session);
-        } else if (session == null) {
-            arenas.releaseSlot(slot);
-        } else {
-            finishBuild(session);
+        boolean ready = false;
+        try {
+            if (session != null && arenas.isBuilding(slot)) {
+                if (arenas.stepBuild(slot, CLEAR_BUDGET)) ready = true;
+                else clearing.put(slot, session);
+            } else if (!arenas.stepClear(slot, CLEAR_BUDGET)) {
+                clearing.put(slot, session);
+            } else if (session == null) {
+                arenas.releaseSlot(slot);
+            } else {
+                arenas.startBuild(slot, session.arena());
+                clearing.put(slot, session);
+            }
+        } catch (RuntimeException failure) {
+            logger.log(java.util.logging.Level.SEVERE, "[Duelos] Falló la preparación de arena " + slot
+                + "; queda reservada hasta reiniciar.", failure);
+            if (session != null) {
+                abortDraft(session, "No se pudo preparar la arena.");
+                clearing.remove(slot);
+            }
+            return;
         }
+        if (ready) finishBuild(session);
     }
 
     private void tickDraft(DuelSession session, long now) {
