@@ -60,6 +60,7 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -108,8 +109,9 @@ final class StaffEventRuntime implements Listener {
     private final Set<UUID> restoreAfterRespawn = new HashSet<>();
     // Players remain unable to interact until their restored inventory is confirmed on disk.
     private final Set<UUID> restoreBlocked = new LinkedHashSet<>();
-    // Kept in this runtime until checkpoint recovery succeeds; not durable across a restart.
-    private final Map<UUID, StaffEventSettings.Rewards> pendingRewards = new HashMap<>();
+    private final EventRewardJournal rewardJournal;
+    // Evidence remains here only until its immutable journal file has been forced to disk.
+    private final Map<String, EventRewardJournal.Pending> rewardEvidenceToRetry = new LinkedHashMap<>();
     /** Deaths handled by an event, until the death event finishes (the tombstone runs after us). */
     private final Set<UUID> handledDeaths = new HashSet<>();
     private Session session;
@@ -159,6 +161,16 @@ final class StaffEventRuntime implements Listener {
         this.endHuntDeath = endHuntDeath;
         this.registrations = registrations;
         this.hearts = new LifestealHearts(plugin);
+        this.rewardJournal = new EventRewardJournal(plugin.getDataFolder().toPath()
+            .resolve("data/staff-events/rewards-pending"));
+        try {
+            if (rewardJournal.hasPending()) {
+                plugin.getLogger().warning("[Eventos] Hay premios pendientes de revisión manual en "
+                    + rewardJournal.directory());
+            }
+        } catch (IOException failure) {
+            plugin.getLogger().log(Level.SEVERE, "[Eventos] No se pudo revisar la evidencia de premios pendientes.", failure);
+        }
     }
 
     // --- queries -------------------------------------------------------------------------------
@@ -701,10 +713,17 @@ final class StaffEventRuntime implements Listener {
         current.bar.removeAll();
         if (current.arena != null) current.arena.close();
         restorePvp(current);
+        Set<UUID> failedRestores = new HashSet<>();
         for (UUID playerId : List.copyOf(current.participants)) {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null) {
-                restore(player);
+                try {
+                    if (!restore(player)) failedRestores.add(playerId);
+                } catch (RuntimeException failure) {
+                    failedRestores.add(playerId);
+                    restoreBlocked.add(playerId);
+                    quarantineRestore(player, failure);
+                }
             }
         }
         if (headline != null) {
@@ -714,7 +733,9 @@ final class StaffEventRuntime implements Listener {
         for (UUID winnerId : winners) {
             Player winner = Bukkit.getPlayer(winnerId);
             if (winner != null) {
-                if (restoreBlocked.contains(winnerId)) pendingRewards.put(winnerId, rewards);
+                if (failedRestores.contains(winnerId) || restoreBlocked.contains(winnerId)) {
+                    deferWinnerReward(current, winner, rewards);
+                }
                 else giveWinnerRewards(winner, rewards);
             }
         }
@@ -775,7 +796,6 @@ final class StaffEventRuntime implements Listener {
         retireRestoredSnapshot(player);
         if (!store.contains(player.getUniqueId())) {
             restoreBlocked.remove(player.getUniqueId());
-            deliverPendingRewards(player);
         }
         Session current = session;
         hearts.clearUnlessSession(player,
@@ -1160,7 +1180,6 @@ final class StaffEventRuntime implements Listener {
                 }
             }
             restoreBlocked.remove(player.getUniqueId());
-            deliverPendingRewards(player);
             return true;
         }
         restoreBlocked.add(player.getUniqueId());
@@ -1188,7 +1207,6 @@ final class StaffEventRuntime implements Listener {
         }, failure -> quarantineRestore(player, failure));
         if (restored) {
             restoreBlocked.remove(player.getUniqueId());
-            deliverPendingRewards(player);
         }
         return restored;
     }
@@ -1228,6 +1246,7 @@ final class StaffEventRuntime implements Listener {
 
     /** Retry one player at a time to keep recovery I/O bounded. */
     void retryBlockedRestores() {
+        retryRewardEvidence();
         for (UUID playerId : List.copyOf(restoreBlocked)) {
             Player player = Bukkit.getPlayer(playerId);
             if (player == null || !player.isOnline()) {
@@ -1291,9 +1310,37 @@ final class StaffEventRuntime implements Listener {
         };
     }
 
-    private void deliverPendingRewards(Player player) {
-        StaffEventSettings.Rewards rewards = pendingRewards.remove(player.getUniqueId());
-        if (rewards != null) giveWinnerRewards(player, rewards);
+    private void deferWinnerReward(Session current, Player player, StaffEventSettings.Rewards rewards) {
+        if (rewards.isEmpty()) return;
+        EventRewardJournal.Pending evidence = new EventRewardJournal.Pending(UUID.fromString(current.id),
+            player.getUniqueId(), player.getName(), current.type, Instant.now(), rewards);
+        String key = evidence.eventId() + ":" + evidence.playerId();
+        rewardEvidenceToRetry.put(key, evidence);
+        persistRewardEvidence(key, evidence);
+        player.sendMessage(PREFIX + "§eTu premio quedó pendiente de revisión por el staff.");
+    }
+
+    private void retryRewardEvidence() {
+        var first = rewardEvidenceToRetry.entrySet().stream().findFirst();
+        if (first.isEmpty()) return;
+        String key = first.get().getKey();
+        EventRewardJournal.Pending evidence = first.get().getValue();
+        // Rotate a conflicting/unwritable entry so it cannot starve other winners' evidence.
+        rewardEvidenceToRetry.remove(key);
+        rewardEvidenceToRetry.put(key, evidence);
+        persistRewardEvidence(key, evidence);
+    }
+
+    private void persistRewardEvidence(String key, EventRewardJournal.Pending evidence) {
+        try {
+            java.nio.file.Path file = rewardJournal.record(evidence);
+            rewardEvidenceToRetry.remove(key);
+            plugin.getLogger().warning("[Eventos] Premio pendiente de revisión manual: " + file);
+        } catch (IOException | RuntimeException failure) {
+            // If the filesystem remains unavailable through a restart, the log is the last recovery evidence.
+            plugin.getLogger().log(Level.SEVERE,
+                "[Eventos] No se pudo guardar la evidencia del premio; se reintentará: " + evidence, failure);
+        }
     }
 
     private void giveWinnerRewards(Player winner, StaffEventSettings.Rewards rewards) {
