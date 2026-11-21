@@ -28,11 +28,14 @@ class SniperDamageServiceTest {
     private int noDamageTicks = 10;
     private boolean cancel;
     private boolean blocking;
+    private boolean hasTotem;
     private double absorption = 2.0;
     private EntityDamageByEntityEvent hit;
     private final LivingEntity target = proxy(LivingEntity.class, (method, args) -> switch (method) {
         case "getNoDamageTicks" -> noDamageTicks;
+        case "getHealth" -> health;
         case "getAbsorptionAmount" -> absorption;
+        case "setAbsorptionAmount" -> { absorption = (double) args[0]; yield null; }
         case "setNoDamageTicks" -> { noDamageTicks = (int) args[0]; yield null; }
         case "damage" -> {
             assertEquals(0, noDamageTicks);
@@ -41,7 +44,12 @@ class SniperDamageServiceTest {
             service.onDamage(hit);
             service.onDamageResult(hit);
             if (!hit.isCancelled()) {
+                absorption += hit.getDamage(DamageModifier.ABSORPTION);
                 health -= hit.getFinalDamage();
+                if (health <= 0 && hasTotem) {
+                    health = 1.0;
+                    absorption = 16.0;
+                }
             }
             yield null;
         }
@@ -51,11 +59,12 @@ class SniperDamageServiceTest {
     private Entity targetEntity() { return target; }
 
     @Test
-    void hitIgnoresArmorAndResistanceButConsumesAbsorption() {
+    void aYellowHeartAbsorbsHalfAHeartOfArmorPiercingDamage() {
         assertTrue(service.damage(shooter, target, 12.0));
-        assertEquals(10.0, health);
-        assertEquals(10.0, hit.getFinalDamage());
-        assertEquals(-2.0, hit.getDamage(DamageModifier.ABSORPTION));
+        assertEquals(9.0, health);
+        assertEquals(11.0, hit.getFinalDamage());
+        assertEquals(-1.0, hit.getDamage(DamageModifier.ABSORPTION));
+        assertEquals(0.0, absorption);
         assertEquals(shooter, hit.getDamager());
         assertEquals(10, noDamageTicks);
     }
@@ -64,18 +73,20 @@ class SniperDamageServiceTest {
     void activelyBlockingShieldHalvesDamageBeforeAbsorption() {
         blocking = true;
         assertTrue(service.damage(shooter, target, 12.0));
-        assertEquals(16.0, health);
+        assertEquals(15.0, health);
         assertEquals(-6.0, hit.getDamage(DamageModifier.BLOCKING));
-        assertEquals(-2.0, hit.getDamage(DamageModifier.ABSORPTION));
+        assertEquals(-1.0, hit.getDamage(DamageModifier.ABSORPTION));
+        assertEquals(0.0, absorption);
     }
 
     @Test
     void absorptionNeverConsumesMoreThanTheRemainingHit() {
         blocking = true;
-        absorption = 10.0;
+        absorption = 14.0;
         assertFalse(service.damage(shooter, target, 12.0));
         assertEquals(20.0, health);
         assertEquals(-6.0, hit.getDamage(DamageModifier.ABSORPTION));
+        assertEquals(2.0, absorption);
     }
 
     @Test
@@ -84,6 +95,16 @@ class SniperDamageServiceTest {
         assertFalse(service.damage(shooter, target, 12.0));
         assertEquals(20.0, health);
         assertEquals(10, noDamageTicks);
+        assertEquals(2.0, absorption);
+    }
+
+    @Test
+    void lethalHitDoesNotSpendAbsorptionGrantedByATotem() {
+        health = 5.0;
+        hasTotem = true;
+        assertTrue(service.damage(shooter, target, 12.0));
+        assertEquals(1.0, health);
+        assertEquals(16.0, absorption);
     }
 
     @Test
