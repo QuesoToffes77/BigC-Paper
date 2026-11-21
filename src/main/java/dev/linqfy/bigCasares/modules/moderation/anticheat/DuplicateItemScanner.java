@@ -1,5 +1,7 @@
 package dev.linqfy.bigCasares.modules.moderation.anticheat;
 
+import dev.linqfy.bigCasares.platform.ClientPlatform;
+
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -27,6 +29,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * Anti-dupe. A los items valiosos que no se apilan (elytra, totems, equipo de netherite, shulkers...) les pone un id
@@ -43,15 +46,18 @@ public final class DuplicateItemScanner implements Listener {
     private final NamespacedKey key;
     private final AnticheatSettings settings;
     private final BiConsumer<Player, Detection> sink;
+    private final Function<UUID, ClientPlatform> platform;
     private final DuplicateLedger ledger = new DuplicateLedger();
 
     public DuplicateItemScanner(
-        Server server, NamespacedKey key, AnticheatSettings settings, BiConsumer<Player, Detection> sink
+        Server server, NamespacedKey key, AnticheatSettings settings, BiConsumer<Player, Detection> sink,
+        Function<UUID, ClientPlatform> platform
     ) {
         this.server = server;
         this.key = key;
         this.settings = settings;
         this.sink = sink;
+        this.platform = platform;
     }
 
     public void scan() {
@@ -61,7 +67,7 @@ public final class DuplicateItemScanner implements Listener {
         ledger.beginPass();
         Set<Object> visited = new HashSet<>();
         for (Player player : server.getOnlinePlayers()) {
-            if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
+            if (!eligible(player)) {
                 continue;
             }
             scanInventory(player.getInventory(), visited, holder(player, "inventario"));
@@ -95,6 +101,10 @@ public final class DuplicateItemScanner implements Listener {
     /** El clic del medio en creativo copia el item entero: la copia no puede llevar el mismo id. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCreative(InventoryCreativeEvent event) {
+        if (!settings.checkEnabled("item-duplicate")
+            || event.getWhoClicked() instanceof Player player && exempt(player)) {
+            return;
+        }
         ItemStack cursor = event.getCursor();
         if (cursor.getType().isAir() || !cursor.hasItemMeta()) {
             return;
@@ -213,9 +223,25 @@ public final class DuplicateItemScanner implements Listener {
         return holder.place() + " de " + holder.playerName();
     }
 
+    static boolean shouldScan(AnticheatSettings settings, GameMode mode, boolean bypass, ClientPlatform platform) {
+        return settings.checkEnabled("item-duplicate") && !bypass
+            && !(settings.exemptBedrock() && platform == ClientPlatform.BEDROCK)
+            && mode != GameMode.CREATIVE && mode != GameMode.SPECTATOR;
+    }
+
+    private boolean exempt(Player player) {
+        return !settings.bypassPermission().isEmpty() && player.hasPermission(settings.bypassPermission())
+            || settings.exemptBedrock() && platform.apply(player.getUniqueId()) == ClientPlatform.BEDROCK;
+    }
+
+    private boolean eligible(Player player) {
+        boolean bypass = !settings.bypassPermission().isEmpty() && player.hasPermission(settings.bypassPermission());
+        return shouldScan(settings, player.getGameMode(), bypass, platform.apply(player.getUniqueId()));
+    }
+
     private void report(UUID playerId, Detection detection) {
         Player player = server.getPlayer(playerId);
-        if (player != null) {
+        if (player != null && eligible(player)) {
             sink.accept(player, detection);
         }
     }

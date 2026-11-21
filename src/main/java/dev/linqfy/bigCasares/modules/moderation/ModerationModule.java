@@ -92,7 +92,7 @@ public final class ModerationModule implements PluginModule {
             AnticheatListener.HOVER_PERIOD_TICKS, AnticheatListener.HOVER_PERIOD_TICKS);
         DuplicateItemScanner dupes = new DuplicateItemScanner(
             plugin.getServer(), new org.bukkit.NamespacedKey(plugin, "item_uid"), settings.anticheat(),
-            this::acceptDetection
+            this::acceptDetection, plugin::resolvePlayerPlatform
         );
         registrations.registerListener("anticheat-dupe-listener", dupes);
         scope.register("anticheat-dupe-state", dupes::clear);
