@@ -76,7 +76,7 @@ import java.util.UUID;
 public final class BigCasares extends JavaPlugin {
 
     private static final List<String> ROOT_COMMAND_NAMES = List.of(
-        "bigcasares", "shop", "rating", "team", "teammanage", "nexus", "boss"
+        "bigcasares", "shop", "rating", "team", "teammanage", "nexus", "boss", "tumba"
     );
 
     private ModuleManager moduleManager;
