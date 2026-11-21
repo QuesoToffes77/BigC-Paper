@@ -30,6 +30,11 @@ public final class NetheriteQuestBook {
         return settings;
     }
 
+    public boolean hasInventoryReceipt(UUID playerId) {
+        PlayerQuests state = players.get(playerId);
+        return state != null && (state.activationReceipt != null || state.armorDelivery != null || state.soulDelivery != null);
+    }
+
     public Map<ArmorQuestPiece, Integer> pendingArmor(UUID playerId) {
         return Collections.unmodifiableMap(new EnumMap<>(state(playerId).pendingArmor));
     }

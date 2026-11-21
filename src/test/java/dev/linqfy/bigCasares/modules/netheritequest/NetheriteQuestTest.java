@@ -78,6 +78,7 @@ class NetheriteQuestTest {
         NetheriteQuestBook book = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
         book.activate(player, ArmorQuestPiece.LEGGINGS, List.of("sahur"), 0, 0L);
         book.beginActivationReceipt(player, ArmorQuestPiece.LEGGINGS, "sahur", 0, "before", 0, 0f, 0);
+        assertTrue(book.hasInventoryReceipt(player));
         NetheriteQuestStore store = new NetheriteQuestStore(directory.resolve("quests.yml"));
         store.save(book);
         NetheriteQuestBook restored = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
@@ -95,6 +96,7 @@ class NetheriteQuestTest {
         assertEquals("after", reloadedOutcome.activationReceipt(player).orElseThrow().inventoryAfter());
         assertFalse(restored.finishActivation(player, UUID.randomUUID().toString()));
         assertTrue(restored.finishActivation(player, receipt.receiptId()));
+        assertFalse(restored.hasInventoryReceipt(player));
         assertFalse(restored.soulUsable(player, ArmorQuestPiece.BOOTS, "sahur"));
         assertEquals(20, restored.nextActivationCost(player));
         assertEquals(ProgressStatus.COMPLETED,

@@ -4,11 +4,13 @@ import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.module.runtime.InventoryCustody;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapelessRecipe;
+import org.bukkit.plugin.ServicePriority;
 
 import java.io.IOException;
 import java.util.List;
@@ -66,6 +68,16 @@ public final class NetheriteQuestModule implements PluginModule {
             new NamespacedKey(plugin, "netherite_armor_receipt"), new NamespacedKey(plugin, "netherite_activation_receipt"),
             new NamespacedKey(plugin, "netherite_soul_receipt"));
 
+        var services = plugin.getServer().getServicesManager();
+        InventoryCustody custody = created.custodyProvider();
+        try {
+            services.register(InventoryCustody.class, custody, plugin, ServicePriority.Normal);
+            scope.register("netherite-inventory-custody", () -> services.unregister(InventoryCustody.class, custody));
+        } catch (RuntimeException failure) {
+            services.unregister(InventoryCustody.class, custody);
+            throw failure;
+        }
+
         registrations.ownCleanup("netherite-quests-state", () -> {
             created.save();
             if (runtime == created) {
@@ -73,8 +85,11 @@ public final class NetheriteQuestModule implements PluginModule {
             }
         });
         registrations.registerListener("netherite-quests-listener",
-            new NetheriteQuestListener(created, settings.blockSmithingArmor(), settings.maxStepBlocks()));
-        registrations.scheduleRepeating("netherite-quests-expiry", created::expireQuests, 20L * 30L, 20L * 30L);
+            new NetheriteQuestListener(created, settings.blockSmithingArmor(), settings.maxStepBlocks(), registrations));
+        registrations.scheduleRepeating("netherite-quests-expiry", () -> {
+            created.expireQuests();
+            created.retryDeferred();
+        }, 20L * 30L, 20L * 30L);
         registrations.scheduleRepeating("netherite-quests-autosave", created::saveIfDirty, 20L * 60L, 20L * 60L);
         if (settings.goldBlockRecipe()) {
             swapIngotRecipe(registrations);
@@ -87,7 +102,8 @@ public final class NetheriteQuestModule implements PluginModule {
         NetheriteQuestCommand command = new NetheriteQuestCommand(created);
         registrations.bindCommand("netherite-quests-command", pluginCommand, command, command);
         runtime = created;
-        plugin.getServer().getOnlinePlayers().forEach(created::deliverPending);
+        registrations.scheduleDelayed("netherite-quests-startup-delivery",
+            () -> plugin.getServer().getOnlinePlayers().forEach(created::deliverPending), 2L);
     }
 
     /** Replaces the vanilla 4 scrap + 4 gold ingots recipe with 4 scrap + 4 gold blocks; restored on disable. */

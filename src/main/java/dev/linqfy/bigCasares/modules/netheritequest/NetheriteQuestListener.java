@@ -14,6 +14,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
+import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 
 import java.util.Set;
 
@@ -26,11 +27,14 @@ final class NetheriteQuestListener implements Listener {
     private final NetheriteQuestRuntime runtime;
     private final boolean blockSmithingArmor;
     private final double maxStepBlocks;
+    private final BukkitRuntimeRegistrations registrations;
 
-    NetheriteQuestListener(NetheriteQuestRuntime runtime, boolean blockSmithingArmor, double maxStepBlocks) {
+    NetheriteQuestListener(NetheriteQuestRuntime runtime, boolean blockSmithingArmor, double maxStepBlocks,
+                           BukkitRuntimeRegistrations registrations) {
         this.runtime = runtime;
         this.blockSmithingArmor = blockSmithingArmor;
         this.maxStepBlocks = maxStepBlocks;
+        this.registrations = registrations;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -62,7 +66,10 @@ final class NetheriteQuestListener implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        runtime.deliverPending(event.getPlayer());
+        Player player = event.getPlayer();
+        registrations.scheduleDelayed("netherite-quests-join-delivery", () -> {
+            if (player.isOnline()) runtime.deliverPending(player);
+        }, 2L);
     }
 
     /** Netherite armor only comes from the quests; netherite tools still upgrade normally. */

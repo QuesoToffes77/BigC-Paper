@@ -129,8 +129,11 @@ final class NetheriteQuestCommand implements TabExecutor {
             }
         }
         String bossId = args[2].toLowerCase(Locale.ROOT);
-        runtime.giveOrDrop(target, runtime.souls().create(bossId, bossId, amount));
-        sender.sendMessage("§aLe diste " + amount + "x Alma de " + bossId + " a " + target.getName() + ".");
+        if (runtime.queueAdminSoul(target, bossId, amount)) {
+            sender.sendMessage("§aSe registraron " + amount + "x Alma de " + bossId + " para " + target.getName() + ".");
+        } else {
+            sender.sendMessage("§cNo se pudo guardar la recompensa.");
+        }
     }
 
     @SuppressWarnings("deprecation")

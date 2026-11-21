@@ -29,6 +29,7 @@ import java.util.function.LongSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
+import dev.linqfy.bigCasares.module.runtime.InventoryCustody;
 
 /** Applies the quest rules to live players: inventories, XP levels, rewards and messages. */
 final class NetheriteQuestRuntime {
@@ -45,6 +46,8 @@ final class NetheriteQuestRuntime {
     private final NamespacedKey armorReceiptKey;
     private final NamespacedKey activationReceiptKey;
     private final NamespacedKey soulReceiptKey;
+    private final InventoryCustody custody;
+    private final Set<UUID> deferredForCustody = new LinkedHashSet<>();
     private boolean dirty;
     private boolean paused;
 
@@ -65,6 +68,7 @@ final class NetheriteQuestRuntime {
         this.armorReceiptKey = armorReceiptKey;
         this.activationReceiptKey = activationReceiptKey;
         this.soulReceiptKey = soulReceiptKey;
+        this.custody = book::hasInventoryReceipt;
     }
 
     NetheriteQuestBook book() {
@@ -80,6 +84,10 @@ final class NetheriteQuestRuntime {
     void activate(Player player, ArmorQuestPiece piece) {
         if (paused) return;
         UUID playerId = player.getUniqueId();
+        if (ownedElsewhere(playerId)) {
+            player.sendMessage("§cTu inventario está ocupado; intentá activar la misión más tarde.");
+            return;
+        }
         if (book.activationPending(playerId)) {
             recoverActivation(player);
             if (paused || book.activationPending(playerId)) {
@@ -236,6 +244,7 @@ final class NetheriteQuestRuntime {
 
     void deliverPending(Player player) {
         if (paused) return;
+        if (deferIfOwned(player.getUniqueId())) return;
         recoverActivation(player);
         if (paused) return;
         deliverArmor(player);
@@ -244,6 +253,11 @@ final class NetheriteQuestRuntime {
     }
 
     void claimRewards(Player player) {
+        if (deferIfOwned(player.getUniqueId())) {
+            player.sendMessage("§eTus recompensas siguen pendientes hasta que se libere tu inventario.");
+            return;
+        }
+        recoverActivation(player);
         deliverArmor(player);
         if (!paused) deliverSouls(player);
     }
@@ -251,6 +265,7 @@ final class NetheriteQuestRuntime {
     private void deliverSouls(Player player) {
         if (paused || soulReceiptKey == null) return;
         UUID id = player.getUniqueId();
+        if (deferIfOwned(id)) return;
         var existing = book.soulDelivery(id);
         if (existing.isPresent()) {
             try {
@@ -299,6 +314,7 @@ final class NetheriteQuestRuntime {
 
     private void recoverActivation(Player player) {
         UUID id = player.getUniqueId();
+        if (deferIfOwned(id)) return;
         book.activationReceipt(id).ifPresent(receipt -> {
             try {
                 if (receipt.inventoryAfter() == null || activationReceiptKey == null
@@ -327,6 +343,7 @@ final class NetheriteQuestRuntime {
     void deliverArmor(Player player) {
         if (paused || armorReceiptKey == null) return;
         UUID id = player.getUniqueId();
+        if (deferIfOwned(id)) return;
         var existing = book.armorDelivery(id);
         if (existing.isPresent()) {
             try {
@@ -459,9 +476,37 @@ final class NetheriteQuestRuntime {
         return stack;
     }
 
-    void giveOrDrop(Player player, ItemStack stack) {
-        for (ItemStack left : player.getInventory().addItem(stack).values()) {
-            player.getWorld().dropItemNaturally(player.getLocation(), left);
+    boolean queueAdminSoul(Player player, String bossId, int amount) {
+        if (paused) return false;
+        book.addPendingSoul(player.getUniqueId(), bossId, bossId, amount);
+        dirty = true;
+        if (!saveChecked()) return false;
+        deliverSouls(player);
+        return true;
+    }
+
+    InventoryCustody custodyProvider() { return custody; }
+
+    private boolean ownedElsewhere(UUID playerId) {
+        return InventoryCustody.ownedByOther(server, playerId, custody);
+    }
+
+    private boolean deferIfOwned(UUID playerId) {
+        if (!ownedElsewhere(playerId)) return false;
+        deferredForCustody.add(playerId);
+        return true;
+    }
+
+    void retryDeferred() {
+        if (paused) return;
+        for (UUID playerId : List.copyOf(deferredForCustody)) {
+            Player player = server.getPlayer(playerId);
+            if (player == null || !player.isOnline()) {
+                deferredForCustody.remove(playerId);
+            } else if (!ownedElsewhere(playerId)) {
+                deferredForCustody.remove(playerId);
+                deliverPending(player);
+            }
         }
     }
 
@@ -493,7 +538,7 @@ final class NetheriteQuestRuntime {
     boolean paused() { return paused; }
 
     boolean resolveReceipt(UUID playerId, String receipt, String kind, boolean confirmed) {
-        if (paused) return false;
+        if (paused || ownedElsewhere(playerId)) return false;
         boolean resolved = switch (kind) {
             case "activacion" -> book.resolveActivation(playerId, receipt, confirmed);
             case "armadura" -> book.resolveArmorDelivery(playerId, receipt, confirmed);
