@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.geyser;
 
 import dev.linqfy.bigCasares.modules.caichet.CaiChetBedrockItems;
+import dev.linqfy.bigCasares.modules.caichet.HotelLoot;
 import dev.linqfy.bigCasares.modules.resourcepack.ResourcePackAsset;
 import dev.linqfy.bigCasares.modules.resourcepack.ResourcePackRegistry;
 import dev.linqfy.bigCasares.testsupport.CompiledClass;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GeyserCaiChetItemsTest {
@@ -37,6 +39,42 @@ class GeyserCaiChetItemsTest {
     }
 
     @Test
+    void bottleAndJarCarryTheirDrinkTimeAndNothingElseIsConsumed() {
+        Map<String, GeyserCustomItemDefinition> byModel = GeyserCaiChetItems.definitions(CaiChetBedrockItems.all())
+            .stream().collect(Collectors.toMap(GeyserCustomItemDefinition::javaModelIdentifier, Function.identity()));
+
+        assertEquals(new GeyserItemConsumption(1.6f, GeyserItemConsumption.Animation.DRINK),
+            byModel.get("caichet:botella").consumption());
+        assertEquals(new GeyserItemConsumption(2.4f, GeyserItemConsumption.Animation.DRINK),
+            byModel.get("caichet:jarra").consumption());
+        byModel.forEach((model, definition) -> {
+            if (!model.equals("caichet:botella") && !model.equals("caichet:jarra")) {
+                assertNull(definition.consumption(), model);
+            }
+        });
+    }
+
+    @Test
+    void drinkTimesAreTheOnesHotelLootUsesForTheJavaConsumable() {
+        Map<String, Long> millis = CaiChetBedrockItems.all().stream()
+            .collect(Collectors.toMap(CaiChetBedrockItems.Item::itemModel, CaiChetBedrockItems.Item::drinkMillis));
+
+        assertEquals(HotelLoot.BOTTLE_DRINK_MS, millis.get("caichet:botella"));
+        assertEquals(HotelLoot.JAR_DRINK_MS, millis.get("caichet:jarra"));
+    }
+
+    @Test
+    void javaDrinksCarryTheConsumableAndNoFoodComponentThatGeyserWouldTranslateDifferently() throws IOException {
+        CompiledClass loot = CompiledClass.of(getClass(), HotelLoot.class.getName());
+
+        assertTrue(loot.referencedClasses().contains("io/papermc/paper/datacomponent/item/Consumable"));
+        assertTrue(loot.calls("io/papermc/paper/datacomponent/item/Consumable$Builder", "consumeSeconds"));
+        assertTrue(loot.mentionsType("io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation"));
+        // Geyser sends Bedrock a food component of its own (nutrition 0, can always eat) when the item has none
+        assertFalse(loot.mentionsType("io.papermc.paper.datacomponent.item.FoodProperties"));
+    }
+
+        @Test
     void eachIconKeyComesFromARegistryEntryWithItsTexture() throws IOException {
         Map<String, ResourcePackAsset> registry = ResourcePackRegistry.load(Path.of("resourcepack/shared/registry.yml"))
             .assets().stream().collect(Collectors.toMap(ResourcePackAsset::id, Function.identity()));

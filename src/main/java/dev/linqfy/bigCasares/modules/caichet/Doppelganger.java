@@ -36,6 +36,8 @@ final class Doppelganger {
 
     /** Vida de un jugador. */
     private static final double HEALTH = 20.0;
+    /** Mas lejos que esto de su gallina, el cuerpo se teletransporta en vez de caminar hasta ella (bloques). */
+    static final double SNAP_DISTANCE = 3.0;
 
     private static final Map<UUID, Doppelganger> BY_ENTITY = new HashMap<>();
 
@@ -132,10 +134,20 @@ final class Doppelganger {
         }
     }
 
-    /** El maniqui se para donde esta la gallina y mira para el mismo lado. */
+    /**
+     * El maniqui sigue a la gallina y mira para el mismo lado. Cerca se lo empuja con velocidad, no con un teleport por
+     * tick: asi el servidor manda movimiento normal, que Bedrock (via Geyser) interpola igual que a un jugador; con
+     * teleports Bedrock lo ve quieto o a los saltos. Si quedo lejos (o en otro mundo) se lo lleva de una.
+     */
     void sync() {
-        Location at = brain.getLocation();
-        body.teleport(at);
+        Location to = brain.getLocation();
+        Location from = body.getLocation();
+        if (!from.getWorld().equals(to.getWorld()) || from.distanceSquared(to) > SNAP_DISTANCE * SNAP_DISTANCE) {
+            body.teleport(to);
+        } else {
+            body.setVelocity(to.toVector().subtract(from.toVector()));
+            body.setRotation(to.getYaw(), to.getPitch());
+        }
         body.setBodyYaw(brain.getBodyYaw());
     }
 

@@ -21,6 +21,8 @@ import org.geysermc.geyser.api.pack.ResourcePack;
 import org.geysermc.geyser.api.util.Identifier;
 import org.geysermc.geyser.api.item.custom.v2.CustomItemBedrockOptions;
 import org.geysermc.geyser.api.item.custom.v2.CustomItemDefinition;
+import org.geysermc.geyser.api.item.custom.v2.component.java.JavaConsumable;
+import org.geysermc.geyser.api.item.custom.v2.component.java.JavaItemDataComponents;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -179,16 +181,27 @@ public final class GeyserRuntimeBridge implements GeyserApiFacade, EventRegistra
 
     public void onDefineCustomItems(GeyserDefineCustomItemsEvent event) {
         for (GeyserCustomItemDefinition definition : customItems) {
-            CustomItemDefinition geyserDefinition = CustomItemDefinition.builder(
+            CustomItemDefinition.Builder builder = CustomItemDefinition.builder(
                     Identifier.of(definition.bedrockIdentifier()),
                     Identifier.of(definition.javaModelIdentifier()))
                 .displayName(definition.displayName())
                 .bedrockOptions(CustomItemBedrockOptions.builder()
                     .icon(definition.icon())
-                    .allowOffhand(true))
-                .build();
-            event.register(Identifier.of(definition.javaBaseIdentifier()), geyserDefinition);
+                    .allowOffhand(true));
+            GeyserItemConsumption consumption = definition.consumption();
+            if (consumption != null) {
+                builder.component(JavaItemDataComponents.CONSUMABLE,
+                    JavaConsumable.of(consumption.seconds(), animation(consumption.animation())));
+            }
+            event.register(Identifier.of(definition.javaBaseIdentifier()), builder.build());
         }
+    }
+
+    private static JavaConsumable.Animation animation(GeyserItemConsumption.Animation animation) {
+        return switch (animation) {
+            case EAT -> JavaConsumable.Animation.EAT;
+            case DRINK -> JavaConsumable.Animation.DRINK;
+        };
     }
 
     public void onDefineCustomBlocks(GeyserDefineCustomBlocksEvent event) {

@@ -144,8 +144,10 @@ public final class HotelLoot implements Listener {
         return item;
     }
 
-    private static final long BOTTLE_DRINK_MS = 1600;
-    private static final long JAR_DRINK_MS = 2400;
+    public static final long BOTTLE_DRINK_MS = 1600;
+    public static final long JAR_DRINK_MS = 2400;
+    /** Ticks que se espera, tras el click de un jugador Bedrock, a ver si empezo a beber por su cuenta. */
+    private static final long BEDROCK_DRINK_CHECK_TICKS = 5;
 
     private static Consumable drink(float seconds) {
         return Consumable.consumable()
@@ -302,10 +304,13 @@ public final class HotelLoot implements Listener {
     }
 
     /**
-     * Bedrock no tiene el componente de consumible de Java sobre un papel, asi que su cliente no empieza a beber: con
-     * click derecho se bebe al instante (y se cancela el uso normal, para que nunca cuente dos veces).
+     * Geyser le dice a Bedrock que la botella y la jarra se consumen (ver {@link CaiChetBedrockItems}), asi que el
+     * cliente empieza a beber y el servidor lo cuenta como en Java: llega {@link PlayerItemConsumeEvent} y {@link
+     * #onConsume} da la comida. Este camino es solo un respaldo para un cliente que no llega a beber: pasados unos
+     * ticks del click, si el jugador no esta bebiendo, se bebe al instante. Nunca cancela el click, para no impedir
+     * el trago normal, y si el trago empezo no hace nada, asi no cuenta dos veces.
      */
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler
     public void onBedrockDrink(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
@@ -315,8 +320,15 @@ public final class HotelLoot implements Listener {
                 || !Bedrock.is(event.getPlayer())) {
             return;
         }
-        event.setCancelled(true);
         Player player = event.getPlayer();
+        EquipmentSlot hand = event.getHand();
+        CaiChetRuntime.tasks().later(() -> drinkIfNotStarted(player, hand, id), BEDROCK_DRINK_CHECK_TICKS);
+    }
+
+    private void drinkIfNotStarted(Player player, EquipmentSlot hand, String id) {
+        if (!player.isOnline() || player.isHandRaised() || !id.equals(idOf(player.getInventory().getItem(hand)))) {
+            return;
+        }
         long now = System.currentTimeMillis();
         Long until = drinkingUntil.get(player.getUniqueId());
         if (until != null && now < until) {
@@ -324,9 +336,9 @@ public final class HotelLoot implements Listener {
         }
         drinkingUntil.put(player.getUniqueId(), now + ("jarra".equals(id) ? JAR_DRINK_MS : BOTTLE_DRINK_MS));
         if (player.getGameMode() != GameMode.CREATIVE) {
-            ItemStack held = player.getInventory().getItem(event.getHand());
+            ItemStack held = player.getInventory().getItem(hand);
             held.setAmount(held.getAmount() - 1);
-            player.getInventory().setItem(event.getHand(), held.getAmount() > 0 ? held : null);
+            player.getInventory().setItem(hand, held.getAmount() > 0 ? held : null);
         }
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 1f, 1f);
         if ("botella".equals(id)) {

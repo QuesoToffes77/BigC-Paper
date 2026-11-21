@@ -13,7 +13,14 @@ final class GeyserCaiChetItems {
     static List<GeyserCustomItemDefinition> definitions(List<CaiChetBedrockItems.Item> items) {
         return items.stream()
             .map(item -> new GeyserCustomItemDefinition(
-                item.javaBaseItem(), item.itemModel(), item.itemModel(), item.icon(), item.displayName()))
+                item.javaBaseItem(), item.itemModel(), item.itemModel(), item.icon(), item.displayName(),
+                consumption(item.drinkMillis())))
             .toList();
+    }
+
+    private static GeyserItemConsumption consumption(long drinkMillis) {
+        return drinkMillis > 0
+            ? new GeyserItemConsumption(drinkMillis / 1000f, GeyserItemConsumption.Animation.DRINK)
+            : null;
     }
 }
