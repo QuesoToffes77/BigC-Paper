@@ -96,11 +96,8 @@ final class NetheriteQuestRuntime {
             }
         }
         List<String> held = heldSoulBosses(player.getInventory());
-        String inventoryBefore = inventorySnapshot(player);
         int levelBefore = player.getLevel();
-        float expBefore = player.getExp();
-        int totalBefore = player.getTotalExperience();
-        Activation activation = book.activate(playerId, piece, held, player.getLevel(), clock.getAsLong());
+        Activation activation = book.activate(playerId, piece, held, levelBefore, clock.getAsLong());
         switch (activation.status()) {
             case PENDING_REVIEW -> player.sendMessage("§cTu activación anterior requiere revisión.");
             case ALREADY_ACTIVE -> player.sendMessage("§cYa tenés activa la misión del " + piece.displayName() + ".");
@@ -113,8 +110,9 @@ final class NetheriteQuestRuntime {
             case STARTED -> {
                 try {
                     book.beginActivationReceipt(playerId, piece, activation.soulBoss(), activation.cost(),
-                        inventoryBefore, levelBefore, expBefore, totalBefore);
+                        inventorySnapshot(player), levelBefore, player.getExp(), player.getTotalExperience());
                 } catch (RuntimeException failure) {
+                    if (!book.activationPending(playerId)) book.cancelActivation(playerId, piece);
                     paused = true;
                     logger.log(Level.SEVERE, "[Netherita] No se pudo preparar la activación de " + playerId, failure);
                     player.sendMessage("§cLa activación quedó pausada. Contactá a un administrador.");
