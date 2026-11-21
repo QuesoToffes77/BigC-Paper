@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * {@code /netherita [estado]}, {@code /netherita activar <pieza>}; admins also get
@@ -29,6 +30,10 @@ final class NetheriteQuestCommand implements TabExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (runtime.paused()) {
+            sender.sendMessage("§cLas misiones de netherita están pausadas por un error de guardado.");
+            return true;
+        }
         String sub = args.length == 0 ? "estado" : args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
             case "estado" -> {
@@ -50,11 +55,54 @@ final class NetheriteQuestCommand implements TabExecutor {
                 }
                 runtime.activate(player, piece.get());
             }
+            case "reclamar" -> {
+                if (sender instanceof Player player) runtime.claimRewards(player);
+                else sender.sendMessage("§cSolo jugadores.");
+            }
             case "alma" -> giveSoul(sender, label, args);
             case "reset" -> reset(sender, label, args);
+            case "revisar" -> resolve(sender, label, args);
             default -> sender.sendMessage("§cUso: /" + label + " [estado|activar <pieza>]");
         }
         return true;
+    }
+
+    private void resolve(CommandSender sender, String label, String[] args) {
+        if (!sender.hasPermission(ADMIN_PERMISSION)) {
+            sender.sendMessage("§cNo tenés permiso.");
+            return;
+        }
+        if (args.length != 5) {
+            sender.sendMessage("§e/" + label + " revisar activacion <uuid> <recibo> <pagado|no-pagado>");
+            sender.sendMessage("§e/" + label + " revisar armadura <uuid> <recibo> <entregada|no-entregada>");
+            sender.sendMessage("§e/" + label + " revisar alma <uuid> <recibo> <entregada|no-entregada>");
+            sender.sendMessage("§7Revisá los datos del jugador y el recibo antes de decidir.");
+            return;
+        }
+        boolean activation = args[1].equalsIgnoreCase("activacion");
+        if (!activation && !args[1].equalsIgnoreCase("armadura") && !args[1].equalsIgnoreCase("alma")) {
+            sender.sendMessage("§cTipo de recibo inválido.");
+            return;
+        }
+        boolean confirmed;
+        if (args[4].equalsIgnoreCase(activation ? "pagado" : "entregada")) confirmed = true;
+        else if (args[4].equalsIgnoreCase(activation ? "no-pagado" : "no-entregada")) confirmed = false;
+        else {
+            sender.sendMessage("§cIndicá el resultado verificado del recibo.");
+            return;
+        }
+        try {
+            UUID id = UUID.fromString(args[2]);
+            if (runtime.resolveReceipt(id, args[3], args[1].toLowerCase(Locale.ROOT), confirmed)) {
+                sender.getServer().getLogger().info("[Netherita] " + sender.getName() + " resolved " + args[1]
+                    + " " + id + " receipt " + args[3] + " as " + args[4]);
+                sender.sendMessage("§aRevisión registrada.");
+            } else {
+                sender.sendMessage("§cNo se pudo resolver ese recibo; revisá el UUID y el registro.");
+            }
+        } catch (IllegalArgumentException invalid) {
+            sender.sendMessage("§cUUID inválido.");
+        }
     }
 
     private void giveSoul(CommandSender sender, String label, String[] args) {
@@ -96,6 +144,10 @@ final class NetheriteQuestCommand implements TabExecutor {
             return;
         }
         OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
+        if (runtime.book().activationPending(target.getUniqueId())) {
+            sender.sendMessage("§cHay una activación pendiente de revisión para ese jugador.");
+            return;
+        }
         runtime.book().resetPlayer(target.getUniqueId());
         runtime.markDirty();
         sender.sendMessage("§aMisiones de netherita reiniciadas para " + args[1] + ".");
@@ -105,9 +157,9 @@ final class NetheriteQuestCommand implements TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> options = new ArrayList<>();
         if (args.length == 1) {
-            options.addAll(List.of("estado", "activar"));
+            options.addAll(List.of("estado", "activar", "reclamar"));
             if (sender.hasPermission(ADMIN_PERMISSION)) {
-                options.addAll(List.of("alma", "reset"));
+                options.addAll(List.of("alma", "reset", "revisar"));
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("activar")) {
             Arrays.stream(ArmorQuestPiece.values()).map(ArmorQuestPiece::id).forEach(options::add);

@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -69,6 +71,125 @@ class NetheriteQuestTest {
         assertTrue(book.soulUsable(player, ArmorQuestPiece.LEGGINGS, "sahur"));
         assertEquals(ActivationStatus.STARTED,
             book.activate(player, ArmorQuestPiece.LEGGINGS, List.of("sahur"), 20, 2L).status());
+    }
+
+    @Test
+    void activationReceiptSurvivesRestartAndFreezesQuestProgress(@TempDir Path directory) throws Exception {
+        NetheriteQuestBook book = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        book.activate(player, ArmorQuestPiece.LEGGINGS, List.of("sahur"), 0, 0L);
+        book.beginActivationReceipt(player, ArmorQuestPiece.LEGGINGS, "sahur", 0, "before", 0, 0f, 0);
+        NetheriteQuestStore store = new NetheriteQuestStore(directory.resolve("quests.yml"));
+        store.save(book);
+        NetheriteQuestBook restored = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        store.loadInto(restored);
+        assertTrue(restored.activationPending(player));
+        assertTrue(restored.addProgress(player, ArmorQuestPiece.LEGGINGS, 3, 1L).isEmpty());
+        assertTrue(restored.pendingArmor(player).isEmpty());
+        assertEquals(ActivationStatus.PENDING_REVIEW,
+            restored.activate(player, ArmorQuestPiece.BOOTS, List.of("another"), 100, 2L).status());
+        var receipt = restored.activationReceipt(player).orElseThrow();
+        restored.recordActivationOutcome(player, "after", 0, 0f, 0);
+        store.save(restored);
+        NetheriteQuestBook reloadedOutcome = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        store.loadInto(reloadedOutcome);
+        assertEquals("after", reloadedOutcome.activationReceipt(player).orElseThrow().inventoryAfter());
+        assertFalse(restored.finishActivation(player, UUID.randomUUID().toString()));
+        assertTrue(restored.finishActivation(player, receipt.receiptId()));
+        assertFalse(restored.soulUsable(player, ArmorQuestPiece.BOOTS, "sahur"));
+        assertEquals(20, restored.nextActivationCost(player));
+        assertEquals(ProgressStatus.COMPLETED,
+            restored.addProgress(player, ArmorQuestPiece.LEGGINGS, 3, 1L).orElseThrow().status());
+    }
+
+    @Test
+    void soulDeliveryReceiptRemainsPendingAfterRestart(@TempDir Path directory) throws Exception {
+        NetheriteQuestBook book = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        book.addPendingSoul(player, "sahur", "Sahur", 2);
+        String receipt = book.beginSoulDelivery(player, "sahur", 1, "before").orElseThrow();
+        book.recordSoulOutcome(player, "after");
+        NetheriteQuestStore store = new NetheriteQuestStore(directory.resolve("quests.yml"));
+        store.save(book);
+        NetheriteQuestBook restored = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        store.loadInto(restored);
+        assertEquals("before", restored.soulDelivery(player).orElseThrow().inventoryBefore());
+        assertEquals("after", restored.soulDelivery(player).orElseThrow().inventoryAfter());
+        assertTrue(restored.beginSoulDelivery(player, "sahur", 2).isEmpty());
+        assertEquals(2, restored.view(player).pendingSouls().get("sahur").amount());
+        assertFalse(restored.resolveSoulDelivery(player, UUID.randomUUID().toString(), true));
+        assertTrue(restored.resolveSoulDelivery(player, receipt, true));
+        assertEquals(1, restored.view(player).pendingSouls().get("sahur").amount());
+    }
+
+    @Test
+    void legacyQuestDataWithoutReceiptsStillLoads(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("quests.yml");
+        Files.writeString(file, "players:\n  " + player + ":\n    activations: 1\n    souls:\n      leggings: sahur\n");
+        NetheriteQuestBook book = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        new NetheriteQuestStore(file).loadInto(book);
+        assertTrue(book.pendingArmor(player).isEmpty());
+        assertTrue(book.armorDelivery(player).isEmpty());
+        assertFalse(book.activationPending(player));
+        assertTrue(book.soulDelivery(player).isEmpty());
+        assertEquals(20, book.nextActivationCost(player));
+    }
+
+    @Test
+    void malformedPendingReceiptDoesNotLoadAsEmpty(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("quests.yml");
+        Files.writeString(file, "players:\n  " + player + ":\n    soul-delivery:\n      boss: sahur\n      amount: 1\n      receipt: invalid\n");
+        assertThrows(IOException.class,
+            () -> new NetheriteQuestStore(file).loadInto(new NetheriteQuestBook(NetheriteQuestSettings.defaults())));
+    }
+
+    @Test
+    void completedArmorRemainsPendingAfterRestart(@TempDir Path directory) throws Exception {
+        NetheriteQuestBook book = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        book.activate(player, ArmorQuestPiece.LEGGINGS, List.of("sahur"), 0, 0L);
+        book.addProgress(player, ArmorQuestPiece.LEGGINGS, 3, 1L);
+        NetheriteQuestStore store = new NetheriteQuestStore(directory.resolve("quests.yml"));
+        store.save(book);
+        NetheriteQuestBook restored = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        store.loadInto(restored);
+        assertEquals(1, restored.pendingArmor(player).get(ArmorQuestPiece.LEGGINGS));
+    }
+
+    @Test
+    void armorDeliveryReceiptSurvivesRestartAndRequiresExactAcknowledgement(@TempDir Path directory) throws Exception {
+        NetheriteQuestBook book = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        book.activate(player, ArmorQuestPiece.LEGGINGS, List.of("sahur"), 0, 0L);
+        book.addProgress(player, ArmorQuestPiece.LEGGINGS, 3, 1L);
+        var delivery = book.beginArmorDelivery(player, ArmorQuestPiece.LEGGINGS, "before").orElseThrow();
+        book.recordArmorOutcome(player, "after");
+        NetheriteQuestStore store = new NetheriteQuestStore(directory.resolve("quests.yml"));
+        store.save(book);
+        NetheriteQuestBook restored = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        store.loadInto(restored);
+        assertEquals(delivery.receiptId(), restored.armorDelivery(player).orElseThrow().receiptId());
+        assertEquals("before", restored.armorDelivery(player).orElseThrow().inventoryBefore());
+        assertEquals("after", restored.armorDelivery(player).orElseThrow().inventoryAfter());
+        assertTrue(restored.beginArmorDelivery(player, ArmorQuestPiece.LEGGINGS).isEmpty());
+        assertFalse(restored.finishArmorDelivery(player, UUID.randomUUID().toString()));
+        assertTrue(restored.finishArmorDelivery(player, delivery.receiptId()));
+        assertTrue(restored.pendingArmor(player).isEmpty());
+    }
+
+    @Test
+    void manualResolutionRequiresExactReceiptAndDoesNotDropUnpaidRewards() {
+        NetheriteQuestBook book = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        book.activate(player, ArmorQuestPiece.LEGGINGS, List.of("sahur"), 0, 0L);
+        book.beginActivationReceipt(player, ArmorQuestPiece.LEGGINGS, "sahur", 0, "before", 0, 0f, 0);
+        String activationId = book.activationReceipt(player).orElseThrow().receiptId();
+        assertFalse(book.resolveActivation(player, UUID.randomUUID().toString(), false));
+        assertTrue(book.resolveActivation(player, activationId, false));
+        assertEquals(0, book.nextActivationCost(player));
+        assertFalse(book.hasActive(player, ArmorQuestPiece.LEGGINGS));
+        book.activate(player, ArmorQuestPiece.LEGGINGS, List.of("sahur"), 0, 0L);
+        book.addProgress(player, ArmorQuestPiece.LEGGINGS, 3, 1L);
+        String armorId = book.beginArmorDelivery(player, ArmorQuestPiece.LEGGINGS).orElseThrow().receiptId();
+        assertFalse(book.resolveArmorDelivery(player, UUID.randomUUID().toString(), false));
+        assertTrue(book.resolveArmorDelivery(player, armorId, false));
+        assertEquals(1, book.pendingArmor(player).get(ArmorQuestPiece.LEGGINGS));
+        assertTrue(book.armorDelivery(player).isEmpty());
     }
 
     @Test
@@ -142,6 +263,30 @@ class NetheriteQuestTest {
 
         assertEquals(book.view(player), loaded.view(player));
         assertEquals(40, loaded.nextActivationCost(player));
+    }
+
+    @Test
+    void failedReplacementPreservesExistingQuestFile(@TempDir Path folder) throws Exception {
+        Path file = folder.resolve("quests.yml");
+        String previous = "players: {}\n";
+        Files.writeString(file, previous);
+        Files.createDirectory(folder.resolve("quests.yml.tmp"));
+        NetheriteQuestStore store = new NetheriteQuestStore(file);
+        assertThrows(IOException.class, () -> store.save(new NetheriteQuestBook(NetheriteQuestSettings.defaults())));
+        assertEquals(previous, Files.readString(file));
+    }
+
+    @Test
+    void savedQuestStateCanReplaceAnExistingLegacyFile(@TempDir Path folder) throws Exception {
+        Path file = folder.resolve("quests.yml");
+        Files.writeString(file, "players: {}\n");
+        NetheriteQuestStore store = new NetheriteQuestStore(file);
+        NetheriteQuestBook book = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        book.activate(player, ArmorQuestPiece.HELMET, List.of("mutango"), 0, 0L);
+        store.save(book);
+        NetheriteQuestBook restored = new NetheriteQuestBook(NetheriteQuestSettings.defaults());
+        store.loadInto(restored);
+        assertEquals(book.view(player), restored.view(player));
     }
 
     @Test

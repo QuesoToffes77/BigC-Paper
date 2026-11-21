@@ -7,6 +7,7 @@ import dev.linqfy.bigCasares.modules.netheritequest.NetheriteQuestBook.PlayerVie
 import dev.linqfy.bigCasares.modules.netheritequest.NetheriteQuestBook.Progress;
 import dev.linqfy.bigCasares.modules.netheritequest.NetheriteQuestBook.ProgressStatus;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Server;
 import org.bukkit.Sound;
 import org.bukkit.enchantments.Enchantment;
@@ -17,6 +18,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -26,6 +28,7 @@ import java.util.UUID;
 import java.util.function.LongSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
 
 /** Applies the quest rules to live players: inventories, XP levels, rewards and messages. */
 final class NetheriteQuestRuntime {
@@ -39,16 +42,29 @@ final class NetheriteQuestRuntime {
     private final NetheriteQuestStore store;
     private final BossSoulItem souls;
     private final LongSupplier clock;
+    private final NamespacedKey armorReceiptKey;
+    private final NamespacedKey activationReceiptKey;
+    private final NamespacedKey soulReceiptKey;
     private boolean dirty;
+    private boolean paused;
 
     NetheriteQuestRuntime(Server server, Logger logger, NetheriteQuestBook book, NetheriteQuestStore store,
                           BossSoulItem souls, LongSupplier clock) {
+        this(server, logger, book, store, souls, clock, null, null, null);
+    }
+
+    NetheriteQuestRuntime(Server server, Logger logger, NetheriteQuestBook book, NetheriteQuestStore store,
+                          BossSoulItem souls, LongSupplier clock, NamespacedKey armorReceiptKey,
+                          NamespacedKey activationReceiptKey, NamespacedKey soulReceiptKey) {
         this.server = server;
         this.logger = logger;
         this.book = book;
         this.store = store;
         this.souls = souls;
         this.clock = clock;
+        this.armorReceiptKey = armorReceiptKey;
+        this.activationReceiptKey = activationReceiptKey;
+        this.soulReceiptKey = soulReceiptKey;
     }
 
     NetheriteQuestBook book() {
@@ -62,10 +78,23 @@ final class NetheriteQuestRuntime {
     // ---------------------------------------------------------------- activation
 
     void activate(Player player, ArmorQuestPiece piece) {
+        if (paused) return;
         UUID playerId = player.getUniqueId();
+        if (book.activationPending(playerId)) {
+            recoverActivation(player);
+            if (paused || book.activationPending(playerId)) {
+                player.sendMessage("§cTu activación anterior requiere revisión. Contactá a un administrador.");
+                return;
+            }
+        }
         List<String> held = heldSoulBosses(player.getInventory());
+        String inventoryBefore = inventorySnapshot(player);
+        int levelBefore = player.getLevel();
+        float expBefore = player.getExp();
+        int totalBefore = player.getTotalExperience();
         Activation activation = book.activate(playerId, piece, held, player.getLevel(), clock.getAsLong());
         switch (activation.status()) {
+            case PENDING_REVIEW -> player.sendMessage("§cTu activación anterior requiere revisión.");
             case ALREADY_ACTIVE -> player.sendMessage("§cYa tenés activa la misión del " + piece.displayName() + ".");
             case NO_SOUL -> player.sendMessage("§cNecesitás un §5Alma de Boss §cpara activar esta misión. "
                 + "Se consigue quedando en el top 3 de daño de un boss.");
@@ -74,16 +103,39 @@ final class NetheriteQuestRuntime {
             case NOT_ENOUGH_LEVELS -> player.sendMessage("§cActivar esta misión cuesta §e" + activation.cost()
                 + " niveles§c y tenés §e" + player.getLevel() + "§c.");
             case STARTED -> {
-                if (!removeOneSoul(player.getInventory(), activation.soulBoss())) {
-                    // the soul vanished between the scan and the removal: undo instead of starting for free
-                    book.cancelActivation(playerId, piece);
-                    player.sendMessage("§cNo se encontró el alma. Probá de nuevo.");
+                try {
+                    book.beginActivationReceipt(playerId, piece, activation.soulBoss(), activation.cost(),
+                        inventoryBefore, levelBefore, expBefore, totalBefore);
+                } catch (RuntimeException failure) {
+                    paused = true;
+                    logger.log(Level.SEVERE, "[Netherita] No se pudo preparar la activación de " + playerId, failure);
+                    player.sendMessage("§cLa activación quedó pausada. Contactá a un administrador.");
                     return;
                 }
-                if (activation.cost() > 0) {
-                    player.giveExpLevels(-activation.cost());
+                var receipt = book.activationReceipt(playerId).orElseThrow();
+                if (!saveChecked()) {
+                    player.sendMessage("§cNo se pudo guardar la activación. Contactá a un administrador.");
+                    return;
                 }
-                dirty = true;
+                try {
+                    if (!removeOneSoul(player.getInventory(), activation.soulBoss())) {
+                        book.cancelUnpaidActivation(playerId, receipt.receiptId());
+                        saveChecked();
+                        player.sendMessage("§cNo se encontró el alma. Probá de nuevo.");
+                        return;
+                    }
+                    if (activation.cost() > 0) player.giveExpLevels(-activation.cost());
+                    book.recordActivationOutcome(playerId, inventorySnapshot(player), player.getLevel(), player.getExp(),
+                        player.getTotalExperience());
+                    if (!saveChecked()) return;
+                    PlayerDataCheckpoint.save(player, activationReceiptKey, receipt.receiptId());
+                    if (!book.finishActivation(playerId, receipt.receiptId())) throw new IllegalStateException("Activation receipt changed");
+                    if (!saveChecked()) return;
+                } catch (IOException | RuntimeException failure) {
+                    logger.log(Level.SEVERE, "[Netherita] La activación requiere revisión para " + playerId, failure);
+                    player.sendMessage("§cLa activación quedó pendiente de revisión. Contactá a un administrador.");
+                    return;
+                }
                 player.playSound(player.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 1.0f, 0.8f);
                 player.sendMessage("§6§lMisión activada: §e" + piece.displayName());
                 player.sendMessage("§7Objetivo: §f" + objective(piece) + "§7. Tenés §f"
@@ -97,8 +149,10 @@ final class NetheriteQuestRuntime {
     // ---------------------------------------------------------------- progress
 
     void recordKill(Player killer, String entityKey) {
+        if (paused) return;
         UUID playerId = killer.getUniqueId();
         for (ArmorQuestPiece piece : ArmorQuestPiece.values()) {
+            if (paused) return;
             if (piece.killTarget().map(entityKey::equals).orElse(false)) {
                 book.addProgress(playerId, piece, 1.0, clock.getAsLong())
                     .ifPresent(progress -> announce(killer, progress, true));
@@ -107,10 +161,11 @@ final class NetheriteQuestRuntime {
     }
 
     boolean walking(UUID playerId) {
-        return book.hasActive(playerId, ArmorQuestPiece.BOOTS);
+        return !paused && book.hasActive(playerId, ArmorQuestPiece.BOOTS);
     }
 
     void recordWalk(Player player, double blocks) {
+        if (paused) return;
         book.addProgress(player.getUniqueId(), ArmorQuestPiece.BOOTS, blocks, clock.getAsLong())
             .ifPresent(progress -> announce(player, progress,
                 (int) (progress.current() / WALK_NOTICE_BLOCKS) > (int) (progress.previous() / WALK_NOTICE_BLOCKS)));
@@ -132,13 +187,18 @@ final class NetheriteQuestRuntime {
     }
 
     private void complete(Player player, ArmorQuestPiece piece) {
-        giveOrDrop(player, armor(piece));
+        if (!saveChecked()) {
+            player.sendMessage("§cLa recompensa quedó pendiente de revisión por un error de guardado.");
+            return;
+        }
+        deliverArmor(player);
         player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
-        player.sendMessage("§6§l¡Misión completada! §eRecibiste: " + piece.displayName() + "§e.");
+        player.sendMessage("§6§l¡Misión completada! §eRecompensa: " + piece.displayName() + "§e.");
         server.broadcastMessage("§6" + player.getName() + " §7consiguió el §e" + piece.displayName() + "§7.");
     }
 
     void expireQuests() {
+        if (paused) return;
         long now = clock.getAsLong();
         for (NetheriteQuestBook.Expired expired : book.expireAll(now)) {
             notifyExpired(expired.playerId(), expired.piece());
@@ -157,34 +217,159 @@ final class NetheriteQuestRuntime {
 
     /** Gives one soul of {@code bossId} to each of the top damage dealers, or keeps it until they log in. */
     void awardBossSouls(String bossId, String bossName, List<UUID> topDamagers) {
+        if (paused) return;
         Set<UUID> winners = new LinkedHashSet<>(topDamagers);
         int placement = 0;
         for (UUID playerId : winners) {
             if (++placement > 3) {
                 break;
             }
-            Player player = server.getPlayer(playerId);
-            if (player != null && player.isOnline()) {
-                giveOrDrop(player, souls.create(bossId, bossName, 1));
-                player.sendMessage("§5Recibiste un §lAlma de " + bossName + "§5 por quedar #" + placement
-                    + " en daño.");
-            } else {
-                book.addPendingSoul(playerId, bossId, bossName, 1);
-            }
+            book.addPendingSoul(playerId, bossId, bossName, 1);
             dirty = true;
         }
+        if (!saveChecked()) return;
+        winners.stream().limit(3).forEach(playerId -> {
+            Player player = server.getPlayer(playerId);
+            if (player != null && player.isOnline()) deliverSouls(player);
+        });
     }
 
     void deliverPending(Player player) {
-        Map<String, PendingSoul> pending = book.drainPendingSouls(player.getUniqueId());
-        if (pending.isEmpty()) {
-            return;
+        if (paused) return;
+        recoverActivation(player);
+        if (paused) return;
+        deliverArmor(player);
+        if (paused) return;
+        deliverSouls(player);
+    }
+
+    void claimRewards(Player player) {
+        deliverArmor(player);
+        if (!paused) deliverSouls(player);
+    }
+
+    private void deliverSouls(Player player) {
+        if (paused || soulReceiptKey == null) return;
+        UUID id = player.getUniqueId();
+        var existing = book.soulDelivery(id);
+        if (existing.isPresent()) {
+            try {
+                var receipt = existing.get();
+                if (receipt.inventoryAfter() == null || !PlayerDataCheckpoint.contains(player, soulReceiptKey, receipt.receiptId())) {
+                    player.sendMessage("§cTu entrega de alma requiere revisión. Contactá a un administrador.");
+                    return;
+                }
+                PlayerDataCheckpoint.confirm(player, soulReceiptKey, receipt.receiptId());
+                book.resolveSoulDelivery(id, receipt.receiptId(), true);
+                if (!saveChecked()) return;
+            } catch (IOException | RuntimeException failure) {
+                logger.log(Level.SEVERE, "[Netherita] No se pudo verificar la entrega de alma de " + id, failure);
+                player.sendMessage("§cTu entrega de alma requiere revisión.");
+                return;
+            }
         }
-        dirty = true;
-        pending.forEach((bossId, soul) -> {
-            giveOrDrop(player, souls.create(bossId, soul.bossName(), soul.amount()));
-            player.sendMessage("§5Te guardamos §l" + soul.amount() + "x Alma de " + soul.bossName() + "§5.");
+        for (Map.Entry<String, PendingSoul> entry : book.view(id).pendingSouls().entrySet()) {
+            int remaining = entry.getValue().amount();
+            while (remaining > 0) {
+                if (player.getInventory().firstEmpty() < 0) {
+                    player.sendMessage("§eTu inventario está lleno. Usá /netherita reclamar cuando tengas espacio.");
+                    return;
+                }
+                int amount = Math.min(64, remaining);
+                ItemStack reward = souls.create(entry.getKey(), entry.getValue().bossName(), amount);
+                String receipt = book.beginSoulDelivery(id, entry.getKey(), amount, inventorySnapshot(player)).orElseThrow();
+                if (!saveChecked()) return;
+                try {
+                    if (!player.getInventory().addItem(reward).isEmpty()) throw new IllegalStateException("Soul delivery did not fit");
+                    book.recordSoulOutcome(id, inventorySnapshot(player));
+                    if (!saveChecked()) return;
+                    PlayerDataCheckpoint.save(player, soulReceiptKey, receipt);
+                    book.resolveSoulDelivery(id, receipt, true);
+                    if (!saveChecked()) return;
+                    player.sendMessage("§5Recibiste §l" + amount + "x Alma de " + entry.getValue().bossName() + "§5.");
+                } catch (IOException | RuntimeException failure) {
+                    logger.log(Level.SEVERE, "[Netherita] La entrega de alma requiere revisión para " + id, failure);
+                    player.sendMessage("§cTu entrega de alma requiere revisión. Contactá a un administrador.");
+                    return;
+                }
+                remaining -= amount;
+            }
+        }
+    }
+
+    private void recoverActivation(Player player) {
+        UUID id = player.getUniqueId();
+        book.activationReceipt(id).ifPresent(receipt -> {
+            try {
+                if (receipt.inventoryAfter() == null || activationReceiptKey == null
+                    || !PlayerDataCheckpoint.contains(player, activationReceiptKey, receipt.receiptId())) {
+                    player.sendMessage("§cTu activación requiere revisión. Contactá a un administrador.");
+                    return;
+                }
+                PlayerDataCheckpoint.confirm(player, activationReceiptKey, receipt.receiptId());
+                if (!book.finishActivation(id, receipt.receiptId())) throw new IllegalStateException("Activation receipt changed");
+                if (saveChecked()) player.sendMessage("§aSe confirmó tu activación pendiente de netherita.");
+            } catch (IOException | RuntimeException failure) {
+                logger.log(Level.SEVERE, "[Netherita] No se pudo verificar la activación de " + id, failure);
+                player.sendMessage("§cTu activación requiere revisión. Contactá a un administrador.");
+            }
         });
+    }
+
+    private static String inventorySnapshot(Player player) {
+        ItemStack[] items = player.getInventory().getContents().clone();
+        for (int slot = 0; slot < items.length; slot++) {
+            if (items[slot] == null) items[slot] = ItemStack.empty();
+        }
+        return Base64.getEncoder().encodeToString(ItemStack.serializeItemsAsBytes(items));
+    }
+
+    void deliverArmor(Player player) {
+        if (paused || armorReceiptKey == null) return;
+        UUID id = player.getUniqueId();
+        var existing = book.armorDelivery(id);
+        if (existing.isPresent()) {
+            try {
+                var receipt = existing.get();
+                if (receipt.inventoryAfter() == null || !PlayerDataCheckpoint.contains(player, armorReceiptKey, receipt.receiptId())) {
+                    player.sendMessage("§cTu recompensa de netherita está pendiente de revisión. Contactá a un administrador.");
+                    return;
+                }
+                PlayerDataCheckpoint.confirm(player, armorReceiptKey, receipt.receiptId());
+                book.finishArmorDelivery(id, receipt.receiptId());
+                if (!saveChecked()) return;
+            } catch (IOException | RuntimeException failure) {
+                logger.log(Level.SEVERE, "[Netherita] No se pudo verificar el recibo de armadura de " + id, failure);
+                player.sendMessage("§cTu recompensa de netherita está pendiente de revisión.");
+                return;
+            }
+        }
+        for (ArmorQuestPiece piece : ArmorQuestPiece.values()) {
+            while (book.pendingArmor(id).getOrDefault(piece, 0) > 0) {
+                if (player.getInventory().firstEmpty() < 0) {
+                    player.sendMessage("§eTu inventario está lleno. Usá /netherita reclamar cuando tengas espacio.");
+                    return;
+                }
+                ItemStack reward = armor(piece);
+                var receipt = book.beginArmorDelivery(id, piece, inventorySnapshot(player)).orElseThrow();
+                if (!saveChecked()) return;
+                try {
+                    if (!player.getInventory().addItem(reward).isEmpty()) {
+                        throw new IllegalStateException("Armor delivery did not fit");
+                    }
+                    book.recordArmorOutcome(id, inventorySnapshot(player));
+                    if (!saveChecked()) return;
+                    PlayerDataCheckpoint.save(player, armorReceiptKey, receipt.receiptId());
+                    book.finishArmorDelivery(id, receipt.receiptId());
+                    if (!saveChecked()) return;
+                    player.sendMessage("§aRecibiste: " + piece.displayName() + ".");
+                } catch (IOException | RuntimeException failure) {
+                    logger.log(Level.SEVERE, "[Netherita] La entrega de armadura requiere revisión para " + id, failure);
+                    player.sendMessage("§cTu recompensa de netherita está pendiente de revisión. Contactá a un administrador.");
+                    return;
+                }
+            }
+        }
     }
 
     List<String> heldSoulBosses(PlayerInventory inventory) {
@@ -289,12 +474,33 @@ final class NetheriteQuestRuntime {
     }
 
     void save() {
+        if (paused) return;
+        saveChecked();
+    }
+
+    private boolean saveChecked() {
         try {
             store.save(book);
             dirty = false;
-        } catch (IOException failure) {
+            return true;
+        } catch (IOException | RuntimeException failure) {
+            paused = true;
             logger.log(Level.SEVERE, "[Netherita] No se pudieron guardar las misiones.", failure);
+            return false;
         }
+    }
+
+    boolean paused() { return paused; }
+
+    boolean resolveReceipt(UUID playerId, String receipt, String kind, boolean confirmed) {
+        if (paused) return false;
+        boolean resolved = switch (kind) {
+            case "activacion" -> book.resolveActivation(playerId, receipt, confirmed);
+            case "armadura" -> book.resolveArmorDelivery(playerId, receipt, confirmed);
+            case "alma" -> book.resolveSoulDelivery(playerId, receipt, confirmed);
+            default -> false;
+        };
+        return resolved && saveChecked();
     }
 
     void markDirty() {

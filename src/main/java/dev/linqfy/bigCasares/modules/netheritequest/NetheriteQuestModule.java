@@ -62,7 +62,9 @@ public final class NetheriteQuestModule implements PluginModule {
             throw new IllegalStateException("No se pudieron cargar las misiones de netherita", failure);
         }
         NetheriteQuestRuntime created = new NetheriteQuestRuntime(plugin.getServer(), plugin.getLogger(), book,
-            store, new BossSoulItem(new NamespacedKey(plugin, "boss_soul")), System::currentTimeMillis);
+            store, new BossSoulItem(new NamespacedKey(plugin, "boss_soul")), System::currentTimeMillis,
+            new NamespacedKey(plugin, "netherite_armor_receipt"), new NamespacedKey(plugin, "netherite_activation_receipt"),
+            new NamespacedKey(plugin, "netherite_soul_receipt"));
 
         registrations.ownCleanup("netherite-quests-state", () -> {
             created.save();
