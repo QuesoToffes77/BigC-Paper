@@ -37,7 +37,7 @@ import java.util.UUID;
 /**
  * The Nuclear Bomb (mod {@code NuclearBombBlock} and {@code NuclearBombEntity}). Lit by flint and steel, a fire
  * charge, redstone power or a burning projectile, the block turns into a primed bomb that blows up after 300
- * ticks as a size-3 nuclear explosion. Shears used on the primed bomb defuse it and give the block back.
+ * ticks as a size-9 nuclear explosion (three times the mod's). Shears used on the primed bomb defuse it and give the block back.
  *
  * <p>The mod's primed bomb is an entity that falls like TNT; here it is a block display that stays where the
  * block was, with an interaction box for the shears. When its chunk unloads or the module shuts down, a primed

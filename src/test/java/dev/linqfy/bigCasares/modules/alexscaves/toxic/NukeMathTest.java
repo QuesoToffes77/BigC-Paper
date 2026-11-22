@@ -11,7 +11,7 @@ class NukeMathTest {
     void sizesFollowTheMod() {
         assertEquals(15, NukeMath.radius(NukeMath.NUCLEEPER_SIZE));
         assertEquals(30, NukeMath.radius(NukeMath.CHARGED_NUCLEEPER_SIZE));
-        assertEquals(45, NukeMath.radius(NukeMath.BOMB_SIZE));
+        assertEquals(135, NukeMath.radius(NukeMath.BOMB_SIZE), "three times the mod's 45");
         assertEquals(1, NukeMath.irradiatedAmplifier(NukeMath.NUCLEEPER_SIZE));
         assertEquals(2, NukeMath.irradiatedAmplifier(NukeMath.BOMB_SIZE));
     }
@@ -49,5 +49,45 @@ class NukeMathTest {
         assertTrue(NukeMath.RESISTS_RADIATION.contains("alexscaves:nucleeper"));
         assertTrue(NukeMath.RESISTS_RADIATION.contains("alexscaves:raycat"));
         assertEquals(0.025F, NukeMath.dropChance(1.0F), 1e-6);
+    }
+
+    /** A skipped cube must not hold a single crater block (brute force over the bomb's old size and a Nucleeper). */
+    @Test
+    void skippedCubesHoldNoCraterBlock() {
+        for (float size : new float[] {NukeMath.NUCLEEPER_SIZE, 3.0F}) {
+            int radius = NukeMath.radius(size);
+            int chunks = NukeMath.chunksAffected(size);
+            int cx = 8, cy = 64, cz = -3;
+            int skipped = 0;
+            for (int i = -chunks; i <= chunks; i++) {
+                for (int j = -chunks; j <= chunks; j++) {
+                    for (int k = -chunks; k <= chunks; k++) {
+                        if (NukeMath.cubeMayHoldCrater(i * 16, j * 16, k * 16, radius)) {
+                            continue;
+                        }
+                        skipped++;
+                        for (int x = 0; x < 16; x++) {
+                            for (int y = 0; y < 16; y++) {
+                                for (int z = 0; z < 16; z++) {
+                                    int bx = cx + i * 16 + x, by = cy + j * 16 + y, bz = cz + k * 16 + z;
+                                    assertFalse(NukeMath.inCrater(bx, by, bz, cx, cy, cz, radius),
+                                        "size " + size + " cube " + i + "," + j + "," + k);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            assertTrue(skipped > 0, "some cubes are skipped at size " + size);
+        }
+    }
+
+    @Test
+    void theBombCarvesInAboutTwentySecondsAndFlingIsBounded() {
+        assertEquals(3, NukeMath.cubesPerTick(27));
+        assertEquals(6, NukeMath.cubesPerTick(2400));
+        assertEquals(135, NukeMath.radius(NukeMath.BOMB_SIZE));
+        assertTrue(NukeMath.MAX_FLING <= 4.0);
+        assertEquals(120, NukeMath.BLAST_TICKS);
     }
 }

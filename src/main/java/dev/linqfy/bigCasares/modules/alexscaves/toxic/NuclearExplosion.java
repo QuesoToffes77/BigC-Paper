@@ -38,7 +38,6 @@ import java.util.concurrent.ThreadLocalRandom;
  * stops when its world unloads or the module shuts down ({@link #cancelAll()}).
  */
 public final class NuclearExplosion implements Runnable {
-    private static final int CUBES_PER_TICK = 3;
     private static final int MIN_TICKS = 40;
     private static final int IRRADIATED_TICKS = 48000;
     static final int MAX_ACTIVE = 2;
@@ -51,6 +50,7 @@ public final class NuclearExplosion implements Runnable {
     private final boolean griefing;
     private final int radius;
     private final Deque<int[]> cubes = new ArrayDeque<>();
+    private int cubesPerTick = 3;
     private BukkitTask task;
     private int ticks;
 
@@ -104,6 +104,9 @@ public final class NuclearExplosion implements Runnable {
             for (int i = -chunks; i <= chunks; i++) {
                 for (int j = -chunks; j <= chunks; j++) {
                     for (int k = -chunks; k <= chunks; k++) {
+                        if (!NukeMath.cubeMayHoldCrater(i * 16, j * 16, k * 16, radius)) {
+                            continue;
+                        }
                         all.add(new int[] {center.getBlockX() + i * 16, center.getBlockY() + j * 16, center.getBlockZ() + k * 16});
                     }
                 }
@@ -112,6 +115,7 @@ public final class NuclearExplosion implements Runnable {
             all.sort(Comparator.comparingInt(cube -> Math.abs(cube[0] - center.getBlockX())
                 + Math.abs(cube[1] - center.getBlockY()) + Math.abs(cube[2] - center.getBlockZ())));
             cubes.addAll(all);
+            cubesPerTick = NukeMath.cubesPerTick(all.size());
         }
         task = mobs.plugin().getServer().getScheduler().runTaskTimer(mobs.plugin(), this, 1L, 1L);
     }
@@ -123,10 +127,12 @@ public final class NuclearExplosion implements Runnable {
             finish();
             return;
         }
-        for (int i = 0; i < CUBES_PER_TICK && !cubes.isEmpty(); i++) {
+        for (int i = 0; i < cubesPerTick && !cubes.isEmpty(); i++) {
             carve(cubes.poll());
         }
-        blast();
+        if (ticks <= NukeMath.BLAST_TICKS) {
+            blast();
+        }
     }
 
     private void mushroomCloud(World world) {
@@ -240,7 +246,7 @@ public final class NuclearExplosion implements Runnable {
             }
             Vector away = entity.getLocation().toVector().subtract(center.toVector()).add(new Vector(0, 0.3, 0));
             if (away.lengthSquared() > 1.0E-6) {
-                entity.setVelocity(away.normalize().multiply(damage * 0.1F * playerFling));
+                entity.setVelocity(away.normalize().multiply(Math.min(NukeMath.MAX_FLING, damage * 0.1F * playerFling)));
             }
             if (landed && (!NukeMath.RESISTS_RADIATION.contains(id) || "alexscaves:tremorzilla".equals(id))) {
                 mobs.effects().apply(entity, ModEffectType.IRRADIATED, NukeMath.irradiatedAmplifier(size), IRRADIATED_TICKS);

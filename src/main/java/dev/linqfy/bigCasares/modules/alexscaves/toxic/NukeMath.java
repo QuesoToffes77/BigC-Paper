@@ -6,12 +6,13 @@ import java.util.Set;
 
 /**
  * Formulas of the mod's {@code NuclearExplosionEntity}, as pure logic. Size 1 is a Nucleeper (1.75 when
- * charged), size 3 the Nuclear Bomb ({@code nuclear_explosion_size_modifier}).
+ * charged). The Nuclear Bomb is size 9 on this server: three times the mod's 3 ({@code nuclear_explosion_size_modifier}),
+ * a crater radius of 135 blocks instead of 45.
  */
 public final class NukeMath {
     public static final float NUCLEEPER_SIZE = 1.0F;
     public static final float CHARGED_NUCLEEPER_SIZE = 1.75F;
-    public static final float BOMB_SIZE = 3.0F;
+    public static final float BOMB_SIZE = 9.0F;
     /** Mod {@code nuke_max_block_explosion_resistance}. */
     public static final float MAX_BLOCK_RESISTANCE = 1000.0F;
     /** Mod tag {@code resists_radiation}: hurt 25 % by the blast. */
@@ -56,6 +57,30 @@ public final class NukeMath {
         double target = yDist * (radius + width * radius) * radius;
         return distance <= target;
     }
+
+    /**
+     * Whether the 16-block cube whose lowest corner is {@code (dx, dy, dz)} from the centre can hold a crater block.
+     * {@link #inCrater} needs a vertical distance below 0.6 radius and a horizontal one below about 1.1 radius
+     * (noise width 1 at most); cubes beyond both, with a margin, are skipped instead of sampled block by block.
+     */
+    public static boolean cubeMayHoldCrater(int dx, int dy, int dz, int radius) {
+        double nearX = Math.max(0, Math.max(dx - 1, -(dx + 16)));
+        double nearZ = Math.max(0, Math.max(dz - 1, -(dz + 16)));
+        double nearY = Math.max(0, Math.max(dy - 1, -(dy + 16)));
+        double reach = radius * 1.15 + 2;
+        return nearY <= radius * 0.6 + 2 && nearX * nearX + nearZ * nearZ <= reach * reach;
+    }
+
+    /** Cubes carved per tick: the whole crater in about {@code CARVE_TICKS} ticks, never fewer than 3 a tick. */
+    public static int cubesPerTick(int cubes) {
+        return Math.max(3, (int) Math.ceil(cubes / (double) CARVE_TICKS));
+    }
+
+    static final int CARVE_TICKS = 400;
+    /** The blast hurts and irradiates for the mod's 6 seconds, however long the crater takes to carve. */
+    public static final int BLAST_TICKS = 120;
+    /** Fastest an entity is flung, in blocks per tick (a size-9 blast would otherwise throw it out of the world). */
+    public static final double MAX_FLING = 4.0;
 
     /** Chance that a destroyed block drops as an item. */
     public static float dropChance(float size) {
