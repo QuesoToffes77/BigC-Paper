@@ -299,6 +299,10 @@ ITEMS = {
     # Primordial Caves (parte 4: doma). Los efectos al comer (furia, prisa) quedan pendientes.
     # Bases comestibles: desde 1.21.2 la comida necesita también el componente consumable de la base.
     "dinosaur_nugget": {"material": "COOKED_CHICKEN", "food": (3, 0.3), "item_texture": "item/dinosaur_nugget_0"},
+    # Ítem propio (no está en el mod): tres turrones doman a un dinosaurio. Sale en los cofres de estructuras.
+    # La textura vive en resourcepack/ (own_texture) y la base es alga seca, que ningún mob vanilla come.
+    "turron": {"material": "DRIED_KELP", "food": (4, 0.3), "name": ("Turrón", "Nougat"), "own_texture": True,
+               "recipe": None},
     "serene_salad": {"material": "MUSHROOM_STEW", "stack": 1, "food": (5, 0.35)},
     "seething_stew": {"material": "MUSHROOM_STEW", "stack": 1, "food": (6, 0.6)},
     "primordial_soup": {"material": "MUSHROOM_STEW", "stack": 1, "food": (6, 0.6)},

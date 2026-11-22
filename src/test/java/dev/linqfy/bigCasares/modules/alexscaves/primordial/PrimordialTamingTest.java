@@ -19,14 +19,49 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PrimordialTamingTest {
 
     @Test
-    void tremorsaurusFollowsTheModAttempts() {
-        for (int attempt = 1; attempt <= 3; attempt++) {
-            assertFalse(TamingRules.tremorsaurusTames(attempt, false), "never in the first three");
-            assertFalse(TamingRules.tremorsaurusTames(attempt, true));
-        }
-        assertTrue(TamingRules.tremorsaurusTames(4, false), "from the fourth, on the coin");
-        assertFalse(TamingRules.tremorsaurusTames(4, true));
-        assertTrue(TamingRules.tremorsaurusTames(9, true), "always on the ninth");
+    void threeTurronesTameEveryTameableDinosaur() {
+        assertFalse(TamingRules.tamedByTurrones(1));
+        assertFalse(TamingRules.tamedByTurrones(2));
+        assertTrue(TamingRules.tamedByTurrones(3), "the third turrón tames");
+        assertTrue(TamingRules.tameable(PrimordialMobs.SUBTERRANODON));
+        assertTrue(TamingRules.tameable(PrimordialMobs.VALLUMRAPTOR));
+        assertTrue(TamingRules.tameable(PrimordialMobs.TREMORSAURUS));
+        assertFalse(TamingRules.tameable(PrimordialMobs.GROTTOCERATOPS), "not tameable in the mod");
+        assertFalse(TamingRules.tameable(PrimordialMobs.RELICHEIRUS));
+        assertFalse(TamingRules.tameable(Atlatitan.ATLATITAN));
+    }
+
+    @Test
+    void anotherPlayersTurronStartsTheCountAgain() {
+        assertEquals(1, TamingRules.turronesAfterFeeding(0, false));
+        assertEquals(3, TamingRules.turronesAfterFeeding(2, true), "the same player's third tames");
+        assertEquals(1, TamingRules.turronesAfterFeeding(2, false), "nobody steals the third turrón");
+    }
+
+    @Test
+    void turronesComeFromStructureChestsOnly() {
+        assertTrue(TamingRules.structureChest("chests/simple_dungeon"));
+        assertTrue(TamingRules.structureChest("chests/caveman_house"), "the module's ruins too");
+        assertFalse(TamingRules.structureChest("chests/spawn_bonus_chest"));
+        assertFalse(TamingRules.structureChest("entities/zombie"));
+        assertFalse(TamingRules.structureChest("archaeology/desert_pyramid"));
+    }
+
+    @Test
+    void halfOfTheChestsHoldOneOrTwoTurrones() {
+        assertEquals(0, TamingRules.turronesInChest(0.5, 0.0));
+        assertEquals(0, TamingRules.turronesInChest(0.99, 0.99));
+        assertEquals(1, TamingRules.turronesInChest(0.0, 0.0));
+        assertEquals(1, TamingRules.turronesInChest(0.49, 0.49));
+        assertEquals(2, TamingRules.turronesInChest(0.49, 0.5));
+        assertEquals(2, TamingRules.turronesInChest(0.0, 0.999999));
+    }
+
+    @Test
+    void theTurronFillsTwoShanks() throws IOException {
+        String yaml = Files.readString(Path.of("src/main/resources/content/items/ac_turron.yml"));
+        assertTrue(yaml.contains("nutrition: 4"), "two drumsticks of the hunger bar");
+        assertTrue(yaml.contains("material: DRIED_KELP"), "a base no vanilla mob eats");
     }
 
     @Test

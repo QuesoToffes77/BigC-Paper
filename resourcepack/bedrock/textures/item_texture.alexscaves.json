@@ -1278,6 +1278,9 @@
     "alexscaves_tube_worm": {
       "textures": "textures/alexscaves/block/tube_worm"
     },
+    "alexscaves_turron": {
+      "textures": "textures/alexscaves/item/turron"
+    },
     "alexscaves_twilight_anemone": {
       "textures": "textures/alexscaves/block/twilight_anemone_base"
     },

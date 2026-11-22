@@ -594,6 +594,15 @@
         "bedrock_options": {
           "icon": "alexscaves_pine_nuts"
         }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:turron",
+        "bedrock_identifier": "alexscaves:turron",
+        "display_name": "Turrón",
+        "bedrock_options": {
+          "icon": "alexscaves_turron"
+        }
       }
     ],
     "minecraft:granite_slab": [

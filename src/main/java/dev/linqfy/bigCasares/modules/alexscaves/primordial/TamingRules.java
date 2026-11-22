@@ -7,8 +7,18 @@ import java.util.Set;
 /** Pure rules of {@link PrimordialTaming}, kept apart so tests need no server classes. */
 final class TamingRules {
     /** Module items the taming code reacts to, checked against the catalog by a test. */
-    static final Set<String> TAMING_ITEMS = Set.of("ac_trilocaris_tail", "ac_cooked_trilocaris_tail", "ac_dinosaur_nugget",
-        "ac_serene_salad", "ac_primitive_club");
+    static final Set<String> TAMING_ITEMS = Set.of(TamingRules.TURRON, "ac_dinosaur_nugget", "ac_primitive_club");
+
+    /** Server rule (not the mod's): every tameable dinosaur is tamed by feeding it three turrones. */
+    static final String TURRON = "ac_turron";
+    static final int TURRONES_TO_TAME = 3;
+    /** PDC key (plugin namespace) with the turrones a wild dinosaur has eaten so far. */
+    static final String TURRONES_KEY = "alexscaves_turrones";
+
+    /** Turrones in structure chests: half of the chests hold one or two. */
+    static final double TURRON_CHEST_CHANCE = 0.5;
+    static final int TURRON_CHEST_MIN = 1;
+    static final int TURRON_CHEST_MAX = 2;
 
     /** PDC keys (plugin namespace) shared by taming and breeding. */
     static final String OWNER_KEY = "alexscaves_owner";
@@ -84,9 +94,40 @@ final class TamingRules {
 
     static final int HATCH_STAGES = 3;
 
-    /** Mod {@code TremorsaurusEntity.onFeedMixture}: fails while (attempts <= 3 or coin) and attempts <= 8. */
-    static boolean tremorsaurusTames(int attempts, boolean coin) {
-        return !((attempts <= 3 || coin) && attempts <= 8);
+    /** The dinosaurs a player can tame (the mod's tameable ones): they take turrones. */
+    static boolean tameable(ModMobType type) {
+        return type == PrimordialMobs.SUBTERRANODON || type == PrimordialMobs.VALLUMRAPTOR
+            || type == PrimordialMobs.TREMORSAURUS;
+    }
+
+    /** PDC key with the player who fed the turrones counted so far. */
+    static final String TURRON_FEEDER_KEY = "alexscaves_turron_feeder";
+
+    /** Count after one more turrón: another player's turrón starts the count again, so nobody steals the third. */
+    static int turronesAfterFeeding(int stored, boolean sameFeeder) {
+        return (sameFeeder ? stored : 0) + 1;
+    }
+
+    /** Whether the turrones eaten so far (this one included) tame the dinosaur. */
+    static boolean tamedByTurrones(int eaten) {
+        return eaten >= TURRONES_TO_TAME;
+    }
+
+    /**
+     * Loot tables of structure chests, vanilla or module ({@code <namespace>:chests/...}). The spawn bonus chest is
+     * not a structure.
+     */
+    static boolean structureChest(String path) {
+        return path.startsWith("chests/") && !path.equals("chests/spawn_bonus_chest");
+    }
+
+    /** Turrones a structure chest gets from two uniform rolls in [0, 1): 0 (no turrón) or 1-2. */
+    static int turronesInChest(double chanceRoll, double amountRoll) {
+        if (chanceRoll >= TURRON_CHEST_CHANCE) {
+            return 0;
+        }
+        int span = TURRON_CHEST_MAX - TURRON_CHEST_MIN + 1;
+        return TURRON_CHEST_MIN + Math.min(span - 1, (int) (amountRoll * span));
     }
 
     static boolean rideable(ModMobType type) {

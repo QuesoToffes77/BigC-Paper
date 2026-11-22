@@ -358,8 +358,8 @@ def main(jar_path, repo, decompiled=None):
     def add_item(item_id, spec, is_block):
         catalog_id = "ac_" + item_id
         kind = "block" if is_block else "item"
-        name_es = mod.name(kind, item_id)
-        name_en = mod.name(kind, item_id, "en_us")
+        # Own items (not in the mod) bring their names, and their texture already lives in resourcepack/.
+        name_es, name_en = spec["name"] if "name" in spec else (mod.name(kind, item_id), mod.name(kind, item_id, "en_us"))
         material = spec.get("material", "NOTE_BLOCK" if is_block else "PAPER")
         model_path = "item/" + item_id
         if is_block and not spec.get("item_texture"):
@@ -391,7 +391,8 @@ def main(jar_path, repo, decompiled=None):
                   citadel_to_item_model.front_icon(item_model, texture_bytes), binary=True)
         else:
             texture = spec.get("item_texture", "item/" + item_id)
-            textures.add(texture)
+            if not spec.get("own_texture"):
+                textures.add(texture)
             write(os.path.join(java, NS, "models", model_path + ".json"),
                   {"parent": "minecraft:item/generated", "textures": {"layer0": "%s:%s" % (NS, texture)}})
             icon_texture = texture
@@ -401,7 +402,7 @@ def main(jar_path, repo, decompiled=None):
         elif spec.get("totem"):
             definition = totem_definition(item_id, java, textures)
         write(os.path.join(java, NS, "items", item_id + ".json"), definition)
-        if "citadel" not in spec:
+        if "citadel" not in spec and not spec.get("own_texture"):
             textures.add(icon_texture)
         icon = "%s_%s" % (NS, item_id)
         icons[icon] = {"textures": "textures/%s/%s" % (NS, icon_texture)}
@@ -413,6 +414,8 @@ def main(jar_path, repo, decompiled=None):
         lang_es["item.%s.%s" % (NS, item_id)] = name_es
         lang_en["item.%s.%s" % (NS, item_id)] = name_en
         lines = [
+            "# Generado por tools/alexscaves/generate_content.py (ítem propio de BigCasares, no está en el mod)."
+            if "name" in spec else
             "# Generado por tools/alexscaves/generate_content.py desde Alex's Caves 2.0.2 (AlexModGuy, LGPL).",
             "id: " + catalog_id,
             "mechanic: alexs-caves",

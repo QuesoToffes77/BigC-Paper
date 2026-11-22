@@ -32,6 +32,7 @@ import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.player.PlayerBedEnterEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.world.LootGenerateEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -50,13 +51,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * Taming, following, sitting and riding of the Primordial dinosaurs, after the
  * mod's {@code DinosaurEntity} and each mob's interaction code. The vanilla
  * bases are not tameable animals, so the owner lives in the entity's PDC.
- * <ul>
- *   <li>Subterranodon: trilocaris tail (raw or cooked), 1 in 3 tames. Rideable, flies.</li>
- *   <li>Vallumraptor: a dinosaur nugget relaxes it for 10-20 s (mod: a nugget looted from a
- *       chest), then a serene salad tames it.</li>
- *   <li>Tremorsaurus: a serene salad while stunned (primitive club). Tames from the 4th try on a
- *       coin flip, always on the 9th. Rideable.</li>
- * </ul>
+ * Server rule, not the mod's: the tameable dinosaurs (subterranodon, vallumraptor, tremorsaurus) are tamed by
+ * feeding them {@value TamingRules#TURRONES_TO_TAME} turrones, which come from structure chests. The subterranodon
+ * and the tremorsaurus can be ridden. A dinosaur nugget still calms a vallumraptor for 10-20 s, as in the mod.
  * Owners sneak + right-click to make a tamed dinosaur sit or follow. Tamed dinosaurs help their
  * owner fight and never pick a player on their own.
  */
@@ -70,6 +67,8 @@ public final class PrimordialTaming implements Listener, Runnable, AutoCloseable
     private final NamespacedKey ownerKey;
     private final NamespacedKey sittingKey;
     private final NamespacedKey attemptsKey;
+    private final NamespacedKey turronesKey;
+    private final NamespacedKey feederKey;
     private final NamespacedKey babyKey;
     private final Map<UUID, Long> relaxedUntil = new HashMap<>();
     private long tick;
@@ -80,6 +79,8 @@ public final class PrimordialTaming implements Listener, Runnable, AutoCloseable
         this.sittingKey = new NamespacedKey(mobs.plugin(), TamingRules.SITTING_KEY);
         this.babyKey = new NamespacedKey(mobs.plugin(), TamingRules.BABY_UNTIL_KEY);
         this.attemptsKey = new NamespacedKey(mobs.plugin(), "alexscaves_tame_attempts");
+        this.turronesKey = new NamespacedKey(mobs.plugin(), TamingRules.TURRONES_KEY);
+        this.feederKey = new NamespacedKey(mobs.plugin(), TamingRules.TURRON_FEEDER_KEY);
     }
 
     // --- State ------------------------------------------------------------------------------------
@@ -102,7 +103,10 @@ public final class PrimordialTaming implements Listener, Runnable, AutoCloseable
     }
 
     private void tame(LivingEntity entity, Player player, boolean sit) {
+        // The old salad attempts (before turrones) are no longer read.
         entity.getPersistentDataContainer().remove(attemptsKey);
+        entity.getPersistentDataContainer().remove(turronesKey);
+        entity.getPersistentDataContainer().remove(feederKey);
         markTamed(mobs.plugin(), entity, player.getUniqueId(), sit);
         player.sendActionBar(LegacyComponentSerializer.legacySection().deserialize("§a¡Domaste al dinosaurio!"));
     }
@@ -128,10 +132,6 @@ public final class PrimordialTaming implements Listener, Runnable, AutoCloseable
         if (dinosaur != null) {
             change.accept(dinosaur);
         }
-    }
-
-    private static void failed(LivingEntity entity) {
-        entity.getWorld().spawnParticle(Particle.SMOKE, entity.getLocation().add(0, entity.getHeight(), 0), 7, 0.4, 0.4, 0.4, 0.02);
     }
 
     // --- Interaction ------------------------------------------------------------------------------
@@ -174,14 +174,10 @@ public final class PrimordialTaming implements Listener, Runnable, AutoCloseable
         }
         String item = heldId.get();
         ModMobType mob = type.get();
-        if (mob == PrimordialMobs.SUBTERRANODON && (item.equals("ac_trilocaris_tail") || item.equals("ac_cooked_trilocaris_tail"))) {
+        if (TamingRules.tameable(mob) && item.equals(TamingRules.TURRON)) {
             event.setCancelled(true);
             consume(player, held);
-            if (ThreadLocalRandom.current().nextInt(3) == 0) {
-                tame(entity, player, false);
-            } else {
-                failed(entity);
-            }
+            feedTurron(entity, player);
         } else if (mob == PrimordialMobs.VALLUMRAPTOR && item.equals("ac_dinosaur_nugget")) {
             event.setCancelled(true);
             consume(player, held);
@@ -192,45 +188,37 @@ public final class PrimordialTaming implements Listener, Runnable, AutoCloseable
                 raptor.setTarget(null);
             }
             entity.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, entity.getLocation().add(0, entity.getHeight(), 0), 5, 0.4, 0.4, 0.4);
-        } else if (mob == PrimordialMobs.VALLUMRAPTOR && item.equals("ac_serene_salad")) {
-            event.setCancelled(true);
-            if (relaxedUntil.getOrDefault(entity.getUniqueId(), 0L) > tick) {
-                consumeBowl(player, held);
-                relaxedUntil.remove(entity.getUniqueId());
-                animate(entity, dinosaur -> dinosaur.relax(0));
-                entity.setHealth(Math.min(entity.getHealth() + 5, maxHealth(entity)));
-                tame(entity, player, true);
-            } else {
-                failed(entity);
-            }
         } else if (mob == PrimordialMobs.RELICHEIRUS && item.equals("ac_primordial_soup")) {
             // Mod RelicheirusEntity.onFeedMixture: it pushes trees over for 1200 ticks.
             event.setCancelled(true);
             consumeBowl(player, held);
             animate(entity, dinosaur -> dinosaur.pushTrees(1200));
             entity.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, entity.getLocation().add(0, entity.getHeight(), 0), 5, 0.4, 0.4, 0.4);
-        } else if (mob == PrimordialMobs.TREMORSAURUS && item.equals("ac_serene_salad")) {
-            event.setCancelled(true);
-            if (!mobs.effects().has(entity, ModEffectType.STUNNED)) {
-                failed(entity);
-                return;
-            }
-            consumeBowl(player, held);
-            mobs.effects().remove(entity, ModEffectType.STUNNED);
-            PersistentDataContainer data = entity.getPersistentDataContainer();
-            int attempts = data.getOrDefault(attemptsKey, PersistentDataType.INTEGER, 0) + 1;
-            data.set(attemptsKey, PersistentDataType.INTEGER, attempts);
-            if (TamingRules.tremorsaurusTames(attempts, ThreadLocalRandom.current().nextBoolean())) {
-                tame(entity, player, false);
-            } else {
-                failed(entity);
-            }
         }
     }
 
-    private static double maxHealth(LivingEntity entity) {
-        AttributeInstance attribute = entity.getAttribute(Attribute.MAX_HEALTH);
-        return attribute == null ? entity.getHealth() : attribute.getValue();
+    /** One more turrón eaten: the third tames the dinosaur to the player who gave it. */
+    private void feedTurron(LivingEntity entity, Player player) {
+        PersistentDataContainer data = entity.getPersistentDataContainer();
+        String feeder = player.getUniqueId().toString();
+        int eaten = TamingRules.turronesAfterFeeding(data.getOrDefault(turronesKey, PersistentDataType.INTEGER, 0),
+            feeder.equals(data.get(feederKey, PersistentDataType.STRING)));
+        entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_GENERIC_EAT, 1.0f, 1.0f);
+        if (TamingRules.tamedByTurrones(eaten)) {
+            if (entity instanceof Mob mob) {
+                mob.setTarget(null);
+            }
+            tame(entity, player, false);
+            return;
+        }
+        data.set(turronesKey, PersistentDataType.INTEGER, eaten);
+        data.set(feederKey, PersistentDataType.STRING, feeder);
+        if (entity instanceof Mob mob && player.equals(mob.getTarget())) {
+            mob.setTarget(null);
+        }
+        entity.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, entity.getLocation().add(0, entity.getHeight(), 0), 5, 0.4, 0.4, 0.4);
+        player.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(
+            "§eTurrones: " + eaten + "/" + TamingRules.TURRONES_TO_TAME));
     }
 
     private static void consume(Player player, ItemStack held) {
@@ -247,6 +235,20 @@ public final class PrimordialTaming implements Listener, Runnable, AutoCloseable
         held.subtract();
         player.getInventory().addItem(new ItemStack(Material.BOWL))
             .values().forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+    }
+
+    /** Turrones are found in structure chests, vanilla and module ones alike. */
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
+    public void onLoot(LootGenerateEvent event) {
+        if (!TamingRules.structureChest(event.getLootTable().getKey().getKey())) {
+            return;
+        }
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        int amount = TamingRules.turronesInChest(random.nextDouble(), random.nextDouble());
+        if (amount > 0) {
+            // getLoot() is the event's own list: adding to it keeps the rest of the roll.
+            mobs.createItem(TamingRules.TURRON, amount).ifPresent(event.getLoot()::add);
+        }
     }
 
     /** Primitive club: 80 % chance to stun for 7.5-15 s (mod {@code PrimitiveClubItem.hurtEnemy}). */
