@@ -40,7 +40,8 @@ import java.util.UUID;
  * ticks as a size-9 nuclear explosion (three times the mod's). Shears used on the primed bomb defuse it and give the block back.
  *
  * <p>The mod's primed bomb is an entity that falls like TNT; here it is a block display that stays where the
- * block was, with an interaction box for the shears. When its chunk unloads or the module shuts down, a primed
+ * block was, with an interaction box for the shears, and plays the mod's shake-and-swell animation
+ * ({@link NuclearBombPose}). When its chunk unloads or the module shuts down, a primed
  * bomb turns back into the (unlit) block instead of being lost.
  */
 public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable {
@@ -160,6 +161,10 @@ public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable
                 continue;
             }
             bomb.ticks++;
+            // Mod NuclearBombRenderer: the bomb shakes and swells as the fuse burns (interpolated by the client).
+            bomb.display.setInterpolationDelay(0);
+            bomb.display.setInterpolationDuration(1);
+            bomb.display.setTransformationMatrix(NuclearBombPose.matrix(bomb.ticks));
             Location at = bomb.display.getLocation();
             if (bomb.ticks % 10 == 0) {
                 at.getWorld().spawnParticle(Particle.DUST, at.clone().add(0.5, 1.1, 0.5), 4, 0.3, 0.2, 0.3, 0,
@@ -185,6 +190,8 @@ public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable
             entity.setBlock(bomb);
             entity.setPersistent(false);
             entity.setTransformation(new Transformation(new Vector3f(), new AxisAngle4f(), new Vector3f(1f, 1f, 1f), new AxisAngle4f()));
+            // Mod: drawn at full light whatever the light around it.
+            entity.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
         });
         Interaction box = at.getWorld().spawn(at.clone().add(0.5, 0, 0.5), Interaction.class, entity -> {
             entity.setInteractionWidth(1.0f);

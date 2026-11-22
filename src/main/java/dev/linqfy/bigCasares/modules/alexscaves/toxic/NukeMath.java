@@ -82,6 +82,9 @@ public final class NukeMath {
     /** Fastest an entity is flung, in blocks per tick (a size-9 blast would otherwise throw it out of the world). */
     public static final double MAX_FLING = 4.0;
 
+    /** Fire left on the crater floor burns this long, then goes out. */
+    public static final int FIRE_TICKS = 100;
+
     /** Chance that a destroyed block drops as an item. */
     public static float dropChance(float size) {
         return 0.025F / Math.min(1.0F, size);

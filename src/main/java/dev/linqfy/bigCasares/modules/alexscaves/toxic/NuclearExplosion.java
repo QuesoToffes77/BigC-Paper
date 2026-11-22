@@ -27,8 +27,9 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * A nuclear explosion (mod {@code NuclearExplosionEntity}): a mushroom cloud, a crater carved a few
- * 16-block cubes per tick from the centre out, fire on the crater floor, and a blast that hurts, flings and
+ * A nuclear explosion (mod {@code NuclearExplosionEntity}): a mushroom cloud ({@link MushroomCloud}), a crater carved
+ * a few 16-block cubes per tick from the centre out, fire on the crater floor that goes out after
+ * {@link NukeMath#FIRE_TICKS} ticks, and a blast that hurts, flings and
  * irradiates everything in a box 1.5 times the crater radius, every tick while the crater is carved.
  * Formulas in {@link NukeMath}.
  *
@@ -50,6 +51,18 @@ public final class NuclearExplosion implements Runnable {
     private final boolean griefing;
     private final int radius;
     private final Deque<int[]> cubes = new ArrayDeque<>();
+    /** Fires lit on the crater floor, oldest first, with the tick they go out. */
+    private final Deque<Fire> fires = new ArrayDeque<>();
+
+    private record Fire(Block block, int outAt) {
+    }
+
+    /** Puts a crater fire out, never loading a chunk for it. */
+    private static void putOut(Block fire) {
+        if (fire.getWorld().isChunkLoaded(fire.getX() >> 4, fire.getZ() >> 4) && fire.getType() == Material.FIRE) {
+            fire.setType(Material.AIR, false);
+        }
+    }
     private int cubesPerTick = 3;
     private BukkitTask task;
     private int ticks;
@@ -84,6 +97,18 @@ public final class NuclearExplosion implements Runnable {
         if (task != null) {
             task.cancel();
         }
+        if (!fires.isEmpty()) {
+            // The fires still burning go out on time without keeping this explosion's slot.
+            List<Fire> left = List.copyOf(fires);
+            fires.clear();
+            long delay = Math.max(1, left.get(left.size() - 1).outAt() - ticks);
+            if (mobs.plugin().isEnabled()) {
+                mobs.plugin().getServer().getScheduler().runTaskLater(mobs.plugin(),
+                    () -> left.forEach(fire -> putOut(fire.block())), delay);
+            } else {
+                left.forEach(fire -> putOut(fire.block()));
+            }
+        }
         ACTIVE.remove(this);
         NuclearExplosion next = WAITING.poll();
         if (next != null && next.center.isWorldLoaded()) {
@@ -98,6 +123,7 @@ public final class NuclearExplosion implements Runnable {
         world.playSound(center, sound, SoundCategory.BLOCKS, 16.0f, 1.0f);
         world.playSound(center, "alexscaves:nuclear_explosion_rumble", SoundCategory.BLOCKS, 16.0f, 1.0f);
         mushroomCloud(world);
+        MushroomCloud.show(mobs, center, size);
         if (griefing) {
             int chunks = NukeMath.chunksAffected(size);
             List<int[]> all = new ArrayList<>();
@@ -123,7 +149,14 @@ public final class NuclearExplosion implements Runnable {
     @Override
     public void run() {
         ticks++;
-        if (!center.isWorldLoaded() || ticks > MIN_TICKS && cubes.isEmpty()) {
+        if (!center.isWorldLoaded()) {
+            finish();
+            return;
+        }
+        while (!fires.isEmpty() && fires.peek().outAt() <= ticks) {
+            putOut(fires.poll().block());
+        }
+        if (ticks > MIN_TICKS && cubes.isEmpty()) {
             finish();
             return;
         }
@@ -203,8 +236,13 @@ public final class NuclearExplosion implements Runnable {
                 }
                 block.setType(Material.AIR, false);
             }
-            if (random.nextFloat() < 0.15F && !block.getRelative(0, -1, 0).getType().isAir()) {
+            // Fire only on the crater floor: the block below must stay (outside the crater) and be solid, or the
+            // fire would float once the cube under it is carved. It goes out after a few seconds.
+            Block below = block.getRelative(0, -1, 0);
+            if (random.nextFloat() < 0.15F && below.getType().isSolid()
+                && !NukeMath.inCrater(below.getX(), below.getY(), below.getZ(), cx, cy, cz, radius)) {
                 block.setType(Material.FIRE, false);
+                fires.add(new Fire(block, ticks + NukeMath.FIRE_TICKS));
             }
         }
     }
