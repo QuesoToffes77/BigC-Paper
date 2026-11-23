@@ -1,0 +1,145 @@
+{
+  "textures": {
+    "jc_mano": "caichet:item/jc_mano",
+    "jc_tunica": "caichet:item/jc_tunica",
+    "particle": "caichet:item/jc_mano"
+  },
+  "elements": [
+    {
+      "from": [
+        6.6,
+        -11,
+        6.6
+      ],
+      "to": [
+        9.4,
+        8,
+        9.4
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_tunica"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_tunica"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_tunica"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_tunica"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_tunica"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_tunica"
+        }
+      }
+    },
+    {
+      "from": [
+        6.9,
+        -16,
+        6.9
+      ],
+      "to": [
+        9.1,
+        -11,
+        9.1
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_mano"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_mano"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_mano"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_mano"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_mano"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#jc_mano"
+        }
+      }
+    }
+  ]
+}

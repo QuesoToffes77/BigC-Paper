@@ -40,10 +40,16 @@ public final class CaiChetBedrockEntities {
     public static final Entry DREAM_VOID = new Entry("SQUID", "caichet:dream_void", "caichet_dream_void");
     public static final Entry DREAM_RAINBOW = new Entry("ARMOR_STAND", "caichet:dream_rainbow", "caichet_dream_rainbow");
     public static final Entry TRAIN = new Entry("MINECART", "caichet:demon_train", "caichet_demon_train");
+    public static final Entry SONRISA = new Entry("ALLAY", "caichet:sonrisa", "caichet_sonrisa");
+    public static final Entry E666 = new Entry("IRON_GOLEM", "caichet:e666", "caichet_e666");
+    public static final Entry JUANCARLOS = new Entry("IRON_GOLEM", "caichet:juancarlos", "caichet_juancarlos");
+    public static final Entry ARANA = new Entry("IRON_GOLEM", "caichet:arana", "caichet_arana");
+    public static final Entry PAYASO = new Entry("IRON_GOLEM", "caichet:payaso", "caichet_payaso");
 
     private static final List<Entry> ALL = List.of(
         BOSS_EYE, WATCHER_MOYAN, WATCHER_ESTEVO, DREAM_EYE_1, DREAM_EYE_2, DREAM_EYE_3, DREAM_CLOUD, DREAM_WINGED,
-        DREAM_MUSHROOM, DREAM_WINDOW, DREAM_DOOR, DREAM_VOID, DREAM_RAINBOW, TRAIN);
+        DREAM_MUSHROOM, DREAM_WINDOW, DREAM_DOOR, DREAM_VOID, DREAM_RAINBOW, TRAIN, SONRISA, E666, JUANCARLOS, ARANA,
+        PAYASO);
 
     private static final Set<UUID> PRESENTED = ConcurrentHashMap.newKeySet();
     private static volatile boolean available;

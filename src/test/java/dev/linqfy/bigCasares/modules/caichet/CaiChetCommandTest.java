@@ -93,4 +93,14 @@ class CaiChetCommandTest {
         assertEquals(3, CaiChetCommand.amountIndex(new String[] {"give", "cuadro", "grito", "2"}));
         assertEquals(2, CaiChetCommand.amountIndex(new String[] {"give", "cuadro", "2"}));
     }
+
+    @Test
+    void entidadIsASubcommandWithTheFiveEntities() {
+        assertEquals(List.of("entidad"), CaiChetCommand.complete(new String[] {"e"}));
+        assertEquals(List.of("sonrisa", "666", "juancarlos", "arana", "payaso"), CaiChetCommand.ENTITIES);
+        assertEquals(CaiChetCommand.ENTITIES, CaiChetCommand.complete(new String[] {"entidad", ""}));
+        assertEquals(List.of("juancarlos"), CaiChetCommand.complete(new String[] {"entidad", "J"}));
+        assertEquals(List.of("arana"), CaiChetCommand.complete(new String[] {"entidad", "ar"}));
+        assertEquals(List.of(), CaiChetCommand.complete(new String[] {"entidad", "arana", ""}));
+    }
 }

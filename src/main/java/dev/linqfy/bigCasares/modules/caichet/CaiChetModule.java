@@ -22,7 +22,8 @@ import java.util.logging.Level;
  *   arriba ({@link TrainPassengers}), los liquidos suben ({@link LiquidRiser}), los items sueltos flotan
  *   ({@link ItemFloater}) y andan los dobles ({@link Doppelganger}), que dan el Reloj de los Sueños;</li>
  *   <li>el hotel ({@link HotelWorld}): se llega con el totem Despertar ({@link DespertarListener}); tiene luces que
- *   titilan ({@link FlickerLights}), figuras que te miran ({@link Watchers}), cofres y puertas con llave
+ *   titilan ({@link FlickerLights}), figuras que te miran ({@link Watchers}), entidades que te cazan
+ *   ({@link BackroomsEntities}), cofres y puertas con llave
  *   ({@link HotelLoot}, {@link KeyDoors});</li>
  *   <li>el Sueño ({@link DreamWorld}): se llega por una puerta con llave; tiene sus criaturas ({@link DreamEntities}),
  *   su filtro ({@link DreamFilter}) y el ojo con alas ({@link EyeBossManager}), que al vencerlo te despierta.</li>
@@ -57,6 +58,7 @@ public final class CaiChetModule implements PluginModule {
         PAINTINGS("caichet-paintings"),
         DREAM_CHESTS("caichet-dream-chests"),
         LIGHTS("caichet-lights"),
+        ENTITIES("caichet-entities"),
         PIT("caichet-pit"),
         COMMAND("caichet-command");
 
@@ -73,6 +75,8 @@ public final class CaiChetModule implements PluginModule {
     private TrainDirector director;
     private HotelLoot hotelLoot;
     private Watchers watchers;
+    private ItemFloater itemFloater;
+    private BackroomsEntities backrooms;
     private FlickerLights flicker;
     private KeyDoors keyDoors;
     private DreamProps dreamProps;
@@ -118,7 +122,8 @@ public final class CaiChetModule implements PluginModule {
         registrations.registerListener(Resource.SPAWNS.id, new SpawnGuard());
         registrations.registerListener(Resource.STANDS.id, new StandGuard());
         tasks.repeating("train", director, 20L, 1L);
-        tasks.repeating("items", new ItemFloater(), 20L, 1L);
+        itemFloater = new ItemFloater();
+        tasks.repeating("items", itemFloater, 20L, 1L);
         tasks.repeating("doubles", new ChickenSpawner(), 20L, 1L);
         registrations.registerRecipe(Resource.DESPERTAR_RECIPE.id, DreamItems.RECIPE_KEY, DreamItems.recipe());
 
@@ -145,6 +150,8 @@ public final class CaiChetModule implements PluginModule {
         flicker.loadExisting();
         tasks.repeating("lights", flicker, 40L, FlickerLights.PERIOD_TICKS);
         tasks.repeating("watchers", watchers, 40L, 1L);
+        backrooms = registrations.registerListener(Resource.ENTITIES.id, new BackroomsEntities(watchers));
+        tasks.repeating("backrooms", backrooms, 40L, 1L);
 
         // el pozo: aparece en chunks nuevos y su fondo negro lleva al desierto
         pits = registrations.registerListener(Resource.PIT.id, new PitStructure(PitZoneRules.nexus(plugin)));
@@ -154,7 +161,7 @@ public final class CaiChetModule implements PluginModule {
         if (pluginCommand == null) {
             throw new IllegalStateException("Required command is not declared: caichet");
         }
-        CaiChetCommand command = new CaiChetCommand(director, pits);
+        CaiChetCommand command = new CaiChetCommand(director, pits, backrooms);
         registrations.bindCommand(Resource.COMMAND.id, pluginCommand, command, command);
 
         if (Bukkit.getWorld(DIMENSION) == null) {
@@ -201,8 +208,14 @@ public final class CaiChetModule implements PluginModule {
             director.shutdown();
         }
         Doppelganger.removeAll();
+        if (itemFloater != null) {
+            itemFloater.restoreAll();
+        }
         if (watchers != null) {
             watchers.removeAll();
+        }
+        if (backrooms != null) {
+            backrooms.removeAll();
         }
         if (flicker != null) {
             flicker.restoreAll();
@@ -234,6 +247,7 @@ public final class CaiChetModule implements PluginModule {
         CaiChetSounds.clear();
         director = null;
         watchers = null;
+        backrooms = null;
         flicker = null;
         keyDoors = null;
         dreamProps = null;

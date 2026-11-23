@@ -21,23 +21,26 @@ import java.util.stream.Stream;
  */
 final class CaiChetCommand implements CommandExecutor, TabCompleter {
 
-    static final List<String> SUBCOMMANDS = List.of("give", "tp", "tren", "hotel", "sueno", "pozo", "cuadros");
+    static final List<String> SUBCOMMANDS = List.of("give", "tp", "tren", "hotel", "sueno", "pozo", "cuadros", "entidad");
     static final List<String> ITEMS = List.of("dimension", "mundo", "reloj", "despertar", "arma", "botella", "jarra",
         "llave", "cuadro");
     /** En lugar del id de un cuadro: uno cualquiera. */
     static final String RANDOM_PAINTING = "azar";
     static final List<String> PAINTING_CHOICES = Stream.concat(DreamPaintings.ids().stream(), Stream.of(RANDOM_PAINTING))
         .toList();
+    static final List<String> ENTITIES = Arrays.stream(BackroomsKind.values()).map(kind -> kind.commandName).toList();
     private static final String USAGE = "Uso: /caichet give <" + String.join("|", ITEMS)
         + "> [cantidad] | give cuadro [" + String.join("|", DreamPaintings.ids()) + "|" + RANDOM_PAINTING
-        + "] [cantidad] | tp | tren [aqui] | hotel | sueno | pozo | cuadros";
+        + "] [cantidad] | entidad <" + String.join("|", ENTITIES) + "> | tp | tren [aqui] | hotel | sueno | pozo | cuadros";
 
     private final TrainDirector director;
     private final PitStructure pits;
+    private final BackroomsEntities backrooms;
 
-    CaiChetCommand(TrainDirector director, PitStructure pits) {
+    CaiChetCommand(TrainDirector director, PitStructure pits, BackroomsEntities backrooms) {
         this.director = director;
         this.pits = pits;
+        this.backrooms = backrooms;
     }
 
     @Override
@@ -78,10 +81,23 @@ final class CaiChetCommand implements CommandExecutor, TabCompleter {
                 }
             }
             case "cuadros" -> player.sendMessage(DreamChests.buildTestChest(player));
+            case "entidad" -> entity(player, args);
             case "tp" -> travel(player);
             default -> player.sendMessage(USAGE);
         }
         return true;
+    }
+
+    /** Hace aparecer una entidad de los backrooms ya mismo para quien lo usa. */
+    private void entity(Player player, String[] args) {
+        BackroomsKind kind = args.length >= 2 ? BackroomsKind.byCommandName(args[1]) : null;
+        if (kind == null) {
+            player.sendMessage(USAGE);
+        } else if (!HotelWorld.isHotel(player.getWorld())) {
+            player.sendMessage("solo en los backrooms");
+        } else if (!backrooms.spawn(player, kind)) {
+            player.sendMessage("No encontre lugar para " + kind.deathName + " aca, proba en otro lado.");
+        }
     }
 
     /** Entra o sale sin bloque: desde el Sueño al mundo, desde el hotel a donde estabas, y si no, al desierto. */
@@ -191,6 +207,9 @@ final class CaiChetCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("give") && args[1].equalsIgnoreCase("cuadro")) {
             return prefixed(PAINTING_CHOICES, args[2]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("entidad")) {
+            return prefixed(ENTITIES, args[1]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("tren")) {
             return prefixed(List.of("aqui"), args[1]);

@@ -757,6 +757,143 @@
           "name": "sounds/caichet/hotel_zumbido_loop"
         }
       ]
+    },
+    "caichet:entity.jumpscare": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/susto_grito",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:entity.attack": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/entidad_ataque",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:entity.step": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/paso_1",
+          "load_on_low_memory": true
+        },
+        {
+          "name": "sounds/caichet/paso_2",
+          "load_on_low_memory": true
+        },
+        {
+          "name": "sounds/caichet/paso_3",
+          "load_on_low_memory": true
+        },
+        {
+          "name": "sounds/caichet/paso_4",
+          "load_on_low_memory": true
+        },
+        {
+          "name": "sounds/caichet/paso_5",
+          "load_on_low_memory": true
+        },
+        {
+          "name": "sounds/caichet/paso_6",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:sonrisa.laugh": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/sonrisa_risa",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:e666.heartbeat_slow": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/latido_lento",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:e666.heartbeat_fast": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/latido_rapido",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:juancarlos.growl": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/juancarlos_grunido",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:juancarlos.grab": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/juancarlos_agarre",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:arana.screech": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/arana_chillido",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:arana.click": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/arana_click",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:payaso.giggle": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/payaso_risitas",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:payaso.laugh": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/caichet/payaso_carcajada",
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "caichet:backrooms.ambient": {
+      "category": "ambient",
+      "sounds": [
+        {
+          "name": "sounds/caichet/backrooms_ambiente",
+          "load_on_low_memory": true
+        }
+      ]
     }
   }
 }

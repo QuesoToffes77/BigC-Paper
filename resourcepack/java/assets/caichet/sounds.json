@@ -76,5 +76,78 @@
     "sounds": [
       "caichet:hotel_zumbido_loop"
     ]
+  },
+  "entity.jumpscare": {
+    "sounds": [
+      "caichet:susto_grito"
+    ]
+  },
+  "entity.attack": {
+    "sounds": [
+      "caichet:entidad_ataque"
+    ]
+  },
+  "entity.step": {
+    "sounds": [
+      "caichet:paso_1",
+      "caichet:paso_2",
+      "caichet:paso_3",
+      "caichet:paso_4",
+      "caichet:paso_5",
+      "caichet:paso_6"
+    ]
+  },
+  "sonrisa.laugh": {
+    "sounds": [
+      "caichet:sonrisa_risa"
+    ]
+  },
+  "e666.heartbeat_slow": {
+    "sounds": [
+      "caichet:latido_lento"
+    ]
+  },
+  "e666.heartbeat_fast": {
+    "sounds": [
+      "caichet:latido_rapido"
+    ]
+  },
+  "juancarlos.growl": {
+    "sounds": [
+      "caichet:juancarlos_grunido"
+    ]
+  },
+  "juancarlos.grab": {
+    "sounds": [
+      "caichet:juancarlos_agarre"
+    ]
+  },
+  "arana.screech": {
+    "sounds": [
+      "caichet:arana_chillido"
+    ]
+  },
+  "arana.click": {
+    "sounds": [
+      "caichet:arana_click"
+    ]
+  },
+  "payaso.giggle": {
+    "sounds": [
+      "caichet:payaso_risitas"
+    ]
+  },
+  "payaso.laugh": {
+    "sounds": [
+      "caichet:payaso_carcajada"
+    ]
+  },
+  "backrooms.ambient": {
+    "sounds": [
+      {
+        "name": "caichet:backrooms_ambiente",
+        "stream": true
+      }
+    ]
   }
 }

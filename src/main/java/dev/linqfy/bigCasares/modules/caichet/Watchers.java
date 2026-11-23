@@ -168,6 +168,11 @@ final class Watchers implements Runnable {
         return false;
     }
 
+    /** Si este jugador ya tiene una figura (las entidades de los backrooms no aparecen en ese caso). */
+    boolean has(UUID player) {
+        return byPlayer.containsKey(player);
+    }
+
     void removeAll() {
         byPlayer.values().forEach(w -> w.remove());
         byPlayer.clear();
@@ -303,20 +308,25 @@ final class Watchers implements Runnable {
 
     /** Bloques libres desde los pies hasta el techo (como mucho 6). */
     private static float freeHeight(Location feet) {
-        Block block = feet.getBlock();
-        int free = 0;
-        while (free < 6 && standable(block.getRelative(0, free, 0))) {
-            free++;
-        }
-        return Math.max(2, free);
+        return Math.max(2, freeHeight(feet, 6));
     }
 
-    private static boolean standable(Block block) {
+    /** Bloques libres desde los pies hasta el techo, contando como mucho max (sin minimo). */
+    static int freeHeight(Location feet, int max) {
+        Block block = feet.getBlock();
+        int free = 0;
+        while (free < max && standable(block.getRelative(0, free, 0))) {
+            free++;
+        }
+        return free;
+    }
+
+    static boolean standable(Block block) {
         Material type = block.getType();
         return (type.isAir() || type == Material.LIGHT) && !block.isLiquid();
     }
 
-    private static boolean clearView(Location eye, Location target) {
+    static boolean clearView(Location eye, Location target) {
         Vector direction = target.toVector().subtract(eye.toVector());
         double distance = direction.length();
         RayTraceResult hit = eye.getWorld().rayTraceBlocks(eye, direction.normalize(), distance,
@@ -326,14 +336,18 @@ final class Watchers implements Runnable {
 
     /** El jugador la tiene cerca del centro de la pantalla y nada la tapa. */
     private static boolean sees(Player player, Location feet) {
+        return sees(player, feet.clone().add(0, 1.2, 0), SEEN_ANGLE_DEGREES);
+    }
+
+    /** El jugador tiene este punto a menos de angleDegrees del centro de la pantalla y nada lo tapa. */
+    static boolean sees(Player player, Location target, double angleDegrees) {
         Location eye = player.getEyeLocation();
-        Location chest = feet.clone().add(0, 1.2, 0);
-        Vector to = chest.toVector().subtract(eye.toVector());
+        Vector to = target.toVector().subtract(eye.toVector());
         if (to.lengthSquared() < 1e-6) {
             return true;
         }
         double angle = Math.toDegrees(eye.getDirection().angle(to));
-        return angle <= SEEN_ANGLE_DEGREES && clearView(eye, chest);
+        return angle <= angleDegrees && clearView(eye, target);
     }
 
     static double distanceToSegment(Vector p, Vector a, Vector b) {

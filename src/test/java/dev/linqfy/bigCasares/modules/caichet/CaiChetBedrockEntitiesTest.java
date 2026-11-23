@@ -37,7 +37,7 @@ class CaiChetBedrockEntitiesTest {
             assertTrue(identifiers.add(entry.bedrockIdentifier()), "repeated " + entry.bedrockIdentifier());
             assertTrue(markers.add(entry.markerKey()), "repeated " + entry.markerKey());
         }
-        assertEquals(14, CaiChetBedrockEntities.all().size());
+        assertEquals(19, CaiChetBedrockEntities.all().size());
     }
 
     @Test
@@ -132,5 +132,30 @@ class CaiChetBedrockEntitiesTest {
             CompiledClass compiled = CompiledClass.of(getClass(), "dev.linqfy.bigCasares.modules.caichet." + owner);
             assertTrue(compiled.calls(ENTITIES, "available"), owner);
         }
+    }
+
+    @Test
+    void theBackroomsEntitiesHaveTheirBodiesAndMarkers() {
+        assertEquals(new CaiChetBedrockEntities.Entry("ALLAY", "caichet:sonrisa", "caichet_sonrisa"),
+            CaiChetBedrockEntities.SONRISA);
+        assertEquals(new CaiChetBedrockEntities.Entry("IRON_GOLEM", "caichet:e666", "caichet_e666"),
+            CaiChetBedrockEntities.E666);
+        assertEquals(new CaiChetBedrockEntities.Entry("IRON_GOLEM", "caichet:juancarlos", "caichet_juancarlos"),
+            CaiChetBedrockEntities.JUANCARLOS);
+        assertEquals(new CaiChetBedrockEntities.Entry("IRON_GOLEM", "caichet:arana", "caichet_arana"),
+            CaiChetBedrockEntities.ARANA);
+        assertEquals(new CaiChetBedrockEntities.Entry("IRON_GOLEM", "caichet:payaso", "caichet_payaso"),
+            CaiChetBedrockEntities.PAYASO);
+        for (BackroomsKind kind : BackroomsKind.values()) {
+            assertTrue(CaiChetBedrockEntities.all().contains(kind.bedrockEntry), kind.name());
+        }
+    }
+
+    @Test
+    void theBackroomsFiguresAnnotateAndReleaseTheirBodies() throws IOException {
+        CompiledClass figure = CompiledClass.of(getClass(), "dev.linqfy.bigCasares.modules.caichet.BackroomsFigure");
+        assertTrue(figure.calls(ENTITIES, "present"));
+        assertTrue(figure.calls(ENTITIES, "discard"));
+        assertTrue(figure.calls(ENTITIES, "available"));
     }
 }

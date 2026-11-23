@@ -30,9 +30,24 @@ final class CaiChetSounds {
     static final String PIT_RETURN = "caichet:pit.return";
     static final String DREAM_CHIMES = "caichet:dream.chimes";
     static final String HOTEL_FLICKER = "caichet:hotel.flicker";
+    static final String ENTITY_JUMPSCARE = "caichet:entity.jumpscare";
+    static final String ENTITY_ATTACK = "caichet:entity.attack";
+    static final String ENTITY_STEP = "caichet:entity.step";
+    static final String SONRISA_LAUGH = "caichet:sonrisa.laugh";
+    static final String E666_HEARTBEAT_SLOW = "caichet:e666.heartbeat_slow";
+    static final String E666_HEARTBEAT_FAST = "caichet:e666.heartbeat_fast";
+    static final String JUANCARLOS_GROWL = "caichet:juancarlos.growl";
+    static final String JUANCARLOS_GRAB = "caichet:juancarlos.grab";
+    static final String ARANA_SCREECH = "caichet:arana.screech";
+    static final String ARANA_CLICK = "caichet:arana.click";
+    static final String PAYASO_GIGGLE = "caichet:payaso.giggle";
+    static final String PAYASO_LAUGH = "caichet:payaso.laugh";
+    static final String BACKROOMS_AMBIENT = "caichet:backrooms.ambient";
 
     static final List<String> ALL = List.of(TRAIN_WHISTLE, TRAIN_ENGINE, TRAIN_STEAM, WEAPON_BEAM, DOOR_KEY, DOOR_CREAK,
-            FIGURE_APPEAR, FIGURE_CHASE, EYE_ROAR, PIT_TRAVEL, PIT_RETURN, DREAM_CHIMES, HOTEL_FLICKER);
+            FIGURE_APPEAR, FIGURE_CHASE, EYE_ROAR, PIT_TRAVEL, PIT_RETURN, DREAM_CHIMES, HOTEL_FLICKER,
+            ENTITY_JUMPSCARE, ENTITY_ATTACK, ENTITY_STEP, SONRISA_LAUGH, E666_HEARTBEAT_SLOW, E666_HEARTBEAT_FAST, JUANCARLOS_GROWL,
+            JUANCARLOS_GRAB, ARANA_SCREECH, ARANA_CLICK, PAYASO_GIGGLE, PAYASO_LAUGH, BACKROOMS_AMBIENT);
 
     private static final SoundGate GATE = new SoundGate();
 

@@ -60,7 +60,7 @@ commands:
     permission: bigcasares.mutango.admin
   caichet:
     description: Cai chet (objetos, viajes entre el desierto, el hotel y el Sueno, y el tren)
-    usage: /<command> <give <objeto> [cantidad]|tp|tren [aqui]|hotel|sueno|pozo>
+    usage: /<command> <give <objeto> [cantidad]|entidad <sonrisa|666|juancarlos|arana|payaso>|tp|tren [aqui]|hotel|sueno|pozo>
     permission: bigcasares.caichet.admin
   jeremy:
     description: Manage the Jeremy hunter
