@@ -60,7 +60,7 @@ commands:
     permission: bigcasares.mutango.admin
   alexscaves:
     description: Alex's Caves (créditos, estado y administración)
-    usage: /<command> [creditos|info|efecto|spawn]
+    usage: /<command> [creditos|info|efecto|spawn|items|give]
     aliases: [ ac ]
   jeremy:
     description: Manage the Jeremy hunter

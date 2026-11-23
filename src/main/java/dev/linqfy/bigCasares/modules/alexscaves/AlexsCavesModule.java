@@ -76,6 +76,7 @@ public final class AlexsCavesModule implements PluginModule {
     static final String BLOCKS_FILE = "alexscaves/blocks.yml";
 
     private final BigCasares plugin;
+    private AlexsCavesItemMenu itemMenu;
     private final JavaModelGateway models;
     private AlexsCavesRuntime runtime;
     private RuntimeRegistrationScope compatibilityScope;
@@ -130,6 +131,8 @@ public final class AlexsCavesModule implements PluginModule {
         if (pluginCommand == null) {
             throw new IllegalStateException("Required command is not declared: " + COMMAND);
         }
+        itemMenu = registrations.registerListener("alexs-caves-item-menu",
+            new AlexsCavesItemMenu(plugin.getCustomItemRegistry()));
         AlexsCavesCommand command = new AlexsCavesCommand(this);
         registrations.bindCommand("alexs-caves-command", pluginCommand, command, command);
         ownedRuntime.start(registrations, installer);
@@ -139,6 +142,9 @@ public final class AlexsCavesModule implements PluginModule {
 
     @Override
     public void onDisable() {
+        if (itemMenu != null) {
+            AlexsCavesItemMenu.closeAll();
+        }
         if (runtime != null) {
             runtime.shutdown();
         }
@@ -148,6 +154,7 @@ public final class AlexsCavesModule implements PluginModule {
             scope.close();
         }
         runtime = null;
+        itemMenu = null;
     }
 
     /** Content registered by each biome package (mobs, features). Duplicate ids fail fast. */
@@ -284,6 +291,10 @@ public final class AlexsCavesModule implements PluginModule {
 
     Optional<ModEffectService> effects() {
         return runtime == null ? Optional.empty() : Optional.of(runtime.effects());
+    }
+
+    Optional<AlexsCavesItemMenu> itemMenu() {
+        return Optional.ofNullable(itemMenu);
     }
 
     BigCasares plugin() {

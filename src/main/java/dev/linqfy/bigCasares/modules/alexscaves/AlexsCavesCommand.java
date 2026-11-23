@@ -42,9 +42,48 @@ final class AlexsCavesCommand implements CommandExecutor, TabCompleter {
             case "spawn" -> spawn(sender, args);
             case "buscar", "locate" -> locate(sender, args);
             case "remap" -> remap(sender, args);
+            case "items" -> items(sender, args);
+            case "give", "dar" -> give(sender, args);
             default -> help(sender, label);
         }
         return true;
+    }
+
+    private void items(CommandSender sender, String[] args) {
+        if (!requireAdmin(sender)) {
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ChatColor.RED + "El menú de items es solo para jugadores; usá /alexscaves give.");
+            return;
+        }
+        int page = parse(args, 1, 1);
+        module.itemMenu().ifPresentOrElse(menu -> menu.open(player, Math.max(page, 1) - 1),
+            () -> sender.sendMessage(ChatColor.RED + "El módulo no está activo."));
+    }
+
+    private void give(CommandSender sender, String[] args) {
+        if (!requireAdmin(sender)) {
+            return;
+        }
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "Uso: /alexscaves give <item> [cantidad] [jugador]");
+            return;
+        }
+        int amount = parse(args, 2, 1);
+        if (amount < 1 || amount > 2304) {
+            sender.sendMessage(ChatColor.RED + "Cantidad entre 1 y 2304.");
+            return;
+        }
+        Player target = args.length > 3 ? sender.getServer().getPlayerExact(args[3])
+            : sender instanceof Player player ? player : null;
+        if (target == null) {
+            sender.sendMessage(ChatColor.RED + "Jugador no encontrado.");
+            return;
+        }
+        boolean given = module.itemMenu().map(menu -> menu.give(target, args[1], amount)).orElse(false);
+        sender.sendMessage(given ? ChatColor.GREEN + "Diste " + amount + " " + args[1] + " a " + target.getName() + "."
+            : ChatColor.RED + "Item desconocido o módulo inactivo: " + args[1]);
     }
 
     private void effect(CommandSender sender, String[] args) {
@@ -226,6 +265,8 @@ final class AlexsCavesCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§e/" + label + " efecto <jugador> <efecto> [nivel] [segundos] §7- aplicar un efecto");
             sender.sendMessage("§e/" + label + " spawn <mob> [x y z [mundo]] §7- hacer aparecer un mob del módulo");
             sender.sendMessage("§e/" + label + " buscar <bioma> §7- ir a la cueva más cercana de un bioma");
+            sender.sendMessage("§e/" + label + " items [página] §7- menú con todos los items (shift: un stack)");
+            sender.sendMessage("§e/" + label + " give <item> [cantidad] [jugador] §7- dar un item del módulo");
             sender.sendMessage("§e/" + label + " remap [reset|bench [radio] [rondas] [x z]] §7- bloques por paquetes (debug)");
         }
         sender.sendMessage("§8" + AlexsCavesCredits.shortLine());
@@ -237,6 +278,10 @@ final class AlexsCavesCommand implements CommandExecutor, TabCompleter {
         }
         sender.sendMessage(ChatColor.RED + "No tenés permiso para usar este comando.");
         return false;
+    }
+
+    private static boolean isGive(String action) {
+        return action.equalsIgnoreCase("give") || action.equalsIgnoreCase("dar");
     }
 
     private static int parse(String[] args, int index, int fallback) {
@@ -261,6 +306,8 @@ final class AlexsCavesCommand implements CommandExecutor, TabCompleter {
                 options.add("spawn");
                 options.add("buscar");
                 options.add("remap");
+                options.add("items");
+                options.add("give");
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("buscar") && sender.hasPermission(ADMIN)) {
             for (CaveBiomeId biome : CaveBiomeId.values()) {
@@ -270,6 +317,10 @@ final class AlexsCavesCommand implements CommandExecutor, TabCompleter {
             sender.getServer().getOnlinePlayers().forEach(player -> options.add(player.getName()));
         } else if (args.length == 2 && args[0].equalsIgnoreCase("spawn") && sender.hasPermission(ADMIN)) {
             module.mobs().ifPresent(mobs -> mobs.knownIds().forEach(options::add));
+        } else if (args.length == 2 && isGive(args[0]) && sender.hasPermission(ADMIN)) {
+            module.itemMenu().ifPresent(menu -> menu.ids().forEach(options::add));
+        } else if (args.length == 4 && isGive(args[0]) && sender.hasPermission(ADMIN)) {
+            sender.getServer().getOnlinePlayers().forEach(player -> options.add(player.getName()));
         } else if (args.length == 3 && args[0].equalsIgnoreCase("efecto") && sender.hasPermission(ADMIN)) {
             for (ModEffectType type : ModEffectType.values()) {
                 options.add(type.id());
