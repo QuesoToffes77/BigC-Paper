@@ -17,6 +17,8 @@ import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.damage.DamageSource;
+import org.bukkit.damage.DamageType;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Evoker;
 import org.bukkit.entity.LivingEntity;
@@ -391,21 +393,28 @@ final class OdinController implements BossEncounterController {
         }
     }
 
-    /** El golpe: la mitad de la vida maxima, sin armadura; si no le alcanza la vida, lo mata por la via normal. */
+    /**
+     * El golpe: la mitad de la vida maxima por una sola via de daño (sonic boom de Odín: ignora la armadura y los
+     * encantamientos de protección; el escudo, la Resistencia, la absorción y los totems cuentan igual que siempre,
+     * y otros modulos ven el evento). Si no le alcanza la vida, muere "por ODÍN".
+     */
     private void ram(Player player) {
         Warden boss = context.boss();
         AttributeInstance maximum = player.getAttribute(Attribute.MAX_HEALTH);
         double maxHealth = maximum == null ? 20.0 : maximum.getValue();
-        OdinCharge.Impact impact = OdinCharge.Impact.against(player.getHealth(), maxHealth);
-        Vector push = new Vector(chargeX, 0.0, chargeZ).multiply(1.6).setY(0.55);
-        if (impact.lethal()) {
-            // via de daño normal: totems, mensaje de muerte "... por ODÍN" y eventos de otros modulos
-            player.damage(1000.0, boss);
-        } else {
-            player.setHealth(Math.min(maxHealth, impact.remainingHealth()));
-            player.playHurtAnimation(0.0F);
-            player.setVelocity(push);
-            actionBar(player, "§c¡Odín te embistió! §7Perdiste la mitad de tu vida");
+        boolean lethal = OdinCharge.Impact.against(player.getHealth(), maxHealth).lethal();
+        DamageSource source = DamageSource.builder(DamageType.SONIC_BOOM)
+            .withCausingEntity(boss)
+            .withDirectEntity(boss)
+            .withDamageLocation(boss.getLocation())
+            .build();
+        player.damage(OdinCharge.Impact.damage(maxHealth), source);
+        if (!player.isDead()) {
+            // despues del daño, asi su empuje vanilla no pisa el de la embestida
+            player.setVelocity(new Vector(chargeX, 0.0, chargeZ).multiply(1.6).setY(0.55));
+            if (!lethal) {
+                actionBar(player, "§c¡Odín te embistió! §7Perdiste la mitad de tu vida");
+            }
         }
         Location at = player.getLocation();
         at.getWorld().playSound(at, Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, SoundCategory.HOSTILE, 1.6F, 0.6F);

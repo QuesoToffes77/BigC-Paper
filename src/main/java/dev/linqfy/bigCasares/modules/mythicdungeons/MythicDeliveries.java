@@ -11,6 +11,7 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.logging.Logger;
@@ -32,6 +33,17 @@ final class MythicDeliveries implements Listener {
         this.pending = Objects.requireNonNull(pending, "pending");
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.logger = Objects.requireNonNull(logger, "logger");
+    }
+
+    /** Guarda en garantia el Invocador de una pelea recien invocada (ver {@link MythicPendingDeliveries#escrow}). */
+    void escrowSummoner(DungeonBossRegistry.Summon summon) {
+        summon.summoner().ifPresent(player -> pending.escrow(summon.bossInstanceId(),
+            MythicPendingDeliveries.Delivery.summoner(player, summon.culture())));
+    }
+
+    /** Termina la garantia: sin derrota el Invocador vuelve a quien lo uso; con derrota se descarta. */
+    void settleSummoner(UUID bossInstanceId, boolean defeated) {
+        pending.settle(bossInstanceId).filter(held -> !defeated).ifPresent(this::deliver);
     }
 
     /** Da la entrega ahora si el jugador esta conectado; si no, la guarda para cuando entre. */

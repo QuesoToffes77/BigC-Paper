@@ -50,6 +50,35 @@ class MythicPendingDeliveriesTest {
     }
 
     @Test
+    void anEscrowedSummonerComesBackAfterACrashButNotAfterADefeat() {
+        Path file = folder.resolve(MythicPendingDeliveries.FILE);
+        UUID player = UUID.randomUUID();
+        UUID crashedBoss = UUID.randomUUID();
+        UUID defeatedBoss = UUID.randomUUID();
+        UUID removedBoss = UUID.randomUUID();
+        MythicPendingDeliveries store = new MythicPendingDeliveries(file, LOGGER);
+        MythicPendingDeliveries.Delivery crashed = MythicPendingDeliveries.Delivery.summoner(player,
+            MythicCulture.GREEK);
+        store.escrow(crashedBoss, crashed);
+        store.escrow(defeatedBoss, MythicPendingDeliveries.Delivery.summoner(player, MythicCulture.NORSE));
+        store.escrow(removedBoss, MythicPendingDeliveries.Delivery.summoner(player, MythicCulture.ANDEAN));
+        // en garantia no se entrega: la pelea sigue
+        assertTrue(store.pending(player).isEmpty());
+        assertEquals(3, store.escrowed());
+        // la derrota y la baja sin derrota terminan la garantia (el modulo descarta o entrega lo que devuelve)
+        assertTrue(store.settle(defeatedBoss).isPresent());
+        assertTrue(store.settle(removedBoss).isPresent());
+        assertTrue(store.settle(removedBoss).isEmpty());
+
+        // crash: nadie llamo settle; al arrancar de nuevo el Invocador queda para entregar, una sola vez
+        MythicPendingDeliveries restarted = new MythicPendingDeliveries(file, LOGGER);
+        assertEquals(List.of(crashed), restarted.pending(player));
+        assertEquals(0, restarted.escrowed());
+        assertTrue(restarted.take(crashed.id()));
+        assertTrue(new MythicPendingDeliveries(file, LOGGER).pending(player).isEmpty());
+    }
+
+    @Test
     void skipsBrokenEntriesInsteadOfLosingTheRest() throws Exception {
         Path file = folder.resolve(MythicPendingDeliveries.FILE);
         UUID player = UUID.randomUUID();

@@ -138,6 +138,10 @@ class OdinChargeTest {
         // con mas vida maxima (por ejemplo un buff), sigue siendo la mitad
         assertEquals(20.0, OdinCharge.Impact.against(40.0, 40.0).remainingHealth(), 1e-9);
         assertThrows(IllegalArgumentException.class, () -> OdinCharge.Impact.against(10.0, 0.0));
+        // la misma cantidad sea letal o no: una sola via de daño
+        assertEquals(10.0, OdinCharge.Impact.damage(20.0), 1e-9);
+        assertEquals(20.0, OdinCharge.Impact.damage(40.0), 1e-9);
+        assertThrows(IllegalArgumentException.class, () -> OdinCharge.Impact.damage(0.0));
     }
 
     @Test

@@ -57,6 +57,14 @@ public final class OdinCharge {
             double remaining = health - maximumHealth / 2.0;
             return remaining > 0.0 ? new Impact(false, remaining) : new Impact(true, 0.0);
         }
+
+        /** El daño del golpe: la mitad de la vida maxima, el mismo para un golpe letal o no. */
+        public static double damage(double maximumHealth) {
+            if (!Double.isFinite(maximumHealth) || maximumHealth <= 0.0) {
+                throw new IllegalArgumentException("the maximum health must be finite and positive");
+            }
+            return maximumHealth / 2.0;
+        }
     }
 
     private OdinCharge() {

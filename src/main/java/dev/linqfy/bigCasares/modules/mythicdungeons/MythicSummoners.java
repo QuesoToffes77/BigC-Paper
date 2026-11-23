@@ -29,8 +29,10 @@ import org.bukkit.inventory.Recipe;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,14 +50,17 @@ final class MythicSummoners implements Listener {
     private final DungeonBossRegistry summons;
     private final Logger logger;
     private final NamespacedKey moduleRecipe;
+    private final Consumer<DungeonBossRegistry.Summon> summoned;
 
     /**
      * @param moduleRecipe la clave de la receta propia del modulo (cuatro items del material de los fragmentos), la
      *                     que deja craftear aunque la receta exacta del catalogo no reconozca los fragmentos
      */
     MythicSummoners(CustomItemRegistry items, DungeonLocator locator, MythicDungeonSettings settings,
-                    MythicBossHost bosses, DungeonBossRegistry summons, Logger logger, NamespacedKey moduleRecipe) {
+                    MythicBossHost bosses, DungeonBossRegistry summons, Logger logger, NamespacedKey moduleRecipe,
+                    Consumer<DungeonBossRegistry.Summon> summoned) {
         this.moduleRecipe = moduleRecipe;
+        this.summoned = Objects.requireNonNull(summoned, "summoned");
         this.items = items;
         this.locator = locator;
         this.settings = settings;
@@ -106,9 +111,12 @@ final class MythicSummoners implements Listener {
                 + " no puede aparecer ahora (" + failure.getMessage() + "). El invocador no se gastó.");
             return;
         }
-        summons.remember(dungeon.get().key(), new DungeonBossRegistry.Summon(boss, culture,
+        DungeonBossRegistry.Summon record = new DungeonBossRegistry.Summon(boss, culture,
             spawn.getWorld().getName(), spawn.getX(), spawn.getY(), spawn.getZ(),
-            player.getGameMode() != GameMode.CREATIVE ? player.getUniqueId() : null));
+            player.getGameMode() != GameMode.CREATIVE ? player.getUniqueId() : null);
+        summons.remember(dungeon.get().key(), record);
+        // en garantia antes de gastarlo: si el servidor se cae en plena pelea, vuelve al reiniciar
+        summoned.accept(record);
         if (player.getGameMode() != GameMode.CREATIVE) {
             item.setAmount(item.getAmount() - 1);
         }

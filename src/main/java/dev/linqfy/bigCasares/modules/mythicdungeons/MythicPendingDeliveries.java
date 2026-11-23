@@ -62,6 +62,12 @@ final class MythicPendingDeliveries {
     private final Path file;
     private final Logger logger;
     private final Map<UUID, Delivery> pending = new LinkedHashMap<>();
+    /**
+     * Invocadores en garantia, por instancia de jefe: se guardan al invocar (antes de que la pelea pueda terminar)
+     * y se sueltan o se descartan cuando termina. Ningun jefe sobrevive a un reinicio, asi que al cargar el archivo
+     * los que quedaron (un crash en plena pelea) pasan a ser entregas normales.
+     */
+    private final Map<UUID, Delivery> escrow = new LinkedHashMap<>();
 
     MythicPendingDeliveries(Path file, Logger logger) {
         this.file = Objects.requireNonNull(file, "file").toAbsolutePath().normalize();
@@ -72,6 +78,26 @@ final class MythicPendingDeliveries {
     synchronized void add(Delivery delivery) {
         pending.put(delivery.id(), Objects.requireNonNull(delivery, "delivery"));
         persist();
+    }
+
+    /** Guarda el Invocador de una pelea que empieza, para devolverlo si el servidor se cae antes de que termine. */
+    synchronized void escrow(UUID bossInstanceId, Delivery delivery) {
+        escrow.put(Objects.requireNonNull(bossInstanceId, "bossInstanceId"),
+            Objects.requireNonNull(delivery, "delivery"));
+        persist();
+    }
+
+    /** Termina la garantia de esa pelea y devuelve el Invocador que tenia (para entregarlo si no hubo derrota). */
+    synchronized Optional<Delivery> settle(UUID bossInstanceId) {
+        Delivery held = escrow.remove(bossInstanceId);
+        if (held != null) {
+            persist();
+        }
+        return Optional.ofNullable(held);
+    }
+
+    synchronized int escrowed() {
+        return escrow.size();
     }
 
     synchronized List<Delivery> pending(UUID playerId) {
@@ -96,10 +122,33 @@ final class MythicPendingDeliveries {
             return;
         }
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
-        ConfigurationSection root = yaml.getConfigurationSection("pending");
-        if (root == null) {
-            return;
+        boolean released = false;
+        ConfigurationSection held = yaml.getConfigurationSection("escrow");
+        if (held != null) {
+            for (String rawBoss : held.getKeys(false)) {
+                ConfigurationSection section = held.getConfigurationSection(rawBoss);
+                try {
+                    String rawId = Objects.requireNonNull(Objects.requireNonNull(section, "section").getString("id"), "id");
+                    Delivery delivery = read(UUID.fromString(rawId), section);
+                    pending.put(delivery.id(), delivery);
+                    released = true;
+                } catch (RuntimeException invalid) {
+                    logger.warning("[Mazmorras] Invocador en garantia invalido en " + FILE + " (" + rawBoss + "): "
+                        + invalid.getMessage());
+                }
+            }
         }
+        ConfigurationSection root = yaml.getConfigurationSection("pending");
+        if (root != null) {
+            readPending(root);
+        }
+        if (released) {
+            logger.info("[Mazmorras] Una pelea quedo cortada por un reinicio: su Invocador vuelve a quien lo uso.");
+            persist();
+        }
+    }
+
+    private void readPending(ConfigurationSection root) {
         for (String rawId : root.getKeys(false)) {
             ConfigurationSection section = root.getConfigurationSection(rawId);
             try {
@@ -129,18 +178,29 @@ final class MythicPendingDeliveries {
 
     private void persist() {
         YamlConfiguration yaml = new YamlConfiguration();
-        for (Delivery delivery : pending.values()) {
-            String path = "pending." + delivery.id();
-            yaml.set(path + ".player", delivery.playerId().toString());
-            yaml.set(path + ".kind", delivery.kind().name());
-            yaml.set(path + ".culture", delivery.culture().id());
-            if (delivery.kind() == Kind.REWARD) {
-                yaml.set(path + ".placement", delivery.placement());
-                yaml.set(path + ".xp", delivery.xp());
-                yaml.set(path + ".items", delivery.items().stream()
-                    .map(item -> item.material().name() + ":" + item.amount()).toList());
-            }
+        for (Map.Entry<UUID, Delivery> held : escrow.entrySet()) {
+            write(yaml, "escrow." + held.getKey(), held.getValue());
+            yaml.set("escrow." + held.getKey() + ".id", held.getValue().id().toString());
         }
+        for (Delivery delivery : pending.values()) {
+            write(yaml, "pending." + delivery.id(), delivery);
+        }
+        save(yaml);
+    }
+
+    private static void write(YamlConfiguration yaml, String path, Delivery delivery) {
+        yaml.set(path + ".player", delivery.playerId().toString());
+        yaml.set(path + ".kind", delivery.kind().name());
+        yaml.set(path + ".culture", delivery.culture().id());
+        if (delivery.kind() == Kind.REWARD) {
+            yaml.set(path + ".placement", delivery.placement());
+            yaml.set(path + ".xp", delivery.xp());
+            yaml.set(path + ".items", delivery.items().stream()
+                .map(item -> item.material().name() + ":" + item.amount()).toList());
+        }
+    }
+
+    private void save(YamlConfiguration yaml) {
         try {
             Path parent = file.getParent();
             if (parent != null) {

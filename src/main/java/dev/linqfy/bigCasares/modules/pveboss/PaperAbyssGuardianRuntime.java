@@ -182,6 +182,8 @@ public final class PaperAbyssGuardianRuntime implements Listener {
         }
         TextDisplay text = world.spawn(location.clone().add(0.0, 4.0, 0.0), TextDisplay.class, display -> {
             mark(display, bossId);
+            // el cartel sigue al jefe: uno con guion no se guarda con el chunk, asi que su cartel tampoco
+            display.setPersistent(encounterFactory == null);
             display.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
             display.setShadowed(true);
             display.setGravity(false);

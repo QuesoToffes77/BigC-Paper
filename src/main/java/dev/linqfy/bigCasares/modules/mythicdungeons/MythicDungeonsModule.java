@@ -135,16 +135,16 @@ public final class MythicDungeonsModule implements PluginModule {
         registrations.registerListener("mythic-mobs", ownedMobs);
         registrations.registerListener("mythic-spawns", new MythicDungeonSpawns(ownedMobs, ownedLocator, settings));
         NamespacedKey summonerRecipe = new NamespacedKey(plugin, SUMMONER_RECIPE);
-        registrations.registerListener("mythic-summoners", new MythicSummoners(customItems, ownedLocator, settings,
-            host, summons, plugin.getLogger(), summonerRecipe));
-        registerSummonerRecipe(registrations, summonerRecipe);
-        registrations.registerListener("mythic-guitar",
-            new MandingaGuitarListener(plugin, customItems, scheduler));
         MythicDeliveries ownedDeliveries = new MythicDeliveries(plugin.getServer(), new MythicPendingDeliveries(
             new File(plugin.getDataFolder(), MythicPendingDeliveries.FILE).toPath(), plugin.getLogger()),
             this::catalogItem, plugin.getLogger());
         deliveries = ownedDeliveries;
         registrations.registerListener("mythic-deliveries", ownedDeliveries);
+        registrations.registerListener("mythic-summoners", new MythicSummoners(customItems, ownedLocator, settings,
+            host, summons, plugin.getLogger(), summonerRecipe, ownedDeliveries::escrowSummoner));
+        registerSummonerRecipe(registrations, summonerRecipe);
+        registrations.registerListener("mythic-guitar",
+            new MandingaGuitarListener(plugin, customItems, scheduler));
 
         MythicBossSupport ownedSupport = new MythicBossSupport(plugin, ownedMobs, javaModels, ownedLocator, scheduler,
             platforms);
@@ -242,14 +242,11 @@ public final class MythicDungeonsModule implements PluginModule {
      * Invocador vuelve a quien lo gasto: ya si esta conectado, o cuando entre.
      */
     private void bossEnded(UUID bossInstanceId, MythicCulture culture, boolean defeated) {
-        Optional<DungeonBossRegistry.Summon> summon = summons.byBoss(bossInstanceId);
         summons.forget(bossInstanceId);
         MythicDeliveries owned = deliveries;
-        if (defeated || owned == null || summon.isEmpty()) {
-            return;
+        if (owned != null) {
+            owned.settleSummoner(bossInstanceId, defeated);
         }
-        summon.get().summoner().ifPresent(player -> owned.deliver(
-            MythicPendingDeliveries.Delivery.summoner(player, summon.get().culture())));
     }
 
     private void unregisterBosses() {

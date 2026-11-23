@@ -107,6 +107,8 @@ final class IblisFight implements BossEncounterController {
     private final List<Trail> trails = new ArrayList<>();
     private final Map<UUID, Integer> feedbackAt = new HashMap<>();
     private final Set<UUID> ringHolders = new HashSet<>();
+    /** Anillos dados por jugador: uno guardado en un cofre no se repone sin fin. */
+    private final Map<UUID, Integer> ringHandouts = new HashMap<>();
     private final Set<UUID> dashHit = new HashSet<>();
     private final IblisRingItems rings;
 
@@ -526,11 +528,16 @@ final class IblisFight implements BossEncounterController {
         if (rings.has(player)) {
             return;
         }
+        int handed = ringHandouts.getOrDefault(player.getUniqueId(), 0);
+        if (!IblisRingUse.mayHandOut(handed)) {
+            return;
+        }
         if (!rings.give(player)) {
             feedback(player, "§c¡Tenés el inventario lleno! §fLiberá un lugar para recibir el anillo de Salomón.");
             return;
         }
         ringHolders.add(player.getUniqueId());
+        ringHandouts.put(player.getUniqueId(), handed + 1);
         player.showTitle(title);
         player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GOLD, SoundCategory.PLAYERS, 1.0F, 1.2F);
         player.sendMessage(LEGACY.deserialize("§6✦ §fRecibiste el §6Anillo de Salomón§f. §7Tenelo en la mano y "
@@ -1085,7 +1092,8 @@ final class IblisFight implements BossEncounterController {
             if (!id.equals(display.getPersistentDataContainer().get(key, PersistentDataType.STRING))) {
                 continue;
             }
-            for (Player player : world.getPlayers()) {
+            // todos los conectados: quien estaba en otro mundo al revelarse Iblis tambien tiene que volver a verlo
+            for (Player player : support.plugin().getServer().getOnlinePlayers()) {
                 if (hide) {
                     player.hideEntity(support.plugin(), display);
                 } else {

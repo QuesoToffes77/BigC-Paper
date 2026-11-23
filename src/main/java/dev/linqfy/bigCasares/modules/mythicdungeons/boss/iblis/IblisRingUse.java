@@ -66,4 +66,12 @@ public final class IblisRingUse {
     public void clear() {
         lastUse.clear();
     }
+
+    /** Cuantas veces se le da el anillo a un mismo jugador en una pelea (lo pierde al morir o lo guarda en un cofre). */
+    public static final int MAX_HANDOUTS = 3;
+
+    /** Si a un jugador que ya recibio {@code handedSoFar} anillos en esta pelea se le puede dar otro. */
+    public static boolean mayHandOut(int handedSoFar) {
+        return handedSoFar < MAX_HANDOUTS;
+    }
 }

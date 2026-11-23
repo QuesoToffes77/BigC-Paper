@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IblisRingUseTest {
 
@@ -53,5 +55,12 @@ class IblisRingUseTest {
         assertEquals(IblisRingUse.Outcome.ARMED, use.attempt(ANA, true, true, new IblisPoint(9, 1), vessels,
             IblisRingUse.COOLDOWN_TICKS).outcome());
         assertEquals(0, use.recharge(ANA, IblisRingUse.COOLDOWN_TICKS * 3));
+    }
+
+    @Test
+    void aRingStashedInAChestIsNotReplacedForever() {
+        assertTrue(IblisRingUse.mayHandOut(0));
+        assertTrue(IblisRingUse.mayHandOut(IblisRingUse.MAX_HANDOUTS - 1));
+        assertFalse(IblisRingUse.mayHandOut(IblisRingUse.MAX_HANDOUTS));
     }
 }

@@ -7,6 +7,7 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Enemy;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Locale;
@@ -16,6 +17,7 @@ import java.util.Set;
 final class BukkitBloodMoonMobModifier {
     private final NamespacedKey healthKey;
     private final NamespacedKey speedKey;
+    private final NamespacedKey customEntityKey;
     private final BloodMoonMobSettings settings;
     private final BloodMoonMobModifierService service;
 
@@ -24,6 +26,7 @@ final class BukkitBloodMoonMobModifier {
         this.settings = Objects.requireNonNull(settings, "settings");
         this.healthKey = new NamespacedKey(plugin, "blood_moon_health");
         this.speedKey = new NamespacedKey(plugin, "blood_moon_speed");
+        this.customEntityKey = new NamespacedKey(plugin, "custom_entity");
         this.service = new BloodMoonMobModifierService(
             settings.healthMultiplier(), settings.movementSpeedMultiplier());
     }
@@ -36,8 +39,20 @@ final class BukkitBloodMoonMobModifier {
         return service.remove(new BukkitStats(entity));
     }
 
+    /**
+     * Los mobs, minions y jefes de las mazmorras miticas tienen sus numeros y su botin ajustados por su modulo
+     * (los minions mueren sin botin): la luna de sangre no los toca.
+     */
+    static boolean isMythicDungeonEntity(String customEntity) {
+        return customEntity != null && (customEntity.equals("mythic-dungeons") || customEntity.startsWith("myth-"));
+    }
+
     boolean isEligible(LivingEntity entity) {
         if (entity == null || entity instanceof Player) {
+            return false;
+        }
+        if (isMythicDungeonEntity(entity.getPersistentDataContainer().get(customEntityKey,
+            PersistentDataType.STRING))) {
             return false;
         }
         String enumName = entity.getType().name().toUpperCase(Locale.ROOT);
