@@ -13,6 +13,9 @@ modules:
     enabled: true
   jeremy:
     enabled: true
+  # Nivel de equipo 0-200. Se configura en plugins/BigCasares/toffy_complementaries.yml y toffy_valores.yml
+  toffy-complementaries:
+    enabled: true
   don-pollos:
     enabled: true
   mutango:

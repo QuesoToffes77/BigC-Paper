@@ -46,6 +46,8 @@ import dev.linqfy.bigCasares.modules.auth.AuthModule;
 import dev.linqfy.bigCasares.modules.acidrain.AcidRainModule;
 import dev.linqfy.bigCasares.modules.bloodmoon.BloodMoonModule;
 import dev.linqfy.bigCasares.modules.jeremy.JeremyModule;
+import dev.linqfy.bigCasares.modules.toffy.ToffyModule;
+import dev.linqfy.bigCasares.modules.toffy.ToffySettings;
 import dev.linqfy.bigCasares.modules.donpollos.DonPollosModule;
 import dev.linqfy.bigCasares.modules.mutango.MutangoModule;
 import dev.linqfy.bigCasares.modules.celular.CelularModule;
@@ -116,6 +118,9 @@ public final class BigCasares extends JavaPlugin {
     private AcidRainModule acidRainModule;
     private BloodMoonModule bloodMoonModule;
     private JeremyModule jeremyModule;
+    private ToffyModule toffyModule;
+    // Survives clearRuntimeReferences() so a reload with broken Toffy files keeps the last working settings.
+    private ToffySettings lastToffySettings;
     private DonPollosModule donPollosModule;
     private MutangoModule mutangoModule;
     private CelularModule celularModule;
@@ -265,6 +270,10 @@ public final class BigCasares extends JavaPlugin {
 
     public JeremyModule getJeremyModule() {
         return jeremyModule;
+    }
+
+    public ToffyModule getToffyModule() {
+        return toffyModule;
     }
 
     public DonPollosModule getDonPollosModule() {
@@ -419,6 +428,7 @@ public final class BigCasares extends JavaPlugin {
         this.customItemRegistry = new CustomItemRegistry();
         this.emojiAliasService = loadEmojiAliases();
         this.moduleManager = new ModuleManager(this, getConfig());
+        this.toffyModule = new ToffyModule(this, lastToffySettings);
         this.missionModule = new MissionModule(this);
         this.bountyModule = new BountyModule(this);
         this.shopModule = new ShopModule(this);
@@ -503,6 +513,7 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(resourcePackModule);
         moduleManager.register(tideframeUiModule);
         moduleManager.register(itemCatalogModule);
+        moduleManager.register(toffyModule);
         moduleManager.register(new CopperAppleModule(this));
         moduleManager.register(new SmokeBombModule(this));
         moduleManager.register(new CustomCrossbowModule(this));
@@ -736,6 +747,10 @@ public final class BigCasares extends JavaPlugin {
         acidRainModule = null;
         bloodMoonModule = null;
         jeremyModule = null;
+        if (toffyModule != null && toffyModule.lastValidSettings() != null) {
+            lastToffySettings = toffyModule.lastValidSettings();
+        }
+        toffyModule = null;
         donPollosModule = null;
         mutangoModule = null;
         celularModule = null;

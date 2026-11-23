@@ -62,6 +62,10 @@ commands:
     description: Manage the Jeremy hunter
     usage: /<command> <status|start [player]|stop|cooldown reset>
     permission: bigcasares.jeremy.admin
+  toffy:
+    description: Show the Toffy Complementaries equipment level (0-200), preview the curve or reload its files
+    usage: /<command> [jugador|curva|reload]
+    aliases: [ tcomp ]
   celular:
     description: Give a Celular (the phone that plays videos)
     usage: /<command> give [player]
@@ -252,6 +256,7 @@ permissions:
       bigcasares.jeremy.start: true
       bigcasares.jeremy.stop: true
       bigcasares.celular.admin: true
+      bigcasares.toffy.admin: true
       bigcasares.schizophrenia.admin: true
       bigcasares.casino.admin: true
       bigcasares.forex: true
@@ -409,6 +414,21 @@ permissions:
   bigcasares.jeremy.stop:
     description: Stop the active Jeremy hunt
     default: op
+
+  bigcasares.toffy.check:
+    description: See your own Toffy Complementaries equipment level
+    default: true
+
+  bigcasares.toffy.check.others:
+    description: See another player's Toffy Complementaries equipment level
+    default: op
+
+  bigcasares.toffy.admin:
+    description: Reload the Toffy Complementaries files and preview the curve
+    default: op
+    children:
+      bigcasares.toffy.check: true
+      bigcasares.toffy.check.others: true
 
   bigcasares.schizophrenia.admin:
     description: Start, stop and provoke schizophrenia episodes; give the Lobotomizador
