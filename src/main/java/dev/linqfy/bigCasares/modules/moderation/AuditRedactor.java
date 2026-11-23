@@ -1,5 +1,7 @@
 package dev.linqfy.bigCasares.modules.moderation;
 
+import dev.linqfy.bigCasares.communication.CredentialCommandSanitizer;
+
 import java.util.regex.Pattern;
 
 public final class AuditRedactor {
@@ -15,7 +17,8 @@ public final class AuditRedactor {
         if (value == null || value.isEmpty()) {
             return value;
         }
-        String redacted = WEBHOOK.matcher(value).replaceAll("[WEBHOOK REDACTADO]");
+        String redacted = value.stripLeading().startsWith("/") ? CredentialCommandSanitizer.redact(value) : value;
+        redacted = WEBHOOK.matcher(redacted).replaceAll("[WEBHOOK REDACTADO]");
         redacted = ASSIGNMENT.matcher(redacted).replaceAll(match -> match.group(1) + "=[REDACTADO]");
         redacted = PASSWORD_COMMAND.matcher(redacted).replaceFirst("$1[REDACTADO]");
         return MULTI_PASSWORD_COMMAND.matcher(redacted).replaceFirst("$1[REDACTADO]");

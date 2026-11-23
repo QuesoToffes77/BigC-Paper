@@ -1,5 +1,7 @@
 package dev.linqfy.bigCasares.modules.mutango;
 
+import dev.linqfy.bigCasares.modules.auth.AuthReadiness;
+import dev.linqfy.bigCasares.modules.auth.AuthReadyEvent;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -149,6 +151,10 @@ final class MutangoRewards implements Listener {
     private void claim(Player player, boolean notify) {
         if (!player.isOnline() || player.isDead() || !pending.has(player.getUniqueId())) {
             waitingForRoom.remove(player.getUniqueId());
+            return;
+        }
+        if (!AuthReadiness.ready(plugin, player)) {
+            waitingForRoom.add(player.getUniqueId());
             return;
         }
         boolean gave = false;
@@ -305,6 +311,12 @@ final class MutangoRewards implements Listener {
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         tasks.next("claim-on-respawn", () -> claimPending(player));
+    }
+
+    @EventHandler
+    public void onAuthReady(AuthReadyEvent event) {
+        Player player = event.player();
+        tasks.next("claim-after-auth", () -> claimPending(player));
     }
 
     @EventHandler

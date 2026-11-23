@@ -4,8 +4,10 @@ import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.modules.tideframe.MenuTitleStyle;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
@@ -22,10 +24,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.UUID;
 import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.function.Predicate;
 
 public final class MissionModule implements PluginModule {
 
@@ -40,9 +44,18 @@ public final class MissionModule implements PluginModule {
     private RuntimeRegistrationScope compatibilityScope;
     private final Map<UUID, MissionPlayerState> stateCache = new LinkedHashMap<>();
     private final Set<UUID> dirtyPlayers = new LinkedHashSet<>();
+    private final Set<UUID> pendingRevalidation = new java.util.HashSet<>();
+    private BukkitRuntimeRegistrations registrations;
+    private volatile Supplier<MenuTitleStyle> menuTitleStyle =
+        () -> MenuTitleStyle.PLAIN;
 
     public MissionModule(BigCasares plugin) {
         this.plugin = plugin;
+    }
+
+    /** How the missions menu titles look (the tideframe-ui module draws a background); plain titles by default. */
+    public void configureMenuTitleStyle(Supplier<MenuTitleStyle> style) {
+        this.menuTitleStyle = style == null ? () -> MenuTitleStyle.PLAIN : style;
     }
 
     @Override
@@ -60,6 +73,7 @@ public final class MissionModule implements PluginModule {
     @Override
     public void onEnable(RuntimeRegistrationScope scope) {
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
+        this.registrations = registrations;
         Economy economy = VaultEconomyGateway.resolveOrThrow(plugin);
         this.catalog = new MissionCatalogLoader().load(plugin.getConfig());
         this.storage = new YamlMissionStorage(plugin.getDataFolder().toPath().resolve("data").resolve("missions").resolve("players"));
@@ -73,11 +87,11 @@ public final class MissionModule implements PluginModule {
             this::nextDailyReset,
             this::nextWeeklyReset
         );
-        this.hudController = new MissionHudController(this, economyGateway);
+        this.hudController = new MissionHudController(this, economyGateway, () -> menuTitleStyle.get());
 
         scope.register("module-state", this::clearRuntimeState);
         scope.register("hud-open-views", hudController::closeOpenViews);
-        registrations.registerListener("mission-listener", new MissionListener(this));
+        registrations.registerListener("mission-listener", new MissionListener(this, plugin, registrations));
         registrations.registerListener("hud-listener", hudController);
         registrations.scheduleRepeating("mission-state-flush", this::flushDirtyStates, 600L, 600L);
         this.enabled = true;
@@ -199,12 +213,127 @@ public final class MissionModule implements PluginModule {
         updateMatchingMissions(player, MissionType.KILL_ENTITY_WITH_ITEM_ONLY, ProgressUpdateMode.INCREMENT, 1, weapon, null, entityType);
     }
 
-    public void completePigNameMission(Player player, String customName) {
-        updateMatchingMissions(player, MissionType.NAME_ENTITY_AFTER_PLAYER, ProgressUpdateMode.INCREMENT, 1, null, customName, "PIG");
+    public void completeEntityNameMission(Player player, Entity entity, String customName) {
+        MissionPlayerState state = getOrCreateState(player);
+        MissionPlayerState updated = state;
+        for (MissionScope scope : MissionScope.values()) {
+            for (MissionAssignment assignment : assignmentsFor(updated, scope).values()) {
+                MissionDefinition definition = assignment.definition();
+                if (definition.type() == MissionType.NAME_ENTITY_AFTER_PLAYER
+                    && matchesCondition(player, definition, null, customName, entity.getType().name())) {
+                    // Keyed by entity so renaming the same pig again does not count twice.
+                    updated = playerMissionService.addProgressMarker(updated, scope, definition.id(), entity.getUniqueId().toString());
+                }
+            }
+        }
+        cacheUpdated(updated);
+    }
+
+    /** Adds {@code delta} to every assigned mission of the given type whose definition passes the filter. */
+    public void incrementWhere(Player player, MissionType type, Predicate<MissionDefinition> filter, int delta) {
+        MissionPlayerState state = getOrCreateState(player);
+        MissionPlayerState updated = state;
+        for (MissionScope scope : MissionScope.values()) {
+            for (MissionAssignment assignment : assignmentsFor(updated, scope).values()) {
+                MissionDefinition definition = assignment.definition();
+                if (definition.type() == type && filter.test(definition)) {
+                    updated = playerMissionService.updateAbsoluteProgress(
+                        updated, scope, definition.id(), assignment.snapshot().progress() + delta);
+                }
+            }
+        }
+        if (updated != state) {
+            cacheUpdated(updated);
+        }
+    }
+
+    public void recordTargetEvent(Player player, MissionType type, List<String> targetNames) {
+        incrementWhere(player, type, definition -> MissionTargets.matches(definition.params().get("target"), targetNames), 1);
+    }
+
+    public void recordSameTarget(Player player, MissionType type, String targetKey) {
+        MissionPlayerState state = getOrCreateState(player);
+        MissionPlayerState updated = state;
+        for (MissionScope scope : MissionScope.values()) {
+            for (MissionAssignment assignment : assignmentsFor(updated, scope).values()) {
+                if (assignment.definition().type() == type) {
+                    updated = playerMissionService.recordSameTargetProgress(updated, scope, assignment.definition().id(), targetKey);
+                }
+            }
+        }
+        if (updated != state) {
+            cacheUpdated(updated);
+        }
+    }
+
+    /**
+     * Completes the player's assigned {@link MissionType#ADMIN_APPROVAL} missions, or only the given
+     * mission id when one is supplied. Returns how many missions were completed.
+     */
+    public int approveMissions(Player player, String missionId) {
+        MissionPlayerState state = getOrCreateState(player);
+        MissionPlayerState updated = state;
+        int approved = 0;
+        for (MissionScope scope : MissionScope.values()) {
+            for (MissionAssignment assignment : assignmentsFor(updated, scope).values()) {
+                MissionDefinition definition = assignment.definition();
+                boolean selected = missionId == null
+                    ? definition.type() == MissionType.ADMIN_APPROVAL
+                    : definition.id().equalsIgnoreCase(missionId);
+                if (selected && !assignment.snapshot().completed()) {
+                    updated = playerMissionService.forceComplete(updated, scope, definition.id());
+                    approved++;
+                }
+            }
+        }
+        if (approved > 0) {
+            storage.save(updated);
+            stateCache.put(player.getUniqueId(), updated);
+            dirtyPlayers.remove(player.getUniqueId());
+        }
+        return approved;
+    }
+
+    public boolean areTeammates(Player first, Player second) {
+        var teamModule = plugin.getTeamModule();
+        if (teamModule == null) {
+            return false;
+        }
+        return teamModule.service()
+            .flatMap(service -> service.findByMember(first.getUniqueId()))
+            .map(team -> team.containsMember(second.getUniqueId()))
+            .orElse(false);
+    }
+
+    private static Map<String, MissionAssignment> assignmentsFor(MissionPlayerState state, MissionScope scope) {
+        return scope == MissionScope.DAILY ? state.dailyAssignments() : state.weeklyAssignments();
+    }
+
+    /**
+     * Coalesces passive-mission checks to one per player per tick. Interact, click and
+     * damage events fire many times a tick, and running a tick later also sees the
+     * inventory after the click is applied instead of before it.
+     */
+    public void requestPassiveRevalidation(Player player) {
+        BukkitRuntimeRegistrations active = registrations;
+        UUID playerId = player.getUniqueId();
+        if (active == null || !pendingRevalidation.add(playerId)) {
+            return;
+        }
+        active.scheduleDelayed("mission-passive-revalidation", () -> {
+            pendingRevalidation.remove(playerId);
+            Player online = plugin.getServer().getPlayer(playerId);
+            if (online != null) {
+                revalidatePassiveMissions(online);
+            }
+        }, 1L);
     }
 
     public void revalidatePassiveMissions(Player player) {
         MissionPlayerState state = getOrCreateState(player);
+        if (!hasPassiveAssignment(state)) {
+            return;
+        }
         MissionPlayerState updated = state;
 
         for (MissionAssignment assignment : state.dailyAssignments().values()) {
@@ -215,6 +344,22 @@ public final class MissionModule implements PluginModule {
         }
 
         cacheUpdated(updated);
+    }
+
+    private static boolean hasPassiveAssignment(MissionPlayerState state) {
+        for (MissionAssignment assignment : state.dailyAssignments().values()) {
+            if (isPassive(assignment.definition().type())) return true;
+        }
+        for (MissionAssignment assignment : state.weeklyAssignments().values()) {
+            if (isPassive(assignment.definition().type())) return true;
+        }
+        return false;
+    }
+
+    private static boolean isPassive(MissionType type) {
+        return type == MissionType.HOLD_EXACT_ITEM_COUNT
+            || type == MissionType.EQUIP_SPECIFIC_ITEM
+            || type == MissionType.STAND_ON_BLOCK_AT_Y;
     }
 
     private MissionPlayerState revalidateAssignment(Player player, MissionPlayerState state, MissionScope scope, MissionAssignment assignment) {
@@ -232,6 +377,10 @@ public final class MissionModule implements PluginModule {
                 boolean equipped = requiresCurse
                     ? MissionProgressEngine.isWearingCursed(player, material)
                     : MissionProgressEngine.isWearing(player, material);
+                Object minY = definition.params().get("min-y");
+                if (equipped && minY != null) {
+                    equipped = player.getLocation().getBlockY() >= Integer.parseInt(String.valueOf(minY));
+                }
                 progress = equipped ? definition.goal() : 0;
             }
             case STAND_ON_BLOCK_AT_Y -> {
@@ -321,8 +470,10 @@ public final class MissionModule implements PluginModule {
     }
 
     private void cacheUpdated(MissionPlayerState state) {
-        stateCache.put(state.playerId(), state);
-        dirtyPlayers.add(state.playerId());
+        // Move/click/interact handlers call this constantly; only real changes need a save.
+        if (stateCache.put(state.playerId(), state) != state) {
+            dirtyPlayers.add(state.playerId());
+        }
     }
 
     private void flushDirtyStates() {
@@ -374,16 +525,22 @@ public final class MissionModule implements PluginModule {
             case RENAME_ITEM_TO_EXACT_NAME -> material != null
                 && material.name().equalsIgnoreCase(String.valueOf(definition.params().getOrDefault("material", material.name())))
                 && text != null
-                && text.equals(definition.params().getOrDefault("name", text));
+                && ChatColor.stripColor(text).trim().equals(String.valueOf(definition.params().getOrDefault("name", text)).trim());
             case NAME_ENTITY_AFTER_PLAYER -> {
                 if (text == null) {
                     yield false;
                 }
+                String name = ChatColor.stripColor(text).trim();
                 String expectedEntity = String.valueOf(definition.params().getOrDefault("entity", "PIG"));
                 boolean entityMatches = entityType == null || entityType.equalsIgnoreCase(expectedEntity);
-                boolean playerNameMatches = Bukkit.getOfflinePlayer(text).hasPlayedBefore()
-                    || Bukkit.getPlayerExact(text) != null
-                    || text.equalsIgnoreCase(player.getName());
+                boolean otherPlayerOnly = Boolean.parseBoolean(String.valueOf(definition.params().getOrDefault("other-player", false)));
+                if (name.equalsIgnoreCase(player.getName())) {
+                    yield entityMatches && !otherPlayerOnly;
+                }
+                // getOfflinePlayerIfCached never blocks on a profile lookup, unlike getOfflinePlayer(String).
+                var known = Bukkit.getOfflinePlayerIfCached(name);
+                boolean playerNameMatches = Bukkit.getPlayerExact(name) != null
+                    || known != null && known.hasPlayedBefore();
                 yield entityMatches && playerNameMatches;
             }
             default -> true;
@@ -399,6 +556,8 @@ public final class MissionModule implements PluginModule {
     }
 
     private void clearRuntimeState() {
+        pendingRevalidation.clear();
+        registrations = null;
         if (storage != null) flushDirtyStates();
         stateCache.clear();
         dirtyPlayers.clear();

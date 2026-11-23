@@ -26,13 +26,22 @@ modules:
     enabled: true
   casino:
     enabled: true
+  forex:
+    enabled: true
+  auction-house:
+    enabled: true
   grappling-hook:
     enabled: true
   glider:
     enabled: true
   resource-pack-system:
     enabled: true
+  # Fondo dibujado para los menús de misiones y tienda (Java con el pack cargado). Apagado: títulos de siempre.
+  tideframe-ui:
+    enabled: false
   custom-item-catalog:
+    enabled: true
+  villager-mood:
     enabled: true
   team-system:
     enabled: true
@@ -40,11 +49,15 @@ modules:
     enabled: true
   entity-shop-system:
     enabled: true
+  netherite-quests:
+    enabled: true
   pve-boss-system:
     enabled: true
   geyser-integration:
     enabled: true
   server-control-system:
+    enabled: true
+  staff-events:
     enabled: true
   end-event-system:
     enabled: true
@@ -62,6 +75,52 @@ modules:
     enabled: true
   elytra-failure:
     enabled: true
+  auth-system:
+    enabled: true
+  humillacion:
+    enabled: true
+  pvp-quadrants:
+    enabled: true
+  trim-abilities:
+    enabled: true
+  phase-arrows:
+    enabled: true
+  piranhas:
+    enabled: true
+  duels:
+    enabled: true
+  domination-system:
+    enabled: true
+
+# Casa de subastas (/ah). Usa la moneda de Vault (hace falta Vault y un proveedor de economía).
+# Las subastas y los items por reclamar se guardan en data/auction-house.yml.
+auction-house:
+  # Máximo 45 (una página de "Mis subastas").
+  max-listings-per-player: 10
+  min-price: 1
+  max-price: 1000000000
+  # Porcentaje del precio que se descuenta al vendedor cuando se vende.
+  tax-percent: 5
+  # Horas antes de que una subasta vuelva al vendedor como item por reclamar.
+  duration-hours: 48
+
+# Misiones de armadura de netherita. Cada activacion gasta 1 Alma de Boss (el top 3 de daño de un boss se lleva
+# una) y niveles: la primera es gratis y cada una cuesta level-cost-step niveles mas que la anterior.
+# Un boss sirve para una sola pieza: el set completo necesita almas de 4 bosses distintos.
+netherite-quests:
+  duration-hours: 24
+  level-cost-step: 20
+  # Lingote de netherita = 4 restos de netherita + 4 bloques de oro (en vez de lingotes).
+  gold-block-ingot-recipe: true
+  # Sin mejora de armadura de diamante a netherita en la mesa de herrero (las herramientas siguen igual).
+  block-smithing-armor: true
+  # Movimientos mas largos que esto (teletransportes, portales) no cuentan como caminar.
+  max-step-blocks: 10.0
+  targets:
+    casco: 3        # Guardianes Ancianos (Respiracion III)
+    peto: 500       # Creepers (Proteccion contra explosiones IV)
+    pantalones: 3   # Wardens (Sigilo Veloz III)
+    botas: 40000    # bloques caminados, cuentan igual en el Nether (Irrompibilidad II)
 
 # El Gran Casares. Las fichas son la moneda de Vault (hace falta Vault y un proveedor de economía).
 # Las atracciones se arman con /casino construir o /casino colocar <tipo>; se guardan en casino/installations.yml.
@@ -128,6 +187,84 @@ casino:
     cerveza_caliente: 60
     coctel_ruina: 300
     vaso_polvo_blanco: 800
+
+# FOREX & Cryptos: Esmeraldas Virtuales ($vEMR) vs Shitcoins. Todo se paga con la plata de Vault (/balance);
+# no hacen falta esmeraldas físicas. Hace falta Vault y un proveedor de economía. Estado en forex/market.yml.
+# Las tasas son fracciones (0.04 = 4%); los tiempos son minutos reales.
+forex:
+  # Cada ciclo se mueven los precios y cada shitcoin tira su 1 en 10 de pump.
+  cycle-minutes: 10
+  # Minutos reales que dura un "día" para los rendimientos diarios.
+  day-minutes: 1440
+  # Comisión de la plataforma en las shitcoins (se quema). Las ballenas pagan menos.
+  platform-fee: 0.01
+  min-trade: 10
+  # Pase de clan: con esta cantidad de la moneda oficial de un clan se abren sus cofres protegidos por el Nexus.
+  clan-pass-threshold: 500
+  emerald:
+    start-price: 100.0
+    # Crecimiento diario: más cerca del máximo cuanto más plata se mueve en el mercado.
+    daily-growth-min: 0.005
+    daily-growth-max: 0.02
+    # Chance diaria de una corrección controlada y su tamaño.
+    corrections-per-day: 0.25
+    correction-min: 0.02
+    correction-max: 0.06
+    # La reserva defiende un piso: nunca más de esto por debajo del máximo histórico.
+    max-drawdown: 0.12
+    fee: 0.005
+    # Plata movida por ciclo que cuenta como mercado "a pleno".
+    activity-reference: 100000
+  coins:
+    creation-cost: 5000
+    max-per-creator: 1
+    max-listed: 30
+    # Curva: precio = base-price * hype * (1 + supply / curve-depth).
+    base-price: 1.0
+    curve-depth: 10000
+    # Comisión del creador en cada compra y venta.
+    creator-fee-min: 0.03
+    creator-fee-max: 0.05
+    creator-fee-default: 0.04
+    # Parte de la comisión del creador que se reparte a quienes bloquean tokens (staking).
+    staking-share-default: 0.25
+    stake-lock-minutes: 60
+    dividend-minutes: 30
+    # Paseo aleatorio del hype en cada ciclo.
+    volatility: 0.04
+    drift: -0.002
+    pump-chance: 0.10
+    pump-min: 0.25
+    pump-max: 0.60
+    # Parte del pozo que se lleva el creador con /forex rugpull; el resto se reparte entre los holders.
+    rugpull-min: 0.80
+    rugpull-max: 0.90
+    # Horas sin poder lanzar otra moneda después de un rug pull.
+    rug-creation-cooldown-hours: 12
+  # El 50/50: solo para burbujas con masa crítica.
+  bubble:
+    min-holders: 6
+    min-pool: 25000
+    flip-interval-minutes: 180
+    warnings-minutes: [30, 10, 1]
+    # Cara: la burbuja sube otro escalón.
+    survive-pump-min: 0.25
+    survive-pump-max: 0.50
+    # Cruz: el precio se multiplica por esto (-99,999%) y el pozo se quema.
+    collapse-factor: 0.00001
+  # Holders con al menos min-share de una moneda del top de capitalización.
+  whales:
+    top-coins: 3
+    min-share: 0.05
+    fee-discount: 0.5
+  # Historial crediticio con Don Casares (casino): multiplicador del interés de sus préstamos.
+  credit:
+    prestige-tiers:
+      50000: 0.85
+      250000: 0.70
+      1000000: 0.50
+    rugpull-penalty: 0.5
+    max-multiplier: 3.0
 
 schizophrenia:
   # Un episodio empeora despacio (intensidad 1 a 5) hasta que alguien lo cura con un golpe del
@@ -254,6 +391,62 @@ moderation-system:
     inventory-click-rate: { points: 15 }
     rare-item-gain: { points: 25 }
     security-log: { points: 40 }
+    hover-flight: { points: 35 }
+    melee-multi-target: { points: 30 }
+    ground-spoof: { points: 30 }
+    killaura-angle: { points: 30 }
+    killaura-wall: { points: 30 }
+    killaura-inventory: { points: 25 }
+    killaura-use-item: { points: 25 }
+    block-break-rate: { points: 30 }
+    block-place-face: { points: 25 }
+    xray-ratio: { points: 20 }
+    # Las coincidencias de identidad se registran sin atribuir culpabilidad ni sumar puntos.
+    item-duplicate: { points: 0 }
+  # Reglas que solo se registran en la auditoría, sin sumar puntos (no prueban un cheat). Un valor 0 en points hace lo mismo.
+  audit-only-rules:
+    - rare-item-gain
+    - pack-cache-timing
+    - security-log
+    - ip-sudden-change
+    - ip-account-rate
+    - reconnect-rate
+    - xray-ratio
+  # Checks de movimiento y combate. Todo lo que mueve a un jugador sin el cliente (setVelocity de un módulo, knockback,
+  # explosiones, teleports, pistones) abre una ventana de gracia sola, así que los módulos no generan avisos.
+  anticheat:
+    enabled: true
+    # Los checks nuevos y la nueva medición de cadencia se auditan sin puntos hasta validarlos en el servidor.
+    enforce-new-checks: false
+    # Quien tenga este permiso no se mide (por defecto nadie, ni los OP). Vacío para desactivarlo.
+    bypass-permission: bigcasares.anticheat.bypass
+    # Bedrock (Geyser) tiene otra física y otra latencia: no se mide.
+    exempt-bedrock: true
+    # Con el servidor por debajo de estos TPS no se mide nada.
+    minimum-tps: 17.0
+    max-attacks-per-second: 22
+    # movement-speed, upward-movement, hover-flight, ground-spoof, melee-reach, melee-rate, melee-multi-target,
+    # killaura-angle, killaura-wall, killaura-inventory, killaura-use-item, block-break-rate, block-place-face,
+    # xray-ratio, item-duplicate
+    disabled-checks: []
+    # Anti-dupe: a estos items (sin apilar y sin datos de otros módulos) se les pone un id invisible; el mismo id en dos
+    # lugares a la vez genera una observación, no atribuye culpabilidad. Cada pasada revisa hasta 16 jugadores actuales,
+    # combinando una ventana rotativa y jugadores al azar; puede omitir copias que no coincidan en la misma pasada.
+    dupe-tracked-items:
+      - ELYTRA
+      - TOTEM_OF_UNDYING
+      - TRIDENT
+      - MACE
+      - NETHERITE_SWORD
+      - NETHERITE_PICKAXE
+      - NETHERITE_AXE
+      - NETHERITE_SHOVEL
+      - NETHERITE_HOE
+      - NETHERITE_HELMET
+      - NETHERITE_CHESTPLATE
+      - NETHERITE_LEGGINGS
+      - NETHERITE_BOOTS
+    dupe-track-shulker-boxes: true
 
 discord-integration:
   guild-id: 0
@@ -264,6 +457,10 @@ discord-integration:
   authorized-user-id: 0
   reconciliation-seconds: 120
   bridge-avatar-template: "https://mc-heads.net/avatar/%player%/128"
+  raid-alerts:
+    # Categoría donde se crea un canal privado por equipo para las alertas de raideo del Nexus.
+    # En 0 las alertas llegan por mensaje directo. El bot necesita Manage Channels y Manage Roles.
+    category-id: 0
   servidor:
     title: "BigCasares"
     description: "Información oficial del servidor"
@@ -741,6 +938,29 @@ keep-inventory-totem:
   # Cuantos totems puede llevar encima un jugador.
   max-carried: 1
 
+# NW protegido, NE PvP consensuado, SW y SE PvP libre.
+pvp-quadrants:
+  # Mundos divididos en cuadrantes; en el resto no cambia nada.
+  worlds: [world]
+  center-x: 0
+  center-z: 0
+  # Tras un golpe PvP nadie puede entrar a la zona Chill durante este tiempo.
+  combat-tag-seconds: 150
+  quests:
+    enabled: true
+    rivals:
+      goal: 5
+      reward: 300.0
+    domination:
+      goal: 1
+      reward: 500.0
+
+# Dominaciones y Venganza: muertes seguidas sobre el mismo jugador.
+domination-system:
+  kills-to-dominate: 3
+  domination-sound: "minecraft:entity.ender_dragon.growl"
+  revenge-sound: "minecraft:ui.toast.challenge_complete"
+
 elytra-failure:
   # Cada cuanto se tira el dado mientras alguien planea con elytra.
   check-interval-ticks: 20
@@ -753,6 +973,107 @@ elytra-failure:
   drift-strength: 0.12
   # Durabilidad que pierde la elytra al romperse el ala (fraccion del maximo).
   durability-loss-fraction: 0.25
+
+humillacion:
+  # Daño de sobra (más allá de la vida + absorción) necesario para humillar en vez de matar.
+  # 20.0 = un golpe que te habría matado y le sobraban 10 corazones.
+  overkill-threshold: 20.0
+  # Vida con la que queda el humillado (2.0 = un corazón).
+  remaining-health: 2.0
+  # Solo cuenta si el golpe (o el proyectil) viene de otro jugador.
+  require-player-attacker: true
+  # Tras una humillación el jugador puede morir normalmente durante este tiempo.
+  immunity-seconds: 60
+  # Anunciar la humillación a todo el servidor.
+  broadcast: true
+
+# Comercio infinito con aldeanos... pero con consecuencias.
+villager-mood:
+  # Cada cuanto se revisa el animo de cada aldeano cargado.
+  check-interval-ticks: 100
+  trading:
+    # Los trueques nunca se bloquean por uso.
+    infinite: true
+    # Al abrir el menu se reponen todas las ofertas.
+    refresh-on-open: true
+  depression:
+    # Tiempo encerrado en una celda de 1x1 antes del primer nivel de depresion (12000 = 10 minutos).
+    confined-ticks-before-depression: 12000
+    # Tiempo extra encerrado por cada nivel adicional.
+    ticks-per-level: 6000
+    max-level: 5
+    # Cuantas veces mas rapido se recupera de lo que se deprime una vez libre.
+    recovery-rate: 2.0
+  prices:
+    # Recargo sobre el costo base por cada nivel (0.15 = +15%).
+    per-depression-level: 0.15
+    per-annoyance-level: 0.10
+    max-surcharge: 1.5
+  spam:
+    # Mas de max-trades-in-window trueques en window-ticks hace que el aldeano te insulte y suba los precios.
+    window-ticks: 200
+    max-trades-in-window: 32
+    # Cuanto dura cada nivel de fastidio.
+    ticks-per-level: 6000
+    max-level: 5
+  escape:
+    # Un aldeano encerrado puede escaparse por agujeros de 1x1 en la pared de su celda.
+    enabled: true
+    min-confined-ticks: 6000
+    chance-per-check: 0.02
+  cliff:
+    # Un aldeano deprimido y libre puede tirarse por un precipicio cercano.
+    enabled: true
+    min-depression: 2
+    chance-per-check: 0.05
+    search-radius: 12
+    min-drop: 6
+    attempt-ticks: 400
+  riot:
+    # Si hay suficientes aldeanos de mal humor cerca de un jugador, se amotinan contra el.
+    enabled: true
+    radius: 12.0
+    # Depresion + fastidio necesarios para sumarse al motin.
+    min-mood: 2
+    min-rioters: 3
+    chance-per-check: 0.02
+    duration-ticks: 400
+    cooldown-ticks: 12000
+    damage: 2.0
+    # Llaman a un golem de hierro (sin botin) que persigue al jugador durante el motin.
+    summon-golem: true
+  mafia:
+    # Muchos aldeanos encerrados atraen matones; no cuenta a NPCs de otros modulos.
+    enabled: true
+    radius: 24.0
+    min-boxed-villagers: 6
+    # Deben seguir encerrados y llevar al menos 5 minutos en sus celdas.
+    min-confined-ticks: 6000
+    chance-per-check: 0.02
+    # De 1 a 8 matones por encuentro; como maximo 4 bandas simultaneas en el servidor.
+    crew-size: 3
+    duration-ticks: 1200
+    # El mismo grupo de aldeanos y el jugador comparten la espera, incluso si reloguea.
+    cooldown-ticks: 24000
+    # Vida y golpe como un wither skeleton en dificultad normal (sin el efecto wither).
+    health: 20.0
+    damage: 8.0
+    # Algunas bandas hacen pasadas a caballo disparando ballestas. Las flechas no se recogen.
+    drive-by-chance: 0.35
+    shot-cooldown-ticks: 40
+  insults:
+    - "¿Otra vez vos? ¡Andá a laburar!"
+    - "Me tenés podrido con tanto trueque."
+    - "¿Te creés que soy un cajero automático?"
+    - "Pará un poco, que no soy tu esclavo."
+    - "Hmmm... ahora te sale más caro, vivo."
+    - "¡Tomatelás! Volvé cuando aprendas modales."
+  riot-shouts:
+    - "¡Libertad para los aldeanos!"
+    - "¡Basta de celdas de un bloque!"
+    - "¡Abajo el explotador!"
+    - "¡Hmmm! ¡HMMM!"
+    - "¡Queremos ventanas!"
 
 custom-crossbow:
   sonic:
@@ -1411,6 +1732,7 @@ mission-system:
       enabled: true
       params:
         entity: PIG
+        other-player: true
     daily-golem-kelp-2:
       scope: daily
       title: "Catering homicida"
@@ -1713,7 +2035,7 @@ mission-system:
     weekly-binding-pumpkin-y155:
       scope: weekly
       title: "Moda de altura"
-      description: "Ponete una calabaza con maldicion de ligadura y bancala toda la semana."
+      description: "Ponete una calabaza con maldicion de ligadura y subi a Y 155 o mas."
       type: EQUIP_SPECIFIC_ITEM
       goal: 1
       reward: 1750.0
@@ -1722,6 +2044,91 @@ mission-system:
       params:
         material: CARVED_PUMPKIN
         binding-curse: true
+        min-y: 155
+    weekly-admin-idea:
+      scope: weekly
+      title: "Mision propia"
+      description: "Dale una idea de mision al admin y que el admin la apruebe."
+      type: ADMIN_APPROVAL
+      goal: 1
+      reward: 2000.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-kiss-jeremy:
+      scope: daily
+      title: "Besar a Jeremy"
+      description: "Pegale un golpe a Jeremy (no importa si te esta persiguiendo o no)."
+      type: HIT_TARGET
+      goal: 1
+      reward: 600.0
+      weight: 1
+      enabled: true
+      params:
+        target: jeremy
+    weekly-kill-ghi-ghi:
+      scope: weekly
+      title: "Matar a Ghi Ghi"
+      description: "Mata a Ghi Ghi."
+      type: KILL_TARGET
+      goal: 1
+      reward: 5000.0
+      weight: 1
+      enabled: true
+      params:
+        target: "ghi ghi"
+    weekly-poppy-5-stacks:
+      scope: weekly
+      title: "Jardin de amapolas"
+      description: "Planta 5 stacks de amapolas (320)."
+      type: PLACE_BLOCK_COUNT
+      goal: 320
+      reward: 1500.0
+      weight: 1
+      enabled: true
+      params:
+        material: POPPY
+    weekly-clan-kill-20:
+      scope: weekly
+      title: "Fuego amigo"
+      description: "Mata 20 veces a alguien de tu clan (siempre al mismo)."
+      type: KILL_SAME_TEAMMATE
+      goal: 20
+      reward: 2500.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-whisper-spam-67:
+      scope: daily
+      title: "Spam"
+      description: "Un jugador te elige: mandale 67 susurros a ese mismo jugador."
+      type: WHISPER_SAME_PLAYER
+      goal: 67
+      reward: 400.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-break-cursed-helmet:
+      scope: daily
+      title: "Casco descartable"
+      description: "Ponete un casco con maldicion de ligadura y rompelo."
+      type: BREAK_CURSED_HELMET
+      goal: 1
+      reward: 700.0
+      weight: 1
+      enabled: true
+      params: {}
+    daily-horse-67:
+      scope: daily
+      title: "Caballo 67"
+      description: "Hace que un caballo haga el 67 (salta montado) 67 veces."
+      type: HORSE_JUMP_COUNT
+      goal: 67
+      reward: 450.0
+      weight: 1
+      enabled: true
+      params:
+        entity: HORSE
 
 bounty-system:
   economy:
@@ -1806,6 +2213,17 @@ nexus-system:
     minimum-open-faces: 2
     minimum-walkable-width: 2
     prevent-doorway-placement: true
+  # Mejoras de base: /nexus mejoras y /nexus mejorar <repulsor|saturacion> (se pagan con Vault).
+  upgrades:
+    interval-ticks: 40
+    repulsor:
+      price: 25000
+      radius: 24
+      push-strength: 0.8
+    saturacion:
+      price: 15000
+      radius: 16
+      food-per-pulse: 1
 
 entity-shop-system:
   bedrock:
@@ -1997,3 +2415,249 @@ the-sift:
   block-models:
     enabled: true
     radius: 24
+
+# Login para servidor offline (auth-system). Sin iniciar sesión el jugador espera en un mundo vacío, con el
+# inventario guardado en data/auth/stash: no ve ítems, coordenadas, terreno ni jugadores.
+# Ingreso automático: premium (verificado con Mojang), Bedrock (Xbox vía Geyser) y sesión recordada (misma IP).
+# Métodos manuales: contraseña, app autenticadora (QR en un mapa), códigos de recuperación, Discord (DM con
+# botones o código), firma OpenPGP (chat o mod cliente por el canal bigcasares:auth), patrón y amigo de confianza.
+auth:
+  limbo-world: bigcasares_auth_limbo
+  login-timeout-seconds: 120
+  register-timeout-seconds: 300
+  # Intentos fallidos por conexión antes de expulsar.
+  max-attempts: 5
+  ip-lockout:
+    failures: 10
+    window-minutes: 10
+    lock-minutes: 15
+  password:
+    min-length: 6
+    pbkdf2-iterations: 210000
+  session-resume:
+    enabled: true
+    hours: 6
+  bedrock-auto-login: true
+  totp:
+    issuer: BigCasares
+    # Pasos de 30 s aceptados antes y después (relojes desfasados).
+    window: 1
+  discord:
+    enabled: true
+    # Al entrar, el bot manda un DM con "Aprobar ingreso" / "No fui yo" a quien tenga Discord vinculado.
+    auto-prompt: true
+    prompt-cooldown-seconds: 60
+  pgp:
+    enabled: true
+  pattern:
+    enabled: true
+    min-length: 4
+  friends:
+    enabled: true
+  plugin-channel: true
+  # Ingreso automático premium: el servidor transfiere al jugador a un verificador propio en otro puerto, que hace
+  # el login online-mode con Mojang y lo devuelve con una cookie firmada. Requiere accepts-transfers=true en
+  # server.properties y abrir el puerto. Desactivado hasta configurarlo.
+  premium:
+    enabled: false
+    bind-host: 0.0.0.0
+    port: 25599
+    # Host y puerto públicos del verificador (vacío = el mismo host que usó el jugador).
+    public-host: ""
+    public-port: 0
+    # Adónde vuelve el jugador (vacío/0 = el host que usó y el puerto de este servidor).
+    return-host: ""
+    return-port: 0
+    # La cookie solo vale desde la misma IP que se verificó.
+    bind-address: true
+    # Nombres nuevos que existen en Mojang se verifican solos; si falla (no premium), al reconectar entran normal.
+    auto-detect-new-players: true
+    session-server: https://sessionserver.mojang.com
+
+# Ramas pre-netherite: un set completo de armadura de diamante con el mismo patrón de adorno (trim)
+# da una habilidad pasiva suave según el patrón (centinela, duna, costa, salvaje, guardián, ojo, vex,
+# marea, hocico, costilla, aguja, explorador, modelador, silencio, criador, anfitrión, flujo, rayo).
+trim-abilities:
+  # Tiers de armadura que cuentan (prefijo del material).
+  tiers: [DIAMOND]
+  check-interval-ticks: 20
+
+# Las flechas espectrales atraviesan paredes finas.
+phase-arrows:
+  # Grosor máximo de pared (bloques) que puede atravesar.
+  max-thickness: 2.0
+  # Paredes que atraviesa cada flecha.
+  max-phases: 1
+  players-only: true
+  unphaseable-blocks: [BEDROCK, BARRIER, END_PORTAL_FRAME, REINFORCED_DEEPSLATE, OBSIDIAN, CRYING_OBSIDIAN]
+
+# Cardúmenes de pirañas en aguas de selva y pantano que atacan a quien nade cerca. Admin: /piranha spawn.
+piranhas:
+  biomes: [jungle, sparse_jungle, bamboo_jungle, swamp, mangrove_swamp]
+  spawn-interval-ticks: 400
+  spawn-chance: 0.35
+  school-min: 3
+  school-max: 5
+  # Máximo de pirañas a 32 bloques de un jugador antes de dejar de aparecer.
+  max-nearby: 8
+  hunt-range: 10.0
+  speed: 0.35
+  damage: 2.0
+  bite-cooldown-ticks: 20
+
+# Duelos 1v1: /duel <jugador> [kit|elegir] [chica|media|grande] [apuesta].
+# Sin kit, ambos banean uno y eligen otro en un menú. Las arenas están en un mundo aparte;
+# el inventario se guarda en duels/saved/ y se devuelve al terminar. Las apuestas usan Vault.
+duels:
+  world: bigcasares_duels
+  request-seconds: 60
+  draft-seconds: 20
+  countdown-seconds: 5
+  max-duration-seconds: 300
+  return-delay-seconds: 3
+  max-wager: 1000000
+  default-arena: media
+  # Items: "MATERIAL[*cantidad] [encantamiento:nivel ...]".
+  kits:
+    clasico:
+      name: Clásico
+      icon: IRON_SWORD
+      helmet: IRON_HELMET
+      chestplate: IRON_CHESTPLATE
+      leggings: IRON_LEGGINGS
+      boots: IRON_BOOTS
+      offhand: SHIELD
+      items:
+        - IRON_SWORD
+        - IRON_AXE
+        - BOW
+        - GOLDEN_APPLE*4
+        - COOKED_BEEF*16
+        - ARROW*16
+    diamante:
+      name: Diamante
+      icon: DIAMOND_SWORD
+      helmet: DIAMOND_HELMET protection:2
+      chestplate: DIAMOND_CHESTPLATE protection:2
+      leggings: DIAMOND_LEGGINGS protection:2
+      boots: DIAMOND_BOOTS protection:2
+      offhand: SHIELD
+      items:
+        - DIAMOND_SWORD sharpness:2
+        - DIAMOND_AXE
+        - BOW power:1
+        - GOLDEN_APPLE*6
+        - COOKED_BEEF*16
+        - ARROW*16
+    arquero:
+      name: Arquero
+      icon: BOW
+      helmet: CHAINMAIL_HELMET
+      chestplate: LEATHER_CHESTPLATE protection:2
+      leggings: CHAINMAIL_LEGGINGS
+      boots: LEATHER_BOOTS feather_falling:2
+      items:
+        - BOW power:3 punch:1
+        - STONE_SWORD
+        - GOLDEN_APPLE*4
+        - COOKED_BEEF*16
+        - SPECTRAL_ARROW*16
+        - ARROW*64
+    netherite:
+      name: Netherite
+      icon: NETHERITE_SWORD
+      helmet: NETHERITE_HELMET protection:3
+      chestplate: NETHERITE_CHESTPLATE protection:3
+      leggings: NETHERITE_LEGGINGS protection:3
+      boots: NETHERITE_BOOTS protection:3
+      offhand: SHIELD
+      items:
+        - NETHERITE_SWORD sharpness:4
+        - NETHERITE_AXE sharpness:2
+        - GOLDEN_APPLE*8
+        - ENDER_PEARL*2
+        - COOKED_BEEF*16
+    maza:
+      name: Maza
+      icon: MACE
+      helmet: DIAMOND_HELMET
+      chestplate: DIAMOND_CHESTPLATE
+      leggings: DIAMOND_LEGGINGS
+      boots: DIAMOND_BOOTS feather_falling:4
+      items:
+        - MACE density:2
+        - DIAMOND_SWORD
+        - WIND_CHARGE*16
+        - GOLDEN_APPLE*4
+        - COOKED_BEEF*16
+    ballesta:
+      name: Ballesta
+      icon: CROSSBOW
+      helmet: IRON_HELMET
+      chestplate: IRON_CHESTPLATE
+      leggings: IRON_LEGGINGS
+      boots: IRON_BOOTS
+      offhand: FIREWORK_ROCKET*8
+      items:
+        - CROSSBOW quick_charge:2 multishot:1
+        - IRON_SWORD
+        - GOLDEN_APPLE*4
+        - COOKED_BEEF*16
+        - ARROW*32
+
+# Eventos que solo inicia el staff con /evento iniciar <tipo>; nunca arrancan solos.
+# Lifesteal se juega en los mundos normales con keepInventory. KOTH, TNT Tag y Spleef usan un
+# inventario de evento: el inventario real se guarda en data/staff-events/snapshots.yml y se devuelve
+# al salir, al ser eliminado, al terminar el evento o al volver a entrar si hubo un crash.
+staff-events:
+  # Dimensión vacía bigcasares:eventos donde se arman las arenas. Aparece después del primer reinicio.
+  arena-dimension: true
+  # Mundo alternativo (vacío y dedicado: las arenas borran lo que haya) mientras la dimensión no esté activa.
+  fallback-arena-world: ""
+  arena-y: 100
+  # Segundos para unirse con /evento unirse antes de que arranque un evento de arena.
+  lobby-seconds: 30
+  lifesteal:
+    duration-minutes: 60
+    hearts-per-kill: 1
+    # Nadie baja de este piso; matar a alguien que ya está en el piso no roba nada.
+    floor-hearts: 3
+    max-hearts: 20
+    # Terminar con al menos estos corazones regala 1 corazón permanente.
+    permanent-reward-threshold: 12
+    max-permanent-bonus-hearts: 10
+  koth:
+    duration-minutes: 10
+    # Segundos solo en la colina para ganar; si se acaba el tiempo gana quien tenga más.
+    capture-seconds: 120
+    min-players: 2
+    platform-radius: 20
+    hill-radius: 3
+    knockback-level: 5
+    rewards:
+      # id del catálogo (nuke_shot) o material (minecraft:diamond), con :cantidad opcional.
+      items: []
+      # Comandos de consola; {player} es el ganador.
+      commands: []
+  tnt-tag:
+    round-seconds: 30
+    # Un portador de TNT cada tantos jugadores vivos.
+    players-per-tagger: 4
+    min-players: 2
+    platform-radius: 15
+    max-minutes: 15
+    rewards:
+      items: ["nuke_shot:1"]
+      commands: []
+  spleef:
+    min-players: 2
+    radius: 12
+    layers: 2
+    layer-gap: 6
+    efficiency-level: 255
+    # Segundos al inicio en los que todavía no se puede romper la nieve.
+    grace-seconds: 5
+    max-minutes: 10
+    rewards:
+      items: []
+      commands: []

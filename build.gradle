@@ -36,6 +36,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.2.build.56-alpha")
+    compileOnly("org.apache.logging.log4j:log4j-core:2.26.0")
     compileOnly("io.github.toxicity188:bettermodel-bukkit-api:3.2.0")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7") {
         exclude group: "org.bukkit", module: "bukkit"
@@ -50,6 +51,7 @@ dependencies {
     // requires a live RegistryAccess implementation. Paper-specific behavior is
     // exercised by run-paper against the real 26.2 server below.
     testImplementation("org.spigotmc:spigot-api:26.2-R0.1-SNAPSHOT")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.26.0")
     // Spigot does not ship Adventure, which Paper bundles and the Sift's classes use;
     // the version follows the Adventure BOM of the paper-api above.
     testImplementation(platform("net.kyori:adventure-bom:5.2.0"))

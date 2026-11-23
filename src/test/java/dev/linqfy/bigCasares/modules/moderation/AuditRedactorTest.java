@@ -16,6 +16,10 @@ final class AuditRedactorTest {
         assertFalse(redacted.contains("hunter2"));
         assertFalse(redacted.contains("abc123"));
         assertFalse(redacted.contains("secret"));
-        assertEquals("/login [REDACTADO] token=[REDACTADO] [WEBHOOK REDACTADO]", redacted);
+        assertEquals("/login [REDACTADO]", redacted);
+        assertEquals("token=[REDACTADO] [WEBHOOK REDACTADO]",
+            AuditRedactor.redact("token=abc123 https://discord.com/api/webhooks/1/secret"));
+        assertEquals("/changepass [REDACTADO]", AuditRedactor.redact("/changepass sample"));
+        assertEquals("login completed successfully", AuditRedactor.redact("login completed successfully"));
     }
 }

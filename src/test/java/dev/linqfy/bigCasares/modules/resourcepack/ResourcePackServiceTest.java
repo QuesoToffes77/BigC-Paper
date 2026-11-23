@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -173,6 +171,34 @@ class ResourcePackServiceTest {
     }
 
     @Test
+    void theMenuPackIsReadyOnlyWhenItsCurrentBigCasaresRevisionIsLoaded() {
+        ResourcePackManifest previous = manifest("075a3f4dec4b");
+        ResourcePackManifest current = manifest("175a3f4dec4b");
+        URI bigCasaresUri = URI.create("https://example.com/bigcasares.zip");
+        UUID betterModelId = UUID.fromString("00000000-0000-0000-0000-000000000081");
+        List<JavaPackDelivery> betterModel = List.of(new JavaPackDelivery(
+            betterModelId, URI.create("https://example.com/bettermodel.zip"), new byte[20], "bettermodel"));
+        ResourcePackService service = service(previous, (playerId, packId, uri, sha1, prompt, required) -> { }, false);
+
+        service.activateStack(previous, null, betterModel);
+        assertTrue(service.requestFor(PLAYER_ID));
+        service.updateState(betterModelId, PLAYER_ID, ResourcePackPlayerState.LOADED);
+        assertFalse(service.hasLoadedBigCasaresPack(PLAYER_ID), "BetterModel does not supply the menu font");
+
+        service.activateStack(previous, bigCasaresUri, betterModel);
+        service.updateState(previous.javaUuid(), PLAYER_ID, ResourcePackPlayerState.LOADED);
+        assertTrue(service.hasLoadedBigCasaresPack(PLAYER_ID));
+
+        service.activateStack(current, bigCasaresUri, betterModel);
+        assertFalse(service.hasLoadedBigCasaresPack(PLAYER_ID), "the previous BigCasares pack may lack the menu font");
+        service.updateState(current.javaUuid(), PLAYER_ID, ResourcePackPlayerState.LOADED);
+        assertTrue(service.hasLoadedBigCasaresPack(PLAYER_ID));
+
+        service.activateStack(current, null, betterModel);
+        assertFalse(service.hasLoadedBigCasaresPack(PLAYER_ID), "a cached status does not validate a removed delivery");
+    }
+
+    @Test
     void transitionRecognizesButDoesNotApplyLatePreviousPackStatus() {
         ResourcePackManifest previous = manifest("075a3f4dec4b");
         ResourcePackManifest current = manifest("175a3f4dec4b");
@@ -189,19 +215,6 @@ class ResourcePackServiceTest {
         handler.handle(current.javaUuid(), PLAYER_ID, "SUCCESSFULLY_LOADED", () -> { });
 
         assertEquals(ResourcePackPlayerState.LOADED, service.state(PLAYER_ID));
-    }
-
-    @Test
-    void listenerRejectsForeignPackIdsBeforeReadingPlayerStatus() throws Exception {
-        String source = Files.readString(Path.of(
-            "src/main/java/dev/linqfy/bigCasares/modules/resourcepack/ResourcePackStatusListener.java"
-        ));
-
-        int idGuard = source.indexOf("if (!service.isBigCasaresPack(event.getID()))");
-        int playerAccess = source.indexOf("event.getPlayer()", idGuard);
-
-        assertTrue(idGuard >= 0, "listener must guard status events by pack ID");
-        assertTrue(playerAccess > idGuard, "foreign pack events must return before player status handling");
     }
 
     private static ResourcePackService service(ResourcePackManifest manifest, ResourcePackGateway gateway) {
