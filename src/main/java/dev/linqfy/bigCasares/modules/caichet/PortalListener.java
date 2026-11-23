@@ -144,7 +144,8 @@ public final class PortalListener implements Listener {
         saveReturn(player, returnTo, RETURN_KEY);
         // el chunk del origen se carga sin frenar el servidor; recien despues se arma la llegada y se viaja
         target.getChunkAtAsync(0, 0).thenAccept(chunk -> {
-            if (player.isOnline() && !player.getWorld().equals(target)) {
+            // la carga puede terminar despues de apagar el modulo: ahi ya no se viaja
+            if (CaiChetRuntime.active() && player.isOnline() && !player.getWorld().equals(target)) {
                 player.teleport(arrival(target));
             }
         });

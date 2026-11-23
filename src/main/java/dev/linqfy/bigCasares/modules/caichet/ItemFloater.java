@@ -11,7 +11,8 @@ import java.util.UUID;
 
 /**
  * Los items sueltos en la dimension flotan hacia arriba y desaparecen: a los 40 bloques de altura sobre donde
- * estaban, o antes si algo (un techo) los frena. Se llama una vez por tick.
+ * estaban, o antes si algo (un techo) los frena. Se llama una vez por tick. Al apagar el modulo, los que siguen
+ * flotando vuelven a tener gravedad ({@link #restoreAll}).
  */
 final class ItemFloater implements Runnable {
 
@@ -63,5 +64,15 @@ final class ItemFloater implements Runnable {
             }
             item.setVelocity(up);
         }
+    }
+
+    /** Les devuelve la gravedad a los items que estaban flotando (al apagar el modulo) y los olvida. */
+    void restoreAll() {
+        for (Track track : tracks.values()) {
+            if (track.item.isValid()) {
+                track.item.setGravity(true);
+            }
+        }
+        tracks.clear();
     }
 }
