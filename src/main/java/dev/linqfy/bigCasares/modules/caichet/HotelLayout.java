@@ -13,30 +13,61 @@ import org.bukkit.Material;
  */
 final class HotelLayout {
 
-    interface Sink {
-        void set(int x, int y, int z, Material material);
+    /** Lo que el generador escribe en un bloque: un material vanilla, un bloque propio, un panel o una luz. */
+    sealed interface Cell {
+        /** Un material vanilla. */
+        record Vanilla(Material material) implements Cell {
+        }
+
+        /** Un bloque propio del hotel (estado de hongo reservado). */
+        record Custom(HotelBlock block) implements Cell {
+        }
+
+        /**
+         * El panel de luz encendido. Los hongos no emiten luz: si el bloque de abajo es aire, el generador pone ahi
+         * un {@link Light} del nivel indicado.
+         */
+        record Panel(int level) implements Cell {
+        }
+
+        /** Un bloque {@code minecraft:light}. */
+        record Light(int level) implements Cell {
+        }
+
+        static Cell of(Material material) {
+            return new Vanilla(material);
+        }
+
+        static Cell of(HotelBlock block) {
+            return new Custom(block);
+        }
     }
 
-    // Soportes del resource pack: bloques de cobre encerado (casi nadie los usa) a los que el pack les pone las
-    // texturas del hotel (assets/minecraft/blockstates). Asi el resto del juego no cambia.
-    static final Material WALLPAPER = Material.WAXED_COPPER_BLOCK;
-    static final Material WAINSCOT = Material.WAXED_EXPOSED_COPPER;
-    static final Material CARPET_MUSTARD = Material.WAXED_WEATHERED_COPPER;
-    static final Material CEILING = Material.WAXED_OXIDIZED_COPPER;
-    static final Material WALLPAPER_YELLOW = Material.WAXED_CUT_COPPER;
-    static final Material CARPET_YELLOW = Material.WAXED_EXPOSED_CUT_COPPER;
-    static final Material CEILING_YELLOW = Material.WAXED_WEATHERED_CUT_COPPER;
-    static final Material WOOD_PANEL = Material.WAXED_OXIDIZED_CUT_COPPER;
-    static final Material CARPET_OLIVE = Material.WAXED_CHISELED_COPPER;
-    static final Material POOL_MOSAIC = Material.WAXED_EXPOSED_CHISELED_COPPER;
-    static final Material CREAM_LINES = Material.WAXED_WEATHERED_CHISELED_COPPER;
-    static final Material TILES_WHITE = Material.WAXED_OXIDIZED_CHISELED_COPPER;
-    /** Apagada en el pack = azulejos sucios. */
-    static final Material TILES_DIRTY = Material.WAXED_EXPOSED_COPPER_BULB;
-    /** El generador la pone encendida: panel de luz que ilumina de verdad. */
-    static final Material LIGHT_PANEL = Material.WAXED_COPPER_BULB;
-    /** Panel tenue de los Backrooms: la bombilla erosionada encendida da luz 8 en vez de 15. */
-    static final Material LIGHT_DIM = Material.WAXED_WEATHERED_COPPER_BULB;
+    interface Sink {
+        void set(int x, int y, int z, Cell cell);
+    }
+
+    // Los soportes del hotel son bloques propios de BigC (ver CaiChetBlocks), no cobre encerado: el resto del juego
+    // no cambia.
+    static final Cell WALLPAPER = Cell.of(HotelBlock.WALLPAPER_BEIGE);
+    static final Cell WAINSCOT = Cell.of(HotelBlock.WAINSCOT);
+    static final Cell CARPET_MUSTARD = Cell.of(HotelBlock.CARPET_MUSTARD);
+    static final Cell CEILING = Cell.of(HotelBlock.CEILING_WARM);
+    static final Cell WALLPAPER_YELLOW = Cell.of(HotelBlock.WALLPAPER_YELLOW);
+    static final Cell CARPET_YELLOW = Cell.of(HotelBlock.CARPET_YELLOW);
+    static final Cell CEILING_YELLOW = Cell.of(HotelBlock.CEILING_YELLOW);
+    static final Cell WOOD_PANEL = Cell.of(HotelBlock.WOOD_PANEL);
+    static final Cell CARPET_OLIVE = Cell.of(HotelBlock.CARPET_OLIVE);
+    static final Cell POOL_MOSAIC = Cell.of(HotelBlock.POOL_MOSAIC);
+    static final Cell CREAM_LINES = Cell.of(HotelBlock.CREAM_LINES);
+    static final Cell TILES_WHITE = Cell.of(HotelBlock.TILES_WHITE);
+    static final Cell TILES_DIRTY = Cell.of(HotelBlock.TILES_DIRTY);
+    /** Panel de luz: luz 15 en el aire de abajo. */
+    static final int LIGHT_PANEL_LEVEL = 15;
+    static final Cell LIGHT_PANEL = new Cell.Panel(LIGHT_PANEL_LEVEL);
+    /** Panel tenue de los Backrooms: se ve igual, pero la luz de abajo es 8 en vez de 15. */
+    static final int LIGHT_DIM_LEVEL = 8;
+    static final Cell LIGHT_DIM = new Cell.Panel(LIGHT_DIM_LEVEL);
 
     /** Altura del piso de todo el hotel. */
     static final int FLOOR = 64;
@@ -174,13 +205,14 @@ final class HotelLayout {
                 int wx = chunkX * 16 + x;
                 int wz = chunkZ * 16 + z;
                 Probe p = probe(seed, wx, wz);
-                Column c = new Column(sink, x, z);
+                Column c = new Column(x, z);
                 Theme theme = p.a.theme;
-                Material base = theme == Theme.INDOOR_POOL ? TILES_WHITE
-                        : theme == Theme.POOLROOM ? POOL_MOSAIC : Material.SMOOTH_STONE;
+                Cell base = theme == Theme.INDOOR_POOL ? TILES_WHITE
+                        : theme == Theme.POOLROOM ? POOL_MOSAIC : Cell.of(Material.SMOOTH_STONE);
                 c.fill(FLOOR - 5, FLOOR - 1, base);
                 if (p.border < BORDER) {
                     border(seed, c, wx, wz, p);
+                    c.flush(sink);
                     continue;
                 }
                 Site a = p.a;
@@ -197,19 +229,64 @@ final class HotelLayout {
                     case INDOOR_POOL -> indoorPool(seed, c, lx, lz, a);
                     case ABANDONED -> abandoned(seed, c, wx, wz, lx, lz, a);
                 }
+                c.flush(sink);
             }
         }
     }
 
-    /** Una columna del chunk. */
-    private record Column(Sink sink, int x, int z) {
+    /** Primer y ultimo Y que una columna puede escribir (con holgura sobre el techo mas alto). */
+    private static final int COLUMN_MIN_Y = FLOOR - 8;
+    private static final int COLUMN_HEIGHT = 80;
+
+    /**
+     * Una columna del chunk. Guarda lo escrito y lo entrega junto al terminar ({@link #flush}), porque la luz de un
+     * panel depende de lo que haya debajo y las paredes se escriben despues del techo.
+     */
+    private static final class Column {
+        private final int x;
+        private final int z;
+        private final Cell[] cells = new Cell[COLUMN_HEIGHT];
+
+        Column(int x, int z) {
+            this.x = x;
+            this.z = z;
+        }
+
+        void set(int y, Cell cell) {
+            cells[y - COLUMN_MIN_Y] = cell;
+        }
+
         void set(int y, Material material) {
-            sink.set(x, y, z, material);
+            set(y, Cell.of(material));
+        }
+
+        void fill(int fromY, int toY, Cell cell) {
+            for (int y = fromY; y <= toY; y++) {
+                set(y, cell);
+            }
         }
 
         void fill(int fromY, int toY, Material material) {
-            for (int y = fromY; y <= toY; y++) {
-                sink.set(x, y, z, material);
+            fill(fromY, toY, Cell.of(material));
+        }
+
+        private boolean isAir(int y) {
+            Cell cell = y < COLUMN_MIN_Y ? null : cells[y - COLUMN_MIN_Y];
+            return cell == null || cell instanceof Cell.Vanilla vanilla && vanilla.material() == Material.AIR;
+        }
+
+        /** Entrega la columna; bajo cada panel de luz con aire va su bloque de luz (sin aire, el panel no alumbra). */
+        void flush(Sink sink) {
+            for (int i = 0; i < COLUMN_HEIGHT; i++) {
+                Cell cell = cells[i];
+                if (cell == null) {
+                    continue;
+                }
+                int y = COLUMN_MIN_Y + i;
+                sink.set(x, y, z, cell);
+                if (cell instanceof Cell.Panel panel && isAir(y - 1)) {
+                    sink.set(x, y - 1, z, new Cell.Light(panel.level()));
+                }
             }
         }
     }
@@ -233,15 +310,15 @@ final class HotelLayout {
                 continue;
             }
             Site owner = y <= FLOOR + a.height + 1 ? a : b;
-            Material m = wall(owner.theme, y);
+            Cell m = wall(owner.theme, y);
             int rel = y - FLOOR;
             if (owner.theme == Theme.INDOOR_POOL && glowDoor && rel <= 4) {
                 m = LIGHT_PANEL;
             } else if (owner.theme == Theme.POOLROOM && Math.floorMod(wx + wz, 4) >= 1
                     && Math.floorMod(wx + wz, 4) <= 2 && rel % 4 >= 2 && rel >= 2 && rel <= owner.height - 2) {
-                m = Material.GRAY_CONCRETE; // huecos cuadrados
+                m = Cell.of(Material.GRAY_CONCRETE); // huecos cuadrados
             } else if (owner.theme == Theme.ABANDONED && roundWindow(wx, wz, y)) {
-                m = Material.BLACK_CONCRETE; // ventanas redondas
+                m = Cell.of(Material.BLACK_CONCRETE); // ventanas redondas
             }
             c.set(y, m);
         }
@@ -255,28 +332,28 @@ final class HotelLayout {
         return d * d + dy * dy <= 9.5;
     }
 
-    static Material wall(Theme theme, int y) {
+    static Cell wall(Theme theme, int y) {
         return switch (theme) {
             case LEVEL0 -> y == FLOOR + 1 ? WAINSCOT : WALLPAPER;
             case YELLOW -> WALLPAPER_YELLOW;
             case PILLARS -> WALLPAPER;
             case CORRIDOR -> WOOD_PANEL;
             case POOLROOM -> CREAM_LINES;
-            case LIBRARY -> Material.BOOKSHELF;
-            case COURTYARD -> Material.WHITE_CONCRETE;
+            case LIBRARY -> Cell.of(Material.BOOKSHELF);
+            case COURTYARD -> Cell.of(Material.WHITE_CONCRETE);
             case INDOOR_POOL -> TILES_WHITE;
             case ABANDONED -> TILES_DIRTY;
         };
     }
 
-    private static Material floor(Theme theme) {
+    private static Cell floor(Theme theme) {
         return switch (theme) {
             case LEVEL0, PILLARS -> CARPET_MUSTARD;
             case YELLOW -> CARPET_YELLOW;
             case CORRIDOR -> CARPET_OLIVE;
             case POOLROOM -> CREAM_LINES;
-            case LIBRARY -> Material.OAK_PLANKS;
-            case COURTYARD -> Material.SMOOTH_STONE;
+            case LIBRARY -> Cell.of(Material.OAK_PLANKS);
+            case COURTYARD -> Cell.of(Material.SMOOTH_STONE);
             case INDOOR_POOL -> TILES_WHITE;
             case ABANDONED -> TILES_DIRTY;
         };
@@ -370,7 +447,7 @@ final class HotelLayout {
         } else if (solid == Solid.PILLAR) {
             boolean whiteBase = chance(seed, Math.floorDiv(lx, g), Math.floorDiv(lz, g), 31, 30);
             for (int y = FLOOR + 1; y < top; y++) {
-                c.set(y, whiteBase && y <= FLOOR + 2 ? Material.WHITE_CONCRETE : WALLPAPER);
+                c.set(y, whiteBase && y <= FLOOR + 2 ? Cell.of(Material.WHITE_CONCRETE) : WALLPAPER);
             }
         }
     }
@@ -453,7 +530,7 @@ final class HotelLayout {
                 continue; // paso
             }
             boolean hole = along % 4 >= 1 && along % 4 <= 2 && rel % 4 >= 2 && rel >= 2 && rel <= h - 2;
-            c.set(y, hole ? Material.GRAY_CONCRETE : CREAM_LINES);
+            c.set(y, hole ? Cell.of(Material.GRAY_CONCRETE) : CREAM_LINES);
         }
     }
 
@@ -462,7 +539,7 @@ final class HotelLayout {
         int h = a.height;
         int top = FLOOR + h + 1;
         c.set(FLOOR, Material.OAK_PLANKS);
-        c.set(top, light(seed, lx, lz, 7, 20, 44) ? LIGHT_PANEL : Material.DARK_OAK_PLANKS);
+        c.set(top, light(seed, lx, lz, 7, 20, 44) ? LIGHT_PANEL : Cell.of(Material.DARK_OAK_PLANKS));
         int g = 7;
         int mx = Math.floorMod(lx, g);
         int mz = Math.floorMod(lz, g);
@@ -567,7 +644,7 @@ final class HotelLayout {
         int h = a.height;
         int top = FLOOR + h + 1;
         boolean tile = chance(seed, Math.floorDiv(wx, 3), Math.floorDiv(wz, 3), 57, 35);
-        c.set(FLOOR, tile ? TILES_DIRTY : Material.GRASS_BLOCK);
+        c.set(FLOOR, tile ? TILES_DIRTY : Cell.of(Material.GRASS_BLOCK));
         c.set(top, TILES_DIRTY);
         if (Math.floorMod(lx, 5) == 0 && Math.floorMod(lz, 5) == 0) {
             c.set(top - 1, Material.LIGHT);
@@ -605,7 +682,7 @@ final class HotelLayout {
             }
             int ac = along < 8 ? 3 : 13;
             boolean round = (along - ac) * (along - ac) + (rel - 9) * (rel - 9) <= 6;
-            c.set(y, round ? Material.BLACK_CONCRETE : TILES_DIRTY);
+            c.set(y, round ? Cell.of(Material.BLACK_CONCRETE) : TILES_DIRTY);
         }
     }
 }

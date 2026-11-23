@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.caichet;
 
+import dev.linqfy.bigCasares.blocks.CustomBlockService;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
@@ -9,7 +10,7 @@ import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.block.data.Lightable;
+import org.bukkit.block.data.Levelled;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -20,12 +21,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Paneles de luz fallados del hotel: algunos (siempre los mismos, salen de la semilla) titilan cuando hay alguien
- * cerca. Al descargarse el chunk o apagarse el plugin quedan encendidos, asi el mundo nunca se guarda con luces
- * apagadas. Corre cada {@link #PERIOD_TICKS}.
+ * cerca. Titilar es cambiar el panel por {@link HotelBlock#LIGHT_PANEL_OFF} y sacar el bloque de luz que el generador
+ * puso en el aire de abajo; volver es lo inverso, con el mismo nivel de luz. Al descargarse el chunk o apagarse el
+ * plugin quedan encendidos, asi el mundo nunca se guarda con luces apagadas. Corre cada {@link #PERIOD_TICKS}.
  */
 final class FlickerLights implements Listener, Runnable {
 
@@ -42,13 +45,16 @@ final class FlickerLights implements Listener, Runnable {
         final int x;
         final int y;
         final int z;
+        /** Nivel del bloque de luz de abajo (0 si el panel no tenia aire debajo y no alumbraba). */
+        final int level;
         /** Pasos que le quedan apagado (0 = prendido). */
         int off;
 
-        Light(int x, int y, int z) {
+        Light(int x, int y, int z, int level) {
             this.x = x;
             this.y = y;
             this.z = z;
+            this.level = level;
         }
     }
 
@@ -59,8 +65,13 @@ final class FlickerLights implements Listener, Runnable {
         return ((long) cx << 32) ^ (cz & 0xffffffffL);
     }
 
-    private static boolean isPanel(Material type) {
-        return type == HotelLayout.LIGHT_PANEL || type == HotelLayout.LIGHT_DIM;
+    /** Que bloque del hotel es este dato (vacio si no es de los propios). */
+    private static Optional<HotelBlock> hotelBlock(BlockData data) {
+        return CustomBlockService.stateOf(data).flatMap(HotelBlock::of);
+    }
+
+    private static boolean is(BlockData data, HotelBlock expected) {
+        return hotelBlock(data).filter(expected::equals).isPresent();
     }
 
     @EventHandler
@@ -88,13 +99,15 @@ final class FlickerLights implements Listener, Runnable {
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
                 for (int y = HotelLayout.FLOOR + 3; y <= HotelLayout.FLOOR + 31; y++) {
-                    if (!isPanel(snapshot.getBlockType(x, y, z))) {
+                    // los paneles son hongos rojos: el tipo descarta casi todo antes de leer el estado
+                    if (snapshot.getBlockType(x, y, z) != Material.RED_MUSHROOM_BLOCK
+                            || !is(snapshot.getBlockData(x, y, z), HotelBlock.LIGHT_PANEL)) {
                         continue;
                     }
                     int wx = (chunk.getX() << 4) + x;
                     int wz = (chunk.getZ() << 4) + z;
                     if (Math.floorMod(HotelLayout.hash(seed, wx, wz, 800 + y), 100) < FAULTY_PERCENT) {
-                        lights.add(new Light(wx, y, wz));
+                        lights.add(new Light(wx, y, wz, lightBelow(snapshot, x, y, z)));
                     }
                 }
             }
@@ -102,6 +115,12 @@ final class FlickerLights implements Listener, Runnable {
         if (!lights.isEmpty()) {
             byChunk.put(key(chunk.getX(), chunk.getZ()), lights);
         }
+    }
+
+    /** El nivel del bloque de luz justo debajo del panel, o 0 si ahi no hay luz. */
+    private static int lightBelow(ChunkSnapshot snapshot, int x, int y, int z) {
+        BlockData below = snapshot.getBlockData(x, y - 1, z);
+        return below.getMaterial() == Material.LIGHT && below instanceof Levelled levelled ? levelled.getLevel() : 0;
     }
 
     @EventHandler
@@ -213,11 +232,19 @@ final class FlickerLights implements Listener, Runnable {
         if (!world.isChunkLoaded(light.x >> 4, light.z >> 4)) {
             return;
         }
-        Block block = world.getBlockAt(light.x, light.y, light.z);
-        BlockData data = block.getBlockData();
-        if (isPanel(block.getType()) && data instanceof Lightable lightable && lightable.isLit() != lit) {
-            lightable.setLit(lit);
-            block.setBlockData(lightable, false);
+        Block panel = world.getBlockAt(light.x, light.y, light.z);
+        Block below = panel.getRelative(0, -1, 0);
+        BlockData data = panel.getBlockData();
+        if (lit && is(data, HotelBlock.LIGHT_PANEL_OFF)) {
+            panel.setBlockData(Bukkit.createBlockData(HotelBlock.LIGHT_PANEL.state().asString()), false);
+            if (light.level > 0 && below.getType().isAir()) {
+                below.setBlockData(Bukkit.createBlockData("minecraft:light[level=" + light.level + "]"), false);
+            }
+        } else if (!lit && is(data, HotelBlock.LIGHT_PANEL)) {
+            panel.setBlockData(Bukkit.createBlockData(HotelBlock.LIGHT_PANEL_OFF.state().asString()), false);
+            if (below.getType() == Material.LIGHT) {
+                below.setType(Material.AIR, false);
+            }
         }
     }
 }

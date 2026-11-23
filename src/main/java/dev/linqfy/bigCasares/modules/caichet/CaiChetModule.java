@@ -127,7 +127,8 @@ public final class CaiChetModule implements PluginModule {
         tasks.repeating("doubles", new ChickenSpawner(), 20L, 1L);
         registrations.registerRecipe(Resource.DESPERTAR_RECIPE.id, DreamItems.RECIPE_KEY, DreamItems.recipe());
 
-        // el hotel y el Sueño
+        // el hotel y el Sueño; sus bloques propios se registran antes de que exista el primer chunk
+        CaiChetBlocks.register(plugin.getCustomBlocks());
         HotelWorld.load(plugin);
         DreamWorld.load(plugin);
         registrations.registerListener(Resource.DREAM_FILTER.id, new DreamFilter());

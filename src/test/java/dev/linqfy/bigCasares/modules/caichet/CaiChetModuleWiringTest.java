@@ -1,9 +1,5 @@
 package dev.linqfy.bigCasares.modules.caichet;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -11,11 +7,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -80,44 +74,20 @@ class CaiChetModuleWiringTest {
     }
 
     @Test
-    void everyWaxedBlockstateReferencesAnExistingModel() throws IOException {
-        Path blockstates = Path.of("resourcepack/java/assets/minecraft/blockstates");
-        Path models = Path.of("resourcepack/java/assets/caichet/models/block");
-        List<Path> states;
-        try (Stream<Path> list = Files.list(blockstates)) {
-            states = list.filter(path -> path.getFileName().toString().startsWith("waxed_")
-                && path.getFileName().toString().endsWith(".json")).toList();
+    void hotelBlocksShipTheirModelAndTextureAndLeaveVanillaCopperAlone() throws IOException {
+        Path assets = Path.of("resourcepack/java/assets");
+        for (HotelBlock block : HotelBlock.values()) {
+            Path model = assets.resolve("caichet/models/block/" + block.path() + ".json");
+            assertTrue(Files.isRegularFile(model), block + " model");
+            assertTrue(Files.readString(model, StandardCharsets.UTF_8).contains(MODEL_PREFIX + block.path()),
+                block + " model uses its own texture");
+            assertTrue(Files.isRegularFile(assets.resolve("caichet/textures/block/" + block.path() + ".png")),
+                block + " texture");
         }
-        assertFalse(states.isEmpty(), "no hay blockstates waxed_*");
-        for (Path state : states) {
-            List<String> referenced = new ArrayList<>();
-            try (Reader reader = Files.newBufferedReader(state, StandardCharsets.UTF_8)) {
-                collectModels(JsonParser.parseReader(reader), referenced);
-            }
-            assertFalse(referenced.isEmpty(), state + " no referencia modelos de caichet");
-            for (String model : referenced) {
-                String name = model.substring(MODEL_PREFIX.length());
-                assertTrue(Files.isRegularFile(models.resolve(name + ".json")), state.getFileName() + " -> " + model);
-            }
-        }
-    }
-
-    /** Junta los "model": "caichet:block/x" de un blockstate (variants o multipart, uno o varios). */
-    private static void collectModels(JsonElement element, List<String> out) {
-        if (element.isJsonObject()) {
-            JsonObject object = element.getAsJsonObject();
-            for (var entry : object.entrySet()) {
-                JsonElement value = entry.getValue();
-                if (entry.getKey().equals("model") && value.isJsonPrimitive()
-                    && value.getAsString().startsWith(MODEL_PREFIX)) {
-                    out.add(value.getAsString());
-                } else {
-                    collectModels(value, out);
-                }
-            }
-        } else if (element.isJsonArray()) {
-            JsonArray array = element.getAsJsonArray();
-            array.forEach(item -> collectModels(item, out));
+        try (Stream<Path> overrides = Files.list(assets.resolve("minecraft/blockstates"))) {
+            List<String> copper = overrides.map(path -> path.getFileName().toString())
+                .filter(name -> name.contains("copper")).toList();
+            assertEquals(List.of(), copper, "el pack no puede cambiar el cobre vanilla");
         }
     }
 

@@ -7,22 +7,33 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** El hotel sale de la semilla: mismo lugar, mismos bloques, y todo con techo. */
 class HotelLayoutTest {
 
     private static final class Capture implements HotelLayout.Sink {
-        final Map<Long, Material> blocks = new HashMap<>();
+        final Map<Long, HotelLayout.Cell> blocks = new HashMap<>();
 
         @Override
-        public void set(int x, int y, int z, Material material) {
-            blocks.put(((long) x << 40) | ((long) y << 20) | z, material);
+        public void set(int x, int y, int z, HotelLayout.Cell cell) {
+            blocks.put(key(x, y, z), cell);
         }
 
-        Material at(int x, int y, int z) {
-            return blocks.get(((long) x << 40) | ((long) y << 20) | z);
+        HotelLayout.Cell at(int x, int y, int z) {
+            return blocks.get(key(x, y, z));
+        }
+
+        boolean isAir(int x, int y, int z) {
+            HotelLayout.Cell cell = at(x, y, z);
+            return cell == null || cell instanceof HotelLayout.Cell.Vanilla vanilla && vanilla.material() == Material.AIR;
+        }
+
+        private static long key(int x, int y, int z) {
+            return ((long) x << 40) | ((long) y << 20) | z;
         }
     }
 
@@ -59,12 +70,10 @@ class HotelLayoutTest {
                     for (int x = 0; x < 16; x++) {
                         for (int z = 0; z < 16; z++) {
                             String where = "semilla " + seed + " chunk " + cx + "," + cz + " col " + x + "," + z;
-                            Material floor = capture.at(x, HotelLayout.FLOOR, z);
-                            assertTrue(floor != null && floor != Material.AIR, "sin piso: " + where);
+                            assertTrue(!capture.isAir(x, HotelLayout.FLOOR, z), "sin piso: " + where);
                             boolean roofed = false;
                             for (int y = HotelLayout.FLOOR + 3; y < HotelLayout.FLOOR + 40; y++) {
-                                Material m = capture.at(x, y, z);
-                                if (m != null && m != Material.AIR) {
+                                if (!capture.isAir(x, y, z)) {
                                     roofed = true;
                                     break;
                                 }
@@ -89,5 +98,53 @@ class HotelLayoutTest {
     void theSpawnZoneIsAlwaysLevelZero() {
         assertEquals(HotelLayout.Theme.LEVEL0, HotelLayout.site(1L, 0, 0).theme());
         assertEquals(HotelLayout.Theme.LEVEL0, HotelLayout.site(999L, 0, 0).theme());
+    }
+
+    @Test
+    void theHotelNeverUsesVanillaCopper() {
+        for (int cx = -3; cx <= 3; cx++) {
+            for (int cz = -3; cz <= 3; cz++) {
+                for (HotelLayout.Cell cell : run(11L, cx, cz).blocks.values()) {
+                    if (cell instanceof HotelLayout.Cell.Vanilla vanilla) {
+                        assertFalse(vanilla.material().name().contains("COPPER"), "cobre en el hotel: " + vanilla);
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void everyPanelWithAirBelowHasItsLightAndEveryLightHangsFromAPanel() {
+        int panels = 0;
+        int dim = 0;
+        for (long seed : new long[] {7L, 99L}) {
+            for (int cx = -3; cx <= 3; cx++) {
+                for (int cz = -3; cz <= 3; cz++) {
+                    Capture capture = run(seed, cx, cz);
+                    for (int x = 0; x < 16; x++) {
+                        for (int z = 0; z < 16; z++) {
+                            for (int y = HotelLayout.FLOOR - 4; y < HotelLayout.FLOOR + 60; y++) {
+                                HotelLayout.Cell cell = capture.at(x, y, z);
+                                String where = "seed " + seed + " chunk " + cx + "," + cz + " col " + x + "," + z + " y " + y;
+                                if (cell instanceof HotelLayout.Cell.Panel panel) {
+                                    panels++;
+                                    assertTrue(panel.level() == 15 || panel.level() == 8, where);
+                                    dim += panel.level() == 8 ? 1 : 0;
+                                    if (capture.isAir(x, y - 1, z)) {
+                                        fail("panel sin luz sobre aire: " + where);
+                                    }
+                                }
+                                if (cell instanceof HotelLayout.Cell.Light light) {
+                                    HotelLayout.Cell above = capture.at(x, y + 1, z);
+                                    assertTrue(above instanceof HotelLayout.Cell.Panel panel && panel.level() == light.level(),
+                                        "luz sin panel arriba: " + where);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(panels > 0 && dim > 0, "la muestra tiene que tener paneles y paneles tenues");
     }
 }

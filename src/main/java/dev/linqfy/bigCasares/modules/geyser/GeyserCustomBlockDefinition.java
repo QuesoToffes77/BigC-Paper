@@ -19,16 +19,15 @@ import java.util.Set;
 /**
  * A Bedrock custom block that Geyser shows in place of one or more Java block states: a full cube with a texture per
  * face (keys of the Bedrock pack's terrain_texture.json) and a turn in steps of 90 degrees. Content blocks are
- * retextured vanilla states on Java (mushroom blocks, the hotel's waxed copper), which a Bedrock client would
- * otherwise draw as the vanilla block.
+ * reserved mushroom-block states on Java (the Sift's and the hotel's), which a Bedrock client would otherwise draw
+ * as a vanilla mushroom.
  *
  * @param javaState   the Java block state, e.g. {@code minecraft:brown_mushroom_block[down=true,east=false,...]}, or
- *                    just the block, e.g. {@code minecraft:waxed_copper_block}, when it has no properties
+ *                    just the block, e.g. {@code minecraft:smooth_stone}, when it has no properties
  * @param name        the Bedrock block name; Geyser puts it in its own namespace
  * @param faces       texture per face: up, down, north, south, east, west
  * @param rotation    turn around x, y and z, as the Java blockstate turns the model
- * @param aliasStates further Java states shown as this same Bedrock block (a bulb is the same panel whether or not
- *                    it is powered)
+ * @param aliasStates further Java states shown as this same Bedrock block (several states drawn the same way)
  * @param lightEmission light the Bedrock client draws from the block, 0 to 15; Bedrock lights by its own block, not
  *                    by the Java light it is sent
  */

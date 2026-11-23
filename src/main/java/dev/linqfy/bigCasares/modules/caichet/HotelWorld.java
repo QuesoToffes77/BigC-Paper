@@ -7,13 +7,14 @@ import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.block.data.Lightable;
 import org.bukkit.generator.BiomeProvider;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
 import org.bukkit.plugin.Plugin;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 /** El mundo del hotel: generado entero por {@link HotelLayout}, siempre de dia, sin clima y sin mobs. */
@@ -61,21 +62,28 @@ final class HotelWorld {
     }
 
     private static final class Generator extends ChunkGenerator {
-        /** La bombilla encendida: el resource pack la muestra como panel de luz fluorescente. */
-        private static final BlockData LIT_PANEL = HotelLayout.LIGHT_PANEL.createBlockData(
-                data -> ((Lightable) data).setLit(true));
-        private static final BlockData LIT_DIM = HotelLayout.LIGHT_DIM.createBlockData(
-                data -> ((Lightable) data).setLit(true));
+        /** Los datos de cada bloque propio, armados una vez: el generador corre en varios hilos. */
+        private static final Map<HotelBlock, BlockData> CUSTOM = new EnumMap<>(HotelBlock.class);
+        /** {@code minecraft:light} por nivel (el indice es el nivel; el 0 no se usa). */
+        private static final BlockData[] LIGHTS = new BlockData[16];
+
+        static {
+            for (HotelBlock block : HotelBlock.values()) {
+                CUSTOM.put(block, Bukkit.createBlockData(block.state().asString()));
+            }
+            for (int level = 1; level < LIGHTS.length; level++) {
+                LIGHTS[level] = Bukkit.createBlockData("minecraft:light[level=" + level + "]");
+            }
+        }
 
         @Override
         public void generateNoise(WorldInfo info, Random random, int chunkX, int chunkZ, ChunkData data) {
-            HotelLayout.generate(info.getSeed(), chunkX, chunkZ, (x, y, z, material) -> {
-                if (material == HotelLayout.LIGHT_PANEL) {
-                    data.setBlock(x, y, z, LIT_PANEL);
-                } else if (material == HotelLayout.LIGHT_DIM) {
-                    data.setBlock(x, y, z, LIT_DIM);
-                } else {
-                    data.setBlock(x, y, z, material);
+            HotelLayout.generate(info.getSeed(), chunkX, chunkZ, (x, y, z, cell) -> {
+                switch (cell) {
+                    case HotelLayout.Cell.Vanilla vanilla -> data.setBlock(x, y, z, vanilla.material());
+                    case HotelLayout.Cell.Custom custom -> data.setBlock(x, y, z, CUSTOM.get(custom.block()));
+                    case HotelLayout.Cell.Panel _ -> data.setBlock(x, y, z, CUSTOM.get(HotelBlock.LIGHT_PANEL));
+                    case HotelLayout.Cell.Light light -> data.setBlock(x, y, z, LIGHTS[light.level()]);
                 }
             });
         }
