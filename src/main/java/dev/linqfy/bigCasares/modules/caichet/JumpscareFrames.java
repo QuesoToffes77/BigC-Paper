@@ -1,14 +1,17 @@
 package dev.linqfy.bigCasares.modules.caichet;
 
 /**
- * Las imagenes de los sustos de las entidades de los backrooms: una por entidad (en el orden de
- * {@link BackroomsKind}), a pantalla completa. Mismo esquema que {@link MemoryFrames}: cada una va partida en mosaicos,
- * que son letras seguidas de la fuente {@code caichet:sustos}.
+ * Las imagenes de los sustos de las entidades de los backrooms, a pantalla completa. Cada entidad tiene una animacion
+ * de {@link #ANIMATED} cuadros (se acerca, tiembla, se pone roja), menos la Entidad 666, que es una sola imagen quieta.
+ * Los cuadros van en el orden de {@link BackroomsKind}. Mismo esquema que {@link MemoryFrames}: cada cuadro va partido
+ * en mosaicos, que son letras seguidas de la fuente {@code caichet:sustos}.
  */
 final class JumpscareFrames {
 
-    /** Una imagen por entidad. */
-    static final int COUNT = BackroomsKind.values().length;
+    /** Cuadros de la animacion de cada entidad que se mueve. */
+    static final int ANIMATED = 6;
+    /** Todos los cuadros de la fuente. */
+    static final int COUNT = countAll();
     static final int COLUMNS = MemoryFrames.COLUMNS;
     static final int ROWS = MemoryFrames.ROWS;
     /** La primera letra de la primera imagen; las demas siguen en orden. */
@@ -39,8 +42,49 @@ final class JumpscareFrames {
         return text.toString();
     }
 
-    /** El texto de la imagen del susto de una entidad. */
+    /** Cuantos cuadros tiene el susto de esta entidad. */
+    static int frames(BackroomsKind kind) {
+        return kind == BackroomsKind.E666 ? 1 : ANIMATED;
+    }
+
+    /** El primer cuadro de esta entidad en la fuente. */
+    static int first(BackroomsKind kind) {
+        int frame = 0;
+        for (BackroomsKind before : BackroomsKind.values()) {
+            if (before == kind) {
+                return frame;
+            }
+            frame += frames(before);
+        }
+        throw new IllegalArgumentException(kind.name());
+    }
+
+    private static int countAll() {
+        int total = 0;
+        for (BackroomsKind kind : BackroomsKind.values()) {
+            total += frames(kind);
+        }
+        return total;
+    }
+
+    /**
+     * El cuadro que se ve en este paso del susto: la animacion avanza un cuadro cada {@code ticksPerFrame} y, al
+     * terminar, los dos ultimos se alternan (la imagen sigue temblando).
+     */
+    static int frameAt(BackroomsKind kind, int tick, int ticksPerFrame) {
+        int count = frames(kind);
+        if (count == 1) {
+            return first(kind);
+        }
+        int step = Math.max(0, tick) / Math.max(1, ticksPerFrame);
+        if (step < count) {
+            return first(kind) + step;
+        }
+        return first(kind) + count - 1 - (step - count) % 2;
+    }
+
+    /** El texto del primer cuadro del susto de una entidad. */
     static String glyphs(BackroomsKind kind) {
-        return glyphs(kind.frame());
+        return glyphs(first(kind));
     }
 }

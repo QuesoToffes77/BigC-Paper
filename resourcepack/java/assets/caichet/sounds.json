@@ -79,7 +79,7 @@
   },
   "entity.jumpscare": {
     "sounds": [
-      "caichet:susto_grito"
+      "caichet:susto_fuerte"
     ]
   },
   "entity.attack": {

@@ -103,7 +103,7 @@ class BackroomsRulesTest {
         assertTrue(BackroomsRules.dies(GameMode.ADVENTURE));
         assertFalse(BackroomsRules.dies(GameMode.CREATIVE));
         assertFalse(BackroomsRules.dies(GameMode.SPECTATOR));
-        assertEquals(12, BackroomsRules.SCARE_DEATH_AT);
+        assertEquals(18, BackroomsRules.SCARE_DEATH_AT);
     }
 
     @Test

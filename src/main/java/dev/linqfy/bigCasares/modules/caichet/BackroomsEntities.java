@@ -8,6 +8,7 @@ import net.kyori.adventure.text.format.ShadowColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -44,6 +45,14 @@ final class BackroomsEntities implements Runnable, Listener {
     private static final long AMBIENT_MAX_TICKS = 20 * 45;
     private static final int SCARE_STAY_TICKS = 25;
     private static final int SCARE_FADE_OUT_TICKS = 10;
+    /** Cada cuantos ticks avanza la animacion del susto. */
+    private static final int SCARE_TICKS_PER_FRAME = 2;
+    /** La figura arranca a esta distancia de la cara y se tira encima (bloques). */
+    private static final double LUNGE_FROM = 3.2;
+    private static final double LUNGE_TO = 0.55;
+    private static final double LUNGE_PER_TICK = 0.65;
+    /** Ticks en los que la camara tiembla. */
+    private static final int SHAKE_TICKS = 12;
 
     private final Watchers watchers;
     private final BackroomsRules.Director director = new BackroomsRules.Director();
@@ -145,32 +154,59 @@ final class BackroomsEntities implements Runnable, Listener {
         encounter.scareTicks = 0;
         Player player = encounter.player;
         pending.put(player.getUniqueId(), encounter.kind, tick);
-        Title.Times times = Title.Times.times(Duration.ZERO, Duration.ofMillis(SCARE_STAY_TICKS * 50L),
-            Duration.ofMillis(SCARE_FADE_OUT_TICKS * 50L));
         if (Bedrock.is(player)) {
-            // Bedrock no tiene la fuente con la imagen: un "!" rojo y oscuridad
+            // Bedrock no tiene la fuente con las imagenes: un "!" rojo y oscuridad
+            Title.Times times = Title.Times.times(Duration.ZERO, Duration.ofMillis(SCARE_STAY_TICKS * 50L),
+                Duration.ofMillis(SCARE_FADE_OUT_TICKS * 50L));
             player.showTitle(Title.title(Component.text("!", NamedTextColor.RED).decorate(TextDecoration.BOLD),
                 Component.empty(), times));
             player.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 40, 0, false, false, false));
             player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 15, 0, false, false, false));
         } else {
-            // sin sombra: la del titulo dibujaria la imagen dos veces, corrida
-            Component image = Component.text(JumpscareFrames.glyphs(encounter.kind)).font(SCARE_FONT)
-                .shadowColor(ShadowColor.none());
-            player.showTitle(Title.title(image, Component.empty(), times));
+            showScareFrame(player, encounter.kind, 0);
         }
-        CaiChetSounds.playTo(player, player.getLocation(), CaiChetSounds.ENTITY_JUMPSCARE, SoundCategory.HOSTILE, 3f, 1f);
-        CaiChetSounds.playTo(player, player.getLocation(), CaiChetSounds.ENTITY_ATTACK, SoundCategory.HOSTILE, 2f, 1f);
+        // el grito, dos veces a la vez y pegado a la cabeza: suena el doble de fuerte
+        Location head = player.getEyeLocation();
+        CaiChetSounds.playTo(player, head, CaiChetSounds.ENTITY_JUMPSCARE, SoundCategory.MASTER, 1f, 1f);
+        CaiChetSounds.playTo(player, head, CaiChetSounds.ENTITY_JUMPSCARE, SoundCategory.MASTER, 1f, 0.94f);
+        CaiChetSounds.playTo(player, head, CaiChetSounds.ENTITY_ATTACK, SoundCategory.MASTER, 1f, 0.8f);
         encounter.figure.setMode(BackroomsRigs.Mode.IDLE);
-        encounter.figure.snapToFace(player);
+        encounter.figure.snapToFace(player, lungeDistance(encounter.kind, 0));
+    }
+
+    /** La Entidad 666 aparece de una pegada a la cara; las demas se tiran encima desde unos bloques. */
+    private static double lungeDistance(BackroomsKind kind, int tick) {
+        if (JumpscareFrames.frames(kind) == 1) {
+            return 1.0;
+        }
+        return Math.max(LUNGE_TO, LUNGE_FROM - LUNGE_PER_TICK * tick);
+    }
+
+    /** Muestra el cuadro de la animacion que toca; el titulo se renueva en cada cuadro. */
+    private void showScareFrame(Player player, BackroomsKind kind, int tick) {
+        int stay = Math.max(SCARE_TICKS_PER_FRAME + 1, SCARE_STAY_TICKS - tick);
+        Title.Times times = Title.Times.times(Duration.ZERO, Duration.ofMillis(stay * 50L),
+            Duration.ofMillis(SCARE_FADE_OUT_TICKS * 50L));
+        // sin sombra: la del titulo dibujaria la imagen dos veces, corrida
+        Component image = Component.text(JumpscareFrames.glyphs(JumpscareFrames.frameAt(kind, tick,
+            SCARE_TICKS_PER_FRAME))).font(SCARE_FONT).shadowColor(ShadowColor.none());
+        player.showTitle(Title.title(image, Component.empty(), times));
     }
 
     /** @return true cuando termino el susto */
     private boolean scareTick(BackroomsEncounters.Encounter encounter) {
         Player player = encounter.player;
         encounter.scareTicks++;
-        encounter.figure.snapToFace(player);
+        int tick = encounter.scareTicks;
+        encounter.figure.snapToFace(player, lungeDistance(encounter.kind, tick));
         encounter.figure.tick();
+        if (tick < SHAKE_TICKS && tick % 2 == 0) {
+            player.playHurtAnimation(ThreadLocalRandom.current().nextFloat() * 360f); // la camara se sacude
+        }
+        boolean animated = JumpscareFrames.frames(encounter.kind) > 1;
+        if (animated && !Bedrock.is(player) && tick < SCARE_STAY_TICKS && tick % SCARE_TICKS_PER_FRAME == 0) {
+            showScareFrame(player, encounter.kind, tick);
+        }
         if (encounter.scareTicks == BackroomsRules.SCARE_DEATH_AT && BackroomsRules.dies(player.getGameMode())) {
             player.damage(1000);
         }

@@ -105,8 +105,8 @@ final class BackroomsRules {
     // ------------------------------------------------------------------ el susto
 
     /** Los tiempos del susto (ticks desde que empieza). */
-    static final int SCARE_DEATH_AT = 12;
-    static final int SCARE_END_AT = 25;
+    static final int SCARE_DEATH_AT = 18;
+    static final int SCARE_END_AT = 32;
 
     static boolean dies(GameMode mode) {
         return mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE;

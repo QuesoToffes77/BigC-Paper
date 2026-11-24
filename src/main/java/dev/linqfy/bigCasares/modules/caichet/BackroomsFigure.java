@@ -179,8 +179,13 @@ final class BackroomsFigure {
      * cara de la figura sea la que queda frente a los ojos.
      */
     void snapToFace(Player player) {
+        snapToFace(player, 1.0);
+    }
+
+    /** Igual, a esta distancia de los ojos (para que se tire encima: de lejos a pegada). */
+    void snapToFace(Player player, double distance) {
         Location eye = player.getEyeLocation();
-        Vector front = eye.toVector().add(eye.getDirection().multiply(1.0));
+        Vector front = eye.toVector().add(eye.getDirection().multiply(distance));
         double drop = kind == BackroomsKind.SONRISA ? 0 : BackroomsRigs.faceHeight(kind) * fit;
         pos = new Location(eye.getWorld(), front.getX(), front.getY() - drop, front.getZ());
         faceTowards(eye);

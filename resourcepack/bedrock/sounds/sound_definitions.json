@@ -762,7 +762,7 @@
       "category": "hostile",
       "sounds": [
         {
-          "name": "sounds/caichet/susto_grito",
+          "name": "sounds/caichet/susto_fuerte",
           "load_on_low_memory": true
         }
       ]

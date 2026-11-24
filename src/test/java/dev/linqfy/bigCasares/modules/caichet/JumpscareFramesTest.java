@@ -28,9 +28,14 @@ class JumpscareFramesTest {
     private static final int MAX_GLYPH_PIXELS = 256;
 
     @Test
-    void thereIsOneImagePerEntity() {
-        assertEquals(BackroomsKind.values().length, JumpscareFrames.COUNT);
-        assertEquals(5, JumpscareFrames.COUNT);
+    void everyEntityIsAnimatedButThe666() {
+        assertEquals(1, JumpscareFrames.frames(BackroomsKind.E666));
+        for (BackroomsKind kind : BackroomsKind.values()) {
+            if (kind != BackroomsKind.E666) {
+                assertEquals(JumpscareFrames.ANIMATED, JumpscareFrames.frames(kind), kind.name());
+            }
+        }
+        assertEquals(4 * JumpscareFrames.ANIMATED + 1, JumpscareFrames.COUNT);
         assertEquals(0xE100, JumpscareFrames.FIRST_GLYPH);
         assertEquals(4, JumpscareFrames.COLUMNS);
         assertEquals(2, JumpscareFrames.ROWS);
@@ -61,10 +66,33 @@ class JumpscareFramesTest {
     }
 
     @Test
-    void anEntityDrawsItsOwnImage() {
+    void anEntityDrawsItsOwnFramesInOrder() {
+        assertEquals(0, JumpscareFrames.first(BackroomsKind.SONRISA));
+        assertEquals(JumpscareFrames.ANIMATED, JumpscareFrames.first(BackroomsKind.E666));
+        assertEquals(JumpscareFrames.ANIMATED + 1, JumpscareFrames.first(BackroomsKind.JUANCARLOS));
+        int next = 0;
         for (BackroomsKind kind : BackroomsKind.values()) {
-            assertEquals(JumpscareFrames.glyphs(kind.ordinal()), JumpscareFrames.glyphs(kind));
-            assertEquals(JumpscareFrames.glyph(kind.ordinal(), 0, 0), JumpscareFrames.glyphs(kind).charAt(0));
+            assertEquals(next, JumpscareFrames.first(kind), kind.name());
+            assertEquals(JumpscareFrames.glyphs(next), JumpscareFrames.glyphs(kind));
+            next += JumpscareFrames.frames(kind);
+        }
+        assertEquals(JumpscareFrames.COUNT, next);
+    }
+
+    @Test
+    void theAnimationAdvancesThenKeepsShaking() {
+        BackroomsKind kind = BackroomsKind.ARANA;
+        int first = JumpscareFrames.first(kind);
+        for (int step = 0; step < JumpscareFrames.ANIMATED; step++) {
+            assertEquals(first + step, JumpscareFrames.frameAt(kind, step * 2, 2));
+            assertEquals(first + step, JumpscareFrames.frameAt(kind, step * 2 + 1, 2));
+        }
+        int last = first + JumpscareFrames.ANIMATED - 1;
+        assertEquals(last, JumpscareFrames.frameAt(kind, JumpscareFrames.ANIMATED * 2, 2));
+        assertEquals(last - 1, JumpscareFrames.frameAt(kind, JumpscareFrames.ANIMATED * 2 + 2, 2));
+        assertEquals(last, JumpscareFrames.frameAt(kind, JumpscareFrames.ANIMATED * 2 + 4, 2));
+        for (int tick = 0; tick < 40; tick++) {
+            assertEquals(JumpscareFrames.first(BackroomsKind.E666), JumpscareFrames.frameAt(BackroomsKind.E666, tick, 2));
         }
     }
 
