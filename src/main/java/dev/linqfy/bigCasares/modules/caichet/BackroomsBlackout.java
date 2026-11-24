@@ -10,7 +10,9 @@ import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -72,6 +74,8 @@ final class BackroomsBlackout {
         int cz = at.getBlockZ();
         int bottom = HotelLayout.FLOOR + 2;
         BlockData off = panelOff();
+        // todo en un solo envio por chunk (sendMultiBlockChange), no un paquete por bloque
+        Map<Location, BlockData> batch = new HashMap<>();
         for (int x = cx - RADIUS; x <= cx + RADIUS; x++) {
             for (int z = cz - RADIUS; z <= cz + RADIUS; z++) {
                 if (!world.isChunkLoaded(x >> 4, z >> 4)) {
@@ -91,14 +95,17 @@ final class BackroomsBlackout {
                     // cliente, la luz real le habria vuelto
                     Location panel = block.getLocation();
                     changed.add(panel);
-                    player.sendBlockChange(panel, off);
+                    batch.put(panel, off);
                     Block below = block.getRelative(0, -1, 0);
                     if (below.getType() == Material.LIGHT) {
                         changed.add(below.getLocation());
-                        player.sendBlockChange(below.getLocation(), AIR);
+                        batch.put(below.getLocation(), AIR);
                     }
                 }
             }
+        }
+        if (!batch.isEmpty()) {
+            player.sendMultiBlockChange(batch);
         }
     }
 
@@ -109,10 +116,14 @@ final class BackroomsBlackout {
         }
         on = false;
         if (player.isOnline()) {
+            Map<Location, BlockData> batch = new HashMap<>();
             for (Location location : changed) {
                 if (location.getWorld().equals(player.getWorld())) {
-                    player.sendBlockChange(location, location.getBlock().getBlockData());
+                    batch.put(location, location.getBlock().getBlockData());
                 }
+            }
+            if (!batch.isEmpty()) {
+                player.sendMultiBlockChange(batch);
             }
         }
         changed.clear();

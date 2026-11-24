@@ -14,6 +14,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerBedEnterEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 
 /**
  * En el desierto, el hotel y el Sueño no se puede marcar el punto de reaparicion: ni camas ni anclas. Al intentarlo
@@ -48,8 +49,12 @@ final class NoSpawnPoints implements Listener {
         if (event.getPlayer().isSneaking() && event.getItem() != null && event.getItem().getType().isBlock()) {
             return; // agachado con un bloque en la mano: esta construyendo al lado, no usando la cama
         }
+        // el clic llega una vez por mano: se cancelan las dos (si no, la otra mano usaria la cama), pero el cartel
+        // sale una sola vez
         event.setCancelled(true);
-        refuse(event.getPlayer());
+        if (event.getHand() == EquipmentSlot.HAND) {
+            refuse(event.getPlayer());
+        }
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
