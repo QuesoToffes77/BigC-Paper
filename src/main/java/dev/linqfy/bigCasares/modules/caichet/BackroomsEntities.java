@@ -13,7 +13,9 @@ import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerAnimationType;
@@ -22,10 +24,10 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -69,22 +71,26 @@ final class BackroomsEntities implements Runnable, Listener {
     public void run() {
         tick++;
         World hotel = HotelWorld.get();
-        for (Iterator<BackroomsEncounters.Encounter> it = active.values().iterator(); it.hasNext(); ) {
-            BackroomsEncounters.Encounter encounter = it.next();
+        // se recorre una copia: un susto puede matar al jugador y su muerte (onDeath) saca el encuentro de active
+        for (BackroomsEncounters.Encounter encounter : new ArrayList<>(active.values())) {
             Player player = encounter.player;
+            UUID id = player.getUniqueId();
+            if (active.get(id) != encounter) {
+                continue; // ya termino en este mismo tick
+            }
             if (hotel == null || !player.isOnline() || !player.getWorld().equals(hotel) || player.isDead()
                 || player.getGameMode() == GameMode.SPECTATOR || !encounter.figure.valid()) {
-                finish(encounter);
-                it.remove();
+                end(encounter);
                 continue;
             }
             boolean done = encounter.scaring() ? scareTick(encounter) : encounter.tick();
-            if (!done) {
-                encounter.updateBlackout();
+            if (active.get(id) != encounter) {
+                continue; // murio en este tick: onDeath ya lo termino y devolvio las luces
             }
             if (done) {
-                finish(encounter);
-                it.remove();
+                end(encounter);
+            } else {
+                encounter.updateBlackout();
             }
         }
         if (hotel == null) {
@@ -103,7 +109,10 @@ final class BackroomsEntities implements Runnable, Listener {
             boolean free = !active.containsKey(id) && !watchers.has(id) && !player.isDead();
             if (director.roll(id, tick, free, ThreadLocalRandom.current())) {
                 BackroomsKind[] kinds = BackroomsKind.values();
-                spawn(player, kinds[ThreadLocalRandom.current().nextInt(kinds.length)]);
+                if (!spawn(player, kinds[ThreadLocalRandom.current().nextInt(kinds.length)])) {
+                    // no encontro lugar donde aparecer: se reintenta en un rato (si no, quedaria esperando para siempre)
+                    director.retry(id, tick, ThreadLocalRandom.current());
+                }
             }
         }
     }
@@ -230,6 +239,14 @@ final class BackroomsEntities implements Runnable, Listener {
         }
     }
 
+    /** Un totem lo salvo del susto: el mensaje de muerte pendiente ya no corresponde a una muerte despues. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onResurrect(EntityResurrectEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            pending.forget(player.getUniqueId());
+        }
+    }
+
     @EventHandler
     public void onSwing(PlayerAnimationEvent event) {
         if (event.getAnimationType() != PlayerAnimationType.ARM_SWING) {
@@ -251,6 +268,12 @@ final class BackroomsEntities implements Runnable, Listener {
         director.forget(id);
         pending.forget(id);
         hinted.remove(id);
+    }
+
+    /** Saca el encuentro de active (si sigue siendo el de ese jugador) y lo termina. */
+    private void end(BackroomsEncounters.Encounter encounter) {
+        active.remove(encounter.player.getUniqueId(), encounter);
+        finish(encounter);
     }
 
     /** Termino un encuentro, como termine: la figura se va y la proxima llega en otro momento al azar. */

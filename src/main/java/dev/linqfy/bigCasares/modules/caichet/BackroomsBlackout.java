@@ -87,12 +87,14 @@ final class BackroomsBlackout {
                     if (!isLitPanel(block.getBlockData())) {
                         break;
                     }
+                    // se manda de nuevo en cada repaso: si el panel titilo o el chunk se le volvio a mandar al
+                    // cliente, la luz real le habria vuelto
                     Location panel = block.getLocation();
-                    if (changed.add(panel)) {
-                        player.sendBlockChange(panel, off);
-                    }
+                    changed.add(panel);
+                    player.sendBlockChange(panel, off);
                     Block below = block.getRelative(0, -1, 0);
-                    if (below.getType() == Material.LIGHT && changed.add(below.getLocation())) {
+                    if (below.getType() == Material.LIGHT) {
+                        changed.add(below.getLocation());
                         player.sendBlockChange(below.getLocation(), AIR);
                     }
                 }

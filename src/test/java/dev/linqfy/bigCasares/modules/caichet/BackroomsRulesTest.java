@@ -72,6 +72,18 @@ class BackroomsRulesTest {
     }
 
     @Test
+    void whenItFindsNoSpotItIsRetriedInsteadOfWaitingForever() {
+        BackroomsRules.Director director = new BackroomsRules.Director();
+        UUID id = UUID.randomUUID();
+        director.roll(id, 0, true, new Fixed(0));
+        assertTrue(director.roll(id, MIN, true, new Fixed(0)));
+        director.retry(id, MIN, new Fixed(0));
+        int retry = BackroomsRules.Director.RETRY_MIN_TICKS;
+        assertFalse(director.roll(id, MIN + retry - 1, true, new Fixed(0)));
+        assertTrue(director.roll(id, MIN + retry, true, new Fixed(0)), "vuelve a intentar, no queda trabado");
+    }
+
+    @Test
     void theDirectorIsPerPlayerAndForgets() {
         BackroomsRules.Director director = new BackroomsRules.Director();
         UUID a = UUID.randomUUID();

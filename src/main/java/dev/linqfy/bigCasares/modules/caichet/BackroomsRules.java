@@ -54,6 +54,11 @@ final class BackroomsRules {
             return true;
         }
 
+        /** Toco pero no pudo aparecer (no hubo lugar): se vuelve a intentar en un rato. */
+        void retry(UUID player, long now, RandomGenerator random) {
+            nextAt.put(player, now + between(RETRY_MIN_TICKS, RETRY_MAX_TICKS, random));
+        }
+
         /** Termino un encuentro (como termine): la proxima llega en otro momento al azar. */
         void ended(UUID player, long now, RandomGenerator random) {
             nextAt.put(player, now + between(MIN_WAIT_TICKS, MAX_WAIT_TICKS, random));

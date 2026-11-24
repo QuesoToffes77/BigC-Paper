@@ -11,13 +11,16 @@ import java.util.UUID;
 
 /**
  * Los items sueltos en la dimension flotan hacia arriba y desaparecen: a los 40 bloques de altura sobre donde
- * estaban, o antes si algo (un techo) los frena. Se llama una vez por tick. Al apagar el modulo, los que siguen
- * flotando vuelven a tener gravedad ({@link #restoreAll}).
+ * estaban, o antes si algo (un techo) los frena. Se llama una vez por tick. No se les saca la gravedad (eso se guarda
+ * en el item y quedaria flotando para siempre si el chunk se descarga o el modulo se apaga): cada tick se los empuja
+ * hacia arriba un poco mas de lo que la gravedad los baja.
  */
 final class ItemFloater implements Runnable {
 
     /** Bloques por tick. */
     private static final double RISE_SPEED = 0.08;
+    /** Lo que la gravedad de un item le resta a su velocidad en cada tick, antes de moverlo. */
+    private static final double ITEM_GRAVITY = 0.04;
     private static final double VANISH_AFTER = 40.0;
     /** Ticks seguidos sin subir (topan con un techo) antes de desaparecer. */
     private static final int STUCK_TICKS = 20;
@@ -44,7 +47,7 @@ final class ItemFloater implements Runnable {
             tracks.clear();
             return;
         }
-        Vector up = new Vector(0, RISE_SPEED, 0);
+        Vector up = new Vector(0, RISE_SPEED + ITEM_GRAVITY, 0);
         tracks.values().removeIf(track -> !track.item.isValid());
         for (Item item : world.getEntitiesByClass(Item.class)) {
             Track track = tracks.get(item.getUniqueId());
@@ -52,7 +55,9 @@ final class ItemFloater implements Runnable {
             if (track == null) {
                 track = new Track(item, y);
                 tracks.put(item.getUniqueId(), track);
-                item.setGravity(false);
+                if (!item.hasGravity()) {
+                    item.setGravity(true); // los que dejo sin gravedad una version anterior
+                }
             }
             track.stuck = y - track.lastY < RISE_SPEED / 4 ? track.stuck + 1 : 0;
             track.lastY = y;
@@ -66,13 +71,8 @@ final class ItemFloater implements Runnable {
         }
     }
 
-    /** Les devuelve la gravedad a los items que estaban flotando (al apagar el modulo) y los olvida. */
+    /** Al apagar el modulo: los olvida. Nunca se les saco la gravedad, asi que caen solos. */
     void restoreAll() {
-        for (Track track : tracks.values()) {
-            if (track.item.isValid()) {
-                track.item.setGravity(true);
-            }
-        }
         tracks.clear();
     }
 }
