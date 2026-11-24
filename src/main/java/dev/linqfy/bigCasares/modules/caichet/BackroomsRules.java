@@ -119,9 +119,9 @@ final class BackroomsRules {
     static final int SCARE_DEATH_AT = 18;
     static final int SCARE_END_AT = 32;
 
-    /** Si te atrapa, te mata en cualquier modo de juego (en creativo tambien); solo el espectador se salva. */
+    /** Si te atrapa, te mata en supervivencia y aventura; en creativo (y espectador) solo te asusta. */
     static boolean dies(GameMode mode) {
-        return mode != GameMode.SPECTATOR;
+        return mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE;
     }
 
     // ------------------------------------------------------------------ techo
