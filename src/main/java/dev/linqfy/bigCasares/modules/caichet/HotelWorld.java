@@ -3,6 +3,7 @@ package dev.linqfy.bigCasares.modules.caichet;
 import org.bukkit.Bukkit;
 import org.bukkit.GameRules;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.block.Biome;
@@ -66,6 +67,10 @@ final class HotelWorld {
         private static final Map<HotelBlock, BlockData> CUSTOM = new EnumMap<>(HotelBlock.class);
         /** {@code minecraft:light} por nivel (el indice es el nivel; el 0 no se usa). */
         private static final BlockData[] LIGHTS = new BlockData[16];
+        /** Las bombillas de cobre encendidas de las zonas de cobre. */
+        private static final BlockData LIT_BULB = Bukkit.createBlockData("minecraft:waxed_copper_bulb[lit=true]");
+        private static final BlockData LIT_DIM_BULB =
+            Bukkit.createBlockData("minecraft:waxed_weathered_copper_bulb[lit=true]");
 
         static {
             for (HotelBlock block : HotelBlock.values()) {
@@ -84,6 +89,8 @@ final class HotelWorld {
                     case HotelLayout.Cell.Custom custom -> data.setBlock(x, y, z, CUSTOM.get(custom.block()));
                     case HotelLayout.Cell.Panel _ -> data.setBlock(x, y, z, CUSTOM.get(HotelBlock.LIGHT_PANEL));
                     case HotelLayout.Cell.Light light -> data.setBlock(x, y, z, LIGHTS[light.level()]);
+                    case HotelLayout.Cell.Bulb bulb -> data.setBlock(x, y, z,
+                        bulb.material() == Material.WAXED_COPPER_BULB ? LIT_BULB : LIT_DIM_BULB);
                 }
             });
         }

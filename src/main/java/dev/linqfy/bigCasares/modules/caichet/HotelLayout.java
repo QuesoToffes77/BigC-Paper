@@ -34,6 +34,10 @@ final class HotelLayout {
         record Light(int level) implements Cell {
         }
 
+        /** Una bombilla de cobre encendida (los paneles de luz de las zonas de cobre): alumbra sola. */
+        record Bulb(Material material) implements Cell {
+        }
+
         static Cell of(Material material) {
             return new Vanilla(material);
         }
@@ -112,8 +116,46 @@ final class HotelLayout {
             Theme.PILLARS, Theme.PILLARS, Theme.CORRIDOR, Theme.CORRIDOR, Theme.POOLROOM, Theme.LIBRARY,
             Theme.COURTYARD, Theme.INDOOR_POOL, Theme.ABANDONED};
 
-    /** El centro de una zona. */
-    record Site(int gx, int gz, int x, int z, Theme theme, int height) {
+    /**
+     * El centro de una zona.
+     *
+     * @param copper la zona esta hecha con los bloques de cobre encerado vanilla en vez de los propios del hotel (la
+     *               misma zona, con el material que tenian antes los soportes de las texturas)
+     */
+    record Site(int gx, int gz, int x, int z, Theme theme, int height, boolean copper) {
+    }
+
+    /** Que parte de las zonas sale de cobre. */
+    static final int COPPER_PERCENT = 50;
+
+    /** El cobre encerado que corresponde a cada bloque propio en las zonas de cobre. */
+    static Material copper(HotelBlock block) {
+        return switch (block) {
+            case WALLPAPER_BEIGE -> Material.WAXED_COPPER_BLOCK;
+            case WAINSCOT -> Material.WAXED_EXPOSED_COPPER;
+            case CARPET_MUSTARD -> Material.WAXED_WEATHERED_COPPER;
+            case CEILING_WARM -> Material.WAXED_OXIDIZED_COPPER;
+            case WALLPAPER_YELLOW -> Material.WAXED_CUT_COPPER;
+            case CARPET_YELLOW -> Material.WAXED_EXPOSED_CUT_COPPER;
+            case CEILING_YELLOW -> Material.WAXED_WEATHERED_CUT_COPPER;
+            case WOOD_PANEL -> Material.WAXED_OXIDIZED_CUT_COPPER;
+            case CARPET_OLIVE -> Material.WAXED_CHISELED_COPPER;
+            case POOL_MOSAIC -> Material.WAXED_EXPOSED_CHISELED_COPPER;
+            case CREAM_LINES -> Material.WAXED_WEATHERED_CHISELED_COPPER;
+            case TILES_WHITE -> Material.WAXED_OXIDIZED_CHISELED_COPPER;
+            case TILES_DIRTY -> Material.WAXED_EXPOSED_COPPER_BULB; // apagada
+            case LIGHT_PANEL, LIGHT_PANEL_OFF -> Material.WAXED_COPPER_BULB;
+        };
+    }
+
+    /** La misma celda en una zona de cobre; el panel fuerte es la bombilla comun y el tenue la erosionada (luz 8). */
+    static Cell copper(Cell cell) {
+        return switch (cell) {
+            case Cell.Custom custom -> Cell.of(copper(custom.block()));
+            case Cell.Panel panel -> new Cell.Bulb(panel.level() >= LIGHT_PANEL_LEVEL
+                ? Material.WAXED_COPPER_BULB : Material.WAXED_WEATHERED_COPPER_BULB);
+            default -> cell;
+        };
     }
 
     /** Las dos zonas mas cercanas a un punto y la distancia a la linea que las separa. */
@@ -148,13 +190,14 @@ final class HotelLayout {
     /** La zona (0,0) es siempre el nivel 0 y esta centrada donde se aparece. */
     static Site site(long seed, int gx, int gz) {
         if (gx == 0 && gz == 0) {
-            return new Site(0, 0, 16, 16, Theme.LEVEL0, 5);
+            return new Site(0, 0, 16, 16, Theme.LEVEL0, 5, false);
         }
         int x = gx * SITE + 6 + roll(seed, gx, gz, 20, SITE - 12);
         int z = gz * SITE + 6 + roll(seed, gx, gz, 21, SITE - 12);
         Theme theme = WEIGHTED[roll(seed, gx, gz, 22, WEIGHTED.length)];
         int height = theme.minHeight + roll(seed, gx, gz, 23, theme.maxHeight - theme.minHeight + 1);
-        return new Site(gx, gz, x, z, theme, height);
+        boolean copper = chance(seed, gx, gz, 24, COPPER_PERCENT);
+        return new Site(gx, gz, x, z, theme, height, copper);
     }
 
     private static Probe probe(long seed, int wx, int wz) {
@@ -205,7 +248,7 @@ final class HotelLayout {
                 int wx = chunkX * 16 + x;
                 int wz = chunkZ * 16 + z;
                 Probe p = probe(seed, wx, wz);
-                Column c = new Column(x, z);
+                Column c = new Column(x, z, p.a.copper);
                 Theme theme = p.a.theme;
                 Cell base = theme == Theme.INDOOR_POOL ? TILES_WHITE
                         : theme == Theme.POOLROOM ? POOL_MOSAIC : Cell.of(Material.SMOOTH_STONE);
@@ -246,10 +289,13 @@ final class HotelLayout {
         private final int x;
         private final int z;
         private final Cell[] cells = new Cell[COLUMN_HEIGHT];
+        /** La columna es de una zona de cobre: al entregarla, los bloques propios pasan a su cobre. */
+        private final boolean copper;
 
-        Column(int x, int z) {
+        Column(int x, int z, boolean copper) {
             this.x = x;
             this.z = z;
+            this.copper = copper;
         }
 
         void set(int y, Cell cell) {
@@ -283,6 +329,9 @@ final class HotelLayout {
                     continue;
                 }
                 int y = COLUMN_MIN_Y + i;
+                if (copper) {
+                    cell = copper(cell);
+                }
                 sink.set(x, y, z, cell);
                 if (cell instanceof Cell.Panel panel && isAir(y - 1)) {
                     sink.set(x, y - 1, z, new Cell.Light(panel.level()));

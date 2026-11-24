@@ -8,6 +8,7 @@ import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Lightable;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -17,8 +18,8 @@ import java.util.Set;
 
 /**
  * Mientras una entidad te persigue, las luces del hotel alrededor tuyo se apagan: solo para vos. No se toca el mundo:
- * a tu cliente se le manda cada panel encendido como apagado y su bloque de luz como aire, asi tu juego recalcula la
- * luz y todo queda casi a oscuras. Al terminar se le vuelve a mandar lo que de verdad hay.
+ * a tu cliente se le manda cada panel encendido como apagado y su bloque de luz como aire (en las zonas de cobre, la
+ * bombilla apagada), asi tu juego recalcula la luz y todo queda casi a oscuras. Al terminar se le vuelve a mandar lo que de verdad hay.
  */
 final class BackroomsBlackout {
 
@@ -88,7 +89,16 @@ final class BackroomsBlackout {
                     if (type.isAir() || type == Material.LIGHT) {
                         continue;
                     }
-                    if (!isLitPanel(block.getBlockData())) {
+                    BlockData data = block.getBlockData();
+                    if (data instanceof Lightable bulb && bulb.isLit() && isCopperBulb(type)) {
+                        // zonas de cobre: la bombilla se le muestra apagada
+                        Lightable unlit = (Lightable) bulb.clone();
+                        unlit.setLit(false);
+                        changed.add(block.getLocation());
+                        batch.put(block.getLocation(), unlit);
+                        break;
+                    }
+                    if (!isLitPanel(data)) {
                         break;
                     }
                     // se manda de nuevo en cada repaso: si el panel titilo o el chunk se le volvio a mandar al
@@ -127,6 +137,10 @@ final class BackroomsBlackout {
             }
         }
         changed.clear();
+    }
+
+    private static boolean isCopperBulb(Material type) {
+        return type == Material.WAXED_COPPER_BULB || type == Material.WAXED_WEATHERED_COPPER_BULB;
     }
 
     private static boolean isLitPanel(BlockData data) {

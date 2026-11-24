@@ -4,7 +4,9 @@ import org.bukkit.Material;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -101,16 +103,48 @@ class HotelLayoutTest {
     }
 
     @Test
-    void theHotelNeverUsesVanillaCopper() {
-        for (int cx = -3; cx <= 3; cx++) {
-            for (int cz = -3; cz <= 3; cz++) {
-                for (HotelLayout.Cell cell : run(11L, cx, cz).blocks.values()) {
-                    if (cell instanceof HotelLayout.Cell.Vanilla vanilla) {
-                        assertFalse(vanilla.material().name().contains("COPPER"), "cobre en el hotel: " + vanilla);
+    void copperZonesUseOnlyCopperAndTheOthersOnlyTheirOwnBlocks() {
+        int copperColumns = 0;
+        int ownColumns = 0;
+        for (int cx = -4; cx <= 4; cx++) {
+            for (int cz = -4; cz <= 4; cz++) {
+                Capture capture = run(11L, cx, cz);
+                for (int x = 0; x < 16; x++) {
+                    for (int z = 0; z < 16; z++) {
+                        boolean copper = false;
+                        boolean own = false;
+                        for (int y = HotelLayout.FLOOR - 5; y < HotelLayout.FLOOR + 60; y++) {
+                            HotelLayout.Cell cell = capture.at(x, y, z);
+                            copper |= cell instanceof HotelLayout.Cell.Bulb
+                                || cell instanceof HotelLayout.Cell.Vanilla vanilla && vanilla.material().name().contains("COPPER");
+                            own |= cell instanceof HotelLayout.Cell.Custom || cell instanceof HotelLayout.Cell.Panel;
+                        }
+                        assertFalse(copper && own, "cobre y bloques propios en la misma columna " + cx + "," + cz);
+                        copperColumns += copper ? 1 : 0;
+                        ownColumns += own ? 1 : 0;
                     }
                 }
             }
         }
+        assertTrue(copperColumns > 0, "hay zonas de cobre");
+        assertTrue(ownColumns > 0, "y zonas con los bloques propios");
+    }
+
+    @Test
+    void everyOwnBlockHasItsCopperAndPanelsBecomeLitBulbs() {
+        Set<Material> used = new HashSet<>();
+        for (HotelBlock block : HotelBlock.values()) {
+            Material copper = HotelLayout.copper(block);
+            assertTrue(copper.name().startsWith("WAXED_"), block + " -> " + copper);
+            if (block != HotelBlock.LIGHT_PANEL_OFF) {
+                assertTrue(used.add(copper), "dos bloques con el mismo cobre: " + copper);
+            }
+        }
+        assertEquals(new HotelLayout.Cell.Bulb(Material.WAXED_COPPER_BULB),
+            HotelLayout.copper(HotelLayout.LIGHT_PANEL));
+        assertEquals(new HotelLayout.Cell.Bulb(Material.WAXED_WEATHERED_COPPER_BULB),
+            HotelLayout.copper(HotelLayout.LIGHT_DIM));
+        assertFalse(HotelLayout.site(1L, 0, 0).copper(), "donde se aparece es el nivel 0 de siempre");
     }
 
     @Test
