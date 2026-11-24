@@ -220,7 +220,11 @@ final class BackroomsEntities implements Runnable, Listener {
             showScareFrame(player, encounter.kind, tick);
         }
         if (encounter.scareTicks == BackroomsRules.SCARE_DEATH_AT && BackroomsRules.dies(player.getGameMode())) {
-            player.damage(1000);
+            if (player.getGameMode() == GameMode.CREATIVE) {
+                player.setHealth(0); // en creativo el daño no entra
+            } else {
+                player.damage(1000); // un totem todavia te puede salvar
+            }
         }
         return encounter.scareTicks >= BackroomsRules.SCARE_END_AT;
     }

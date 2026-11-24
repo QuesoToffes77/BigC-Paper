@@ -115,12 +115,13 @@ final class BackroomsRules {
 
     // ------------------------------------------------------------------ el susto
 
-    /** Los tiempos del susto (ticks desde que empieza). */
+    /** Ticks del susto en que se muere (despues de la animacion) y en que termina. */
     static final int SCARE_DEATH_AT = 18;
     static final int SCARE_END_AT = 32;
 
+    /** Si te atrapa, te mata en cualquier modo de juego (en creativo tambien); solo el espectador se salva. */
     static boolean dies(GameMode mode) {
-        return mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE;
+        return mode != GameMode.SPECTATOR;
     }
 
     // ------------------------------------------------------------------ techo

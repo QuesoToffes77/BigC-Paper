@@ -109,10 +109,10 @@ class BackroomsRulesTest {
     }
 
     @Test
-    void onlySurvivalAndAdventurePlayersDie() {
+    void everyoneButSpectatorsDies() {
         assertTrue(BackroomsRules.dies(GameMode.SURVIVAL));
         assertTrue(BackroomsRules.dies(GameMode.ADVENTURE));
-        assertFalse(BackroomsRules.dies(GameMode.CREATIVE));
+        assertTrue(BackroomsRules.dies(GameMode.CREATIVE), "en creativo tambien te mata");
         assertFalse(BackroomsRules.dies(GameMode.SPECTATOR));
         assertEquals(18, BackroomsRules.SCARE_DEATH_AT);
     }

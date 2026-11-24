@@ -60,6 +60,7 @@ public final class CaiChetModule implements PluginModule {
         LIGHTS("caichet-lights"),
         ENTITIES("caichet-entities"),
         MUSIC("caichet-music"),
+        NO_SPAWN("caichet-no-spawn"),
         PIT("caichet-pit"),
         COMMAND("caichet-command");
 
@@ -123,6 +124,7 @@ public final class CaiChetModule implements PluginModule {
         registrations.registerListener(Resource.ARMOR.id, new ArmorSnapshot());
         registrations.registerListener(Resource.SPAWNS.id, new SpawnGuard());
         registrations.registerListener(Resource.STANDS.id, new StandGuard());
+        registrations.registerListener(Resource.NO_SPAWN.id, new NoSpawnPoints());
         tasks.repeating("train", director, 20L, 1L);
         itemFloater = new ItemFloater();
         tasks.repeating("items", itemFloater, 20L, 1L);
