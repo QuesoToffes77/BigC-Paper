@@ -30,46 +30,45 @@ class BackroomsRulesTest {
 
     // ------------------------------------------------------------------ director
 
+    private static final int MIN = BackroomsRules.Director.MIN_WAIT_TICKS;
+    private static final int MAX = BackroomsRules.Director.MAX_WAIT_TICKS;
+
     @Test
-    void theDirectorOnlySchedulesTheFirstTimeAndRollsEveryThirtySeconds() {
+    void theFirstAppearanceComesAtARandomMomentNotRightAway() {
         BackroomsRules.Director director = new BackroomsRules.Director();
         UUID id = UUID.randomUUID();
         assertFalse(director.roll(id, 0, true, new Fixed(0)), "la primera vez solo agenda");
-        assertFalse(director.roll(id, 599, true, new Fixed(0)));
-        assertTrue(director.roll(id, 600, true, new Fixed(0)));
-        assertFalse(director.roll(id, 601, true, new Fixed(0)), "el proximo sorteo es 30 s despues");
-        assertTrue(director.roll(id, 1200, true, new Fixed(0)));
+        assertFalse(director.roll(id, MIN - 1, true, new Fixed(0)));
+        assertTrue(director.roll(id, MIN, true, new Fixed(0)), "con el azar en 0 llega al minimo");
+
+        BackroomsRules.Director late = new BackroomsRules.Director();
+        late.roll(id, 0, true, new Fixed(MAX - MIN));
+        assertFalse(late.roll(id, MAX - 1, true, new Fixed(0)));
+        assertTrue(late.roll(id, MAX, true, new Fixed(0)), "con el azar al tope llega al maximo");
     }
 
     @Test
-    void theDirectorRollsAThirtyPercentChance() {
+    void noOtherAppearsUntilTheEncounterEndsThenAgainAtRandom() {
         BackroomsRules.Director director = new BackroomsRules.Director();
         UUID id = UUID.randomUUID();
         director.roll(id, 0, true, new Fixed(0));
-        assertTrue(director.roll(id, 600, true, new Fixed(29)));
-        assertFalse(director.roll(id, 1200, true, new Fixed(30)));
+        assertTrue(director.roll(id, MIN, true, new Fixed(0)));
+        assertFalse(director.roll(id, MIN + 50_000, true, new Fixed(0)), "mientras dura el encuentro no hay otra");
+        director.ended(id, 10_000, new Fixed(100));
+        assertTrue(director.isQuiet(id, 10_000 + MIN + 99));
+        assertFalse(director.roll(id, 10_000 + MIN + 99, true, new Fixed(0)));
+        assertTrue(director.roll(id, 10_000 + MIN + 100, true, new Fixed(0)));
     }
 
     @Test
-    void anIneligiblePlayerLosesTheTurn() {
+    void anIneligiblePlayerIsRetriedALittleLater() {
         BackroomsRules.Director director = new BackroomsRules.Director();
         UUID id = UUID.randomUUID();
         director.roll(id, 0, true, new Fixed(0));
-        assertFalse(director.roll(id, 600, false, new Fixed(0)));
-        assertFalse(director.roll(id, 601, true, new Fixed(0)), "el turno ya se gasto");
-        assertTrue(director.roll(id, 1200, true, new Fixed(0)));
-    }
-
-    @Test
-    void afterAnEncounterThereAreFortyFiveSecondsWithoutEntities() {
-        BackroomsRules.Director director = new BackroomsRules.Director();
-        UUID id = UUID.randomUUID();
-        director.roll(id, 0, true, new Fixed(0));
-        director.ended(id, 100);
-        assertTrue(director.isQuiet(id, 100 + 899));
-        assertFalse(director.isQuiet(id, 100 + 900));
-        assertFalse(director.roll(id, 600, true, new Fixed(0)), "el sorteo cae en el descanso");
-        assertTrue(director.roll(id, 1200, true, new Fixed(0)), "y el siguiente ya no");
+        assertFalse(director.roll(id, MIN, false, new Fixed(0)));
+        int retry = BackroomsRules.Director.RETRY_MIN_TICKS;
+        assertFalse(director.roll(id, MIN + retry - 1, true, new Fixed(0)));
+        assertTrue(director.roll(id, MIN + retry, true, new Fixed(0)));
     }
 
     @Test
@@ -77,7 +76,7 @@ class BackroomsRulesTest {
         BackroomsRules.Director director = new BackroomsRules.Director();
         UUID a = UUID.randomUUID();
         UUID b = UUID.randomUUID();
-        director.ended(a, 0);
+        director.ended(a, 0, new Fixed(0));
         assertTrue(director.isQuiet(a, 10));
         assertFalse(director.isQuiet(b, 10));
         director.forget(a);

@@ -79,6 +79,9 @@ final class BackroomsEntities implements Runnable, Listener {
                 continue;
             }
             boolean done = encounter.scaring() ? scareTick(encounter) : encounter.tick();
+            if (!done) {
+                encounter.updateBlackout();
+            }
             if (done) {
                 finish(encounter);
                 it.remove();
@@ -98,7 +101,7 @@ final class BackroomsEntities implements Runnable, Listener {
                     SoundCategory.AMBIENT, 0.6f, 1f);
             }
             boolean free = !active.containsKey(id) && !watchers.has(id) && !player.isDead();
-            if (director.roll(id, tick, free, ThreadLocalRandom.current()) && free) {
+            if (director.roll(id, tick, free, ThreadLocalRandom.current())) {
                 BackroomsKind[] kinds = BackroomsKind.values();
                 spawn(player, kinds[ThreadLocalRandom.current().nextInt(kinds.length)]);
             }
@@ -250,10 +253,10 @@ final class BackroomsEntities implements Runnable, Listener {
         hinted.remove(id);
     }
 
-    /** Termino un encuentro, como termine: la figura se va y el jugador tiene 45 s sin entidades. */
+    /** Termino un encuentro, como termine: la figura se va y la proxima llega en otro momento al azar. */
     private void finish(BackroomsEncounters.Encounter encounter) {
         encounter.remove();
-        director.ended(encounter.player.getUniqueId(), tick);
+        director.ended(encounter.player.getUniqueId(), tick, ThreadLocalRandom.current());
     }
 
     /** Si este jugador tiene una entidad ahora. */

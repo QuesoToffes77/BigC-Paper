@@ -35,10 +35,19 @@ final class BackroomsEncounters {
             this.player = player;
             this.kind = kind;
             this.figure = figure;
+            this.blackout = new BackroomsBlackout(player);
         }
+
+        /** Las luces de alrededor, que se apagan mientras te persigue. */
+        final BackroomsBlackout blackout;
 
         /** @return true si el encuentro termino (hay que sacar la figura) */
         abstract boolean tick();
+
+        /** Si ahora te esta persiguiendo (o ya te agarro): ahi se apagan las luces. */
+        boolean chasing() {
+            return true;
+        }
 
         /** El jugador hizo clic en el aire (sirve para soltarse de Juan Carlos). */
         void onSwing() {
@@ -54,7 +63,15 @@ final class BackroomsEncounters {
         }
 
         void remove() {
+            blackout.restore();
             figure.remove();
+        }
+
+        /** Apaga o devuelve las luces segun si te persigue; la figura se ve un poco en lo oscuro. */
+        void updateBlackout() {
+            boolean dark = scaring() || chasing();
+            blackout.update(dark);
+            figure.setDim(blackout.on());
         }
 
         void sound(String event, SoundCategory category, float volume) {
@@ -90,6 +107,11 @@ final class BackroomsEncounters {
         SonrisaEncounter(BackroomsEntities env, Player player, BackroomsFigure figure) {
             super(env, player, BackroomsKind.SONRISA, figure);
             sound(CaiChetSounds.SONRISA_LAUGH, SoundCategory.HOSTILE, 0.5f);
+        }
+
+        @Override
+        boolean chasing() {
+            return rules.lunging();
         }
 
         @Override
@@ -278,6 +300,11 @@ final class BackroomsEncounters {
 
         PayasoEncounter(BackroomsEntities env, Player player, BackroomsFigure figure) {
             super(env, player, BackroomsKind.PAYASO, figure);
+        }
+
+        @Override
+        boolean chasing() {
+            return rules.spotted();
         }
 
         @Override

@@ -152,6 +152,23 @@ final class BackroomsFigure {
         return pos.clone();
     }
 
+    /** Luz propia de la figura cuando se apagan las luces: apenas se la ve. */
+    private static final Display.Brightness DIM_GLOW = new Display.Brightness(4, 0);
+    private boolean dim;
+
+    /** En lo oscuro la figura tiene un poco de luz propia, para que se vea la silueta acercandose. */
+    void setDim(boolean value) {
+        if (value == dim || kind == BackroomsKind.SONRISA) {
+            return; // la Sonrisa ya brilla siempre
+        }
+        dim = value;
+        for (ItemDisplay display : displays) {
+            if (display.isValid()) {
+                display.setBrightness(value ? DIM_GLOW : null);
+            }
+        }
+    }
+
     void setMode(BackroomsRigs.Mode mode) {
         this.mode = mode;
     }

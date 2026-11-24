@@ -19,57 +19,63 @@ final class BackroomsRules {
     // ------------------------------------------------------------------ director
 
     /**
-     * Cuando sortear una aparicion para cada jugador: cada 30 s hay 30 % de chance, y despues de cada encuentro hay
-     * 45 s sin entidades.
+     * Cuando aparece una entidad para cada jugador: en un momento al azar entre 20 s y 3 min desde que entra o desde
+     * el ultimo encuentro.
      */
     static final class Director {
 
-        static final int ROLL_EVERY_TICKS = 20 * 30;
-        static final int CHANCE_PERCENT = 30;
-        static final int QUIET_TICKS = 20 * 45;
+        /** La proxima aparicion llega en un momento al azar entre estos dos (desde que entras o desde la ultima). */
+        static final int MIN_WAIT_TICKS = 20 * 20;
+        static final int MAX_WAIT_TICKS = 20 * 180;
+        /** Si cuando toca no se puede (ya tenia una figura), se vuelve a intentar entre estos dos. */
+        static final int RETRY_MIN_TICKS = 20 * 5;
+        static final int RETRY_MAX_TICKS = 20 * 30;
 
-        private final Map<UUID, Long> nextRoll = new HashMap<>();
-        private final Map<UUID, Long> quietUntil = new HashMap<>();
+        private final Map<UUID, Long> nextAt = new HashMap<>();
 
         /**
-         * Si toca que aparezca una. La primera vez que ve al jugador solo agenda (no aparece apenas entra). Con
-         * eligible en false (ya tiene una entidad o una figura) el turno se pierde.
+         * Si toca que aparezca una. La primera vez que ve al jugador solo agenda un momento al azar (no aparece apenas
+         * entra). Con eligible en false (ya tiene una entidad o una figura) se reagenda un poco mas adelante.
          */
         boolean roll(UUID player, long now, boolean eligible, RandomGenerator random) {
-            Long at = nextRoll.get(player);
+            Long at = nextAt.get(player);
             if (at == null) {
-                nextRoll.put(player, now + ROLL_EVERY_TICKS);
+                nextAt.put(player, now + between(MIN_WAIT_TICKS, MAX_WAIT_TICKS, random));
                 return false;
             }
             if (now < at) {
                 return false;
             }
-            nextRoll.put(player, now + ROLL_EVERY_TICKS);
-            if (!eligible || now < quietUntil.getOrDefault(player, 0L)) {
+            if (!eligible) {
+                nextAt.put(player, now + between(RETRY_MIN_TICKS, RETRY_MAX_TICKS, random));
                 return false;
             }
-            return random.nextInt(100) < CHANCE_PERCENT;
+            nextAt.put(player, Long.MAX_VALUE); // hasta que termine el encuentro
+            return true;
         }
 
-        /** Termino un encuentro (como termine): 45 s sin entidades. */
-        void ended(UUID player, long now) {
-            quietUntil.put(player, now + QUIET_TICKS);
+        /** Termino un encuentro (como termine): la proxima llega en otro momento al azar. */
+        void ended(UUID player, long now, RandomGenerator random) {
+            nextAt.put(player, now + between(MIN_WAIT_TICKS, MAX_WAIT_TICKS, random));
         }
 
         boolean isQuiet(UUID player, long now) {
-            return now < quietUntil.getOrDefault(player, 0L);
+            return now < nextAt.getOrDefault(player, 0L);
+        }
+
+        private static long between(int min, int max, RandomGenerator random) {
+            return min + random.nextInt(max - min + 1);
         }
 
         void forget(UUID player) {
-            nextRoll.remove(player);
-            quietUntil.remove(player);
+            nextAt.remove(player);
         }
 
         void clear() {
-            nextRoll.clear();
-            quietUntil.clear();
+            nextAt.clear();
         }
     }
+
 
     // ------------------------------------------------------------------ la muerte
 
