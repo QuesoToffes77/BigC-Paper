@@ -59,6 +59,7 @@ public final class CaiChetModule implements PluginModule {
         DREAM_CHESTS("caichet-dream-chests"),
         LIGHTS("caichet-lights"),
         ENTITIES("caichet-entities"),
+        MUSIC("caichet-music"),
         PIT("caichet-pit"),
         COMMAND("caichet-command");
 
@@ -76,6 +77,7 @@ public final class CaiChetModule implements PluginModule {
     private HotelLoot hotelLoot;
     private Watchers watchers;
     private ItemFloater itemFloater;
+    private CaiChetMusic music;
     private BackroomsEntities backrooms;
     private FlickerLights flicker;
     private KeyDoors keyDoors;
@@ -153,6 +155,8 @@ public final class CaiChetModule implements PluginModule {
         tasks.repeating("watchers", watchers, 40L, 1L);
         backrooms = registrations.registerListener(Resource.ENTITIES.id, new BackroomsEntities(watchers));
         tasks.repeating("backrooms", backrooms, 40L, 1L);
+        music = registrations.registerListener(Resource.MUSIC.id, new CaiChetMusic());
+        tasks.repeating("music", music, 40L, 1L);
 
         // el pozo: aparece en chunks nuevos y su fondo negro lleva al desierto
         pits = registrations.registerListener(Resource.PIT.id, new PitStructure(PitZoneRules.nexus(plugin)));
@@ -211,6 +215,9 @@ public final class CaiChetModule implements PluginModule {
         Doppelganger.removeAll();
         if (itemFloater != null) {
             itemFloater.restoreAll();
+        }
+        if (music != null) {
+            music.stopAll();
         }
         if (watchers != null) {
             watchers.removeAll();

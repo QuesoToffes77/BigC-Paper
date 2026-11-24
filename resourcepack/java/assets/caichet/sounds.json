@@ -149,5 +149,453 @@
         "stream": true
       }
     ]
+  },
+  "music.sueno_1.1": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_1",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.2": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_2",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.3": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_3",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.4": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_4",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.5": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_5",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.6": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_6",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.7": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_7",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.8": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_8",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.9": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_9",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.10": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_10",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.11": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_11",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.12": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_12",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_1.13": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_1_13",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_2.1": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_2_1",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_2.2": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_2_2",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_2.3": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_2_3",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_2.4": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_2_4",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_2.5": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_2_5",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_3.1": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_3_1",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_3.2": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_3_2",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_3.3": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_3_3",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_3.4": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_3_4",
+        "stream": true
+      }
+    ]
+  },
+  "music.sueno_3.5": {
+    "sounds": [
+      {
+        "name": "caichet:musica/sueno_3_5",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_1.1": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_1_1",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_1.2": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_1_2",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_1.3": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_1_3",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_1.4": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_1_4",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.1": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_1",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.2": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_2",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.3": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_3",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.4": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_4",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.5": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_5",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.6": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_6",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.7": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_7",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.8": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_8",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.9": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_9",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.10": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_10",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.11": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_11",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.12": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_12",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.13": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_13",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.14": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_14",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_2.15": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_2_15",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.1": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_1",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.2": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_2",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.3": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_3",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.4": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_4",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.5": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_5",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.6": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_6",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.7": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_7",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.8": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_8",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.9": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_9",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.10": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_10",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.11": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_11",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.12": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_12",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.13": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_13",
+        "stream": true
+      }
+    ]
+  },
+  "music.hotel_3.14": {
+    "sounds": [
+      {
+        "name": "caichet:musica/hotel_3_14",
+        "stream": true
+      }
+    ]
   }
 }

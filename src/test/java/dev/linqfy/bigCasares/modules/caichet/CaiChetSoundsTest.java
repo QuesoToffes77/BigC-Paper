@@ -27,6 +27,8 @@ class CaiChetSoundsTest {
     private static final String PREFIX = "caichet:";
     /** Tope de peso de los sonidos nuevos en un pack. */
     private static final long MAX_BYTES = 2_000_000L;
+    /** Las canciones del hotel y del Sueño van aparte (carpeta musica/), con su propio tope. */
+    private static final long MAX_MUSIC_BYTES = 7_000_000L;
 
     @Test
     void everyEventIsDeclaredInTheJavaPackWithExistingFiles() throws IOException {
@@ -72,7 +74,8 @@ class CaiChetSoundsTest {
             }
             List<String> javaFiles = new ArrayList<>();
             for (String name : javaFiles(java.getAsJsonObject(event.substring(PREFIX.length())))) {
-                javaFiles.add(name.substring(PREFIX.length()));
+                String bare = name.substring(PREFIX.length());
+                javaFiles.add(bare.substring(bare.lastIndexOf('/') + 1));
             }
             if (!new HashSet<>(javaFiles).equals(new HashSet<>(bedrockFiles))) {
                 problems.add(event + ": Java " + javaFiles + " y Bedrock " + bedrockFiles + " no coinciden");
@@ -83,8 +86,11 @@ class CaiChetSoundsTest {
 
     @Test
     void newSoundsStayUnderTheSizeBudgetInEachPack() throws IOException {
-        assertTrue(size(JAVA.resolve("sounds")) <= MAX_BYTES, "pack Java demasiado pesado");
-        assertTrue(size(BEDROCK.resolve("sounds/caichet")) <= MAX_BYTES, "pack Bedrock demasiado pesado");
+        long javaMusic = size(JAVA.resolve("sounds/musica"));
+        long bedrockMusic = size(BEDROCK.resolve("sounds/caichet/musica"));
+        assertTrue(size(JAVA.resolve("sounds")) - javaMusic <= MAX_BYTES, "pack Java demasiado pesado");
+        assertTrue(size(BEDROCK.resolve("sounds/caichet")) - bedrockMusic <= MAX_BYTES, "pack Bedrock demasiado pesado");
+        assertTrue(javaMusic <= MAX_MUSIC_BYTES, "musica demasiado pesada");
         assertEquals(size(JAVA.resolve("sounds")), size(BEDROCK.resolve("sounds/caichet")));
     }
 

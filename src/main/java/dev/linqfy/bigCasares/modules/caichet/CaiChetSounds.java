@@ -6,6 +6,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.random.RandomGenerator;
@@ -44,12 +45,19 @@ final class CaiChetSounds {
     static final String PAYASO_LAUGH = "caichet:payaso.laugh";
     static final String BACKROOMS_AMBIENT = "caichet:backrooms.ambient";
 
-    static final List<String> ALL = List.of(TRAIN_WHISTLE, TRAIN_ENGINE, TRAIN_STEAM, WEAPON_BEAM, DOOR_KEY, DOOR_CREAK,
+    static final List<String> ALL = withMusic(List.of(TRAIN_WHISTLE, TRAIN_ENGINE, TRAIN_STEAM, WEAPON_BEAM, DOOR_KEY, DOOR_CREAK,
             FIGURE_APPEAR, FIGURE_CHASE, EYE_ROAR, PIT_TRAVEL, PIT_RETURN, DREAM_CHIMES, HOTEL_FLICKER,
             ENTITY_JUMPSCARE, ENTITY_ATTACK, ENTITY_STEP, SONRISA_LAUGH, E666_HEARTBEAT_SLOW, E666_HEARTBEAT_FAST, JUANCARLOS_GROWL,
-            JUANCARLOS_GRAB, ARANA_SCREECH, ARANA_CLICK, PAYASO_GIGGLE, PAYASO_LAUGH, BACKROOMS_AMBIENT);
+            JUANCARLOS_GRAB, ARANA_SCREECH, ARANA_CLICK, PAYASO_GIGGLE, PAYASO_LAUGH, BACKROOMS_AMBIENT));
 
     private static final SoundGate GATE = new SoundGate();
+
+    /** Los sonidos sueltos mas los pedazos de las canciones de {@link CaiChetMusic}. */
+    private static List<String> withMusic(List<String> effects) {
+        List<String> all = new ArrayList<>(effects);
+        all.addAll(CaiChetMusic.events());
+        return List.copyOf(all);
+    }
 
     private CaiChetSounds() {
     }
