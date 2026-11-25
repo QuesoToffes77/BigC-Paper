@@ -1,0 +1,46 @@
+# =====================================================================================================
+#  toffy_mensajes.yml: MENSAJES de chat de Toffy Complementaries (torneos)
+# =====================================================================================================
+#  Cada clave es un caso. Se puede usar:
+#    - Colores con &  (por ejemplo &a verde, &e amarillo, &c rojo, &l negrita, &r reset).
+#    - Estos marcadores, que se reemplazan por su valor:
+#        {jugador}  nombre del jugador
+#        {torneo}   nombre del torneo tal como se escribio al crearlo
+#        {cantidad} cantidad de participantes anotados
+#        {x} {y} {z} {mundo}  lugar al que se llevo o devolvio al jugador (solo en llevado y devuelto)
+#    - Un texto vacio ("") significa NO enviar nada en ese caso.
+#  Cada torneo puede tener su propio texto para un caso con:
+#    /toffy torneo mensaje <torneo> <caso> <texto...>      (y con "reset" vuelve a este archivo)
+#  Orden de busqueda: texto del torneo -> este archivo -> texto por defecto del plugin.
+#  Despues de editar: /toffy reload
+
+# Se lo dice al jugador que se acaba de anotar con /anotar.
+anotado: "&aTe anotaste al torneo &e{torneo}&a. Sos el participante &e#{cantidad}&a."
+
+# Se lo dice al jugador que ya estaba anotado.
+ya-anotado: "&eYa estabas anotado en el torneo &6{torneo}&e."
+
+# Se lo dice al jugador cuando las inscripciones del torneo estan cerradas.
+inscripcion-cerrada: "&cLa inscripcion al torneo &e{torneo}&c esta cerrada."
+
+# Se lo dice al jugador cuando el torneo que escribio no existe ({torneo} es lo que escribio).
+torneo-no-existe: "&cNo existe el torneo &e{torneo}&c."
+
+# Anuncio para TODO el servidor cada vez que alguien se anota. Vacio = sin anuncio.
+anuncio-anotado: ""
+
+# Anuncio para todo el servidor al cerrar las inscripciones (/toffy torneo cerrar <torneo>).
+# Si el comando lleva un texto propio, se usa ese texto en lugar de este.
+cierre: "&6Se cerraron las inscripciones al torneo &e{torneo}&6. Participantes: &e{cantidad}&6."
+
+# Anuncio para todo el servidor al volver a abrir las inscripciones. Vacio = sin anuncio.
+apertura: ""
+
+# Se lo dice a cada participante que se lleva con /toffy tp concursantes.
+llevado: "&aFuiste llevado al torneo &e{torneo}&a."
+
+# Se lo dice a cada participante que se devuelve con /toffy tp devolver (o al entrar si estaba desconectado).
+devuelto: "&aVolviste a donde estabas antes del torneo &e{torneo}&a."
+
+# Se lo dice a un participante conectado al que no hay donde devolver (nunca se lo llevo).
+sin-lugar-guardado: "&cNo hay un lugar guardado para devolverte del torneo &e{torneo}&c."

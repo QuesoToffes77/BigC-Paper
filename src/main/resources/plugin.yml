@@ -64,8 +64,12 @@ commands:
     permission: bigcasares.jeremy.admin
   toffy:
     description: Show the Toffy Complementaries equipment level (0-200), preview the curve or reload its files
-    usage: /<command> [jugador|curva|reload]
+    usage: /<command> [jugador|curva|reload|torneo|tp]
     aliases: [ tcomp ]
+  anotar:
+    description: Sign up for a tournament
+    usage: /<command> <torneo>
+    permission: bigcasares.toffy.anotar
   celular:
     description: Give a Celular (the phone that plays videos)
     usage: /<command> give [player]
@@ -423,12 +427,21 @@ permissions:
     description: See another player's Toffy Complementaries equipment level
     default: op
 
+  bigcasares.toffy.anotar:
+    description: Sign up for tournaments with /anotar
+    default: true
+
+  bigcasares.toffy.torneo.admin:
+    description: Manage tournaments and teleport their participants with /toffy torneo and /toffy tp
+    default: op
+
   bigcasares.toffy.admin:
     description: Reload the Toffy Complementaries files and preview the curve
     default: op
     children:
       bigcasares.toffy.check: true
       bigcasares.toffy.check.others: true
+      bigcasares.toffy.torneo.admin: true
 
   bigcasares.schizophrenia.admin:
     description: Start, stop and provoke schizophrenia episodes; give the Lobotomizador

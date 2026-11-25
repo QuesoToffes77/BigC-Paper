@@ -34,14 +34,15 @@ class ToffyModuleWiringTest {
     }
 
     @Test
-    void bothBundledFilesShipInsideTheJar() throws Exception {
-        for (String name : new String[] {ToffyModule.CONFIG_FILE, ToffyModule.VALUES_FILE}) {
+    void allBundledFilesShipInsideTheJar() throws Exception {
+        for (String name : new String[] {ToffyModule.CONFIG_FILE, ToffyModule.VALUES_FILE, ToffyModule.MESSAGES_FILE}) {
             try (InputStream stream = getClass().getClassLoader().getResourceAsStream(name)) {
                 assertNotNull(stream, name);
             }
         }
         assertEquals("toffy_complementaries.yml", ToffyModule.CONFIG_FILE);
         assertEquals("toffy_valores.yml", ToffyModule.VALUES_FILE);
+        assertEquals("toffy_mensajes.yml", ToffyModule.MESSAGES_FILE);
     }
 
     @Test
@@ -64,6 +65,14 @@ class ToffyModuleWiringTest {
         assertEquals("op", plugin.getString("permissions/" + ToffyCommand.CHECK_OTHERS_PERMISSION + "/default"));
         assertEquals("op", plugin.getString("permissions/" + ToffyCommand.ADMIN_PERMISSION + "/default"));
         assertTrue(plugin.getBoolean("permissions/bigcasares.*/children/" + ToffyCommand.ADMIN_PERMISSION, false));
+        assertTrue(plugin.isConfigurationSection("commands/anotar"));
+        assertEquals(ToffyAnotarCommand.PERMISSION, plugin.getString("commands/anotar/permission"));
+        assertEquals("bigcasares.toffy.anotar", ToffyAnotarCommand.PERMISSION);
+        assertEquals("true", plugin.getString("permissions/" + ToffyAnotarCommand.PERMISSION + "/default"));
+        assertEquals("bigcasares.toffy.torneo.admin", ToffyCommand.TORNEO_ADMIN_PERMISSION);
+        assertEquals("op", plugin.getString("permissions/" + ToffyCommand.TORNEO_ADMIN_PERMISSION + "/default"));
+        assertTrue(plugin.getBoolean("permissions/" + ToffyCommand.ADMIN_PERMISSION + "/children/"
+            + ToffyCommand.TORNEO_ADMIN_PERMISSION, false));
         assertTrue(main.contains("new ToffyModule(this,"));
         assertTrue(main.contains("toffyModule.lastValidSettings()"));
         assertTrue(main.contains("moduleManager.register(toffyModule)"));

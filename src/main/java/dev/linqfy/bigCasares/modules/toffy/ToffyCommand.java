@@ -14,13 +14,16 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
     static final String CHECK_PERMISSION = "bigcasares.toffy.check";
     static final String CHECK_OTHERS_PERMISSION = "bigcasares.toffy.check.others";
     static final String ADMIN_PERMISSION = "bigcasares.toffy.admin";
+    static final String TORNEO_ADMIN_PERMISSION = ToffyTournamentCommand.PERMISSION;
     private static final String PREFIX = "§6Toffy §8» §7";
     private static final int MAX_ERRORS_SHOWN = 5;
 
     private final ToffyModule module;
+    private final ToffyTournamentCommand tournamentCommand;
 
     ToffyCommand(ToffyModule module) {
         this.module = module;
+        this.tournamentCommand = new ToffyTournamentCommand(module);
     }
 
     @Override
@@ -45,6 +48,7 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
                     reload(sender);
                 }
             }
+            case "torneo", "tp" -> tournamentCommand.execute(sender, args);
             case "curva", "curve" -> {
                 if (allowed(sender, ADMIN_PERMISSION)) {
                     curve(sender);
@@ -96,6 +100,11 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
 
     private void reload(CommandSender sender) {
         ToffyConfigLoadResult result = module.reload();
+        if (module.reloadMessages()) {
+            sender.sendMessage(PREFIX + "§atoffy_mensajes.yml recargado.");
+        } else {
+            sender.sendMessage(PREFIX + "§ctoffy_mensajes.yml tiene errores; se mantienen los mensajes anteriores.");
+        }
         if (result.valid()) {
             sender.sendMessage(PREFIX + "§atoffy_complementaries.yml y toffy_valores.yml recargados"
                 + (result.warnings().isEmpty() ? "." : " con " + result.warnings().size() + " avisos (ver consola)."));
@@ -172,13 +181,20 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length != 1) {
+        if (args.length > 1) {
+            if (args[0].equalsIgnoreCase("torneo") || args[0].equalsIgnoreCase("tp")) {
+                return tournamentCommand.complete(sender, args);
+            }
             return List.of();
         }
         List<String> options = new ArrayList<>();
         if (sender.hasPermission(ADMIN_PERMISSION)) {
             options.add("reload");
             options.add("curva");
+        }
+        if (sender.hasPermission(TORNEO_ADMIN_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION)) {
+            options.add("torneo");
+            options.add("tp");
         }
         if (sender.hasPermission(CHECK_OTHERS_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION)) {
             module.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));

@@ -4,7 +4,10 @@ import dev.linqfy.bigCasares.BigCasares;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import org.bukkit.Location;
 import org.bukkit.Server;
+import org.bukkit.World;
+import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -20,6 +23,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -33,12 +38,17 @@ public final class ToffyModule implements PluginModule {
     public static final String CONFIG_FILE = ToffySettingsLoader.MAIN_FILE;
     public static final String VALUES_FILE = ToffySettingsLoader.VALUES_FILE;
     private static final String LOG_PREFIX = "[Toffy] ";
+    public static final String MESSAGES_FILE = "toffy_mensajes.yml";
     private static final String MEMORY_FOLDER = "data/toffy-complementaries/players";
+    private static final String TOURNAMENTS_FILE = "data/toffy-complementaries/torneos.yml";
 
     private final BigCasares plugin;
     private final BukkitToffyEquipmentReader reader = new BukkitToffyEquipmentReader();
     private volatile ToffyService service;
     private volatile ToffySettings lastValidSettings;
+    private volatile ToffyMessages messages = ToffyMessages.builtIn();
+    private volatile ToffyTournamentService tournaments;
+    private volatile BukkitRuntimeRegistrations runtime;
     private ToffyMemoryTracker tracker;
     private RuntimeRegistrationScope compatibilityScope;
 
@@ -72,7 +82,7 @@ public final class ToffyModule implements PluginModule {
         if (plugin == null) {
             return;
         }
-        for (String name : List.of(CONFIG_FILE, VALUES_FILE)) {
+        for (String name : List.of(CONFIG_FILE, VALUES_FILE, MESSAGES_FILE)) {
             if (Files.notExists(dataPath(name))) {
                 plugin.saveResource(name, false);
             }
@@ -93,14 +103,29 @@ public final class ToffyModule implements PluginModule {
                 + " have errors; using the bundled defaults until they are fixed and reloaded.");
         }
 
+        reloadMessages();
+
         BukkitRuntimeRegistrations registrations = new BukkitRuntimeRegistrations(plugin, scope);
-        registrations.ownCleanup("toffy-service", () -> service = null);
+        runtime = registrations;
+        registrations.ownCleanup("toffy-service", () -> {
+            service = null;
+            tournaments = null;
+            runtime = null;
+        });
         PluginCommand pluginCommand = plugin.getCommand("toffy");
         if (pluginCommand == null) {
             throw new IllegalStateException("Required command is not declared: toffy");
         }
         ToffyCommand command = new ToffyCommand(this);
         registrations.bindCommand("toffy-command", pluginCommand, command, command);
+        PluginCommand anotarCommand = plugin.getCommand("anotar");
+        if (anotarCommand == null) {
+            throw new IllegalStateException("Required command is not declared: anotar");
+        }
+        ToffyAnotarCommand anotar = new ToffyAnotarCommand(this);
+        registrations.bindCommand("toffy-anotar-command", anotarCommand, anotar, anotar);
+        tournaments = loadTournaments();
+        registrations.registerListener("toffy-tournament-listener", new ToffyTournamentListener(this));
 
         ToffyMemoryTracker memoryTracker = new ToffyMemoryTracker(
             () -> new ToffyMemoryService(requireService().settings().memory()),
@@ -200,6 +225,29 @@ public final class ToffyModule implements PluginModule {
         return activeTracker == null ? ToffyMemory.empty() : activeTracker.peek(playerId);
     }
 
+    /**
+     * Chat text for {@code caseKey} (see {@code toffy_mensajes.yml}) with colors and placeholders applied: the
+     * override of {@code tournament} (may be null), then the file, then the built-in default. {@code null} when the
+     * text is empty, which means "send nothing". Placeholders are {jugador}, {torneo}, {cantidad}, {x}, {y}, {z} and
+     * {mundo}. Main thread only.
+     */
+    public String message(String caseKey, String tournament, Map<String, String> placeholders) {
+        ToffyTournamentService current = tournaments;
+        String override = current == null || tournament == null ? null
+            : current.find(tournament).map(found -> found.message(caseKey)).orElse(null);
+        return messages.render(caseKey, override, placeholders);
+    }
+
+    /**
+     * Sends {@link #message} to {@code recipient} unless it is empty.
+     */
+    public void send(CommandSender recipient, String caseKey, String tournament, Map<String, String> placeholders) {
+        String text = message(caseKey, tournament, placeholders);
+        if (text != null) {
+            recipient.sendMessage(text);
+        }
+    }
+
     public double maximum() {
         return requireService().maximum();
     }
@@ -232,6 +280,115 @@ public final class ToffyModule implements PluginModule {
             plugin.getLogger().severe(LOG_PREFIX + "Keeping the previous configuration.");
         }
         return result;
+    }
+
+    /**
+     * Re-reads {@code toffy_mensajes.yml}. When the file cannot be read the previous messages are kept.
+     *
+     * @return false when the file is invalid
+     */
+    public synchronized boolean reloadMessages() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.load(dataPath(MESSAGES_FILE).toFile());
+        } catch (IOException | InvalidConfigurationException invalid) {
+            plugin.getLogger().severe(LOG_PREFIX + MESSAGES_FILE + ": cannot read the file ("
+                + invalid.getMessage() + "); keeping the previous messages.");
+            return false;
+        }
+        ToffyMessages.Loaded loaded = ToffyMessages.fromValues(yaml.getValues(false));
+        loaded.warnings().forEach(warning -> plugin.getLogger().warning(LOG_PREFIX + warning));
+        messages = loaded.messages();
+        return true;
+    }
+
+    ToffyTournamentService tournaments() {
+        return tournaments;
+    }
+
+    private ToffyTournamentService loadTournaments() {
+        YamlToffyTournamentStorage storage = new YamlToffyTournamentStorage(dataPath(TOURNAMENTS_FILE));
+        try {
+            return ToffyTournamentService.load(storage);
+        } catch (IOException broken) {
+            if (Files.exists(dataPath(TOURNAMENTS_FILE))) {
+                plugin.getLogger().severe(LOG_PREFIX + "Could not read or move aside the tournaments file: "
+                    + broken.getMessage() + ". Tournaments stay read-only until it is fixed and /toffy reload runs.");
+                return new ToffyTournamentService(new ReadOnlyTournamentStorage(), List.of());
+            }
+            plugin.getLogger().severe(LOG_PREFIX + "Could not read the tournaments: " + broken.getMessage()
+                + ". Starting without tournaments.");
+            return new ToffyTournamentService(storage, List.of());
+        }
+    }
+
+    /** Used when torneos.yml is unreadable and could not be moved aside: refuses every write so it is never overwritten. */
+    private static final class ReadOnlyTournamentStorage implements ToffyTournamentStorage {
+        @Override
+        public List<ToffyTournament> load() {
+            return List.of();
+        }
+
+        @Override
+        public void save(java.util.Collection<ToffyTournament> tournaments) throws IOException {
+            throw new IOException("torneos.yml no se pudo leer; arreglalo y usa /toffy reload");
+        }
+    }
+
+    static ToffyStoredLocation stored(Location location) {
+        return new ToffyStoredLocation(location.getWorld() == null ? "" : location.getWorld().getName(),
+            location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
+    }
+
+    static String coordinate(double value) {
+        return String.format(Locale.ROOT, "%.1f", value);
+    }
+
+    boolean teleportTo(Player player, Location target) {
+        player.leaveVehicle();
+        return player.teleport(target);
+    }
+
+    /**
+     * Teleports the player to the saved place and forgets it. False when the world is gone or the teleport failed
+     * (the saved place is kept).
+     */
+    boolean returnPlayer(Player player, String tournamentKey, ToffyStoredLocation saved) {
+        World world = server().getWorld(saved.world());
+        ToffyTournamentService current = tournaments;
+        if (world == null || current == null) {
+            return false;
+        }
+        Location target = new Location(world, saved.x(), saved.y(), saved.z(), saved.yaw(), saved.pitch());
+        if (!teleportTo(player, target)) {
+            return false;
+        }
+        current.clearReturn(tournamentKey, player.getUniqueId());
+        current.find(tournamentKey).ifPresent(tournament -> send(player, ToffyMessages.DEVUELTO, tournamentKey,
+            ToffyTournamentCommand.placeholders(tournament, player, target)));
+        return true;
+    }
+
+    void playerJoined(Player player) {
+        ToffyTournamentService current = tournaments;
+        BukkitRuntimeRegistrations registrations = runtime;
+        if (current == null || registrations == null) {
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        List<ToffyTournamentService.PendingReturn> owed = current.pendingReturns(playerId);
+        if (owed.isEmpty()) {
+            return;
+        }
+        registrations.scheduleDelayed("toffy-return-" + playerId, () -> {
+            Player online = server().getPlayer(playerId);
+            if (online == null) {
+                return;
+            }
+            for (ToffyTournamentService.PendingReturn pending : owed) {
+                returnPlayer(online, pending.tournament(), pending.location());
+            }
+        }, 1L);
     }
 
     Server server() {

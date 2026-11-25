@@ -1,0 +1,132 @@
+package dev.linqfy.bigCasares.modules.toffy;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Chat messages the library sends for each case. Pure: no Bukkit. A template comes from the tournament override,
+ * then from {@code toffy_mensajes.yml}, then from the built-in default. An empty template means "do not send".
+ */
+final class ToffyMessages {
+    static final String ANOTADO = "anotado";
+    static final String YA_ANOTADO = "ya-anotado";
+    static final String INSCRIPCION_CERRADA = "inscripcion-cerrada";
+    static final String TORNEO_NO_EXISTE = "torneo-no-existe";
+    static final String ANUNCIO_ANOTADO = "anuncio-anotado";
+    static final String CIERRE = "cierre";
+    static final String APERTURA = "apertura";
+    static final String LLEVADO = "llevado";
+    static final String DEVUELTO = "devuelto";
+    static final String SIN_LUGAR_GUARDADO = "sin-lugar-guardado";
+
+    private static final Map<String, String> DEFAULTS = defaults();
+    static final List<String> CASES = List.copyOf(DEFAULTS.keySet());
+
+    record Loaded(ToffyMessages messages, List<String> warnings) {
+    }
+
+    private final Map<String, String> fileValues;
+
+    private ToffyMessages(Map<String, String> fileValues) {
+        this.fileValues = Map.copyOf(fileValues);
+    }
+
+    private static Map<String, String> defaults() {
+        Map<String, String> map = new LinkedHashMap<>();
+        map.put(ANOTADO, "&aTe anotaste al torneo &e{torneo}&a. Sos el participante &e#{cantidad}&a.");
+        map.put(YA_ANOTADO, "&eYa estabas anotado en el torneo &6{torneo}&e.");
+        map.put(INSCRIPCION_CERRADA, "&cLa inscripcion al torneo &e{torneo}&c esta cerrada.");
+        map.put(TORNEO_NO_EXISTE, "&cNo existe el torneo &e{torneo}&c.");
+        map.put(ANUNCIO_ANOTADO, "");
+        map.put(CIERRE, "&6Se cerraron las inscripciones al torneo &e{torneo}&6. Participantes: &e{cantidad}&6.");
+        map.put(APERTURA, "");
+        map.put(LLEVADO, "&aFuiste llevado al torneo &e{torneo}&a.");
+        map.put(DEVUELTO, "&aVolviste a donde estabas antes del torneo &e{torneo}&a.");
+        map.put(SIN_LUGAR_GUARDADO, "&cNo hay un lugar guardado para devolverte del torneo &e{torneo}&c.");
+        return map;
+    }
+
+    static ToffyMessages builtIn() {
+        return new ToffyMessages(Map.of());
+    }
+
+    static boolean isCase(String key) {
+        return DEFAULTS.containsKey(key);
+    }
+
+    static String defaultTemplate(String caseKey) {
+        return DEFAULTS.getOrDefault(caseKey, "");
+    }
+
+    /**
+     * Reads the file values. Unknown keys and values that are not text only produce warnings; those cases keep
+     * their built-in default.
+     */
+    static Loaded fromValues(Map<String, ?> raw) {
+        List<String> warnings = new ArrayList<>();
+        Map<String, String> values = new LinkedHashMap<>();
+        if (raw != null) {
+            raw.forEach((key, value) -> {
+                if (!isCase(key)) {
+                    warnings.add("toffy_mensajes.yml: caso desconocido '" + key + "' (se ignora). Casos validos: "
+                        + String.join(", ", CASES));
+                } else if (value == null) {
+                    values.put(key, "");
+                } else if (value instanceof String || value instanceof Number || value instanceof Boolean) {
+                    values.put(key, String.valueOf(value));
+                } else {
+                    warnings.add("toffy_mensajes.yml: '" + key + "' debe ser un texto; se usa el valor por defecto.");
+                }
+            });
+        }
+        return new Loaded(new ToffyMessages(values), List.copyOf(warnings));
+    }
+
+    /**
+     * The template for a case before substituting placeholders: override, file or default.
+     */
+    String template(String caseKey, String override) {
+        if (override != null) {
+            return override;
+        }
+        String fromFile = fileValues.get(caseKey);
+        return fromFile != null ? fromFile : defaultTemplate(caseKey);
+    }
+
+    /**
+     * Final text with colors and placeholders applied, or {@code null} when the template is empty.
+     */
+    String render(String caseKey, String override, Map<String, String> placeholders) {
+        return format(template(caseKey, override), placeholders);
+    }
+
+    /**
+     * Applies {@code &} color codes and replaces {@code {name}} placeholders. Returns {@code null} for an empty
+     * template. Colors are translated first so a value containing {@code &} is shown as typed.
+     */
+    static String format(String template, Map<String, String> placeholders) {
+        if (template == null || template.isBlank()) {
+            return null;
+        }
+        String text = colors(template);
+        if (placeholders != null) {
+            for (Map.Entry<String, String> entry : placeholders.entrySet()) {
+                text = text.replace("{" + entry.getKey() + "}", entry.getValue() == null ? "" : entry.getValue());
+            }
+        }
+        return text;
+    }
+
+    static String colors(String text) {
+        char[] chars = text.toCharArray();
+        for (int i = 0; i < chars.length - 1; i++) {
+            if (chars[i] == '&' && "0123456789abcdefklmnorABCDEFKLMNOR".indexOf(chars[i + 1]) >= 0) {
+                chars[i] = '§';
+                chars[i + 1] = Character.toLowerCase(chars[i + 1]);
+            }
+        }
+        return new String(chars);
+    }
+}
