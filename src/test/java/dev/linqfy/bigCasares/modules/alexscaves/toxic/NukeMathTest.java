@@ -90,4 +90,28 @@ class NukeMathTest {
         assertTrue(NukeMath.MAX_FLING <= 4.0);
         assertEquals(120, NukeMath.BLAST_TICKS);
     }
+
+    @Test
+    void craterChunksStartAtTheCentreAndCoverEveryCubeThatMayHoldCrater() {
+        int radius = NukeMath.radius(NukeMath.BOMB_SIZE);
+        java.util.List<int[]> chunks = NukeMath.craterChunks(100, -37, radius);
+        assertEquals(100 >> 4, chunks.get(0)[0]);
+        assertEquals(-37 >> 4, chunks.get(0)[1]);
+        java.util.Set<Long> loaded = new java.util.HashSet<>();
+        for (int[] chunk : chunks) {
+            assertTrue(loaded.add(((long) chunk[0] << 32) ^ (chunk[1] & 0xFFFFFFFFL)), "no chunk twice");
+        }
+        // Every block of the crater (sampled across the centre plane and a few levels around it) is in a listed chunk.
+        for (int dy : new int[] {-40, 0, 40}) {
+            for (int x = 100 - radius * 2; x <= 100 + radius * 2; x += 3) {
+                for (int z = -37 - radius * 2; z <= -37 + radius * 2; z += 3) {
+                    if (NukeMath.inCrater(x, 64 + dy, z, 100, 64, -37, radius)) {
+                        assertTrue(loaded.contains(((long) (x >> 4) << 32) ^ ((z >> 4) & 0xFFFFFFFFL)),
+                            "chunk " + (x >> 4) + "," + (z >> 4));
+                    }
+                }
+            }
+        }
+        assertTrue(chunks.size() > 250 && chunks.size() < 450, "about 330 chunks for a radius of 135: " + chunks.size());
+    }
 }

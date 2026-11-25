@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A nuclear explosion (mod {@code NuclearExplosionEntity}): a mushroom cloud ({@link MushroomCloud}), a crater carved
@@ -42,6 +43,8 @@ public final class NuclearExplosion implements Runnable {
     private static final int MIN_TICKS = 40;
     private static final int IRRADIATED_TICKS = 48000;
     static final int MAX_ACTIVE = 2;
+    /** Played to everyone in the world when the bomb goes off, until the white screen is gone. */
+    static final String DETONATION_SOUND = "alexscaves:nuclear_detonation";
     private static final List<NuclearExplosion> ACTIVE = new ArrayList<>();
     private static final Deque<NuclearExplosion> WAITING = new ArrayDeque<>();
 
@@ -53,6 +56,24 @@ public final class NuclearExplosion implements Runnable {
     private final Deque<int[]> cubes = new ArrayDeque<>();
     /** Fires lit on the crater floor, oldest first, with the tick they go out. */
     private final Deque<Fire> fires = new ArrayDeque<>();
+    /** Whether the blast comes after the white screen and the chunk loading (the Nuclear Bomb) or at once. */
+    private final boolean sequence;
+    /** False while the screen is white and the crater's chunks load. */
+    private boolean ignited;
+    private int whiteTicks;
+    private int fadeTicks;
+    private NukeWhiteout whiteout;
+    private List<int[]> toLoad = List.of();
+    private int loadIndex;
+    private final AtomicInteger pending = new AtomicInteger();
+    /** Chunks held loaded for the blast, released when it ends. */
+    private final List<ChunkRef> tickets = new ArrayList<>();
+    private boolean finished;
+    /** Chunks held by the running explosions, shared: two overlapping craters hold a chunk between them. */
+    private static final ChunkHolds<ChunkRef> HOLDS = new ChunkHolds<>();
+
+    private record ChunkRef(World world, int x, int z) {
+    }
 
     private record Fire(Block block, int outAt) {
     }
@@ -67,8 +88,9 @@ public final class NuclearExplosion implements Runnable {
     private BukkitTask task;
     private int ticks;
 
-    private NuclearExplosion(ModMobService mobs, Location center, float size, boolean griefing) {
+    private NuclearExplosion(ModMobService mobs, Location center, float size, boolean griefing, boolean sequence) {
         this.mobs = mobs;
+        this.sequence = sequence;
         this.center = center.clone();
         this.size = size;
         this.griefing = griefing;
@@ -77,7 +99,18 @@ public final class NuclearExplosion implements Runnable {
 
     /** Starts an explosion; {@code griefing} false leaves blocks alone (mod {@code noGriefing}). */
     public static void detonate(ModMobService mobs, Location center, float size, boolean griefing) {
-        NuclearExplosion explosion = new NuclearExplosion(mobs, center, size, griefing);
+        queue(new NuclearExplosion(mobs, center, size, griefing, false));
+    }
+
+    /**
+     * The Nuclear Bomb's blast: the screen of everyone in the world goes white for {@link NukeSchedule#WHITE_HOLD_TICKS}
+     * ticks while the chunks of the crater load a few at a time, and the blast starts as the white fades.
+     */
+    public static void detonateWithWarning(ModMobService mobs, Location center, float size) {
+        queue(new NuclearExplosion(mobs, center, size, true, true));
+    }
+
+    private static void queue(NuclearExplosion explosion) {
         if (ACTIVE.size() >= MAX_ACTIVE) {
             WAITING.add(explosion);
             return;
@@ -94,9 +127,15 @@ public final class NuclearExplosion implements Runnable {
     }
 
     private void finish() {
+        finished = true;
         if (task != null) {
             task.cancel();
         }
+        if (whiteout != null) {
+            whiteout.close();
+            whiteout = null;
+        }
+        releaseTickets();
         if (!fires.isEmpty()) {
             // The fires still burning go out on time without keeping this explosion's slot.
             List<Fire> left = List.copyOf(fires);
@@ -118,6 +157,64 @@ public final class NuclearExplosion implements Runnable {
 
     private void start() {
         ACTIVE.add(this);
+        task = mobs.plugin().getServer().getScheduler().runTaskTimer(mobs.plugin(), this, 1L, 1L);
+        if (sequence) {
+            beginWhiteout();
+        } else {
+            ignite();
+        }
+    }
+
+    /** The detonation: everyone in the world sees white, and the crater's chunks start to load. */
+    private void beginWhiteout() {
+        World world = center.getWorld();
+        whiteout = new NukeWhiteout(mobs.plugin(), world);
+        for (Player player : world.getPlayers()) {
+            player.playSound(player, DETONATION_SOUND, SoundCategory.MASTER, 1.0f, 1.0f);
+        }
+        toLoad = NukeMath.craterChunks(center.getBlockX(), center.getBlockZ(), radius);
+        whiteout.update(NukeSchedule.whiteRise(1));
+    }
+
+    /** One tick of the white screen: more chunks are requested, and the blast starts once they are in. */
+    private void warmUp() {
+        whiteTicks++;
+        whiteout.update(NukeSchedule.whiteRise(whiteTicks));
+        World world = center.getWorld();
+        int perTick = NukeSchedule.preloadPerTick(toLoad.size());
+        for (int i = 0; i < perTick && loadIndex < toLoad.size(); i++) {
+            int[] chunk = toLoad.get(loadIndex++);
+            pending.incrementAndGet();
+            // Loaded off the main thread first, held after: a ticket on an unloaded chunk would load it at once, on
+            // the main thread. Chunks that are not generated are left alone: there is nothing there to carve.
+            world.getChunkAtAsync(chunk[0], chunk[1], false).whenComplete((loadedChunk, failure) -> {
+                if (loadedChunk != null && !finished) {
+                    hold(new ChunkRef(world, chunk[0], chunk[1]));
+                }
+                pending.decrementAndGet();
+            });
+        }
+        boolean loaded = loadIndex >= toLoad.size() && pending.get() == 0;
+        if ((whiteTicks >= NukeSchedule.WHITE_HOLD_TICKS && loaded) || whiteTicks >= NukeSchedule.WHITE_MAX_HOLD_TICKS) {
+            ignite();
+        }
+    }
+
+    private void hold(ChunkRef chunk) {
+        HOLDS.hold(chunk, () -> chunk.world().addPluginChunkTicket(chunk.x(), chunk.z(), mobs.plugin()));
+        tickets.add(chunk);
+    }
+
+    private void releaseTickets() {
+        for (ChunkRef chunk : tickets) {
+            HOLDS.release(chunk, () -> chunk.world().removePluginChunkTicket(chunk.x(), chunk.z(), mobs.plugin()));
+        }
+        tickets.clear();
+    }
+
+    /** The blast itself: sound, mushroom cloud and the crater to carve. */
+    private void ignite() {
+        ignited = true;
         World world = center.getWorld();
         String sound = size <= 1.5F ? "alexscaves:nuclear_explosion" : "alexscaves:large_nuclear_explosion";
         world.playSound(center, sound, SoundCategory.BLOCKS, 16.0f, 1.0f);
@@ -143,15 +240,27 @@ public final class NuclearExplosion implements Runnable {
             cubes.addAll(all);
             cubesPerTick = NukeMath.cubesPerTick(all.size());
         }
-        task = mobs.plugin().getServer().getScheduler().runTaskTimer(mobs.plugin(), this, 1L, 1L);
     }
 
     @Override
     public void run() {
-        ticks++;
         if (!center.isWorldLoaded()) {
             finish();
             return;
+        }
+        if (!ignited) {
+            warmUp();
+            return;
+        }
+        ticks++;
+        if (whiteout != null) {
+            // The white goes away fast once the blast has started.
+            int alpha = NukeSchedule.whiteFade(fadeTicks++);
+            whiteout.update(alpha);
+            if (alpha == 0) {
+                whiteout.close();
+                whiteout = null;
+            }
         }
         while (!fires.isEmpty() && fires.peek().outAt() <= ticks) {
             putOut(fires.poll().block());

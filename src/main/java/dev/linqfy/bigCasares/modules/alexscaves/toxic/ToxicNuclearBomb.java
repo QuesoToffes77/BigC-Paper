@@ -36,8 +36,8 @@ import java.util.UUID;
 
 /**
  * The Nuclear Bomb (mod {@code NuclearBombBlock} and {@code NuclearBombEntity}). Lit by flint and steel, a fire
- * charge, redstone power or a burning projectile, the block turns into a primed bomb that blows up after 300
- * ticks as a size-9 nuclear explosion (three times the mod's). Shears used on the primed bomb defuse it and give the block back.
+ * charge, redstone power or a burning projectile, the block turns into a primed bomb that blows up after 280
+ * ticks (14 seconds: {@link NukeSchedule}) as a size-9 nuclear explosion (three times the mod's). Shears used on the primed bomb defuse it and give the block back.
  *
  * <p>The mod's primed bomb is an entity that falls like TNT; here it is a block display that stays where the
  * block was, with an interaction box for the shears, and plays the mod's shake-and-swell animation
@@ -46,7 +46,11 @@ import java.util.UUID;
  */
 public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable {
     static final String BLOCK = "nuclear_bomb";
-    static final int FUSE_TICKS = 300;
+    static final int FUSE_TICKS = NukeSchedule.FUSE_TICKS;
+    /** Played at the bomb when it is lit (heard from afar). */
+    static final String ACTIVATION_SOUND = "alexscaves:nuclear_bomb_activation";
+    /** Played to everyone in the world when the alert starts. */
+    static final String ALERT_SOUND = "alexscaves:nuclear_alert";
 
     private final ModMobService mobs;
     private final BlockData bomb;
@@ -60,11 +64,14 @@ public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable
     private static final class Primed {
         final BlockDisplay display;
         final Interaction box;
+        /** Its name in the alert: A1, A2... */
+        final String label;
         int ticks;
 
-        Primed(BlockDisplay display, Interaction box) {
+        Primed(BlockDisplay display, Interaction box, String label) {
             this.display = display;
             this.box = box;
+            this.label = label;
         }
     }
 
@@ -143,6 +150,9 @@ public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable
         event.setCancelled(true);
         Location at = bomb.display.getLocation();
         at.getWorld().playSound(at, "alexscaves:nuclear_bomb_defuse", SoundCategory.BLOCKS, 1.0f, 1.0f);
+        if (NukeSchedule.FUSE_TICKS - bomb.ticks <= NukeSchedule.ALERT_TICKS_LEFT) {
+            mobs.plugin().getServer().broadcastMessage("§aLa bomba nuclear " + bomb.label + " fue desactivada.");
+        }
         mobs.createItem("ac_" + BLOCK, 1).ifPresent(item -> at.getWorld().dropItemNaturally(at.clone().add(0.5, 0.5, 0.5), item));
         if (player.getGameMode() != GameMode.CREATIVE) {
             player.getInventory().setItem(event.getHand(), held.damage(1, player));
@@ -170,14 +180,20 @@ public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable
                 at.getWorld().spawnParticle(Particle.DUST, at.clone().add(0.5, 1.1, 0.5), 4, 0.3, 0.2, 0.3, 0,
                     new Particle.DustOptions(org.bukkit.Color.fromRGB(0x7F, 0xD1, 0x1B), 1.2f));
             }
-            if (bomb.ticks % 40 == 0) {
-                at.getWorld().playSound(at, "alexscaves:nuclear_siren", SoundCategory.BLOCKS, 6.0f, 1.0f);
+            int left = FUSE_TICKS - bomb.ticks;
+            for (String line : NukeSchedule.linesAt(left, bomb.label)) {
+                mobs.plugin().getServer().broadcastMessage(line);
             }
-            if (bomb.ticks > FUSE_TICKS) {
+            if (NukeSchedule.isAlert(left)) {
+                for (Player player : at.getWorld().getPlayers()) {
+                    player.playSound(player, ALERT_SOUND, SoundCategory.MASTER, 1.0f, 1.0f);
+                }
+            }
+            if (left <= 0) {
                 bomb.display.remove();
                 bomb.box.remove();
                 iterator.remove();
-                NuclearExplosion.detonate(mobs, at.clone().add(0.5, 0.0, 0.5), NukeMath.BOMB_SIZE, true);
+                NuclearExplosion.detonateWithWarning(mobs, at.clone().add(0.5, 0.0, 0.5), NukeMath.BOMB_SIZE);
             }
         }
     }
@@ -198,8 +214,9 @@ public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable
             entity.setInteractionHeight(1.0f);
             entity.setPersistent(false);
         });
-        primed.put(box.getUniqueId(), new Primed(display, box));
+        primed.put(box.getUniqueId(), new Primed(display, box, NukeSerial.next(mobs.plugin(), at.getWorld())));
         at.getWorld().playSound(at, Sound.ENTITY_TNT_PRIMED, SoundCategory.BLOCKS, 1.0f, 1.0f);
+        at.getWorld().playSound(at, ACTIVATION_SOUND, SoundCategory.MASTER, 16.0f, 1.0f);
     }
 
     private void remove(UUID box) {

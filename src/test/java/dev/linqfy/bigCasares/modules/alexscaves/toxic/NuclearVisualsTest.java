@@ -52,16 +52,16 @@ class NuclearVisualsTest {
         assertEquals(1.0F, corner.y, 1e-5);
         assertEquals(1.0F, corner.z, 1e-5);
         // Half way through the fuse: sin(0.25 PI) swell, centred on the block, still standing on it.
-        float p = 150 / 300F;
+        float p = 140 / 280F;
         float swell = 1 + (float) Math.sin(p * p * Math.PI) * 0.5F;
         assertEquals(swell, NuclearBombPose.swell(p), 1e-6);
-        Vector3f bottom = NuclearBombPose.matrix(150).transformPosition(new Vector3f(0.5F, 0, 0.5F));
+        Vector3f bottom = NuclearBombPose.matrix(140).transformPosition(new Vector3f(0.5F, 0, 0.5F));
         assertEquals(0.5F, bottom.x, 1e-5);
         assertEquals(0.0F, bottom.y, 1e-5);
         assertEquals(0.5F, bottom.z, 1e-5);
-        Vector3f top = NuclearBombPose.matrix(150).transformPosition(new Vector3f(0.5F, 1, 0.5F));
+        Vector3f top = NuclearBombPose.matrix(140).transformPosition(new Vector3f(0.5F, 1, 0.5F));
         assertEquals(swell - p * 0.3F, top.y, 1e-5);
         // At the end the swell is back to 1 and the bomb is 0.7 tall.
-        assertEquals(0.7F, NuclearBombPose.matrix(300).transformPosition(new Vector3f(0.5F, 1, 0.5F)).y, 1e-5);
+        assertEquals(0.7F, NuclearBombPose.matrix(280).transformPosition(new Vector3f(0.5F, 1, 0.5F)).y, 1e-5);
     }
 }

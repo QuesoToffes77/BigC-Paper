@@ -71,6 +71,34 @@ public final class NukeMath {
         return nearY <= radius * 0.6 + 2 && nearX * nearX + nearZ * nearZ <= reach * reach;
     }
 
+    /**
+     * The chunks a crater of this radius can touch, nearest to the centre first: every chunk whose closest block is
+     * within the reach {@link #cubeMayHoldCrater} uses. Each entry is {@code {chunkX, chunkZ}}.
+     */
+    public static java.util.List<int[]> craterChunks(int centerX, int centerZ, int radius) {
+        double reach = radius * 1.15 + 2;
+        int minX = Math.floorDiv((int) Math.floor(centerX - reach), 16);
+        int maxX = Math.floorDiv((int) Math.ceil(centerX + reach), 16);
+        int minZ = Math.floorDiv((int) Math.floor(centerZ - reach), 16);
+        int maxZ = Math.floorDiv((int) Math.ceil(centerZ + reach), 16);
+        java.util.List<int[]> chunks = new java.util.ArrayList<>();
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                double dx = Math.max(0, Math.max(x * 16 - centerX, centerX - (x * 16 + 15)));
+                double dz = Math.max(0, Math.max(z * 16 - centerZ, centerZ - (z * 16 + 15)));
+                if (dx * dx + dz * dz <= reach * reach) {
+                    chunks.add(new int[] {x, z});
+                }
+            }
+        }
+        chunks.sort(java.util.Comparator.comparingDouble(chunk -> {
+            double dx = chunk[0] * 16 + 8 - centerX;
+            double dz = chunk[1] * 16 + 8 - centerZ;
+            return dx * dx + dz * dz;
+        }));
+        return chunks;
+    }
+
     /** Cubes carved per tick: the whole crater in about {@code CARVE_TICKS} ticks, never fewer than 3 a tick. */
     public static int cubesPerTick(int cubes) {
         return Math.max(3, (int) Math.ceil(cubes / (double) CARVE_TICKS));
