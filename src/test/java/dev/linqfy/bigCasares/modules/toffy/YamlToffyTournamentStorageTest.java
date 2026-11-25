@@ -50,6 +50,42 @@ class YamlToffyTournamentStorageTest {
     }
 
     @Test
+    void thePlaceAndTheScheduleSurviveARestart() throws IOException {
+        Path file = directory.resolve("torneos.yml");
+        ToffyTournamentService service = new ToffyTournamentService(new YamlToffyTournamentStorage(file), List.of());
+        service.create("copa");
+        ToffyStoredLocation place = new ToffyStoredLocation("world_nether", -12.5, 70.25, 300.0, -45.5f, 12f);
+        service.setPlace("copa", place);
+        long at = 1_900_000_000_000L;
+        service.schedule("copa", at);
+        service.create("liga");
+        service.setPlace("liga", new ToffyStoredLocation("world", 0, 64, 0, 0f, 0f));
+        service.schedule("liga", at + 60_000L);
+        service.cancelSchedule("liga");
+
+        List<ToffyTournament> loaded = new YamlToffyTournamentStorage(file).load();
+
+        ToffyTournament copa = loaded.getFirst();
+        assertEquals(place, copa.place());
+        assertEquals(Long.valueOf(at), copa.scheduledAt());
+        ToffyTournament liga = loaded.get(1);
+        assertEquals(new ToffyStoredLocation("world", 0, 64, 0, 0f, 0f), liga.place());
+        assertEquals(null, liga.scheduledAt());
+    }
+
+    @Test
+    void aTournamentWithoutPlaceOrScheduleLoadsWithoutThem() throws IOException {
+        Path file = directory.resolve("torneos.yml");
+        ToffyTournamentService service = new ToffyTournamentService(new YamlToffyTournamentStorage(file), List.of());
+        service.create("copa");
+
+        ToffyTournament copa = new YamlToffyTournamentStorage(file).load().getFirst();
+
+        assertEquals(null, copa.place());
+        assertEquals(null, copa.scheduledAt());
+    }
+
+    @Test
     void aMissingFileIsEmpty() throws IOException {
         assertTrue(new YamlToffyTournamentStorage(directory.resolve("torneos.yml")).load().isEmpty());
     }

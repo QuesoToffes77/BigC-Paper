@@ -127,6 +127,23 @@ class ToffyModuleWiringTest {
     }
 
     @Test
+    void pluginUsageListsEveryToffySubcommandAndAnotarOptions() {
+        YamlConfiguration plugin = new YamlConfiguration();
+        plugin.options().pathSeparator('/');
+        try {
+            plugin.load(new File("src/main/resources/plugin.yml"));
+        } catch (Exception failure) {
+            throw new IllegalStateException(failure);
+        }
+
+        assertEquals("/<command> [nivel|ayuda|curva|reload|torneo|tp|evento]",
+            plugin.getString("commands/toffy/usage"));
+        assertEquals("/<command> [torneo | salir <torneo> | estado]", plugin.getString("commands/anotar/usage"));
+        assertTrue(plugin.getString("commands/toffy/description").contains("ayuda"));
+        assertTrue(plugin.getString("commands/anotar/description").contains("open"));
+    }
+
+    @Test
     void theCommandShowsLevelsWithTheConfiguredDecimals() {
         assertEquals("53", ToffyCommand.level(52.5, 0));
         assertEquals("52.5", ToffyCommand.level(52.5, 1));

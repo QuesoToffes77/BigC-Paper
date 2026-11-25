@@ -9,6 +9,8 @@
 #        {cantidad} cantidad de participantes anotados
 #        {x} {y} {z} {mundo}  lugar al que se llevo o devolvio al jugador (solo en llevado y devuelto)
 #        {evento}   nombre del evento (solo en los mensajes de eventos)
+#        {hora} {fecha}  hora (HH:mm) y fecha (dd/MM/yyyy) del teletransporte programado (tp-programado)
+#        {minutos}  minutos que faltan para el teletransporte (tp-aviso)
 #        {segundos} segundos que faltan para empezar (evento-lobby)
 #        {motivo}   por que (evento-eliminado, evento-cancelado)
 #        {detalle}  como termino el evento (evento-fin)
@@ -48,6 +50,19 @@ devuelto: "&aVolviste a donde estabas antes del torneo &e{torneo}&a."
 
 # Se lo dice a un participante conectado al que no hay donde devolver (nunca se lo llevo).
 sin-lugar-guardado: "&cNo hay un lugar guardado para devolverte del torneo &e{torneo}&c."
+
+# ---------------------------------------------------------------------------------------------------
+#  Teletransporte programado (/toffy tp programar). Lo lleva al lugar fijo del torneo a la hora indicada.
+# ---------------------------------------------------------------------------------------------------
+
+# Anuncio para TODO el servidor cuando se programa el teletransporte. Vacio = sin anuncio.
+tp-programado: "&6Teletransporte del torneo &e{torneo}&6 programado para el &e{fecha}&6 a las &e{hora}&6."
+
+# Aviso a los anotados conectados, 5 y 1 minuto antes del teletransporte. Vacio = sin aviso.
+tp-aviso: "&6El torneo &e{torneo}&6 se teletransporta en &e{minutos} min&6."
+
+# Se lo dice al admin cuando cancela el teletransporte programado (/toffy tp programar <torneo> cancelar).
+tp-cancelado: "&7Se cancelo el teletransporte programado del torneo &e{torneo}&7."
 
 # ---------------------------------------------------------------------------------------------------
 #  Eventos (los inicia el staff con /toffy evento iniciar <tipo> <torneo>). Son sobre el torneo:

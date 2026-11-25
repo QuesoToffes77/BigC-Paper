@@ -20,6 +20,7 @@ import org.bukkit.entity.Player;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -153,6 +154,7 @@ public final class ToffyModule implements PluginModule {
         registrations.bindCommand("toffy-anotar-command", anotarCommand, anotar, anotar);
         tournaments = loadTournaments();
         registrations.registerListener("toffy-tournament-listener", new ToffyTournamentListener(this));
+        registrations.scheduleRepeating("toffy-tournament-schedule", this::checkSchedules, 20L, 20L);
 
         ToffyMemoryTracker memoryTracker = new ToffyMemoryTracker(
             () -> new ToffyMemoryService(requireService().settings().memory()),
@@ -431,7 +433,8 @@ public final class ToffyModule implements PluginModule {
     private ToffyTournamentService loadTournaments() {
         YamlToffyTournamentStorage storage = new YamlToffyTournamentStorage(dataPath(TOURNAMENTS_FILE));
         try {
-            return ToffyTournamentService.load(storage);
+            return ToffyTournamentService.load(storage,
+            message -> plugin.getLogger().warning(LOG_PREFIX + message));
         } catch (IOException broken) {
             if (Files.exists(dataPath(TOURNAMENTS_FILE))) {
                 plugin.getLogger().severe(LOG_PREFIX + "Could not read or move aside the tournaments file: "
@@ -489,6 +492,95 @@ public final class ToffyModule implements PluginModule {
         current.find(tournamentKey).ifPresent(tournament -> send(player, ToffyMessages.DEVUELTO, tournamentKey,
             ToffyTournamentCommand.placeholders(tournament, player, target)));
         return true;
+    }
+
+    /**
+     * Teleports every online participant of the tournament to {@code target}, saving where each one was first. Used
+     * by {@code /toffy tp concursantes} and by the scheduled teleport.
+     */
+    Brought bringParticipants(ToffyTournamentService service, ToffyTournament tournament, Location target) {
+        int moved = 0;
+        int offline = 0;
+        int failed = 0;
+        for (UUID id : List.copyOf(tournament.participants().keySet())) {
+            Player player = server().getPlayer(id);
+            if (player == null) {
+                offline++;
+                continue;
+            }
+            boolean recorded = service.recordDeparture(tournament.key(), id, stored(player.getLocation()));
+            if (!teleportTo(player, target)) {
+                if (recorded) {
+                    service.clearReturn(tournament.key(), id);
+                }
+                failed++;
+                continue;
+            }
+            moved++;
+            send(player, ToffyMessages.LLEVADO, tournament.key(), ToffyTournamentCommand.placeholders(tournament,
+                player, target));
+        }
+        return new Brought(moved, offline, failed);
+    }
+
+    /** Result of {@link #bringParticipants}. */
+    record Brought(int moved, int offline, int failed) {
+    }
+
+    /**
+     * The saved place as a Bukkit location, or null when its world is not loaded.
+     */
+    Location savedLocation(ToffyStoredLocation saved) {
+        World world = server().getWorld(saved.world());
+        return world == null ? null
+            : new Location(world, saved.x(), saved.y(), saved.z(), saved.yaw(), saved.pitch());
+    }
+
+    /**
+     * Runs every 20 ticks: sends the due warnings to the online sign-ups and runs the due scheduled teleports.
+     */
+    void checkSchedules() {
+        ToffyTournamentService current = tournaments;
+        if (current == null) {
+            return;
+        }
+        long now = current.now();
+        for (ToffyTournamentService.Warning warning : current.dueWarnings(now)) {
+            current.find(warning.tournament()).ifPresent(tournament -> {
+                for (UUID id : tournament.participants().keySet()) {
+                    Player player = server().getPlayer(id);
+                    if (player != null) {
+                        send(player, ToffyMessages.TP_AVISO, tournament.key(), Map.of(
+                            "jugador", player.getName(),
+                            "torneo", tournament.displayName(),
+                            "minutos", String.valueOf(warning.minutes())));
+                    }
+                }
+            });
+            current.markWarned(warning.tournament(), warning.minutes());
+        }
+        for (String key : current.dueSchedules(now)) {
+            ToffyTournament tournament = current.find(key).orElse(null);
+            if (tournament == null) {
+                continue;
+            }
+            Location target = tournament.place() == null ? null : savedLocation(tournament.place());
+            if (target == null) {
+                plugin.getLogger().warning(LOG_PREFIX + "Teletransporte programado del torneo "
+                    + tournament.displayName() + " descartado: su lugar no esta en un mundo cargado"
+                    + (tournament.place() == null ? "" : " (" + tournament.place().world() + ")") + ".");
+            } else {
+                Brought result = bringParticipants(current, tournament, target);
+                plugin.getLogger().info(LOG_PREFIX + "Teletransporte programado del torneo "
+                    + tournament.displayName() + ": " + result.moved() + " llevados, " + result.offline()
+                    + " offline, " + result.failed() + " no se pudieron mover.");
+            }
+            try {
+                current.markFired(key);
+            } catch (UncheckedIOException failure) {
+                plugin.getLogger().severe(LOG_PREFIX + "No se pudo guardar torneos.yml: " + failure.getMessage());
+            }
+        }
     }
 
     void playerJoined(Player player) {

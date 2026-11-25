@@ -22,6 +22,9 @@ final class ToffyMessages {
     static final String LLEVADO = "llevado";
     static final String DEVUELTO = "devuelto";
     static final String SIN_LUGAR_GUARDADO = "sin-lugar-guardado";
+    static final String TP_PROGRAMADO = "tp-programado";
+    static final String TP_AVISO = "tp-aviso";
+    static final String TP_CANCELADO = "tp-cancelado";
     // Staff events announcements (see ToffyEvents).
     static final String EVENTO_LOBBY = ToffyEvents.CASE_LOBBY;
     static final String EVENTO_UNIDO = ToffyEvents.CASE_JOINED;
@@ -56,6 +59,9 @@ final class ToffyMessages {
         map.put(LLEVADO, "&aFuiste llevado al torneo &e{torneo}&a.");
         map.put(DEVUELTO, "&aVolviste a donde estabas antes del torneo &e{torneo}&a.");
         map.put(SIN_LUGAR_GUARDADO, "&cNo hay un lugar guardado para devolverte del torneo &e{torneo}&c.");
+        map.put(TP_PROGRAMADO, "&6Teletransporte del torneo &e{torneo}&6 programado para el &e{fecha}&6 a las &e{hora}&6.");
+        map.put(TP_AVISO, "&6El torneo &e{torneo}&6 se teletransporta en &e{minutos} min&6.");
+        map.put(TP_CANCELADO, "&7Se cancelo el teletransporte programado del torneo &e{torneo}&7.");
         map.put(EVENTO_LOBBY, "&6Va a empezar el evento &e{evento}&6 en &e{segundos} s&6. Anotate con &e/anotar {torneo}&6 para entrar.");
         map.put(EVENTO_UNIDO, "&aEntraste al evento &e{evento}&a. Tu inventario queda guardado y lo recuperas al salir.");
         map.put(EVENTO_SALIO, "&7{jugador} salio del evento &e{evento}&7. Quedan &e{cantidad}&7.");

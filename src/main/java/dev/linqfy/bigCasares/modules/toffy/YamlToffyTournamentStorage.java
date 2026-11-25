@@ -100,15 +100,34 @@ final class YamlToffyTournamentStorage implements ToffyTournamentStorage {
                 if (at == null) {
                     throw new IllegalArgumentException("Saved location of " + id + " is not a section");
                 }
-                tournament.putReturn(UUID.fromString(id), new ToffyStoredLocation(
-                    at.getString("world", ""), at.getDouble("x"), at.getDouble("y"), at.getDouble("z"),
-                    (float) at.getDouble("yaw"), (float) at.getDouble("pitch")));
+                tournament.putReturn(UUID.fromString(id), readLocation(at));
             }
         }
         for (String id : section.getStringList("pending")) {
             tournament.addPending(UUID.fromString(id));
         }
+        ConfigurationSection place = section.getConfigurationSection("place");
+        if (place != null) {
+            tournament.setPlace(readLocation(place));
+        }
+        if (section.contains("scheduled")) {
+            tournament.setScheduledAt(section.getLong("scheduled"));
+        }
         return tournament;
+    }
+
+    private static ToffyStoredLocation readLocation(ConfigurationSection at) {
+        return new ToffyStoredLocation(at.getString("world", ""), at.getDouble("x"), at.getDouble("y"),
+            at.getDouble("z"), (float) at.getDouble("yaw"), (float) at.getDouble("pitch"));
+    }
+
+    private static void writeLocation(YamlConfiguration yaml, String path, ToffyStoredLocation at) {
+        yaml.set(path + ".world", at.world());
+        yaml.set(path + ".x", at.x());
+        yaml.set(path + ".y", at.y());
+        yaml.set(path + ".z", at.z());
+        yaml.set(path + ".yaw", (double) at.yaw());
+        yaml.set(path + ".pitch", (double) at.pitch());
     }
 
     @Override
@@ -120,16 +139,12 @@ final class YamlToffyTournamentStorage implements ToffyTournamentStorage {
             yaml.set(base + ".open", tournament.open());
             tournament.participants().forEach((id, name) -> yaml.set(base + ".participants." + id, name));
             tournament.messages().forEach((caseKey, text) -> yaml.set(base + ".messages." + caseKey, text));
-            tournament.returns().forEach((id, at) -> {
-                String path = base + ".returns." + id;
-                yaml.set(path + ".world", at.world());
-                yaml.set(path + ".x", at.x());
-                yaml.set(path + ".y", at.y());
-                yaml.set(path + ".z", at.z());
-                yaml.set(path + ".yaw", (double) at.yaw());
-                yaml.set(path + ".pitch", (double) at.pitch());
-            });
+            tournament.returns().forEach((id, at) -> writeLocation(yaml, base + ".returns." + id, at));
             yaml.set(base + ".pending", tournament.pending().stream().map(UUID::toString).toList());
+            if (tournament.place() != null) {
+                writeLocation(yaml, base + ".place", tournament.place());
+            }
+            yaml.set(base + ".scheduled", tournament.scheduledAt());
         }
         Files.createDirectories(file.toAbsolutePath().getParent());
         Path temporary = file.resolveSibling(file.getFileName() + ".tmp");

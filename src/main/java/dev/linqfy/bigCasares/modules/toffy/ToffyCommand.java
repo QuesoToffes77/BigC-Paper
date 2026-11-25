@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Predicate;
 
 final class ToffyCommand implements CommandExecutor, TabCompleter {
     static final String CHECK_PERMISSION = "bigcasares.toffy.check";
@@ -34,16 +35,18 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (args.length == 0) {
-            if (!(sender instanceof Player player)) {
-                sender.sendMessage("§cDesde consola usa /toffy <jugador>.");
-                return true;
-            }
-            if (allowed(sender, CHECK_PERMISSION)) {
-                show(sender, player);
-            }
+            selfLevel(sender);
             return true;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "nivel" -> {
+                if (args.length == 1) {
+                    selfLevel(sender);
+                } else {
+                    showLevel(sender, args[1]);
+                }
+            }
+            case "ayuda" -> ToffyHelp.lines(permissions(sender)).forEach(sender::sendMessage);
             case "reload" -> {
                 if (allowed(sender, ADMIN_PERMISSION)) {
                     reload(sender);
@@ -51,25 +54,42 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
             }
             case "torneo", "tp" -> tournamentCommand.execute(sender, args);
             case "evento" -> tournamentCommand.event(sender, args);
-            case "curva", "curve" -> {
+            case "curva" -> {
                 if (allowed(sender, ADMIN_PERMISSION)) {
                     curve(sender);
                 }
             }
-            default -> {
-                boolean self = sender instanceof Player player && player.getName().equalsIgnoreCase(args[0]);
-                if (!allowed(sender, self ? CHECK_PERMISSION : CHECK_OTHERS_PERMISSION)) {
-                    return true;
-                }
-                Player target = module.server().getPlayerExact(args[0]);
-                if (target == null) {
-                    sender.sendMessage("§cJugador no encontrado: " + args[0]);
-                    return true;
-                }
-                show(sender, target);
-            }
+            default -> showLevel(sender, args[0]);
         }
         return true;
+    }
+
+    /** {@code /toffy nivel} without a name: the sender's own level. */
+    private void selfLevel(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§cDesde consola usa /toffy nivel <jugador>.");
+            return;
+        }
+        showLevel(sender, player.getName());
+    }
+
+    /** Level of a player: your own needs check, someone else's needs check.others. */
+    private void showLevel(CommandSender sender, String name) {
+        boolean self = sender instanceof Player player && player.getName().equalsIgnoreCase(name);
+        if (!allowed(sender, self ? CHECK_PERMISSION : CHECK_OTHERS_PERMISSION)) {
+            return;
+        }
+        Player target = module.server().getPlayerExact(name);
+        if (target == null) {
+            sender.sendMessage("§cJugador no encontrado: " + name);
+            return;
+        }
+        show(sender, target);
+    }
+
+    /** Whether the sender has the node or the admin node. */
+    private static Predicate<String> permissions(CommandSender sender) {
+        return node -> sender.hasPermission(node) || sender.hasPermission(ADMIN_PERMISSION);
     }
 
     private void show(CommandSender sender, Player target) {
@@ -188,6 +208,7 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        Predicate<String> has = permissions(sender);
         if (args.length > 1) {
             if (args[0].equalsIgnoreCase("torneo") || args[0].equalsIgnoreCase("tp")) {
                 return tournamentCommand.complete(sender, args);
@@ -195,24 +216,26 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
             if (args[0].equalsIgnoreCase("evento")) {
                 return tournamentCommand.completeEvent(sender, args);
             }
+            if (args.length == 2 && args[0].equalsIgnoreCase("nivel") && has.test(CHECK_OTHERS_PERMISSION)) {
+                return onlineNames(prefix(args[1]));
+            }
             return List.of();
         }
-        List<String> options = new ArrayList<>();
-        if (sender.hasPermission(ADMIN_PERMISSION)) {
-            options.add("reload");
-            options.add("curva");
+        List<String> options = new ArrayList<>(ToffyHelp.firstArgs(has));
+        if (has.test(CHECK_OTHERS_PERMISSION)) {
+            options.addAll(onlineNames(""));
         }
-        if (sender.hasPermission(TORNEO_ADMIN_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION)) {
-            options.add("torneo");
-            options.add("tp");
-        }
-        if (sender.hasPermission(ToffyEvents.ADMIN_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION)) {
-            options.add("evento");
-        }
-        if (sender.hasPermission(CHECK_OTHERS_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION)) {
-            module.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
-        }
-        String prefix = args[0].toLowerCase(Locale.ROOT);
+        String prefix = prefix(args[0]);
         return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
+    }
+
+    private List<String> onlineNames(String prefix) {
+        List<String> names = new ArrayList<>();
+        module.server().getOnlinePlayers().forEach(player -> names.add(player.getName()));
+        return names.stream().filter(name -> name.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
+    }
+
+    private static String prefix(String typed) {
+        return typed.toLowerCase(Locale.ROOT);
     }
 }

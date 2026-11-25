@@ -63,12 +63,12 @@ commands:
     usage: /<command> <status|start [player]|stop|cooldown reset>
     permission: bigcasares.jeremy.admin
   toffy:
-    description: Show the Toffy Complementaries equipment level (0-200), preview the curve or reload its files
-    usage: /<command> [jugador|curva|reload|torneo|tp|evento]
+    description: Show your Toffy level (0-200) or another player's, list your commands (ayuda), preview the curve, reload files, manage tournaments and staff events
+    usage: /<command> [nivel|ayuda|curva|reload|torneo|tp|evento]
     aliases: [ tcomp ]
   anotar:
-    description: Sign up for a tournament, leave it, or check the running staff event
-    usage: /<command> <torneo> | /<command> salir <torneo> | /<command> estado
+    description: Sign up for a tournament, leave it, see which ones are open, or check the running staff event
+    usage: /<command> [torneo | salir <torneo> | estado]
     permission: bigcasares.toffy.anotar
   celular:
     description: Give a Celular (the phone that plays videos)

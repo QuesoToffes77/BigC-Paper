@@ -39,6 +39,10 @@ final class ToffyAnotarCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§cNo tenes permiso para usar este comando.");
             return true;
         }
+        if (args.length == 0) {
+            openList(player, label);
+            return true;
+        }
         if (args.length == 1 && args[0].equalsIgnoreCase("estado")) {
             status(player);
             return true;
@@ -90,6 +94,24 @@ final class ToffyAnotarCommand implements CommandExecutor, TabCompleter {
             case UNKNOWN_TOURNAMENT -> module.send(sender, ToffyMessages.TORNEO_NO_EXISTE, null, placeholders);
         }
         return true;
+    }
+
+    /** {@code /anotar} alone: the tournaments with open sign-ups, how many are signed up and the scheduled teleport. */
+    private void openList(Player player, String label) {
+        ToffyTournamentService tournaments = module.tournaments();
+        List<ToffyTournament> open = tournaments == null ? List.of() : tournaments.list().stream()
+            .filter(ToffyTournament::open)
+            .toList();
+        if (open.isEmpty()) {
+            player.sendMessage("§7No hay torneos con inscripcion abierta ahora.");
+        } else {
+            player.sendMessage("§6Torneos con inscripcion abierta:");
+            for (ToffyTournament tournament : open) {
+                player.sendMessage("§7  §f" + tournament.displayName() + " §8- §e" + tournament.participants().size()
+                    + "§7 anotados" + ToffyTournamentCommand.scheduleSuffix(tournament));
+            }
+        }
+        player.sendMessage("§7Uso: /" + label + USAGE);
     }
 
     /** Someone who signs up (or was already signed up) while the event lobby of the tournament is open joins it. */

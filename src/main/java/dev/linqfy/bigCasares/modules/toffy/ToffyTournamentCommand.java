@@ -8,7 +8,11 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.io.UncheckedIOException;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -26,8 +30,9 @@ final class ToffyTournamentCommand {
     static final String PERMISSION = "bigcasares.toffy.torneo.admin";
     private static final String PREFIX = "§6Toffy §8» §7";
     private static final List<String> TORNEO_SUBCOMMANDS =
-        List.of("crear", "cerrar", "abrir", "borrar", "lista", "ver", "sacar", "mensaje");
-    private static final List<String> TP_SUBCOMMANDS = List.of("concursantes", "devolver");
+        List.of("crear", "lista", "ver", "abrir", "cerrar", "lugar", "sacar", "mensaje", "borrar");
+    private static final List<String> TP_SUBCOMMANDS =
+        List.of("concursantes", "devolver", "programar", "programados");
     private static final List<String> EVENT_SUBCOMMANDS = List.of("iniciar", "detener", "tipos", "estado");
     private static final String EVENT_USAGE =
         "§cUso: /toffy evento <iniciar <tipo> <torneo> [segundos]|detener|tipos|estado>";
@@ -88,6 +93,11 @@ final class ToffyTournamentCommand {
                         : "§cNo existe el torneo " + args[2] + ".");
                 }
             }
+            case "lugar" -> {
+                if (needs(sender, args, 3, "/toffy torneo lugar <torneo> [borrar]")) {
+                    place(sender, tournaments, args);
+                }
+            }
             case "lista" -> list(sender, tournaments);
             case "ver" -> {
                 if (needs(sender, args, 3, "/toffy torneo ver <nombre>")) {
@@ -104,7 +114,8 @@ final class ToffyTournamentCommand {
                     message(sender, tournaments, args);
                 }
             }
-            default -> sender.sendMessage("§cUso: /toffy torneo <crear|cerrar|abrir|borrar|lista|ver|sacar|mensaje>");
+            default -> sender.sendMessage("§cUso: /toffy torneo <crear|lista|ver|abrir|cerrar|lugar|sacar|mensaje|borrar>"
+                + " (mira /toffy ayuda)");
         }
     }
 
@@ -127,16 +138,16 @@ final class ToffyTournamentCommand {
             return;
         }
         switch (args[1].toLowerCase(Locale.ROOT)) {
-            case "iniciar", "start" -> start(sender, events, args);
-            case "detener", "stop" -> events.stop(sender);
-            case "tipos", "types" -> {
+            case "iniciar" -> start(sender, events, args);
+            case "detener" -> events.stop(sender);
+            case "tipos" -> {
                 for (ToffyEventType type : ToffyEventType.values()) {
                     sender.sendMessage("§e" + type.id() + " §7— " + type.displayName()
                         + (type.arena() ? " §8(arena, inventario de evento)" : " §8(mundo normal, keep inventory)"));
                 }
             }
-            case "estado", "status" -> events.status().forEach(sender::sendMessage);
-            default -> sender.sendMessage(EVENT_USAGE);
+            case "estado" -> events.status().forEach(sender::sendMessage);
+            default -> sender.sendMessage("§cSubcomando desconocido. Mira /toffy ayuda.");
         }
     }
 
@@ -262,7 +273,7 @@ final class ToffyTournamentCommand {
         for (ToffyTournament tournament : all) {
             sender.sendMessage("§7  §f" + tournament.displayName() + " §8- "
                 + (tournament.open() ? "§aabierto" : "§cinscripcion cerrada")
-                + " §8- §e" + tournament.participants().size() + "§7 participantes");
+                + " §8- §e" + tournament.participants().size() + "§7 participantes" + scheduleSuffix(tournament));
         }
     }
 
@@ -276,6 +287,13 @@ final class ToffyTournamentCommand {
         sender.sendMessage(PREFIX + "§f" + tournament.displayName() + "§7 - "
             + (tournament.open() ? "§aabierto" : "§cinscripcion cerrada") + "§7 - §e"
             + tournament.participants().size() + "§7 participantes:");
+        sender.sendMessage("§7  Lugar: " + (tournament.place() == null
+            ? "§8sin lugar (usa /toffy torneo lugar " + tournament.key() + ")"
+            : "§f" + placeText(tournament.place())));
+        if (tournament.scheduledAt() != null) {
+            sender.sendMessage("§7  Teletransporte programado: §b"
+                + ToffyTournamentTime.dateTime(tournament.scheduledAt(), zone()));
+        }
         int position = 1;
         for (Map.Entry<UUID, String> entry : tournament.participants().entrySet()) {
             Player online = module.server().getPlayer(entry.getKey());
@@ -312,6 +330,125 @@ final class ToffyTournamentCommand {
         sender.sendMessage(PREFIX + "§a" + playerName + " fue sacado del torneo " + found.get().displayName() + ".");
     }
 
+    /** {@code /toffy torneo lugar <torneo> [borrar]}: the sender's location becomes the place of the tournament. */
+    private void place(CommandSender sender, ToffyTournamentService tournaments, String[] args) {
+        Optional<ToffyTournament> found = tournaments.find(args[2]);
+        if (found.isEmpty()) {
+            sender.sendMessage("§cNo existe el torneo " + args[2] + ".");
+            return;
+        }
+        ToffyTournament tournament = found.get();
+        if (args.length > 3 && args[3].equalsIgnoreCase("borrar")) {
+            if (tournament.place() == null) {
+                sender.sendMessage("§eEl torneo " + tournament.displayName() + " no tenia lugar.");
+                return;
+            }
+            boolean scheduled = tournament.scheduledAt() != null;
+            tournaments.clearPlace(tournament.key());
+            sender.sendMessage(PREFIX + "§aLugar del torneo " + tournament.displayName() + " borrado"
+                + (scheduled ? "; el teletransporte programado tambien se cancelo." : "."));
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§cDesde consola no hay lugar: ubicate en el juego y usa /toffy torneo lugar "
+                + tournament.key() + ".");
+            return;
+        }
+        ToffyStoredLocation saved = ToffyModule.stored(player.getLocation());
+        tournaments.setPlace(tournament.key(), saved);
+        sender.sendMessage(PREFIX + "§aLugar del torneo §e" + tournament.displayName() + "§a guardado: §f"
+            + placeText(saved) + "§a.");
+    }
+
+    /** {@code /toffy tp programar <torneo> <HH:mm> [dd/MM]} and {@code ... cancelar}. */
+    private void schedule(CommandSender sender, ToffyTournamentService tournaments, String[] args) {
+        if (!needs(sender, args, 4,
+            "/toffy tp programar <torneo> <HH:mm> [dd/MM] | /toffy tp programar <torneo> cancelar")) {
+            return;
+        }
+        Optional<ToffyTournament> found = tournaments.find(args[2]);
+        if (found.isEmpty()) {
+            sender.sendMessage("§cNo existe el torneo " + args[2] + ".");
+            return;
+        }
+        ToffyTournament tournament = found.get();
+        ZoneId zone = zone();
+        if (args[3].equalsIgnoreCase("cancelar")) {
+            Long at = tournament.scheduledAt();
+            if (at == null) {
+                sender.sendMessage("§eEl torneo " + tournament.displayName()
+                    + " no tenia un teletransporte programado.");
+                return;
+            }
+            tournaments.cancelSchedule(tournament.key());
+            sender.sendMessage(PREFIX + "§aTeletransporte programado de " + tournament.displayName() + " cancelado.");
+            module.send(sender, ToffyMessages.TP_CANCELADO, tournament.key(),
+                scheduleTexts(tournament, at, zone));
+            return;
+        }
+        if (tournament.place() == null) {
+            sender.sendMessage("§cEl torneo no tiene lugar. Usa /toffy torneo lugar " + tournament.key());
+            return;
+        }
+        long at;
+        try {
+            at = ToffyTournamentTime.resolve(args[3], args.length > 4 ? args[4] : null, tournaments.now(), zone);
+        } catch (IllegalArgumentException invalid) {
+            sender.sendMessage("§c" + invalid.getMessage());
+            return;
+        }
+        Optional<Long> replaced = tournaments.schedule(tournament.key(), at);
+        replaced.ifPresent(old -> sender.sendMessage(PREFIX + "§eSe reemplazo el teletransporte programado para "
+            + ToffyTournamentTime.dateTime(old, zone) + "."));
+        sender.sendMessage(PREFIX + "§aTeletransporte de " + tournament.displayName() + " programado para §e"
+            + ToffyTournamentTime.dateTime(at, zone) + "§a.");
+        String announcement = module.message(ToffyMessages.TP_PROGRAMADO, tournament.key(),
+            scheduleTexts(tournament, at, zone));
+        if (announcement != null) {
+            module.server().broadcastMessage(announcement);
+        }
+    }
+
+    /** {@code /toffy tp programados}: every scheduled teleport. */
+    private void scheduled(CommandSender sender, ToffyTournamentService tournaments) {
+        List<ToffyTournament> all = tournaments.list().stream()
+            .filter(tournament -> tournament.scheduledAt() != null)
+            .sorted(Comparator.comparingLong(tournament -> tournament.scheduledAt()))
+            .toList();
+        if (all.isEmpty()) {
+            sender.sendMessage(PREFIX + "No hay teletransportes programados. Usa /toffy tp programar <torneo> <HH:mm>.");
+            return;
+        }
+        sender.sendMessage(PREFIX + "Teletransportes programados (" + all.size() + "):");
+        for (ToffyTournament tournament : all) {
+            sender.sendMessage("§7  §f" + tournament.displayName() + " §8- §b"
+                + ToffyTournamentTime.dateTime(tournament.scheduledAt(), zone()) + " §8- §7lugar: §f"
+                + (tournament.place() == null ? "§csin lugar" : placeText(tournament.place())));
+        }
+    }
+
+    static String scheduleSuffix(ToffyTournament tournament) {
+        return tournament.scheduledAt() == null ? ""
+            : " §8- §bprogramado " + ToffyTournamentTime.dateTime(tournament.scheduledAt(), zone());
+    }
+
+    private static Map<String, String> scheduleTexts(ToffyTournament tournament, long at, ZoneId zone) {
+        Map<String, String> map = new HashMap<>();
+        map.put("torneo", tournament.displayName());
+        map.put("hora", ToffyTournamentTime.hour(at, zone));
+        map.put("fecha", ToffyTournamentTime.date(at, zone));
+        return map;
+    }
+
+    private static String placeText(ToffyStoredLocation place) {
+        return place.world() + " " + ToffyModule.coordinate(place.x()) + ", " + ToffyModule.coordinate(place.y())
+            + ", " + ToffyModule.coordinate(place.z());
+    }
+
+    private static ZoneId zone() {
+        return ZoneId.systemDefault();
+    }
+
     private void message(CommandSender sender, ToffyTournamentService tournaments, String[] args) {
         Optional<ToffyTournament> found = tournaments.find(args[2]);
         if (found.isEmpty()) {
@@ -340,16 +477,20 @@ final class ToffyTournamentCommand {
 
     private void teleport(CommandSender sender, ToffyTournamentService tournaments, String[] args) {
         String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
-        if (sub.equals("concursantes")) {
-            if (needs(sender, args, 3, "/toffy tp concursantes <torneo> [x y z [mundo]]")) {
-                bring(sender, tournaments, args);
+        switch (sub) {
+            case "concursantes" -> {
+                if (needs(sender, args, 3, "/toffy tp concursantes <torneo> [lugar | x y z [mundo]]")) {
+                    bring(sender, tournaments, args);
+                }
             }
-        } else if (sub.equals("devolver")) {
-            if (needs(sender, args, 3, "/toffy tp devolver <torneo>")) {
-                giveBack(sender, tournaments, args[2]);
+            case "devolver" -> {
+                if (needs(sender, args, 3, "/toffy tp devolver <torneo>")) {
+                    giveBack(sender, tournaments, args[2]);
+                }
             }
-        } else {
-            sender.sendMessage("§cUso: /toffy tp <concursantes|devolver> <torneo>");
+            case "programar" -> schedule(sender, tournaments, args);
+            case "programados" -> scheduled(sender, tournaments);
+            default -> sender.sendMessage("§cUso: /toffy tp <concursantes|devolver|programar|programados> (mira /toffy ayuda)");
         }
     }
 
@@ -359,33 +500,29 @@ final class ToffyTournamentCommand {
             sender.sendMessage("§cNo existe el torneo " + args[2] + ".");
             return;
         }
-        Location target = target(sender, args);
+        ToffyTournament tournament = found.get();
+        Location target = args.length > 3 && args[3].equalsIgnoreCase("lugar")
+            ? savedPlace(sender, tournament)
+            : target(sender, args);
         if (target == null) {
             return;
         }
-        ToffyTournament tournament = found.get();
-        int moved = 0;
-        int offline = 0;
-        int failed = 0;
-        for (UUID id : List.copyOf(tournament.participants().keySet())) {
-            Player player = module.server().getPlayer(id);
-            if (player == null) {
-                offline++;
-                continue;
-            }
-            boolean recorded = tournaments.recordDeparture(tournament.key(), id, ToffyModule.stored(player.getLocation()));
-            if (!module.teleportTo(player, target)) {
-                if (recorded) {
-                    tournaments.clearReturn(tournament.key(), id);
-                }
-                failed++;
-                continue;
-            }
-            moved++;
-            module.send(player, ToffyMessages.LLEVADO, tournament.key(), placeholders(tournament, player, target));
+        ToffyModule.Brought result = module.bringParticipants(tournaments, tournament, target);
+        sender.sendMessage(PREFIX + "§a" + result.moved() + " concursantes llevados§7, §e" + result.offline()
+            + " offline" + (result.failed() > 0 ? "§7, §c" + result.failed() + " no se pudieron mover" : "") + "§7.");
+    }
+
+    private Location savedPlace(CommandSender sender, ToffyTournament tournament) {
+        ToffyStoredLocation place = tournament.place();
+        if (place == null) {
+            sender.sendMessage("§cEl torneo no tiene lugar. Usa /toffy torneo lugar " + tournament.key());
+            return null;
         }
-        sender.sendMessage(PREFIX + "§a" + moved + " concursantes llevados§7, §e" + offline + " offline"
-            + (failed > 0 ? "§7, §c" + failed + " no se pudieron mover" : "") + "§7.");
+        Location target = module.savedLocation(place);
+        if (target == null) {
+            sender.sendMessage("§cEl mundo " + place.world() + " del lugar del torneo no esta cargado.");
+        }
+        return target;
     }
 
     private Location target(CommandSender sender, String[] args) {
@@ -393,11 +530,11 @@ final class ToffyTournamentCommand {
             if (sender instanceof Player player) {
                 return player.getLocation();
             }
-            sender.sendMessage("§cDesde consola usa /toffy tp concursantes <torneo> <x> <y> <z> [mundo].");
+            sender.sendMessage("§cDesde consola usa /toffy tp concursantes <torneo> lugar o <torneo> <x> <y> <z> [mundo].");
             return null;
         }
         if (args.length < 6) {
-            sender.sendMessage("§cUso: /toffy tp concursantes <torneo> [x y z [mundo]]");
+            sender.sendMessage("§cUso: /toffy tp concursantes <torneo> [lugar | x y z [mundo]]");
             return null;
         }
         double x;
@@ -504,8 +641,16 @@ final class ToffyTournamentCommand {
         String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
         if (args.length == 2) {
             options.addAll(tp ? TP_SUBCOMMANDS : TORNEO_SUBCOMMANDS);
-        } else if (tournaments != null && args.length == 3 && !sub.equals("crear") && !sub.equals("lista")) {
+        } else if (tournaments != null && args.length == 3 && !sub.equals("crear") && !sub.equals("lista")
+            && !sub.equals("programados")) {
             options.addAll(tournaments.keys());
+        } else if (tp && args.length == 4 && sub.equals("concursantes")) {
+            options.add("lugar");
+        } else if (tp && args.length == 4 && sub.equals("programar")) {
+            options.add("cancelar");
+            options.add(nextFiveMinutes(zone()));
+        } else if (!tp && args.length == 4 && sub.equals("lugar")) {
+            options.add("borrar");
         } else if (tournaments != null && args.length == 4 && !tp && sub.equals("sacar")) {
             tournaments.find(args[2]).ifPresent(tournament -> options.addAll(tournament.participants().values()));
         } else if (args.length == 4 && !tp && sub.equals("mensaje")) {
@@ -518,5 +663,15 @@ final class ToffyTournamentCommand {
         }
         String prefix = current.toLowerCase(Locale.ROOT);
         return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
+    }
+
+    /** The first HH:mm that is a multiple of five minutes after now, to suggest for {@code tp programar}. */
+    private static String nextFiveMinutes(ZoneId zone) {
+        ZonedDateTime next = ZonedDateTime.now(zone).truncatedTo(ChronoUnit.MINUTES).plusMinutes(1);
+        int remainder = next.getMinute() % 5;
+        if (remainder != 0) {
+            next = next.plusMinutes(5 - remainder);
+        }
+        return ToffyTournamentTime.hour(next.toInstant().toEpochMilli(), zone);
     }
 }

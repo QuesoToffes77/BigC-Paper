@@ -7,8 +7,8 @@ import java.util.Optional;
 /** Events that staff can start by hand. None of them is ever scheduled or started at random. */
 public enum ToffyEventType {
     LIFESTEAL("lifesteal", "Lifesteal", false, List.of("robavida")),
-    KOTH("koth", "King of the Hill", true, List.of("rey", "kingofthehill")),
-    TNT_TAG("tnttag", "TNT Tag", true, List.of("tnt", "tag")),
+    KOTH("koth", "King of the Hill", true, List.of("rey")),
+    TNT_TAG("tnttag", "TNT Tag", true, List.of("tnt")),
     SPLEEF("spleef", "Spleef Clásico", true, List.of("nieve"));
 
     private final String id;

@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.toffy;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Locale;
@@ -24,6 +25,10 @@ final class ToffyTournament {
     private final Map<String, String> messages = new LinkedHashMap<>();
     private final Map<UUID, ToffyStoredLocation> returns = new LinkedHashMap<>();
     private final Set<UUID> pending = new LinkedHashSet<>();
+    private ToffyStoredLocation place;
+    private Long scheduledAt;
+    /** Minutes-before warnings already sent (or passed) for the current schedule. Not saved. */
+    private final Set<Integer> announced = new HashSet<>();
 
     ToffyTournament(String key, String displayName) {
         this.key = key;
@@ -76,8 +81,36 @@ final class ToffyTournament {
         return Collections.unmodifiableSet(pending);
     }
 
+    /** Fixed destination of the scheduled teleport, or null when the tournament has none. */
+    ToffyStoredLocation place() {
+        return place;
+    }
+
+    /** Epoch millis of the scheduled teleport, or null when nothing is scheduled. */
+    Long scheduledAt() {
+        return scheduledAt;
+    }
+
+    boolean isAnnounced(int minutes) {
+        return announced.contains(minutes);
+    }
+
+    void markAnnounced(int minutes) {
+        announced.add(minutes);
+    }
+
     void setOpen(boolean open) {
         this.open = open;
+    }
+
+    void setPlace(ToffyStoredLocation place) {
+        this.place = place;
+    }
+
+    /** Sets or clears the schedule. Resets the warnings, so the caller marks the ones that already passed. */
+    void setScheduledAt(Long at) {
+        this.scheduledAt = at;
+        announced.clear();
     }
 
     void putParticipant(UUID id, String name) {
