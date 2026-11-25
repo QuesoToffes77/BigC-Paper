@@ -91,6 +91,41 @@ final class ForsakenRules {
         return Math.floorDiv(last, period) - Math.floorDiv(first - 1, period);
     }
 
+    /** Mod {@code raiseLeftArmProgress}/{@code raiseRightArmProgress} top out at 10 (the model blends by progress * 0.1). */
+    static final float ARM_RAISE_MAX = 10.0F;
+    /** Progress from which the port plays the raised-arm pose (it cannot blend by amount, see {@code Forsaken}). */
+    static final float ARM_RAISE_SHOWN = 5.0F;
+
+    /**
+     * Mod {@code isRaisingArm}: during the pickup and slash of that side (and the summon and ground smash, for both
+     * sides) except the last 5 ticks of the animation. The mod holds nothing up after the animation: the prey is
+     * released when it ends.
+     *
+     * @param anim the running animation (null when none)
+     */
+    static boolean raisingArm(Anim anim, int tick, boolean left) {
+        if (anim == null || tick > anim.duration - 5) {
+            return false;
+        }
+        if (left ? anim == Anim.LEFT_PICKUP || anim == Anim.LEFT_SLASH : anim == Anim.RIGHT_PICKUP || anim == Anim.RIGHT_SLASH) {
+            return true;
+        }
+        return anim == Anim.SUMMON || anim == Anim.GROUND_SMASH;
+    }
+
+    /** Mod arm progress after {@code ticks} ticks: up one a tick while raising (to 10), down one a tick otherwise (to 0). */
+    static float armProgress(float progress, boolean raising, int ticks) {
+        float result = progress;
+        for (int i = 0; i < ticks; i++) {
+            if (raising && result < ARM_RAISE_MAX) {
+                result += 1.0F;
+            } else if (!raising && result > 0.0F) {
+                result -= 1.0F;
+            }
+        }
+        return result;
+    }
+
     /** Mod {@code getHandPos}: where the hand holds the picked up mob, relative to the Forsaken, in its own frame (x to the side, z ahead). */
     static double[] handPos(int tick, boolean left) {
         double side = left ? 1.0 : -1.0;

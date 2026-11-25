@@ -24,7 +24,7 @@ class MagneticMobsTest {
         MagneticMobs.register(catalog);
         ModSpawnTables.all(CaveBiomeId.MAGNETIC_CAVES)
             .forEach(entry -> assertTrue(catalog.contains(entry.mobId()), entry.mobId()));
-        assertEquals(5, catalog.types().size());
+        assertEquals(6, catalog.types().size());
     }
 
     @Test

@@ -59,6 +59,12 @@ final class Forsaken extends ForlornMobs.Base {
     private int leapTicks;
     private boolean sonicCharge;
     private LivingEntity held;
+    /** Mod {@code raiseLeftArmProgress} and {@code raiseRightArmProgress} (0 to 10), and whether the pose plays now. */
+    private float raiseLeft;
+    private float raiseRight;
+    private boolean leftShown;
+    private boolean rightShown;
+    private String armBase = "";
     private int darkness;
     private int healTimer;
     private int destroyBlocksTick = 10;
@@ -169,6 +175,8 @@ final class Forsaken extends ForlornMobs.Base {
         goals.reset();
         held = null;
         anim = null;
+        raiseLeft = 0.0F;
+        raiseRight = 0.0F;
     }
 
     @Override
@@ -193,10 +201,41 @@ final class Forsaken extends ForlornMobs.Base {
         } else {
             animator.updateWhenMoving(entity, ctx, ticks, running ? "run" : null);
         }
+        raiseLeft = ForsakenRules.armProgress(raiseLeft, ForsakenRules.raisingArm(anim, atick, true), ticks);
+        raiseRight = ForsakenRules.armProgress(raiseRight, ForsakenRules.raisingArm(anim, atick, false), ticks);
+        syncArms(entity, ctx);
         if (anim != null && (atick += ticks) >= anim.duration) {
             anim = null;
             atick = 0;
         }
+    }
+
+    /**
+     * Mod model: the {@code raised_left_arm}/{@code raised_right_arm} poses blended by the arm progress. The port plays the
+     * sampled pose (full amount) as a layer over the base loop once the progress is half way, and stops it when it drops
+     * under that. Deviations: no blend by amount (the arm snaps instead of rising over 10 ticks), and the pose also holds
+     * the bones of the other arm, the tail and the head, so those stop following walk or run while it plays; with both
+     * arms raised (summon, ground smash) the later pose wins and only one arm is shown up. A base loop switch is layered
+     * over it, so the pose is played again after every switch.
+     */
+    private void syncArms(LivingEntity entity, ModMobContext ctx) {
+        String base = animator.current();
+        boolean replay = !base.equals(armBase);
+        armBase = base;
+        leftShown = syncArm(entity, ctx, "raised_left_arm", raiseLeft >= ForsakenRules.ARM_RAISE_SHOWN, leftShown, replay);
+        rightShown = syncArm(entity, ctx, "raised_right_arm", raiseRight >= ForsakenRules.ARM_RAISE_SHOWN, rightShown, replay);
+    }
+
+    private static boolean syncArm(LivingEntity entity, ModMobContext ctx, String name, boolean want, boolean on, boolean replay) {
+        if (want && (!on || replay)) {
+            ctx.model(entity.getUniqueId()).ifPresent(handle -> ctx.models().animate(handle, name));
+            return true;
+        }
+        if (!want && on) {
+            ctx.model(entity.getUniqueId()).ifPresent(handle -> ctx.models().stopAnimation(handle, name));
+            return false;
+        }
+        return on;
     }
 
     /** Mod {@code removeWhenFarAway(dist > 16384)}: gone once the nearest player is over 128 blocks away. */
