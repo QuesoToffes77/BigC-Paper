@@ -91,7 +91,7 @@ class VanillaRenderGoldenTest {
             assertFalse(variant.has("x") || variant.has("uvlock") || variant.has("weight"), key);
             checked++;
         }
-        assertEquals(128 - 63, checked, "every state that is not a module block");
+        assertEquals(128 - 64, checked, "every state that is not a module block");
     }
 
     @Test
@@ -121,7 +121,7 @@ class VanillaRenderGoldenTest {
             assertEquals(vanilla, drawn, "chorus plant " + state);
             checked++;
         }
-        assertEquals(64 - 22, checked);
+        assertEquals(64 - 23, checked);
     }
 
     private static String bit(Map<String, String> state, String name) {

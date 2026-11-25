@@ -287,8 +287,14 @@ public final class NoteBlockService {
     record LootDrop(String item, int min, int max) {
     }
 
-    /** Items a drop gives: guano layers drop one guano (or, with silk touch, one layer) per layer, as in the mod; a moth ball block one ball per ball. */
+    /**
+     * Items a drop gives: guano layers drop one guano (or, with silk touch, one layer) per layer, as in the mod; a moth ball block one ball per ball;
+     * a double frostmint two slabs.
+     */
     static int amount(ModBlockRegistry.Placed placed, LootDrop loot) {
+        if (placed.blockId().equals("frostmint") && placed.variant().equals("double")) {
+            return 2;
+        }
         if (placed.blockId().equals("guano_layer") || placed.blockId().equals("moth_ball")) {
             try {
                 return Integer.parseInt(placed.variant());

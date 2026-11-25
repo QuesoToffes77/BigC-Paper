@@ -193,6 +193,10 @@ public final class AlexsCavesModule implements PluginModule {
         content.addListener(mobs -> new AmberMonolith(mobs, bossBlocks));
         content.addListener(PrimordialTaming::new);
         content.addListener(PrimordialDrops::new);
+        BlockData cycadTip = palette.get("cycad");
+        BlockData cycadTrunk = palette.get("cycad", "trunk");
+        content.addListener(mobs -> new dev.linqfy.bigCasares.modules.alexscaves.primordial.PrimordialCycads(mobs, cycadTip,
+            cycadTrunk));
         content.addListener(PrimordialArmor::new);
         content.addListener(PrimordialSpear::new);
         BlockData fernThatch = palette.get("fern_thatch");
@@ -210,6 +214,9 @@ public final class AlexsCavesModule implements PluginModule {
         CandyFolk.register(content.mobs(), palette);
         CandyGumWorm.register(content.mobs());
         content.addListener(CandyItems::new);
+        BlockData[] frostmint = {palette.get("frostmint"), palette.get("frostmint", "top"), palette.get("frostmint", "double")};
+        content.addListener(mobs -> new dev.linqfy.bigCasares.modules.alexscaves.candy.CandyFrostmint(mobs, frostmint[0],
+            frostmint[1], frostmint[2]));
         content.addListener(CandyMobListener::new);
         dev.linqfy.bigCasares.modules.alexscaves.abyssal.AbyssalMobs.register(content.mobs(), palette.get("muck"),
             palette.get("abyssmarine"));

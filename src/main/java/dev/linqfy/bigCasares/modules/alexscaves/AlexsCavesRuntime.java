@@ -202,8 +202,12 @@ final class AlexsCavesRuntime {
     }
 
     /** Models drawn by the module without a mob type of their own. */
-    static final List<String> EXTRA_MODELS = List.of("alexscaves_gum_worm_segment", "alexscaves_gum_worm_segment_alt",
-        dev.linqfy.bigCasares.modules.alexscaves.toxic.MushroomCloud.MODEL);
+    static final List<String> EXTRA_MODELS = java.util.stream.Stream.of(
+            List.of("alexscaves_gum_worm_segment", "alexscaves_gum_worm_segment_alt",
+                dev.linqfy.bigCasares.modules.alexscaves.toxic.MushroomCloud.MODEL,
+                dev.linqfy.bigCasares.modules.alexscaves.toxic.ThrownWasteDrum.MODEL),
+            dev.linqfy.bigCasares.modules.alexscaves.primordial.EggModels.all())
+        .flatMap(List::stream).toList();
 
     private void installModels() {
         List<String> keys = java.util.stream.Stream.concat(

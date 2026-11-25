@@ -1,7 +1,7 @@
 {
   "variants": {
     "distance=1,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/thin_bone_upper"
+      "model": "alexscaves:block/thin_bone_lower"
     },
     "distance=1,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_blue_floating"
@@ -13,7 +13,7 @@
       "model": "alexscaves:block/geothermal_vent_medium"
     },
     "distance=2,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/abyssal_altar"
+      "model": "alexscaves:block/thin_bone"
     },
     "distance=2,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_blue_floating",
@@ -27,7 +27,7 @@
       "x": 180
     },
     "distance=3,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/abyssal_altar_active"
+      "model": "alexscaves:block/thin_bone_upper"
     },
     "distance=3,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_blue_floating",
@@ -41,7 +41,7 @@
       "model": "alexscaves:block/sulfur_bud_small"
     },
     "distance=4,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/copper_valve"
+      "model": "alexscaves:block/abyssal_altar"
     },
     "distance=4,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_blue_floating",
@@ -56,7 +56,7 @@
       "x": 90
     },
     "distance=5,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/moth_ball_1"
+      "model": "alexscaves:block/abyssal_altar_active"
     },
     "distance=5,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_blue_floating",
@@ -72,7 +72,7 @@
       "x": 270
     },
     "distance=6,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/moth_ball_2"
+      "model": "alexscaves:block/copper_valve"
     },
     "distance=6,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_blue"

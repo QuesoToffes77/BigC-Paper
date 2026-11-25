@@ -79,9 +79,9 @@ class BlockBaseTest {
         // Append-only: every note block index of the previous allocation is still used, by the same block.
         ModBlockRegistry registry = ModBlockRegistry.parse(Files.readString(Path.of("src/main/resources/alexscaves/blocks.yml")));
         assertEquals(new ModBlockRegistry.Placed("galena", "default"), registry.at(registry.state("galena", "default").orElseThrow()).orElseThrow());
-        assertEquals(63, registry.usedStates().stream().filter(s -> s.base() == BlockBase.TRIPWIRE).count());
-        assertEquals(22, registry.usedStates().stream().filter(s -> s.base() == BlockBase.CHORUS_PLANT).count());
-        assertEquals(85, registry.legacy().size(), "every moved variant and new plant keeps a note block state");
+        assertEquals(64, registry.usedStates().stream().filter(s -> s.base() == BlockBase.TRIPWIRE).count());
+        assertEquals(23, registry.usedStates().stream().filter(s -> s.base() == BlockBase.CHORUS_PLANT).count());
+        assertEquals(87, registry.legacy().size(), "every moved variant and new plant keeps a note block state");
     }
 
     @Test

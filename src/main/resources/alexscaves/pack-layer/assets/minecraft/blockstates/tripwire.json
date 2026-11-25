@@ -469,7 +469,7 @@
       "model": "alexscaves:block/licoroot_sprout"
     },
     "attached=true,disarmed=true,east=true,north=true,powered=true,south=true,west=true": {
-      "model": "minecraft:block/tripwire_attached_nsew"
+      "model": "alexscaves:block/cycad_trunk"
     }
   }
 }

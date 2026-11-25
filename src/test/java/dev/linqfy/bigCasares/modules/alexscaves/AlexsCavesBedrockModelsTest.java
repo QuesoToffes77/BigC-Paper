@@ -35,7 +35,7 @@ class AlexsCavesBedrockModelsTest {
                 models++;
             }
         }
-        assertEquals(48, models, "the 47 mob and part models plus the mushroom cloud");
+        assertEquals(68, models, "the 47 mob and part models, the mushroom cloud, the waste drum and the 19 egg models");
     }
 
     @Test

@@ -20,14 +20,6 @@
             "west": "false"
           },
           {
-            "down": "false",
-            "east": "true",
-            "north": "true",
-            "south": "true",
-            "up": "true",
-            "west": "true"
-          },
-          {
             "down": "true",
             "east": "false",
             "north": "true",
@@ -179,14 +171,6 @@
             "south": "false",
             "up": "true",
             "west": "false"
-          },
-          {
-            "down": "false",
-            "east": "true",
-            "north": "true",
-            "south": "true",
-            "up": "true",
-            "west": "true"
           },
           {
             "down": "true",
@@ -344,14 +328,6 @@
             "west": "false"
           },
           {
-            "down": "false",
-            "east": "true",
-            "north": "true",
-            "south": "true",
-            "up": "true",
-            "west": "true"
-          },
-          {
             "down": "true",
             "east": "false",
             "north": "false",
@@ -503,14 +479,6 @@
             "east": "false",
             "north": "false",
             "south": "false",
-            "up": "true",
-            "west": "true"
-          },
-          {
-            "down": "false",
-            "east": "true",
-            "north": "true",
-            "south": "true",
             "up": "true",
             "west": "true"
           },
@@ -684,14 +652,6 @@
             "south": "false",
             "up": "true",
             "west": "false"
-          },
-          {
-            "down": "false",
-            "east": "true",
-            "north": "true",
-            "south": "true",
-            "up": "true",
-            "west": "true"
           },
           {
             "down": "true",
@@ -2211,14 +2171,6 @@
             "south": "false",
             "up": "true",
             "west": "false"
-          },
-          {
-            "down": "false",
-            "east": "true",
-            "north": "true",
-            "south": "true",
-            "up": "true",
-            "west": "true"
           }
         ]
       },
@@ -2543,6 +2495,19 @@
       "apply": {
         "model": "alexscaves:block/bone_ribs_flipped",
         "y": 90
+      }
+    },
+    {
+      "when": {
+        "down": "false",
+        "east": "true",
+        "north": "true",
+        "south": "true",
+        "up": "true",
+        "west": "true"
+      },
+      "apply": {
+        "model": "alexscaves:block/cycad_top"
       }
     }
   ]

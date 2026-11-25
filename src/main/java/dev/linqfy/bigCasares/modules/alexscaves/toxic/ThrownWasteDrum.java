@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.alexscaves.toxic;
 
 import dev.linqfy.bigCasares.modules.alexscaves.core.damage.ModDamageTypes;
 import dev.linqfy.bigCasares.modules.alexscaves.core.mob.ModMobService;
+import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
+import dev.linqfy.bigCasares.modules.model.JavaModelHandle;
 import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -10,6 +12,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -26,9 +29,12 @@ import java.util.Set;
  * The drum a Brainiac throws (mod {@code ThrownWasteDrumEntity}): gravity 0.08, drag 0.9, 0.7 friction on the ground,
  * 2 acid damage to anything but a Brainiac while it still moves faster than 0.03 (and it slows them), and after 20
  * ticks on the ground it leaves acid until the 35th. A block display with its own motion, one task per drum, bounded
- * by {@link #MAX_AGE}; the acid needs {@code mobGriefing} and the block change goes through {@code EntityChangeBlockEvent}.
+ * by {@link #MAX_AGE}. The body is an invisible {@code Interaction} wearing the BetterModel drum {@value #MODEL}
+ * (baked from the mod's block model by {@code tools/alexscaves/block_model_to_bbmodel.py}), which is what Bedrock
+ * players see; with no BetterModel it falls back to a block display. The acid needs {@code mobGriefing} and the block change goes through {@code EntityChangeBlockEvent}.
  */
-final class ThrownWasteDrum extends BukkitRunnable {
+public final class ThrownWasteDrum extends BukkitRunnable {
+    public static final String MODEL = "alexscaves_waste_drum";
     static final int MAX_AGE = 200;
     static final int MAX_ACTIVE = 32;
     private static final int ACID_TICK = 20;
@@ -37,17 +43,22 @@ final class ThrownWasteDrum extends BukkitRunnable {
 
     private final ModMobService mobs;
     private final LivingEntity thrower;
-    private final BlockDisplay display;
+    private final Entity display;
+    private final JavaModelGateway models;
+    private final JavaModelHandle handle;
     private final Vector position;
     private final Vector velocity;
     private int age;
     private int onGroundFor;
     private Block acid;
 
-    private ThrownWasteDrum(ModMobService mobs, LivingEntity thrower, BlockDisplay display, Vector velocity) {
+    private ThrownWasteDrum(ModMobService mobs, LivingEntity thrower, Entity display, JavaModelHandle handle,
+                             Vector velocity) {
         this.mobs = mobs;
         this.thrower = thrower;
         this.display = display;
+        this.models = mobs.models();
+        this.handle = handle;
         this.position = display.getLocation().toVector();
         this.velocity = velocity;
     }
@@ -56,14 +67,30 @@ final class ThrownWasteDrum extends BukkitRunnable {
         if (ACTIVE.size() >= MAX_ACTIVE) {
             return;
         }
-        BlockDisplay display = at.getWorld().spawn(at, BlockDisplay.class, spawned -> {
-            spawned.setBlock(drum);
+        Interaction anchor = at.getWorld().spawn(at, Interaction.class, spawned -> {
+            spawned.setInteractionWidth(0.1F);
+            spawned.setInteractionHeight(0.1F);
+            spawned.setResponsive(false);
             spawned.setPersistent(false);
-            spawned.setTeleportDuration(1);
-            spawned.setTransformation(new Transformation(new Vector3f(-0.5f, 0f, -0.5f), new AxisAngle4f(),
-                new Vector3f(1f, 1f, 1f), new AxisAngle4f()));
         });
-        ThrownWasteDrum thrown = new ThrownWasteDrum(mobs, thrower, display, velocity);
+        JavaModelHandle handle = null;
+        try {
+            handle = mobs.models() == null ? null : mobs.models().attach(anchor, MODEL);
+        } catch (RuntimeException missing) {
+            // No BetterModel or no model: the drum is drawn as its block, as before.
+        }
+        Entity body = anchor;
+        if (handle == null) {
+            anchor.remove();
+            body = at.getWorld().spawn(at, BlockDisplay.class, spawned -> {
+                spawned.setBlock(drum);
+                spawned.setPersistent(false);
+                spawned.setTeleportDuration(1);
+                spawned.setTransformation(new Transformation(new Vector3f(-0.5f, 0f, -0.5f), new AxisAngle4f(),
+                    new Vector3f(1f, 1f, 1f), new AxisAngle4f()));
+            });
+        }
+        ThrownWasteDrum thrown = new ThrownWasteDrum(mobs, thrower, body, handle, velocity);
         ACTIVE.add(thrown);
         thrown.runTaskTimer(mobs.plugin(), 1L, 1L);
     }
@@ -169,6 +196,9 @@ final class ThrownWasteDrum extends BukkitRunnable {
             // The acid goes even if its chunk unloaded meanwhile (loading it here keeps it from staying as real water).
             if (acid != null && acid.getWorld().getBlockAt(acid.getX(), acid.getY(), acid.getZ()).getType() == Material.WATER) {
                 acid.getWorld().getBlockAt(acid.getX(), acid.getY(), acid.getZ()).setType(Material.AIR, false);
+            }
+            if (handle != null) {
+                models.close(handle);
             }
             display.remove();
             cancel();

@@ -15,8 +15,7 @@
       "model": "alexscaves:block/copper_valve"
     },
     "distance=2,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/bone_nodule",
-      "x": 180
+      "model": "alexscaves:block/frostmint_slab"
     },
     "distance=2,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/candy_cane_pole_west_true"
@@ -30,7 +29,7 @@
       "x": 180
     },
     "distance=3,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/bone_nodule"
+      "model": "alexscaves:block/frostmint_slab_top"
     },
     "distance=3,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/stripped_candy_cane_pole"
@@ -43,7 +42,7 @@
     },
     "distance=4,persistent=false,waterlogged=false": {
       "model": "alexscaves:block/bone_nodule",
-      "x": 90
+      "x": 180
     },
     "distance=4,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_red_floating",
@@ -58,9 +57,7 @@
       "x": 90
     },
     "distance=5,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/bone_nodule",
-      "x": 90,
-      "y": 180
+      "model": "alexscaves:block/bone_nodule"
     },
     "distance=5,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_red_floating"
@@ -75,8 +72,7 @@
     },
     "distance=6,persistent=false,waterlogged=false": {
       "model": "alexscaves:block/bone_nodule",
-      "x": 90,
-      "y": 270
+      "x": 90
     },
     "distance=6,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_red_floating",

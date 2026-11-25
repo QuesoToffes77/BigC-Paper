@@ -79,7 +79,7 @@ public final class ForlornItems implements Listener, Runnable, AutoCloseable {
         Map.entry("twilight_anemone", 0.0F), Map.entry("ping_pong_sponge", 0.0F), Map.entry("thornwood_branch", 0.0F),
         Map.entry("curly_fern", 0.0F), Map.entry("flytrap", 0.0F), Map.entry("fiddlehead", 0.0F), Map.entry("underweed", 0.0F),
         Map.entry("sweet_puff", 0.0F), Map.entry("sundrop", 0.0F), Map.entry("lollipop_bunch", 0.0F),
-        Map.entry("licoroot_sprout", 0.0F));
+        Map.entry("licoroot_sprout", 0.0F), Map.entry("cycad", 1.0F));
 
     private final ModMobService mobs;
     private final Map<BlockData, Float> moduleHardness = new HashMap<>();

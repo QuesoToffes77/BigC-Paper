@@ -3,7 +3,7 @@
     "distance=1,persistent=false,waterlogged=false": {
       "model": "alexscaves:block/bone_nodule",
       "x": 90,
-      "y": 90
+      "y": 180
     },
     "distance=1,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_red_floating",
@@ -19,8 +19,9 @@
       "x": 180
     },
     "distance=2,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/hollow_bone_horizontal",
-      "y": 90
+      "model": "alexscaves:block/bone_nodule",
+      "x": 90,
+      "y": 270
     },
     "distance=2,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_red_floating",
@@ -34,7 +35,9 @@
       "model": "alexscaves:block/azure_neodymium_node_0"
     },
     "distance=3,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/hollow_bone"
+      "model": "alexscaves:block/bone_nodule",
+      "x": 90,
+      "y": 90
     },
     "distance=3,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_red_floating",
@@ -50,7 +53,8 @@
       "x": 90
     },
     "distance=4,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/hollow_bone_horizontal"
+      "model": "alexscaves:block/hollow_bone_horizontal",
+      "y": 90
     },
     "distance=4,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_red"
@@ -64,8 +68,7 @@
       "x": 270
     },
     "distance=5,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/thin_bone_lower",
-      "y": 90
+      "model": "alexscaves:block/hollow_bone"
     },
     "distance=5,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_green_floating",
@@ -82,8 +85,7 @@
       "y": 270
     },
     "distance=6,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/thin_bone",
-      "y": 90
+      "model": "alexscaves:block/hollow_bone_horizontal"
     },
     "distance=6,persistent=false,waterlogged=true": {
       "model": "alexscaves:block/gummy_ring_green_floating"

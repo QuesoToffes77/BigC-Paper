@@ -588,20 +588,20 @@
     "minecraft:dried_kelp": [
       {
         "type": "definition",
-        "model": "alexscaves:pine_nuts",
-        "bedrock_identifier": "alexscaves:pine_nuts",
-        "display_name": "Piñones",
-        "bedrock_options": {
-          "icon": "alexscaves_pine_nuts"
-        }
-      },
-      {
-        "type": "definition",
         "model": "alexscaves:turron",
         "bedrock_identifier": "alexscaves:turron",
         "display_name": "Turrón",
         "bedrock_options": {
           "icon": "alexscaves_turron"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:pine_nuts",
+        "bedrock_identifier": "alexscaves:pine_nuts",
+        "display_name": "Piñones",
+        "bedrock_options": {
+          "icon": "alexscaves_pine_nuts"
         }
       }
     ],
@@ -2202,6 +2202,15 @@
       },
       {
         "type": "definition",
+        "model": "alexscaves:frostmint",
+        "bedrock_identifier": "alexscaves:frostmint",
+        "display_name": "Menta helada",
+        "bedrock_options": {
+          "icon": "alexscaves_frostmint"
+        }
+      },
+      {
+        "type": "definition",
         "model": "alexscaves:abyssmarine",
         "bedrock_identifier": "alexscaves:abyssmarine",
         "display_name": "Abismarina",
@@ -2603,6 +2612,15 @@
         "display_name": "Hierbajo subterráneo",
         "bedrock_options": {
           "icon": "alexscaves_underweed"
+        }
+      },
+      {
+        "type": "definition",
+        "model": "alexscaves:cycad",
+        "bedrock_identifier": "alexscaves:cycad",
+        "display_name": "Cícada",
+        "bedrock_options": {
+          "icon": "alexscaves_cycad"
         }
       },
       {
@@ -3039,15 +3057,6 @@
         "display_name": "Saco saciado",
         "bedrock_options": {
           "icon": "alexscaves_sack_of_sating"
-        }
-      },
-      {
-        "type": "definition",
-        "model": "alexscaves:cycad",
-        "bedrock_identifier": "alexscaves:cycad",
-        "display_name": "Cícada",
-        "bedrock_options": {
-          "icon": "alexscaves_cycad"
         }
       },
       {

@@ -5,6 +5,7 @@ import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.BowlFeature;
 import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.CaveBiomeId;
 import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.CaveChunk;
 import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.ChunkFeature;
+import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.FeatureShapes;
 import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.ModPlacement;
 import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.RuinsFeature;
 import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.SimplexNoise3D;
@@ -27,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SplittableRandom;
+import java.util.function.Predicate;
 
 /**
  * Decoration of the Candy Cavity, ported from the mod's features with their placed-feature numbers: ice cream
@@ -80,6 +82,8 @@ final class CandyDecorations {
         final BlockData[] smallPeppermint;
         final BlockData[] largePeppermint;
         final Map<String, BlockData> rockCandy = new HashMap<>();
+        final BlockData frostmintTop;
+        final BlockData frostmintDouble;
 
         Blocks(ModBlockPalette palette) {
             frosted = palette.get("block_of_frosted_chocolate");
@@ -138,6 +142,8 @@ final class CandyDecorations {
                 "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black"}) {
                 rockCandy.put(colour, palette.get("rock_candy_" + colour));
             }
+            frostmintTop = palette.get("frostmint", "top");
+            frostmintDouble = palette.get("frostmint", "double");
         }
 
         boolean isChocolate(BlockData data) {
@@ -177,6 +183,7 @@ final class CandyDecorations {
             StructureTemplates.load("big_lollipop_top").subList(0, 4), StructureTemplates.load("small_lollipop_top")));
         features.add(new LicorootTree(blocks));
         features.add(new FloatingGummyRing(blocks));
+        features.add(new CeilingFrostmint(blocks));
         // UNDERGROUND_ORES.
         features.add(new PeppermintPatch(blocks));
         // VEGETAL_DECORATION.
@@ -930,6 +937,151 @@ final class CandyDecorations {
 
         private static boolean soda(CaveChunk chunk, int x, int y, int z) {
             return chunk.blocks().getType(x, y, z) == Material.WATER && chunk.isBiome(x, y, z, BIOME);
+        }
+    }
+
+    /**
+     * Frostmint hanging from the ceilings over purple soda (mod {@code CeilingFrostmintFeature}, 2-8 tries per chunk
+     * from the lowest 160 blocks, scanned up through air to a ceiling): only where purple soda lies somewhere straight
+     * below. Three blobs of rock candy replace the cake layer and chocolate of the ceiling (cyan inside, white
+     * outside, a quarter of the blocks left alone), and up to four columns of frostmint hang from it, 3 to 6 blocks
+     * from one block above the ceiling block (so 1 to 4 blocks show), double slabs but for the last one, which is a
+     * top slab half of the time.
+     */
+    static final class CeilingFrostmint implements ChunkFeature {
+        private final Predicate<BlockData> softCeiling;
+        private final BlockData cyan;
+        private final BlockData white;
+        private final BlockData top;
+        private final BlockData doubleSlab;
+        private final Predicate<Material> sturdy;
+
+        CeilingFrostmint(Blocks b) {
+            this(data -> b.isCake(data) || b.isChocolate(data), b.rockCandy.get("cyan"), b.rockCandy.get("white"),
+                b.frostmintTop, b.frostmintDouble, type -> type.isSolid() && type.isOccluding());
+        }
+
+        CeilingFrostmint(Predicate<BlockData> softCeiling, BlockData cyan, BlockData white, BlockData top, BlockData doubleSlab,
+                         Predicate<Material> sturdy) {
+            this.softCeiling = softCeiling;
+            this.cyan = cyan;
+            this.white = white;
+            this.top = top;
+            this.doubleSlab = doubleSlab;
+            this.sturdy = sturdy;
+        }
+
+        @Override
+        public String id() {
+            return "candy_ceiling_frostmint";
+        }
+
+        @Override
+        public CaveBiomeId biome() {
+            return BIOME;
+        }
+
+        @Override
+        public void place(CaveChunk chunk) {
+            SplittableRandom random = chunk.random(id());
+            int count = ModPlacement.uniform(random, 2, 8);
+            for (int i = 0; i < count; i++) {
+                int y = ModPlacement.uniform(random, chunk.minY(), chunk.minY() + 160);
+                int x = chunk.minBlockX() + random.nextInt(16);
+                int z = chunk.minBlockZ() + random.nextInt(16);
+                if (!chunk.isBiome(x, y, z, BIOME)) {
+                    continue;
+                }
+                int ceiling = scanUp(chunk, x, y, z);
+                if (ceiling != Integer.MIN_VALUE && sodaBelow(chunk, x, ceiling, z)) {
+                    grow(chunk, x, ceiling, z, random);
+                }
+            }
+        }
+
+        /**
+         * {@code environment_scan} up (32 steps) through air, from a start that is air, to a block with a sturdy bottom
+         * face: that block's y, or MIN_VALUE.
+         */
+        private int scanUp(CaveChunk chunk, int x, int y, int z) {
+            CaveChunk.BlockSink blocks = chunk.blocks();
+            if (!blocks.isInRegion(x, y, z) || !airLike(blocks.getType(x, y, z))) {
+                return Integer.MIN_VALUE;
+            }
+            for (int step = 0; step < 32; step++) {
+                y++;
+                if (!blocks.isInRegion(x, y, z)) {
+                    return Integer.MIN_VALUE;
+                }
+                Material type = blocks.getType(x, y, z);
+                if (!airLike(type)) {
+                    return sturdy.test(type) ? y : Integer.MIN_VALUE;
+                }
+            }
+            return Integer.MIN_VALUE;
+        }
+
+        private static boolean airLike(Material type) {
+            return FeatureShapes.isAir(type.name()) || type == Material.LIGHT;
+        }
+
+        /** Purple soda (the biome's water) anywhere straight below, down to the bottom of the world. */
+        private boolean sodaBelow(CaveChunk chunk, int x, int top, int z) {
+            CaveChunk.BlockSink blocks = chunk.blocks();
+            for (int y = top; y > chunk.minY(); y--) {
+                if (blocks.isInRegion(x, y, z) && blocks.getType(x, y, z) == Material.WATER && chunk.isBiome(x, y, z, BIOME)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void grow(CaveChunk chunk, int x, int ceiling, int z, SplittableRandom random) {
+            CaveChunk.BlockSink blocks = chunk.blocks();
+            for (int blob = 0; blob < 3; blob++) {
+                int a = 1 + random.nextInt(2);
+                int b = 1 + random.nextInt(2);
+                int c = 1 + random.nextInt(2);
+                double radiusSquared = FrostmintRules.blobRadiusSquared(a, b, c);
+                for (int dx = -a; dx <= a; dx++) {
+                    for (int dy = -b; dy <= b; dy++) {
+                        for (int dz = -c; dz <= c; dz++) {
+                            double distance = dx * dx + dy * dy + dz * dz;
+                            if (distance > radiusSquared || random.nextFloat() >= 0.75F
+                                || !blocks.isInRegion(x + dx, ceiling + dy, z + dz)
+                                || !softCeiling.test(blocks.getBlockData(x + dx, ceiling + dy, z + dz))) {
+                                continue;
+                            }
+                            blocks.setBlock(x + dx, ceiling + dy, z + dz,
+                                FrostmintRules.cyanRockCandy(distance, radiusSquared) ? cyan : white);
+                        }
+                    }
+                }
+            }
+            int columns = random.nextInt(5);
+            for (int column = 0; column < columns; column++) {
+                int cx = x + random.nextInt(2) - 1;
+                int cz = z + random.nextInt(2) - 1;
+                int length = FrostmintRules.hangingLength(random.nextInt(4));
+                hang(blocks, cx, ceiling, cz, length, random.nextBoolean());
+            }
+        }
+
+        /**
+         * A column of double slabs from one block above the ceiling block down {@code length} more blocks, its last
+         * block a top slab when {@code topEnd}. Frostmint already there stays as it is; anything else is replaced.
+         */
+        void hang(CaveChunk.BlockSink blocks, int x, int ceiling, int z, int length, boolean topEnd) {
+            for (int i = 0; i <= length; i++) {
+                int y = ceiling + 1 - i;
+                if (!blocks.isInRegion(x, y, z)) {
+                    continue;
+                }
+                BlockData there = blocks.getBlockData(x, y, z);
+                if (!top.equals(there) && !doubleSlab.equals(there)) {
+                    blocks.setBlock(x, y, z, i == length && topEnd ? top : doubleSlab);
+                }
+            }
         }
     }
 

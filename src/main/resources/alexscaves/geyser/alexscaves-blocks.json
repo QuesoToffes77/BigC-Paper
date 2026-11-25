@@ -7354,7 +7354,7 @@
         },
         "instrument=iron_xylophone,note=2,powered=true": {
           "name": "alexscaves_copper_valve_default",
-          "display_name": "Copper valve",
+          "display_name": "Válvula de cobre",
           "material_instances": {
             "*": {
               "texture": "alexscaves_block_copper_valve",
@@ -10029,6 +10029,124 @@
             }
           }
         },
+        "instrument=xylophone,note=22,powered=true": {
+          "name": "alexscaves_frostmint_default",
+          "display_name": "Menta helada",
+          "geometry": "geometry.alexscaves_frostmint_default",
+          "material_instances": {
+            "alexscaves_block_frostmint": {
+              "texture": "alexscaves_block_frostmint",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            },
+            "alexscaves_block_frostmint_side": {
+              "texture": "alexscaves_block_frostmint_side",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            }
+          }
+        },
+        "instrument=xylophone,note=23,powered=false": {
+          "name": "alexscaves_frostmint_top",
+          "display_name": "Menta helada",
+          "geometry": "geometry.alexscaves_frostmint_top",
+          "material_instances": {
+            "alexscaves_block_frostmint": {
+              "texture": "alexscaves_block_frostmint",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            },
+            "alexscaves_block_frostmint_side": {
+              "texture": "alexscaves_block_frostmint_side",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            }
+          }
+        },
+        "instrument=xylophone,note=23,powered=true": {
+          "name": "alexscaves_frostmint_double",
+          "display_name": "Menta helada",
+          "material_instances": {
+            "down": {
+              "texture": "alexscaves_block_frostmint",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            },
+            "east": {
+              "texture": "alexscaves_block_frostmint_side",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            },
+            "north": {
+              "texture": "alexscaves_block_frostmint_side",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            },
+            "south": {
+              "texture": "alexscaves_block_frostmint_side",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            },
+            "up": {
+              "texture": "alexscaves_block_frostmint",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            },
+            "west": {
+              "texture": "alexscaves_block_frostmint_side",
+              "render_method": "opaque",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            }
+          }
+        },
+        "instrument=xylophone,note=24,powered=false": {
+          "name": "alexscaves_cycad_default_legacy",
+          "display_name": "Cícada",
+          "geometry": "geometry.alexscaves_cycad_default",
+          "material_instances": {
+            "alexscaves_block_cycad": {
+              "texture": "alexscaves_block_cycad",
+              "render_method": "alpha_test"
+            },
+            "alexscaves_block_cycad_leaf": {
+              "texture": "alexscaves_block_cycad_leaf",
+              "render_method": "alpha_test"
+            },
+            "alexscaves_block_cycad_trunk": {
+              "texture": "alexscaves_block_cycad_trunk",
+              "render_method": "alpha_test"
+            }
+          }
+        },
+        "instrument=xylophone,note=24,powered=true": {
+          "name": "alexscaves_cycad_trunk_legacy",
+          "display_name": "Cícada",
+          "geometry": "geometry.alexscaves_cycad_trunk",
+          "material_instances": {
+            "alexscaves_block_cycad": {
+              "texture": "alexscaves_block_cycad",
+              "render_method": "alpha_test",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            },
+            "alexscaves_block_cycad_trunk": {
+              "texture": "alexscaves_block_cycad_trunk",
+              "render_method": "alpha_test",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            }
+          }
+        },
         "instrument=xylophone,note=3,powered=false": {
           "name": "alexscaves_primal_magma_boss",
           "display_name": "Magma primigenio",
@@ -11111,6 +11229,25 @@
               "render_method": "alpha_test"
             }
           }
+        },
+        "attached=true,disarmed=true,east=true,north=true,powered=true,south=true,west=true": {
+          "name": "alexscaves_cycad_trunk",
+          "display_name": "Cícada",
+          "geometry": "geometry.alexscaves_cycad_trunk",
+          "material_instances": {
+            "alexscaves_block_cycad": {
+              "texture": "alexscaves_block_cycad",
+              "render_method": "alpha_test",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            },
+            "alexscaves_block_cycad_trunk": {
+              "texture": "alexscaves_block_cycad_trunk",
+              "render_method": "alpha_test",
+              "face_dimming": true,
+              "ambient_occlusion": true
+            }
+          }
         }
       }
     },
@@ -11509,6 +11646,25 @@
               "render_method": "alpha_test",
               "face_dimming": true,
               "ambient_occlusion": true
+            }
+          }
+        },
+        "down=false,east=true,north=true,south=true,up=true,west=true": {
+          "name": "alexscaves_cycad_default",
+          "display_name": "Cícada",
+          "geometry": "geometry.alexscaves_cycad_default",
+          "material_instances": {
+            "alexscaves_block_cycad": {
+              "texture": "alexscaves_block_cycad",
+              "render_method": "alpha_test"
+            },
+            "alexscaves_block_cycad_leaf": {
+              "texture": "alexscaves_block_cycad_leaf",
+              "render_method": "alpha_test"
+            },
+            "alexscaves_block_cycad_trunk": {
+              "texture": "alexscaves_block_cycad_trunk",
+              "render_method": "alpha_test"
             }
           }
         }

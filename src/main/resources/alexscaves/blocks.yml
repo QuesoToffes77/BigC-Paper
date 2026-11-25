@@ -141,6 +141,9 @@ coprolith_coal_ore:
 curly_fern:
   default: tripwire 118 legacy 463
   upper: tripwire 119 legacy 464
+cycad:
+  default: chorus_plant 31 legacy 498
+  trunk: tripwire 127 legacy 499
 dough_block:
   default: 712
 dusk_anemone:
@@ -176,6 +179,10 @@ frosted_gingerbread_block:
   default: 716
 frosted_gingerbread_bricks:
   default: 717
+frostmint:
+  default: 495
+  top: 496
+  double: 497
 galena:
   default: 50
 galena_bricks:

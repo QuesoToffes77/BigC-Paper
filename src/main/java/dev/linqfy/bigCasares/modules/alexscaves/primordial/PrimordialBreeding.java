@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.alexscaves.primordial;
 
 import dev.linqfy.bigCasares.modules.alexscaves.core.mob.ModMobService;
 import dev.linqfy.bigCasares.modules.alexscaves.core.mob.ModMobType;
+import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
+import dev.linqfy.bigCasares.modules.model.JavaModelHandle;
 import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -43,6 +45,7 @@ import org.joml.Vector3f;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -55,8 +58,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * <ul>
  *   <li>Feeding its breeding food (see {@link TamingRules#breedingFood}) puts an adult in love for
  *       30 s. Two in love of the same kind within 8 blocks lay eggs and rest 5 minutes.</li>
- *   <li>Eggs are placed on top of a block. The mod's egg block is drawn as an item display, with
- *       an interaction box to pick it back up.</li>
+ *   <li>Eggs are placed on top of a block. The egg is an item display that holds the data (kind, hatch stage, link
+ *       to its box; eggs placed before the models existed are the same) and an interaction box to pick it back up.
+ *       What players see is the BetterModel egg of the mod's block model ({@link EggModels}), attached to the box and
+ *       swapped as the egg cracks; the item display is hidden once the model is up, and stays visible if it cannot be.</li>
  *   <li>Eggs hatch in 3 stages at the mod's random-tick pace, twice as fast on fern thatch. The
  *       baby is half size for 20 minutes; Subterranodon, Vallumraptor and Tremorsaurus babies are
  *       tamed to the nearest player within 10 blocks.</li>
@@ -78,6 +83,7 @@ public final class PrimordialBreeding implements Listener, Runnable {
     private final NamespacedKey linkKey;
     private final Map<UUID, Long> inLove = new HashMap<>();
     private final Set<UUID> eggs = new HashSet<>();
+    private final Map<UUID, ShownEgg> shown = new HashMap<>();
     private long tick;
 
     public PrimordialBreeding(ModMobService mobs, BlockData fernThatch) {
@@ -245,10 +251,92 @@ public final class PrimordialBreeding implements Listener, Runnable {
         });
         display.getPersistentDataContainer().set(linkKey, PersistentDataType.STRING, box.getUniqueId().toString());
         eggs.add(display.getUniqueId());
+        showModel(display);
         if (event.getPlayer().getGameMode() != GameMode.CREATIVE) {
             held.subtract();
         }
         above.getWorld().playSound(center, Sound.ENTITY_TURTLE_LAY_EGG, 0.8f, 1.2f);
+    }
+
+    // --- Egg models -------------------------------------------------------------------------------
+
+    /** What an egg's model is attached to and which stage it shows. */
+    private record ShownEgg(UUID box, int stage, JavaModelHandle handle) {
+    }
+
+    /**
+     * Makes sure the egg wears the model of its current stage on its box. Idempotent; leaves the item display visible
+     * when there is no BetterModel, no model or no box.
+     */
+    private void showModel(ItemDisplay egg) {
+        JavaModelGateway models = mobs.models();
+        PersistentDataContainer data = egg.getPersistentDataContainer();
+        String mobId = data.get(eggKey, PersistentDataType.STRING);
+        String link = data.get(linkKey, PersistentDataType.STRING);
+        if (mobId == null) {
+            return;
+        }
+        if (models == null || link == null || !(linked(link) instanceof Interaction box) || !box.isValid()) {
+            showItem(egg, mobId);
+            return;
+        }
+        int stage = data.getOrDefault(stageKey, PersistentDataType.INTEGER, 0);
+        Optional<String> modelKey = EggModels.key(mobId, stage);
+        if (modelKey.isEmpty()) {
+            showItem(egg, mobId);
+            return;
+        }
+        ShownEgg current = shown.get(egg.getUniqueId());
+        if (current != null && current.stage() == stage && current.box().equals(box.getUniqueId())) {
+            return;
+        }
+        releaseModel(egg.getUniqueId());
+        try {
+            JavaModelHandle handle = models.attach(box, modelKey.get());
+            if (Tremorzilla.ID.equals(mobId)) {
+                // Mod: the second element of the egg's model is a glow layer, drawn at full brightness.
+                models.brighten(handle, 15, 15, List.of("glow"));
+            }
+            shown.put(egg.getUniqueId(), new ShownEgg(box.getUniqueId(), stage, handle));
+        } catch (RuntimeException missing) {
+            showItem(egg, mobId);
+            return;
+        }
+        // The item stays as the egg's data (and what is given back when it is picked up), but is no longer drawn.
+        egg.setViewRange(0.0f);
+        egg.setTransformation(new Transformation(new Vector3f(), new AxisAngle4f(), new Vector3f(0.001f, 0.001f, 0.001f),
+            new AxisAngle4f()));
+    }
+
+    /** Draws the egg as its item again (an egg hidden by an earlier model, now without one). */
+    private static void showItem(ItemDisplay egg, String mobId) {
+        if (egg.getViewRange() > 0.0f) {
+            return;
+        }
+        float eggScale = Atlatitan.ATLATITAN.id().equals(mobId) ? 2.0f : 1.2f;
+        egg.setViewRange(1.0f);
+        egg.setTransformation(new Transformation(new Vector3f(), new AxisAngle4f(),
+            new Vector3f(eggScale, eggScale, eggScale), new AxisAngle4f()));
+    }
+
+    private void releaseModel(UUID egg) {
+        ShownEgg gone = shown.remove(egg);
+        JavaModelGateway models = mobs.models();
+        if (gone != null && models != null) {
+            models.close(gone.handle());
+        }
+    }
+
+    /** Closes the models of eggs that were removed or whose chunk unloaded; they come back through {@link #showModel}. */
+    private void dropStaleModels() {
+        for (UUID id : List.copyOf(shown.keySet())) {
+            ShownEgg entry = shown.get(id);
+            Entity egg = mobs.plugin().getServer().getEntity(id);
+            Entity box = entry == null ? null : mobs.plugin().getServer().getEntity(entry.box());
+            if (egg == null || !egg.isValid() || box == null || !box.isValid()) {
+                releaseModel(id);
+            }
+        }
     }
 
     private boolean hasEgg(Block block) {
@@ -300,6 +388,7 @@ public final class PrimordialBreeding implements Listener, Runnable {
                 box.getWorld().dropItemNaturally(box.getLocation().add(0, 0.3, 0), drop);
             }
             eggs.remove(egg.getUniqueId());
+            releaseModel(egg.getUniqueId());
             egg.remove();
         }
         box.remove();
@@ -323,6 +412,7 @@ public final class PrimordialBreeding implements Listener, Runnable {
     }
 
     private void tickEggs() {
+        dropStaleModels();
         Iterator<UUID> iterator = eggs.iterator();
         while (iterator.hasNext()) {
             Entity entity = mobs.plugin().getServer().getEntity(iterator.next());
@@ -335,6 +425,8 @@ public final class PrimordialBreeding implements Listener, Runnable {
                 iterator.remove();
                 continue;
             }
+            // Eggs loaded from disk (or whose model was lost) get their model here.
+            showModel(egg);
             if (Tremorzilla.ID.equals(egg.getPersistentDataContainer().get(eggKey, PersistentDataType.STRING))) {
                 // Mod TremorzillaEggBlock.canHatchAt: never by itself, only in a nuclear explosion.
                 continue;
@@ -352,6 +444,7 @@ public final class PrimordialBreeding implements Listener, Runnable {
             int stage = data.getOrDefault(stageKey, PersistentDataType.INTEGER, 0) + 1;
             if (stage < TamingRules.HATCH_STAGES) {
                 data.set(stageKey, PersistentDataType.INTEGER, stage);
+                showModel(egg);
                 egg.getWorld().playSound(egg.getLocation(), Sound.BLOCK_SNIFFER_EGG_CRACK, 0.7f, 1.0f);
                 continue;
             }
@@ -372,6 +465,7 @@ public final class PrimordialBreeding implements Listener, Runnable {
         if (link != null && linked(link) instanceof Interaction box) {
             box.remove();
         }
+        releaseModel(egg.getUniqueId());
         egg.remove();
         egg.getWorld().playSound(at, Sound.BLOCK_SNIFFER_EGG_HATCH, 0.8f, 1.0f);
         if (mobId == null) {

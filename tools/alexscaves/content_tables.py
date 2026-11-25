@@ -120,8 +120,8 @@ BLOCKS = {
     "hazmat_warning_block": {"variants": dict(AXIS), "bedrock_texture": "block/hazmat_warning_block"},
     "hazmat_skull_block": {"variants": dict(AXIS), "bedrock_texture": "block/hazmat_skull_block"},
     # Candy Cavity (parte 1: terreno, rocas de caramelo, dulces de las decoraciones y estructuras). Las plantas del
-    # mod sin colisión (sundrop, sweet puff, brotes, lollipop bunch, frostmint, sprinkles, lianas de licoroot) quedan
-    # para cuando haya bloques sin colisión.
+    # mod sin colisión (sundrop, sweet puff, brotes, lollipop bunch, sprinkles, lianas de licoroot) quedan
+    # para cuando haya bloques sin colisión. La menta helada (frostmint) es una losa que cae: ver CandyFrostmint.
     "block_of_chocolate": {"variants": dict(AXIS), "recipe": None, "bedrock_texture": "block/block_of_chocolate"},
     "block_of_frosted_chocolate": {"variants": {"default": ""}, "recipe": None},
     "block_of_chocolate_frosting": {"variants": {"default": ""}, "recipe": None},
@@ -178,6 +178,11 @@ BLOCKS = {
     "rock_candy_green": {"variants": {"default": ""}, "recipe": None},
     "rock_candy_red": {"variants": {"default": ""}, "recipe": None},
     "rock_candy_black": {"variants": {"default": ""}, "recipe": None},
+    # Menta helada (losa del mod, cae como la arena). Los estados libres de chorus plant se acabaron (los pidió la cícada):
+    # las tres variantes quedan en note block, como los demás bloques que no son cubos (hueso fino, menta). La receta del
+    # mod pide polvo de menta, que el módulo no tiene como ítem: sin receta.
+    "frostmint": {"variants": {"default": "type=bottom", "top": "type=top", "double": "type=double"},
+                  "recipe": None, "bedrock_texture": "block/frostmint"},
     # Abyssal Chasm (Hito 5, parte 1): roca de la fosa, barro del fondo y la vida del fondo marino.
     "abyssmarine": {"variants": {"default": ""}, "recipe": None},
     "muck": {"variants": {"default": ""}, "recipe": None},
@@ -245,6 +250,10 @@ BLOCKS = {
     "flytrap": {"base": "tripwire", "variants": {"default": "open=false"}, "recipe": None, "item": False},
     "fiddlehead": {"base": "tripwire", "variants": {"default": ""}, "recipe": None, "item": False},
     "underweed": {"base": "tripwire", "variants": {"default": ""}, "recipe": None},
+    # Cícada (sin colisión en el mod). Solo quedaba un estado de tripwire y uno de chorus plant: el tronco (top=false,
+    # sin colisión) toma el de tripwire; la punta (top=true, la que sale al colocarla suelta) el de chorus plant.
+    "cycad": {"base": {"*": "chorus_plant", "trunk": "tripwire"}, "variants": {"default": "top=true", "trunk": "top=false"},
+              "recipe": None, "bedrock_texture": "block/cycad"},
     "sweet_puff": {"base": "tripwire", "variants": {"default": ""}, "recipe": None, "item": False},
     "sundrop": {"base": "tripwire", "variants": {"default": "facing=up"}, "recipe": None},
     "lollipop_bunch": {"base": "tripwire", "variants": {"default": ""}, "recipe": None},
@@ -380,7 +389,6 @@ ITEMS = {
                          "armor": ("CHEST", 3.0, 0.0, "primordial")},
     "primordial_pants": {"material": "LEATHER_LEGGINGS", "stack": 1, "max_damage": 300,
                          "armor": ("LEGS", 4.0, 0.0, "primordial")},
-    "cycad": {"material": "PAPER", "recipe": None, "block_item": True, "bedrock_texture": "block/cycad"},
     # Abyssal Chasm (parte 3: drops de las criaturas marinas). Lo crudo va sobre remolacha (ver dinosaur_chop); el
     # cerdo de mar da hambre al comerlo (AbyssalItems). La nieve marina es un bloque en el mod; acá es un ítem.
     "lanternfish": {"material": "BEETROOT", "food": (1, 0.175), "recipe": None},

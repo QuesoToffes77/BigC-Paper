@@ -61,8 +61,8 @@ class ModBlockRegistryModeTest {
             assertEquals(on.variants(id), off.variants(id), id);
         }
         assertTrue(off.usedStates().stream().allMatch(state -> state.base() == BlockBase.NOTE_BLOCK));
-        assertEquals(on.usedStates().size() - 85, off.usedStates().size(),
-            "the 76 moved variants and the 9 plant states share one state each");
+        assertEquals(on.usedStates().size() - 87, off.usedStates().size(),
+            "the 76 moved variants and the 11 plant states share one state each");
         on.legacy().forEach((old, current) -> assertEquals(old, off.state(on.at(old).orElseThrow().blockId(),
             on.at(old).orElseThrow().variant()).orElseThrow()));
     }

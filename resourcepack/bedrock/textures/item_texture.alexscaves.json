@@ -531,6 +531,9 @@
     "alexscaves_frosted_gingerbread_wall": {
       "textures": "textures/alexscaves/block/frosted_gingerbread_block"
     },
+    "alexscaves_frostmint": {
+      "textures": "textures/alexscaves/block/frostmint"
+    },
     "alexscaves_galena": {
       "textures": "textures/alexscaves/block/galena"
     },

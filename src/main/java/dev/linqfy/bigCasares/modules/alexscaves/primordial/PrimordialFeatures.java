@@ -18,10 +18,12 @@ import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.SeededValueNoise;
 import dev.linqfy.bigCasares.modules.alexscaves.core.worldgen.SimplexNoise3D;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.block.data.BlockData;
 
 import java.util.List;
 import java.util.SplittableRandom;
+import java.util.function.Predicate;
 
 /**
  * Terrain of the Primordial Caves, after the mod's surface rules and features: an
@@ -72,6 +74,8 @@ public final class PrimordialFeatures {
             // Mod flytrap: random_patch of 40 tries (spread 7 / 3), 5-9 per chunk, 1 chunk in 2.
             features.add(new PlantPatchFeature("primordial_flytrap", BIOME, 2, 5, 9, 40, 7, 3,
                 List.of(palette.get("flytrap"))));
+            // Mod cycad: the stack's tip is the default variant, the rest of the stack is the trunk.
+            features.add(new Cycads(palette.get("cycad"), palette.get("cycad", "trunk")));
         }
         return List.copyOf(features);
     }
@@ -886,6 +890,67 @@ public final class PrimordialFeatures {
                             blocks.setBlock(x, y + 2, z, curly ? curlyFernTop : vanilla.largeFernUpper);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Mod {@code cycad} (placed feature 15-30 tries per chunk, {@code CycadFeature}): a spot at a random height scanned
+     * down (32 steps) to the first block that is not air. When the block under that one is dirt, a stack of cycads is
+     * built from that block up, {@code ceil(random * 2.5)} blocks above it, replacing only air and soft plants; the
+     * last position is the tip. The scanned block itself is rock or grass, so in practice the stack starts on it.
+     */
+    static final class Cycads implements ChunkFeature {
+        private final BlockData tip;
+        private final BlockData trunk;
+        private final Predicate<Material> dirt;
+
+        Cycads(BlockData tip, BlockData trunk) {
+            this(tip, trunk, Tag.DIRT::isTagged);
+        }
+
+        Cycads(BlockData tip, BlockData trunk, Predicate<Material> dirt) {
+            this.tip = tip;
+            this.trunk = trunk;
+            this.dirt = dirt;
+        }
+
+        @Override
+        public String id() {
+            return "primordial_cycad";
+        }
+
+        @Override
+        public CaveBiomeId biome() {
+            return BIOME;
+        }
+
+        @Override
+        public void place(CaveChunk chunk) {
+            SplittableRandom random = chunk.random(id());
+            int tries = ModPlacement.uniform(random, 15, 30);
+            for (int i = 0; i < tries; i++) {
+                int x = chunk.minBlockX() + random.nextInt(16);
+                int z = chunk.minBlockZ() + random.nextInt(16);
+                int y = ModPlacement.uniform(random, chunk.minY(), ModPlacement.TOP);
+                int ground = ModPlacement.scanDown(chunk, x, y, z, 32,
+                    material -> !FeatureShapes.isAir(material.name()) && material != Material.LIGHT);
+                if (ground != Integer.MIN_VALUE && chunk.isBiome(x, ground, z, BIOME)) {
+                    plant(chunk, x, ground, z, (float) random.nextDouble());
+                }
+            }
+        }
+
+        void plant(CaveChunk chunk, int x, int ground, int z, float roll) {
+            CaveChunk.BlockSink blocks = chunk.blocks();
+            if (!blocks.isInRegion(x, ground - 1, z) || !dirt.test(blocks.getType(x, ground - 1, z))) {
+                return;
+            }
+            int height = CycadRules.generatedHeight(roll);
+            for (int i = 0; i <= height; i++) {
+                if (blocks.isInRegion(x, ground + i, z) && replaceable(blocks.getType(x, ground + i, z).name())) {
+                    blocks.setBlock(x, ground + i, z, i == height ? tip : trunk);
                 }
             }
         }

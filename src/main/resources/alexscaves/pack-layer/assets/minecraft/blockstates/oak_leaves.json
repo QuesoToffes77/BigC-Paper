@@ -1,7 +1,7 @@
 {
   "variants": {
     "distance=1,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/moth_ball_3"
+      "model": "alexscaves:block/moth_ball_1"
     },
     "distance=1,persistent=false,waterlogged=true": {
       "model": "minecraft:block/oak_leaves"
@@ -15,7 +15,7 @@
       "x": 180
     },
     "distance=2,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/moth_ball_4"
+      "model": "alexscaves:block/moth_ball_2"
     },
     "distance=2,persistent=false,waterlogged=true": {
       "model": "minecraft:block/oak_leaves"
@@ -28,7 +28,7 @@
       "model": "alexscaves:block/sulfur_bud_medium"
     },
     "distance=3,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/moth_ball_5"
+      "model": "alexscaves:block/moth_ball_3"
     },
     "distance=3,persistent=false,waterlogged=true": {
       "model": "minecraft:block/oak_leaves"
@@ -42,7 +42,7 @@
       "x": 90
     },
     "distance=4,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/forsaken_idol"
+      "model": "alexscaves:block/moth_ball_4"
     },
     "distance=4,persistent=false,waterlogged=true": {
       "model": "minecraft:block/oak_leaves"
@@ -56,8 +56,7 @@
       "x": 270
     },
     "distance=5,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/forsaken_idol",
-      "y": 180
+      "model": "alexscaves:block/moth_ball_5"
     },
     "distance=5,persistent=false,waterlogged=true": {
       "model": "minecraft:block/oak_leaves"
@@ -72,8 +71,7 @@
       "y": 270
     },
     "distance=6,persistent=false,waterlogged=false": {
-      "model": "alexscaves:block/forsaken_idol",
-      "y": 270
+      "model": "alexscaves:block/forsaken_idol"
     },
     "distance=6,persistent=false,waterlogged=true": {
       "model": "minecraft:block/oak_leaves"

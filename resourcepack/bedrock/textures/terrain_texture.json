@@ -169,6 +169,15 @@
     "alexscaves_block_curly_fern_top": {
       "textures": "textures/alexscaves/block/curly_fern_top"
     },
+    "alexscaves_block_cycad": {
+      "textures": "textures/alexscaves/block/cycad"
+    },
+    "alexscaves_block_cycad_leaf": {
+      "textures": "textures/alexscaves/block/cycad_leaf"
+    },
+    "alexscaves_block_cycad_trunk": {
+      "textures": "textures/alexscaves/block/cycad_trunk"
+    },
     "alexscaves_block_dough_block": {
       "textures": "textures/alexscaves/block/dough_block"
     },
@@ -261,6 +270,12 @@
     },
     "alexscaves_block_frosting": {
       "textures": "textures/alexscaves/block/frosting"
+    },
+    "alexscaves_block_frostmint": {
+      "textures": "textures/alexscaves/block/frostmint"
+    },
+    "alexscaves_block_frostmint_side": {
+      "textures": "textures/alexscaves/block/frostmint_side"
     },
     "alexscaves_block_galena": {
       "textures": "textures/alexscaves/block/galena"

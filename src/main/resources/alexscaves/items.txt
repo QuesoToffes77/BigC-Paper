@@ -137,6 +137,7 @@ ac_frosted_gingerbread_door
 ac_frosted_gingerbread_slab
 ac_frosted_gingerbread_stairs
 ac_frosted_gingerbread_wall
+ac_frostmint
 ac_galena
 ac_galena_brick_slab
 ac_galena_brick_stairs

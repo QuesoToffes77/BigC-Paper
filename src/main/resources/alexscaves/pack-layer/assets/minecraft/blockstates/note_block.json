@@ -1104,6 +1104,15 @@
     "instrument=didgeridoo,note=23,powered=true": {
       "model": "alexscaves:block/rock_candy_black"
     },
+    "instrument=xylophone,note=22,powered=true": {
+      "model": "alexscaves:block/frostmint_slab"
+    },
+    "instrument=xylophone,note=23,powered=false": {
+      "model": "alexscaves:block/frostmint_slab_top"
+    },
+    "instrument=xylophone,note=23,powered=true": {
+      "model": "alexscaves:block/frostmint"
+    },
     "instrument=cow_bell,note=6,powered=false": {
       "model": "alexscaves:block/abyssmarine"
     },
@@ -1661,6 +1670,12 @@
     },
     "instrument=xylophone,note=8,powered=true": {
       "model": "alexscaves:block/underweed"
+    },
+    "instrument=xylophone,note=24,powered=false": {
+      "model": "alexscaves:block/cycad_top"
+    },
+    "instrument=xylophone,note=24,powered=true": {
+      "model": "alexscaves:block/cycad_trunk"
     },
     "instrument=xylophone,note=9,powered=false": {
       "model": "alexscaves:block/sweet_puff"
@@ -2686,21 +2701,6 @@
       "model": "minecraft:block/note_block"
     },
     "instrument=guitar,note=24,powered=true": {
-      "model": "minecraft:block/note_block"
-    },
-    "instrument=xylophone,note=22,powered=true": {
-      "model": "minecraft:block/note_block"
-    },
-    "instrument=xylophone,note=23,powered=false": {
-      "model": "minecraft:block/note_block"
-    },
-    "instrument=xylophone,note=23,powered=true": {
-      "model": "minecraft:block/note_block"
-    },
-    "instrument=xylophone,note=24,powered=false": {
-      "model": "minecraft:block/note_block"
-    },
-    "instrument=xylophone,note=24,powered=true": {
       "model": "minecraft:block/note_block"
     },
     "instrument=banjo,note=10,powered=true": {
