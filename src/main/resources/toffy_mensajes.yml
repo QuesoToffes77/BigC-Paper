@@ -92,3 +92,18 @@ evento-cancelado: "&c{evento} se cancelo. &7{motivo}"
 
 # Anuncio para TODO el servidor al terminar el evento. {detalle} es el motivo del final (por ejemplo, se acabo el tiempo).
 evento-fin: "&e{evento} &7termino. {detalle}"
+
+# ---------------------------------------------------------------------------------------------------
+#  Rango de nivel, minimo de anotados y eventos programados.
+# ---------------------------------------------------------------------------------------------------
+
+# Se lo dice al jugador que no entra (o que no se lleva) porque su nivel esta fuera del rango del torneo.
+# {nivel} es su nivel; {min} y {max} son el rango del torneo.
+nivel-fuera-de-rango: "&cNo podes entrar al torneo &e{torneo}&c: tu nivel es &e{nivel}&c y el torneo pide entre &e{min}&c y &e{max}&c."
+
+# Anuncio para TODO el servidor cuando se cancela un teletransporte o evento programado por falta de anotados
+# conectados. {cantidad} es cuantos hay y {minimo} lo que pide el torneo.
+minimo-no-alcanzado: "&cSe cancelo el programado del torneo &e{torneo}&c: hay &e{cantidad}&c anotados conectados y el minimo es &e{minimo}&c."
+
+# Aviso a los anotados conectados, 5 y 1 minuto antes de un evento programado. {evento} es el tipo de evento.
+evento-aviso: "&6El evento &e{evento}&6 del torneo &e{torneo}&6 empieza en &e{minutos} min&6."

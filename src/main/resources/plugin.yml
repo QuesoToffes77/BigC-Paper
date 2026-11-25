@@ -66,6 +66,10 @@ commands:
     description: Show your Toffy level (0-200) or another player's, list your commands (ayuda), preview the curve, reload files, manage tournaments and staff events
     usage: /<command> [nivel|ayuda|curva|reload|torneo|tp|evento]
     aliases: [ tcomp ]
+  evento:
+    description: Staff events from the Toffy module (same as /toffy evento); players join the lobby with unirse or leave with salir
+    usage: /<command> [iniciar|detener|tipos|estado|programar|unirse|salir]
+    aliases: [ eventos ]
   anotar:
     description: Sign up for a tournament, leave it, see which ones are open, or check the running staff event
     usage: /<command> [torneo | salir <torneo> | estado]
@@ -216,6 +220,8 @@ permissions:
     children:
       bigcasares.command.give: true
       bigcasares.command.give.others: true
+      bigcasares.events.admin: true
+      bigcasares.events.join: true
       bigcasares.missions.open: true
       bigcasares.missions.claim: true
       bigcasares.missions.admin: true
@@ -425,6 +431,18 @@ permissions:
   bigcasares.toffy.evento.admin:
     description: Start, stop and inspect staff events with /toffy evento; bypass event restrictions
     default: op
+
+  bigcasares.events.admin:
+    description: Staff events with /evento (same as /toffy evento)
+    default: op
+    children:
+      bigcasares.toffy.evento.admin: true
+
+  bigcasares.events.join:
+    description: Join the event in lobby with /evento unirse and leave it with /evento salir
+    default: true
+    children:
+      bigcasares.toffy.anotar: true
 
   bigcasares.toffy.admin:
     description: Reload the Toffy Complementaries files and preview the curve

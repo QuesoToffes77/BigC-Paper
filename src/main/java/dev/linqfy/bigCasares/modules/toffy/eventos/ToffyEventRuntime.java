@@ -283,6 +283,23 @@ final class ToffyEventRuntime implements Listener {
         }
     }
 
+    /** Whether a new event may start now (events enabled and none running). */
+    boolean startable() {
+        return settings.enabled() && session == null;
+    }
+
+    /** Tournament of the running event, if any. */
+    Optional<String> activeTournament() {
+        Session current = session;
+        return current == null ? Optional.empty() : Optional.of(current.tournament);
+    }
+
+    /** Tournament whose event is in its lobby (players may still join), if any. */
+    Optional<String> lobbyTournament() {
+        Session current = session;
+        return current == null || current.phase != Phase.LOBBY ? Optional.empty() : Optional.of(current.tournament);
+    }
+
     void stop(CommandSender sender) {
         Session current = session;
         if (current == null) {
@@ -374,7 +391,8 @@ final class ToffyEventRuntime implements Listener {
 
     /** Commands a participant may still use during an event: the sign-up command and /toffy with its alias. */
     static boolean allowedDuringEvent(String label) {
-        return label.equals("anotar") || label.equals("toffy") || label.equals("tcomp");
+        return label.equals("anotar") || label.equals("toffy") || label.equals("tcomp") || label.equals("evento")
+            || label.equals("eventos");
     }
 
     private void join(Session current, Player player) {
@@ -1541,7 +1559,7 @@ final class ToffyEventRuntime implements Listener {
 
     private void persistRewardEvidence(String key, EventRewardJournal.Pending evidence) {
         try {
-            java.nio.file.Path file = rewardJournal.record(evidence);
+            Path file = rewardJournal.record(evidence);
             rewardEvidenceToRetry.remove(key);
             plugin.getLogger().warning("[Eventos] Premio pendiente de revisión manual: " + file);
         } catch (IOException | RuntimeException failure) {

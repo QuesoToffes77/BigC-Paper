@@ -169,10 +169,10 @@ class ToffyTournamentScheduleTest {
     @Test
     void schedulesMoreThanFiveMinutesLateAreDroppedOnLoadWithAWarning() {
         ToffyTournament late = new ToffyTournament("tarde", "Tarde");
-        late.setPlace(PLACE);
+        late.setPlaces(List.of(PLACE));
         late.setScheduledAt(T0 - 6 * MINUTE);
         ToffyTournament almost = new ToffyTournament("casi", "Casi");
-        almost.setPlace(PLACE);
+        almost.setPlaces(List.of(PLACE));
         almost.setScheduledAt(T0 - 4 * MINUTE);
         FakeStorage saved = new FakeStorage();
 
@@ -188,7 +188,7 @@ class ToffyTournamentScheduleTest {
     @Test
     void aScheduleLoadedWithLessThanFiveMinutesLeftOnlyWarnsForTheRemainingMarks() {
         ToffyTournament copa = new ToffyTournament("copa", "Copa");
-        copa.setPlace(PLACE);
+        copa.setPlaces(List.of(PLACE));
         copa.setScheduledAt(T0 + 3 * MINUTE);
 
         ToffyTournamentService loaded = new ToffyTournamentService(new FakeStorage(), List.of(copa), clock,
@@ -207,7 +207,7 @@ class ToffyTournamentScheduleTest {
 
         service.markFired("copa");
 
-        assertEquals(PLACE, service.find("copa").orElseThrow().place());
+        assertEquals(List.of(PLACE), service.find("copa").orElseThrow().places());
         assertEquals(PLACE, service.savedLocation("copa", ANA).orElseThrow());
     }
 }

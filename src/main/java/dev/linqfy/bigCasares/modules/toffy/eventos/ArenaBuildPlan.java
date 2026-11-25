@@ -1,6 +1,7 @@
 package dev.linqfy.bigCasares.modules.toffy.eventos;
 
 import org.bukkit.Material;
+import java.util.NoSuchElementException;
 
 /** Computes arena blocks without allocating a list proportional to the volume. */
 final class ArenaBuildPlan {
@@ -75,7 +76,7 @@ final class ArenaBuildPlan {
         boolean hasNext() { return x <= xMax && zMin <= zMax; }
 
         Cell next() {
-            if (!hasNext()) throw new java.util.NoSuchElementException();
+            if (!hasNext()) throw new NoSuchElementException();
             Cell cell = new Cell(x, y, z);
             if (++y > yMax) {
                 y = yMin;

@@ -35,7 +35,17 @@ final class ToffyHelp {
             List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
         new Entry("Torneos", "§f/toffy torneo cerrar <nombre> [mensaje...] §7- cierra las inscripciones",
             List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
-        new Entry("Torneos", "§f/toffy torneo lugar <torneo> [borrar] §7- guarda tu ubicacion como lugar del torneo",
+        new Entry("Torneos", "§f/toffy torneo lugar <torneo> [agregar|borrar] §7- guarda tu ubicacion como lugar del torneo",
+            List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
+        new Entry("Torneos", "§f/toffy torneo nivel <torneo> <min|*> <max|*> | sin §7- rango de nivel para anotarse",
+            List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
+        new Entry("Torneos", "§f/toffy torneo cupo <torneo> <n|sin> §7- cierra las inscripciones al llegar a n",
+            List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
+        new Entry("Torneos", "§f/toffy torneo minimo <torneo> <n|sin> §7- minimo de anotados conectados para programados",
+            List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
+        new Entry("Torneos", "§f/toffy torneo cierre <torneo> <HH:mm> [dd/MM] | cancelar §7- cierre programado",
+            List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
+        new Entry("Torneos", "§f/toffy programados §7- lista teletransportes, cierres y eventos programados",
             List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
         new Entry("Torneos", "§f/toffy torneo sacar <nombre> <jugador> §7- saca a un jugador del torneo",
             List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
@@ -60,7 +70,15 @@ final class ToffyHelp {
         new Entry("Eventos", "§f/toffy evento tipos §7- lista los tipos de evento",
             List.of(ToffyEvents.ADMIN_PERMISSION)),
         new Entry("Eventos", "§f/toffy evento estado §7- muestra el evento en curso",
-            List.of(ToffyEvents.ADMIN_PERMISSION)));
+            List.of(ToffyEvents.ADMIN_PERMISSION)),
+        new Entry("Eventos", "§f/toffy evento programar <tipo> <torneo> <HH:mm> [dd/MM] [segundos] §7- programa un evento",
+            List.of(ToffyEvents.ADMIN_PERMISSION)),
+        new Entry("Eventos", "§f/toffy evento programar <torneo> cancelar §7- cancela el evento programado",
+            List.of(ToffyEvents.ADMIN_PERMISSION)),
+        new Entry("Eventos", "§f/evento unirse §7- te anota al torneo del evento en espera y entras",
+            List.of(ToffyEventoCommand.JOIN_PERMISSION, ToffyAnotarCommand.PERMISSION)),
+        new Entry("Eventos", "§f/evento salir §7- sales del evento en curso",
+            List.of(ToffyEventoCommand.JOIN_PERMISSION, ToffyAnotarCommand.PERMISSION)));
 
     private ToffyHelp() {
     }
@@ -100,6 +118,7 @@ final class ToffyHelp {
         if (has.test(ToffyCommand.TORNEO_ADMIN_PERMISSION)) {
             options.add("torneo");
             options.add("tp");
+            options.add("programados");
         }
         if (has.test(ToffyEvents.ADMIN_PERMISSION)) {
             options.add("evento");

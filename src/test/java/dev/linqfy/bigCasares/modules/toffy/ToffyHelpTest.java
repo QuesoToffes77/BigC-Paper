@@ -46,8 +46,8 @@ class ToffyHelpTest {
     void tournamentAdminSeesTorneoAndTpButNotEvents() {
         String help = joined(ToffyHelp.lines(has(ToffyCommand.TORNEO_ADMIN_PERMISSION)));
 
-        assertTrue(help.contains("/toffy torneo lugar <torneo> [borrar]"));
-        assertTrue(help.contains("/toffy tp programados"));
+        assertTrue(help.contains("/toffy torneo lugar <torneo> [agregar|borrar]"));
+        assertTrue(help.contains("/toffy programados"));
         assertTrue(help.contains("/toffy tp concursantes <torneo> [lugar | x y z [mundo]]"));
         assertFalse(help.contains("evento iniciar"));
         assertFalse(help.contains("curva"));
@@ -66,9 +66,9 @@ class ToffyHelpTest {
     void firstArgumentsFollowThePermissions() {
         assertEquals(List.of("ayuda"), ToffyHelp.firstArgs(has()));
         assertEquals(List.of("ayuda", "nivel"), ToffyHelp.firstArgs(has(ToffyCommand.CHECK_OTHERS_PERMISSION)));
-        assertEquals(List.of("ayuda", "nivel", "torneo", "tp"),
+        assertEquals(List.of("ayuda", "nivel", "torneo", "tp", "programados"),
             ToffyHelp.firstArgs(has(ToffyCommand.CHECK_PERMISSION, ToffyCommand.TORNEO_ADMIN_PERMISSION)));
-        assertEquals(List.of("ayuda", "nivel", "curva", "reload", "torneo", "tp", "evento"),
+        assertEquals(List.of("ayuda", "nivel", "curva", "reload", "torneo", "tp", "programados", "evento"),
             ToffyHelp.firstArgs(has(ToffyCommand.ADMIN_PERMISSION, ToffyCommand.CHECK_PERMISSION,
                 ToffyCommand.TORNEO_ADMIN_PERMISSION, ToffyEvents.ADMIN_PERMISSION)));
         assertEquals(List.of("ayuda", "evento"), ToffyHelp.firstArgs(has(ToffyEvents.ADMIN_PERMISSION)));

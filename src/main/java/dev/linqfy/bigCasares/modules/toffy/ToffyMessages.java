@@ -25,6 +25,9 @@ final class ToffyMessages {
     static final String TP_PROGRAMADO = "tp-programado";
     static final String TP_AVISO = "tp-aviso";
     static final String TP_CANCELADO = "tp-cancelado";
+    static final String NIVEL_FUERA_DE_RANGO = "nivel-fuera-de-rango";
+    static final String MINIMO_NO_ALCANZADO = "minimo-no-alcanzado";
+    static final String EVENTO_AVISO = "evento-aviso";
     // Staff events announcements (see ToffyEvents).
     static final String EVENTO_LOBBY = ToffyEvents.CASE_LOBBY;
     static final String EVENTO_UNIDO = ToffyEvents.CASE_JOINED;
@@ -62,6 +65,9 @@ final class ToffyMessages {
         map.put(TP_PROGRAMADO, "&6Teletransporte del torneo &e{torneo}&6 programado para el &e{fecha}&6 a las &e{hora}&6.");
         map.put(TP_AVISO, "&6El torneo &e{torneo}&6 se teletransporta en &e{minutos} min&6.");
         map.put(TP_CANCELADO, "&7Se cancelo el teletransporte programado del torneo &e{torneo}&7.");
+        map.put(NIVEL_FUERA_DE_RANGO, "&cNo podes entrar al torneo &e{torneo}&c: tu nivel es &e{nivel}&c y el torneo pide entre &e{min}&c y &e{max}&c.");
+        map.put(MINIMO_NO_ALCANZADO, "&cSe cancelo el programado del torneo &e{torneo}&c: hay &e{cantidad}&c anotados conectados y el minimo es &e{minimo}&c.");
+        map.put(EVENTO_AVISO, "&6El evento &e{evento}&6 del torneo &e{torneo}&6 empieza en &e{minutos} min&6.");
         map.put(EVENTO_LOBBY, "&6Va a empezar el evento &e{evento}&6 en &e{segundos} s&6. Anotate con &e/anotar {torneo}&6 para entrar.");
         map.put(EVENTO_UNIDO, "&aEntraste al evento &e{evento}&a. Tu inventario queda guardado y lo recuperas al salir.");
         map.put(EVENTO_SALIO, "&7{jugador} salio del evento &e{evento}&7. Quedan &e{cantidad}&7.");

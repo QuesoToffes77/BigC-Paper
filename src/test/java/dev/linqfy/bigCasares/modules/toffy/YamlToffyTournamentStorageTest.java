@@ -66,10 +66,10 @@ class YamlToffyTournamentStorageTest {
         List<ToffyTournament> loaded = new YamlToffyTournamentStorage(file).load();
 
         ToffyTournament copa = loaded.getFirst();
-        assertEquals(place, copa.place());
+        assertEquals(List.of(place), copa.places());
         assertEquals(Long.valueOf(at), copa.scheduledAt());
         ToffyTournament liga = loaded.get(1);
-        assertEquals(new ToffyStoredLocation("world", 0, 64, 0, 0f, 0f), liga.place());
+        assertEquals(List.of(new ToffyStoredLocation("world", 0, 64, 0, 0f, 0f)), liga.places());
         assertEquals(null, liga.scheduledAt());
     }
 
@@ -81,8 +81,46 @@ class YamlToffyTournamentStorageTest {
 
         ToffyTournament copa = new YamlToffyTournamentStorage(file).load().getFirst();
 
-        assertEquals(null, copa.place());
+        assertTrue(copa.places().isEmpty());
         assertEquals(null, copa.scheduledAt());
+    }
+
+    @Test
+    void everyNewSettingSurvivesARestart() throws IOException {
+        Path file = directory.resolve("torneos.yml");
+        ToffyTournamentService service = new ToffyTournamentService(new YamlToffyTournamentStorage(file), List.of());
+        service.create("copa");
+        service.setPlace("copa", new ToffyStoredLocation("world", 1, 2, 3, 4f, 5f));
+        service.addPlace("copa", new ToffyStoredLocation("world_nether", -1.5, 70, 8.25, 180f, -10f));
+        service.setLevelRange("copa", 40.0, null);
+        service.setCapacity("copa", 12);
+        service.setMinPlayers("copa", 4);
+        service.scheduleClose("copa", 1_900_000_000_000L);
+        service.scheduleEvent("copa", "koth", 45, 1_900_000_100_000L);
+
+        ToffyTournament copa = new YamlToffyTournamentStorage(file).load().getFirst();
+
+        assertEquals(List.of(new ToffyStoredLocation("world", 1, 2, 3, 4f, 5f),
+            new ToffyStoredLocation("world_nether", -1.5, 70, 8.25, 180f, -10f)), copa.places());
+        assertEquals(40.0, copa.minLevel());
+        assertEquals(null, copa.maxLevel());
+        assertEquals(Integer.valueOf(12), copa.capacity());
+        assertEquals(Integer.valueOf(4), copa.minPlayers());
+        assertEquals(Long.valueOf(1_900_000_000_000L), copa.closeAt());
+        assertEquals("koth", copa.eventType());
+        assertEquals(Integer.valueOf(45), copa.eventLobby());
+        assertEquals(Long.valueOf(1_900_000_100_000L), copa.eventAt());
+    }
+
+    @Test
+    void aSavedSinglePlaceLoadsAsAOnePointList() throws IOException {
+        Path file = directory.resolve("torneos.yml");
+        Files.writeString(file, "tournaments:\n  copa:\n    name: Copa\n    place:\n      world: world\n"
+            + "      x: 1.5\n      y: 64\n      z: -2\n      yaw: 90\n      pitch: 10\n");
+
+        ToffyTournament copa = new YamlToffyTournamentStorage(file).load().getFirst();
+
+        assertEquals(List.of(new ToffyStoredLocation("world", 1.5, 64, -2, 90f, 10f)), copa.places());
     }
 
     @Test

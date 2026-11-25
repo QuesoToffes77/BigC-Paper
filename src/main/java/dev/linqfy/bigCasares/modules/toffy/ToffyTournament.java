@@ -1,6 +1,8 @@
 package dev.linqfy.bigCasares.modules.toffy;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -25,10 +27,20 @@ final class ToffyTournament {
     private final Map<String, String> messages = new LinkedHashMap<>();
     private final Map<UUID, ToffyStoredLocation> returns = new LinkedHashMap<>();
     private final Set<UUID> pending = new LinkedHashSet<>();
-    private ToffyStoredLocation place;
+    private final List<ToffyStoredLocation> places = new ArrayList<>();
     private Long scheduledAt;
     /** Minutes-before warnings already sent (or passed) for the current schedule. Not saved. */
     private final Set<Integer> announced = new HashSet<>();
+    private Double minLevel;
+    private Double maxLevel;
+    private Integer capacity;
+    private Integer minPlayers;
+    private Long closeAt;
+    private String eventType;
+    private Integer eventLobby;
+    private Long eventAt;
+    /** Minutes-before event warnings already sent (or passed). Not saved. */
+    private final Set<Integer> eventAnnounced = new HashSet<>();
 
     ToffyTournament(String key, String displayName) {
         this.key = key;
@@ -81,9 +93,82 @@ final class ToffyTournament {
         return Collections.unmodifiableSet(pending);
     }
 
-    /** Fixed destination of the scheduled teleport, or null when the tournament has none. */
-    ToffyStoredLocation place() {
-        return place;
+    /** Fixed destinations of the teleports, in the order they were added. Empty when there are none. */
+    List<ToffyStoredLocation> places() {
+        return Collections.unmodifiableList(places);
+    }
+
+    Double minLevel() {
+        return minLevel;
+    }
+
+    Double maxLevel() {
+        return maxLevel;
+    }
+
+    /** Whether a player with this Toffy level may sign up or be teleported (no bound means no limit). */
+    boolean allowsLevel(double level) {
+        return (minLevel == null || level >= minLevel) && (maxLevel == null || level <= maxLevel);
+    }
+
+    Integer capacity() {
+        return capacity;
+    }
+
+    Integer minPlayers() {
+        return minPlayers;
+    }
+
+    /** Epoch millis of the scheduled sign-up close, or null. */
+    Long closeAt() {
+        return closeAt;
+    }
+
+    /** Type id of the scheduled event, or null. */
+    String eventType() {
+        return eventType;
+    }
+
+    Integer eventLobby() {
+        return eventLobby;
+    }
+
+    /** Epoch millis of the scheduled event, or null. */
+    Long eventAt() {
+        return eventAt;
+    }
+
+    boolean isEventAnnounced(int minutes) {
+        return eventAnnounced.contains(minutes);
+    }
+
+    void markEventAnnounced(int minutes) {
+        eventAnnounced.add(minutes);
+    }
+
+    void setLevelRange(Double min, Double max) {
+        this.minLevel = min;
+        this.maxLevel = max;
+    }
+
+    void setCapacity(Integer capacity) {
+        this.capacity = capacity;
+    }
+
+    void setMinPlayers(Integer minPlayers) {
+        this.minPlayers = minPlayers;
+    }
+
+    void setCloseAt(Long at) {
+        this.closeAt = at;
+    }
+
+    /** Sets or clears (all null) the scheduled event. */
+    void setEvent(String type, Integer lobby, Long at) {
+        this.eventType = type;
+        this.eventLobby = lobby;
+        this.eventAt = at;
+        eventAnnounced.clear();
     }
 
     /** Epoch millis of the scheduled teleport, or null when nothing is scheduled. */
@@ -99,12 +184,21 @@ final class ToffyTournament {
         announced.add(minutes);
     }
 
+    /** Closing the sign-ups also drops a scheduled close: it would have nothing left to do. */
     void setOpen(boolean open) {
         this.open = open;
+        if (!open) {
+            closeAt = null;
+        }
     }
 
-    void setPlace(ToffyStoredLocation place) {
-        this.place = place;
+    void setPlaces(List<ToffyStoredLocation> newPlaces) {
+        places.clear();
+        places.addAll(newPlaces);
+    }
+
+    void addPlace(ToffyStoredLocation place) {
+        places.add(place);
     }
 
     /** Sets or clears the schedule. Resets the warnings, so the caller marks the ones that already passed. */

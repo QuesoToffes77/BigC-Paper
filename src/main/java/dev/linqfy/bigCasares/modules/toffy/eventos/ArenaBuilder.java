@@ -7,6 +7,8 @@ import org.bukkit.World;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import org.bukkit.plugin.Plugin;
 
 /** Builds a fresh arena for each event from {@link ArenaLayout}. Runs on the main thread. */
 final class ArenaBuilder {
@@ -19,7 +21,7 @@ final class ArenaBuilder {
     private final int minChunkX, maxChunkX, minChunkZ, maxChunkZ;
     private int chunkX, chunkZ;
     private boolean checking;
-    private java.util.concurrent.CompletableFuture<Boolean> loading;
+    private CompletableFuture<Boolean> loading;
     private ArenaBuildPlan.Cursor cursor;
     private boolean ticketOwned;
     private boolean closed;
@@ -27,14 +29,14 @@ final class ArenaBuilder {
     interface Access {
         int minHeight();
         int maxHeight();
-        java.util.concurrent.CompletableFuture<Boolean> load(int chunkX, int chunkZ);
+        CompletableFuture<Boolean> load(int chunkX, int chunkZ);
         boolean loaded(int chunkX, int chunkZ);
         void removeTicket(int chunkX, int chunkZ);
         Material get(ArenaBuildPlan.Cell cell);
         void set(ArenaBuildPlan.Cell cell, Material material);
     }
 
-    ArenaBuilder(World world, ArenaLayout layout, org.bukkit.plugin.Plugin plugin,
+    ArenaBuilder(World world, ArenaLayout layout, Plugin plugin,
                  boolean guarded) {
         this(world, layout, new BukkitAccess(world, plugin), guarded);
     }
@@ -142,11 +144,11 @@ final class ArenaBuilder {
         ticketOwned = false;
     }
 
-    private record BukkitAccess(World world, org.bukkit.plugin.Plugin plugin) implements Access {
+    private record BukkitAccess(World world, Plugin plugin) implements Access {
         public int minHeight() { return world.getMinHeight(); }
         public int maxHeight() { return world.getMaxHeight(); }
-        public java.util.concurrent.CompletableFuture<Boolean> load(int x, int z) {
-            java.util.concurrent.CompletableFuture<Boolean> result = new java.util.concurrent.CompletableFuture<>();
+        public CompletableFuture<Boolean> load(int x, int z) {
+            CompletableFuture<Boolean> result = new CompletableFuture<>();
             // Paper runs the consumer on the main thread while the requested chunk is still loaded.
             world.getChunkAtAsync(x, z, true, chunk -> {
                 if (result.isCancelled()) return;

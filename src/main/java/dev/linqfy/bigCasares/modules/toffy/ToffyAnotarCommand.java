@@ -16,12 +16,13 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code /anotar <torneo>} signs up for a tournament, {@code /anotar salir <torneo>} signs out (and leaves the running
- * staff event of that tournament), {@code /anotar estado} shows the running event and the tournaments of the player.
+ * {@code /anotar} lists the tournaments with open sign-ups, {@code /anotar <torneo>} signs up for one,
+ * {@code /anotar salir <torneo>} signs out (and leaves the running staff event of that tournament), {@code /anotar
+ * estado} shows the running event and the tournaments of the player.
  */
 final class ToffyAnotarCommand implements CommandExecutor, TabCompleter {
     static final String PERMISSION = "bigcasares.toffy.anotar";
-    private static final String USAGE = " <torneo> | salir <torneo> | estado";
+    private static final String USAGE = " [torneo | salir <torneo> | estado]";
 
     private final ToffyModule module;
 
@@ -47,7 +48,7 @@ final class ToffyAnotarCommand implements CommandExecutor, TabCompleter {
             status(player);
             return true;
         }
-        if (args.length >= 1 && args[0].equalsIgnoreCase("salir")) {
+        if (args[0].equalsIgnoreCase("salir")) {
             if (args.length != 2) {
                 sender.sendMessage("§cUso: /" + label + " salir <torneo>");
                 return true;
@@ -59,59 +60,59 @@ final class ToffyAnotarCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§cUso: /" + label + USAGE);
             return true;
         }
+        signUp(player, args[0]);
+        return true;
+    }
+
+    /**
+     * Signs the player up to the tournament, checking the sign-ups, the capacity and the level range, and joins the
+     * lobby of its event when one is waiting. Also used by {@code /evento unirse}.
+     */
+    void signUp(Player player, String name) {
         ToffyTournamentService tournaments = module.tournaments();
         if (tournaments == null) {
-            sender.sendMessage("§cToffy Complementaries no esta disponible.");
-            return true;
+            player.sendMessage("§cToffy Complementaries no esta disponible.");
+            return;
         }
+        double level = module.realLevel(player);
         ToffyTournamentService.RegisterResult result;
         try {
-            result = tournaments.register(args[0], player.getUniqueId(), player.getName());
+            result = tournaments.register(name, player.getUniqueId(), player.getName(), level);
         } catch (UncheckedIOException failure) {
-            sender.sendMessage("§cNo se pudo guardar tu inscripcion: " + failure.getCause().getMessage());
-            return true;
+            player.sendMessage("§cNo se pudo guardar tu inscripcion: " + failure.getCause().getMessage());
+            return;
         }
-        Optional<ToffyTournament> tournament = tournaments.find(args[0]);
+        Optional<ToffyTournament> tournament = tournaments.find(name);
         String key = tournament.map(ToffyTournament::key).orElse(null);
         Map<String, String> placeholders = Map.of(
             "jugador", player.getName(),
-            "torneo", tournament.map(ToffyTournament::displayName).orElse(args[0]),
+            "torneo", tournament.map(ToffyTournament::displayName).orElse(name),
             "cantidad", String.valueOf(tournament.map(found -> found.participants().size()).orElse(0)));
         switch (result) {
-            case REGISTERED -> {
-                module.send(sender, ToffyMessages.ANOTADO, key, placeholders);
+            case REGISTERED, REGISTERED_CLOSED -> {
+                module.send(player, ToffyMessages.ANOTADO, key, placeholders);
                 String announcement = module.message(ToffyMessages.ANUNCIO_ANOTADO, key, placeholders);
                 if (announcement != null) {
                     module.server().broadcastMessage(announcement);
                 }
+                if (result == ToffyTournamentService.RegisterResult.REGISTERED_CLOSED) {
+                    String closed = module.message(ToffyMessages.CIERRE, key,
+                        ToffyTournamentCommand.placeholders(tournament.orElseThrow(), null, null));
+                    if (closed != null) {
+                        module.server().broadcastMessage(closed);
+                    }
+                }
                 joinLobby(player, key);
             }
             case ALREADY_REGISTERED -> {
-                module.send(sender, ToffyMessages.YA_ANOTADO, key, placeholders);
+                module.send(player, ToffyMessages.YA_ANOTADO, key, placeholders);
                 joinLobby(player, key);
             }
-            case CLOSED -> module.send(sender, ToffyMessages.INSCRIPCION_CERRADA, key, placeholders);
-            case UNKNOWN_TOURNAMENT -> module.send(sender, ToffyMessages.TORNEO_NO_EXISTE, null, placeholders);
+            case CLOSED -> module.send(player, ToffyMessages.INSCRIPCION_CERRADA, key, placeholders);
+            case LEVEL_OUT_OF_RANGE -> module.send(player, ToffyMessages.NIVEL_FUERA_DE_RANGO, key,
+                module.rangeTexts(tournament.orElseThrow(), player, level));
+            case UNKNOWN_TOURNAMENT -> module.send(player, ToffyMessages.TORNEO_NO_EXISTE, null, placeholders);
         }
-        return true;
-    }
-
-    /** {@code /anotar} alone: the tournaments with open sign-ups, how many are signed up and the scheduled teleport. */
-    private void openList(Player player, String label) {
-        ToffyTournamentService tournaments = module.tournaments();
-        List<ToffyTournament> open = tournaments == null ? List.of() : tournaments.list().stream()
-            .filter(ToffyTournament::open)
-            .toList();
-        if (open.isEmpty()) {
-            player.sendMessage("§7No hay torneos con inscripcion abierta ahora.");
-        } else {
-            player.sendMessage("§6Torneos con inscripcion abierta:");
-            for (ToffyTournament tournament : open) {
-                player.sendMessage("§7  §f" + tournament.displayName() + " §8- §e" + tournament.participants().size()
-                    + "§7 anotados" + ToffyTournamentCommand.scheduleSuffix(tournament));
-            }
-        }
-        player.sendMessage("§7Uso: /" + label + USAGE);
     }
 
     /** Someone who signs up (or was already signed up) while the event lobby of the tournament is open joins it. */
@@ -122,7 +123,8 @@ final class ToffyAnotarCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void signOut(Player player, String name) {
+    /** {@code /anotar salir <torneo>} and {@code /evento salir}. */
+    void signOut(Player player, String name) {
         ToffyTournamentService tournaments = module.tournaments();
         if (tournaments == null) {
             player.sendMessage("§cToffy Complementaries no esta disponible.");
@@ -152,6 +154,26 @@ final class ToffyAnotarCommand implements CommandExecutor, TabCompleter {
         if (events == null) {
             player.sendMessage(ToffyEvents.UNAVAILABLE_TEXT);
         }
+    }
+
+    /** {@code /anotar} alone: open tournaments with their sign-ups, capacity, level range and schedules. */
+    private void openList(Player player, String label) {
+        ToffyTournamentService tournaments = module.tournaments();
+        List<ToffyTournament> open = tournaments == null ? List.of() : tournaments.list().stream()
+            .filter(ToffyTournament::open)
+            .toList();
+        if (open.isEmpty()) {
+            player.sendMessage("§7No hay torneos con inscripcion abierta ahora.");
+        } else {
+            player.sendMessage("§6Torneos con inscripcion abierta:");
+            for (ToffyTournament tournament : open) {
+                player.sendMessage("§7  §f" + tournament.displayName() + " §8- §e" + tournament.participants().size()
+                    + (tournament.capacity() == null ? "" : "/" + tournament.capacity())
+                    + "§7 anotados §8- §7nivel " + ToffyTournamentCommand.rangeText(tournament)
+                    + ToffyTournamentCommand.scheduleSuffix(tournament));
+            }
+        }
+        player.sendMessage("§7Uso: /" + label + USAGE);
     }
 
     private void status(Player player) {

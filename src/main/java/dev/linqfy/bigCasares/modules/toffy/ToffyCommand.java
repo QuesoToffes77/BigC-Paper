@@ -47,6 +47,11 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
                 }
             }
             case "ayuda" -> ToffyHelp.lines(permissions(sender)).forEach(sender::sendMessage);
+            case "programados" -> {
+                if (allowed(sender, TORNEO_ADMIN_PERMISSION) && module.tournaments() != null) {
+                    tournamentCommand.scheduled(sender, module.tournaments());
+                }
+            }
             case "reload" -> {
                 if (allowed(sender, ADMIN_PERMISSION)) {
                     reload(sender);

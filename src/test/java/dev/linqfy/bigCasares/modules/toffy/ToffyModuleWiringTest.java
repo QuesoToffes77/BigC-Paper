@@ -114,9 +114,14 @@ class ToffyModuleWiringTest {
         assertTrue(plugin.getBoolean("permissions/" + ToffyCommand.ADMIN_PERMISSION + "/children/"
             + ToffyCommand.TORNEO_ADMIN_PERMISSION, false));
         assertTrue(main.contains("new ToffyModule(this,"));
-        assertNull(plugin.getConfigurationSection("commands/evento"));
-        assertNull(plugin.get("permissions/bigcasares.events.admin"));
-        assertNull(plugin.get("permissions/bigcasares.events.join"));
+        assertEquals("/<command> [iniciar|detener|tipos|estado|programar|unirse|salir]",
+            plugin.getString("commands/evento/usage"));
+        assertTrue(plugin.getStringList("commands/evento/aliases").contains("eventos"));
+        assertEquals("op", plugin.getString("permissions/bigcasares.events.admin/default"));
+        assertTrue(plugin.getBoolean("permissions/bigcasares.events.admin/children/" + ToffyEvents.ADMIN_PERMISSION, false));
+        assertEquals("true", plugin.getString("permissions/bigcasares.events.join/default"));
+        assertTrue(plugin.getBoolean("permissions/bigcasares.events.join/children/" + ToffyAnotarCommand.PERMISSION, false));
+        assertTrue(plugin.getBoolean("permissions/bigcasares.*/children/bigcasares.events.admin", false));
         assertEquals("op", plugin.getString("permissions/" + ToffyEvents.ADMIN_PERMISSION + "/default"));
         assertTrue(plugin.getBoolean("permissions/" + ToffyCommand.ADMIN_PERMISSION + "/children/"
             + ToffyEvents.ADMIN_PERMISSION, false));

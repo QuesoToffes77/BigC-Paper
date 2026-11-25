@@ -184,6 +184,24 @@ public final class ToffyEvents {
         current.start(sender, type, tournamentKey, roster.get(), lobbySeconds);
     }
 
+    /** Whether a new event may start now: events enabled and none running. */
+    public boolean startable() {
+        ToffyEventRuntime current = runtime;
+        return current != null && current.startable();
+    }
+
+    /** Tournament of the running event, if any. */
+    public Optional<String> activeTournament() {
+        ToffyEventRuntime current = runtime;
+        return current == null ? Optional.empty() : current.activeTournament();
+    }
+
+    /** Tournament whose event is waiting in its lobby, if any. */
+    public Optional<String> lobbyTournament() {
+        ToffyEventRuntime current = runtime;
+        return current == null ? Optional.empty() : current.lobbyTournament();
+    }
+
     /** {@code /toffy evento detener}. */
     public void stop(CommandSender sender) {
         ToffyEventRuntime current = runtime;

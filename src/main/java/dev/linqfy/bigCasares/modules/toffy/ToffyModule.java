@@ -5,6 +5,7 @@ import dev.linqfy.bigCasares.dimension.DimensionPlatform;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEventType;
 import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEvents;
 import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEventSettings;
 import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEventsConfig;
@@ -32,10 +33,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.LinkedHashSet;
+import java.util.logging.Level;
 import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.HashMap;
 
 /**
  * Shared equipment level library (0 to 200 by default). Other modules use it through
@@ -50,6 +56,7 @@ public final class ToffyModule implements PluginModule {
     public static final String MESSAGES_FILE = "toffy_mensajes.yml";
     public static final String EVENTS_FILE = ToffyEventsConfig.FILE;
     private static final String MEMORY_FOLDER = "data/toffy-complementaries/players";
+    private static final Random RANDOM = new Random();
     private static final String TOURNAMENTS_FILE = "data/toffy-complementaries/torneos.yml";
 
     private final BigCasares plugin;
@@ -155,6 +162,12 @@ public final class ToffyModule implements PluginModule {
         registrations.bindCommand("toffy-anotar-command", anotarCommand, anotar, anotar);
         tournaments = loadTournaments();
         registrations.registerListener("toffy-tournament-listener", new ToffyTournamentListener(this));
+        PluginCommand eventoCommand = plugin.getCommand("evento");
+        if (eventoCommand == null) {
+            throw new IllegalStateException("Required command is not declared: evento");
+        }
+        ToffyEventoCommand evento = new ToffyEventoCommand(this);
+        registrations.bindCommand("toffy-evento-command", eventoCommand, evento, evento);
         registrations.scheduleRepeating("toffy-tournament-schedule", this::checkSchedules, 20L, 20L);
 
         ToffyMemoryTracker memoryTracker = new ToffyMemoryTracker(
@@ -380,11 +393,32 @@ public final class ToffyModule implements PluginModule {
         return tournaments;
     }
 
+    /**
+     * Sign-ups of an event. Online players outside the level range of the tournament are left out and told why; offline
+     * players stay (their level cannot be read).
+     */
     private Optional<ToffyEvents.Roster> rosterOf(String tournamentKey) {
         ToffyTournamentService current = tournaments;
         return current == null ? Optional.empty()
-            : current.find(tournamentKey).map(found ->
-                new ToffyEvents.Roster(found.displayName(), found.participants().keySet()));
+            : current.find(tournamentKey).map(found -> {
+                Set<UUID> players = new LinkedHashSet<>();
+                int skipped = 0;
+                for (UUID id : found.participants().keySet()) {
+                    Player online = server().getPlayer(id);
+                    if (online != null && !found.allowsLevel(realLevel(online))) {
+                        skipped++;
+                        send(online, ToffyMessages.NIVEL_FUERA_DE_RANGO, found.key(), rangeTexts(found, online,
+                            realLevel(online)));
+                        continue;
+                    }
+                    players.add(id);
+                }
+                if (skipped > 0) {
+                    plugin.getLogger().info(LOG_PREFIX + "Evento del torneo " + found.displayName() + ": " + skipped
+                        + " anotados fuera del rango de nivel quedaron afuera.");
+                }
+                return new ToffyEvents.Roster(found.displayName(), players);
+            });
     }
 
     /** Creates {@code toffy_eventos.yml} on first start and copies the values of an old {@code staff-events} section. */
@@ -496,23 +530,38 @@ public final class ToffyModule implements PluginModule {
     }
 
     /**
-     * Teleports every online participant of the tournament to {@code target}, saving where each one was first. Used
-     * by {@code /toffy tp concursantes} and by the scheduled teleport.
+     * Teleports the online participants of the tournament whose level is inside its range, spread over {@code targets}
+     * (round robin). Players out of range are skipped and told why. Used by {@code /toffy tp concursantes} and by the
+     * scheduled teleport.
      */
-    Brought bringParticipants(ToffyTournamentService service, ToffyTournament tournament, Location target) {
-        int moved = 0;
+    Brought bringParticipants(ToffyTournamentService service, ToffyTournament tournament, List<Location> targets) {
         int offline = 0;
-        int failed = 0;
+        int outOfRange = 0;
+        List<Player> eligible = new ArrayList<>();
         for (UUID id : List.copyOf(tournament.participants().keySet())) {
             Player player = server().getPlayer(id);
             if (player == null) {
                 offline++;
                 continue;
             }
-            boolean recorded = service.recordDeparture(tournament.key(), id, stored(player.getLocation()));
+            double level = realLevel(player);
+            if (!tournament.allowsLevel(level)) {
+                outOfRange++;
+                send(player, ToffyMessages.NIVEL_FUERA_DE_RANGO, tournament.key(), rangeTexts(tournament, player, level));
+                continue;
+            }
+            eligible.add(player);
+        }
+        List<Integer> spots = ToffyPlaces.assign(targets.size(), eligible.size(), RANDOM);
+        int moved = 0;
+        int failed = 0;
+        for (int index = 0; index < eligible.size(); index++) {
+            Player player = eligible.get(index);
+            Location target = targets.get(spots.get(index));
+            boolean recorded = service.recordDeparture(tournament.key(), player.getUniqueId(), stored(player.getLocation()));
             if (!teleportTo(player, target)) {
                 if (recorded) {
-                    service.clearReturn(tournament.key(), id);
+                    service.clearReturn(tournament.key(), player.getUniqueId());
                 }
                 failed++;
                 continue;
@@ -521,11 +570,48 @@ public final class ToffyModule implements PluginModule {
             send(player, ToffyMessages.LLEVADO, tournament.key(), ToffyTournamentCommand.placeholders(tournament,
                 player, target));
         }
-        return new Brought(moved, offline, failed);
+        return new Brought(moved, offline, failed, outOfRange);
     }
 
     /** Result of {@link #bringParticipants}. */
-    record Brought(int moved, int offline, int failed) {
+    record Brought(int moved, int offline, int failed, int outOfRange) {
+    }
+
+    /** Online participants whose level is inside the range of the tournament. */
+    List<Player> eligibleOnline(ToffyTournament tournament) {
+        List<Player> eligible = new ArrayList<>();
+        for (UUID id : tournament.participants().keySet()) {
+            Player player = server().getPlayer(id);
+            if (player != null && tournament.allowsLevel(realLevel(player))) {
+                eligible.add(player);
+            }
+        }
+        return eligible;
+    }
+
+    /** Placeholders of the level messages: {jugador} {torneo} {nivel} {min} {max}. */
+    Map<String, String> rangeTexts(ToffyTournament tournament, Player player, double level) {
+        int decimals = requireService().settings().decimals();
+        return Map.of(
+            "jugador", player.getName(),
+            "torneo", tournament.displayName(),
+            "nivel", ToffyCommand.level(level, decimals),
+            "min", tournament.minLevel() == null ? "*" : ToffyCommand.level(tournament.minLevel(), decimals),
+            "max", tournament.maxLevel() == null ? "*" : ToffyCommand.level(tournament.maxLevel(), decimals));
+    }
+
+    /**
+     * The saved places as Bukkit locations; a place whose world is not loaded is left out.
+     */
+    List<Location> savedLocations(ToffyTournament tournament) {
+        List<Location> locations = new ArrayList<>();
+        for (ToffyStoredLocation place : tournament.places()) {
+            Location location = savedLocation(place);
+            if (location != null) {
+                locations.add(location);
+            }
+        }
+        return locations;
     }
 
     /**
@@ -537,8 +623,28 @@ public final class ToffyModule implements PluginModule {
             : new Location(world, saved.x(), saved.y(), saved.z(), saved.yaw(), saved.pitch());
     }
 
+    /** Sends {@code caseKey} of the tournament to each online sign-up, with the given placeholders. */
+    private void sendToOnlineSignUps(ToffyTournament tournament, String caseKey, Map<String, String> placeholders) {
+        for (UUID id : tournament.participants().keySet()) {
+            Player player = server().getPlayer(id);
+            if (player != null) {
+                Map<String, String> values = new HashMap<>(placeholders);
+                values.put("jugador", player.getName());
+                send(player, caseKey, tournament.key(), values);
+            }
+        }
+    }
+
+    private void announce(String caseKey, String tournamentKey, Map<String, String> placeholders) {
+        String text = message(caseKey, tournamentKey, placeholders);
+        if (text != null) {
+            server().broadcastMessage(text);
+        }
+    }
+
     /**
-     * Runs every 20 ticks: sends the due warnings to the online sign-ups and runs the due scheduled teleports.
+     * Runs every 20 ticks: the warnings, the scheduled sign-up closes, the scheduled teleports and the scheduled events
+     * that are due.
      */
     void checkSchedules() {
         ToffyTournamentService current = tournaments;
@@ -547,40 +653,126 @@ public final class ToffyModule implements PluginModule {
         }
         long now = current.now();
         for (ToffyTournamentService.Warning warning : current.dueWarnings(now)) {
-            current.find(warning.tournament()).ifPresent(tournament -> {
-                for (UUID id : tournament.participants().keySet()) {
-                    Player player = server().getPlayer(id);
-                    if (player != null) {
-                        send(player, ToffyMessages.TP_AVISO, tournament.key(), Map.of(
-                            "jugador", player.getName(),
-                            "torneo", tournament.displayName(),
-                            "minutos", String.valueOf(warning.minutes())));
-                    }
+            current.find(warning.tournament()).ifPresent(tournament -> sendToOnlineSignUps(tournament,
+                ToffyMessages.TP_AVISO, Map.of("torneo", tournament.displayName(),
+                    "minutos", String.valueOf(warning.minutes()))));
+            current.markWarned(warning.tournament(), warning.minutes());
+        }
+        for (ToffyTournamentService.Warning warning : current.dueEventWarnings(now)) {
+            current.find(warning.tournament()).ifPresent(tournament -> sendToOnlineSignUps(tournament,
+                ToffyMessages.EVENTO_AVISO, Map.of("torneo", tournament.displayName(),
+                    "evento", eventName(tournament.eventType()),
+                    "minutos", String.valueOf(warning.minutes()))));
+            current.markEventWarned(warning.tournament(), warning.minutes());
+        }
+        for (String key : current.dueCloses(now)) {
+            current.find(key).ifPresent(tournament -> {
+                if (current.markClosed(key)) {
+                    announce(ToffyMessages.CIERRE, key, ToffyTournamentCommand.placeholders(tournament, null, null));
                 }
             });
-            current.markWarned(warning.tournament(), warning.minutes());
         }
         for (String key : current.dueSchedules(now)) {
             ToffyTournament tournament = current.find(key).orElse(null);
             if (tournament == null) {
                 continue;
             }
-            Location target = tournament.place() == null ? null : savedLocation(tournament.place());
-            if (target == null) {
-                plugin.getLogger().warning(LOG_PREFIX + "Teletransporte programado del torneo "
-                    + tournament.displayName() + " descartado: su lugar no esta en un mundo cargado"
-                    + (tournament.place() == null ? "" : " (" + tournament.place().world() + ")") + ".");
-            } else {
-                Brought result = bringParticipants(current, tournament, target);
-                plugin.getLogger().info(LOG_PREFIX + "Teletransporte programado del torneo "
-                    + tournament.displayName() + ": " + result.moved() + " llevados, " + result.offline()
-                    + " offline, " + result.failed() + " no se pudieron mover.");
+            try {
+                runScheduledTeleport(current, tournament);
+            } catch (RuntimeException failure) {
+                logSevere("Teletransporte programado del torneo " + tournament.displayName() + " fallo.", failure);
+            } finally {
+                markFiredSafely(() -> current.markFired(key));
+            }
+        }
+        for (String key : current.dueEvents(now)) {
+            ToffyTournament tournament = current.find(key).orElse(null);
+            if (tournament == null) {
+                continue;
             }
             try {
-                current.markFired(key);
-            } catch (UncheckedIOException failure) {
-                plugin.getLogger().severe(LOG_PREFIX + "No se pudo guardar torneos.yml: " + failure.getMessage());
+                runScheduledEvent(current, tournament);
+            } catch (RuntimeException failure) {
+                logSevere("Evento programado del torneo " + tournament.displayName() + " fallo.", failure);
+            } finally {
+                markFiredSafely(() -> current.markEventFired(key));
             }
+        }
+    }
+
+    private void runScheduledTeleport(ToffyTournamentService current, ToffyTournament tournament) {
+        List<Location> targets = savedLocations(tournament);
+        if (targets.isEmpty()) {
+            plugin.getLogger().warning(LOG_PREFIX + "Teletransporte programado del torneo " + tournament.displayName()
+                + " descartado: sus lugares no estan en mundos cargados.");
+            return;
+        }
+        if (belowMinimum(tournament)) {
+            return;
+        }
+        Brought result = bringParticipants(current, tournament, targets);
+        plugin.getLogger().info(LOG_PREFIX + "Teletransporte programado del torneo " + tournament.displayName() + ": "
+            + result.moved() + " llevados, " + result.offline() + " offline, " + result.outOfRange()
+            + " fuera de rango, " + result.failed() + " no se pudieron mover.");
+    }
+
+    /** Cancels a scheduled run when the eligible online sign-ups are below the minimum. */
+    private boolean belowMinimum(ToffyTournament tournament) {
+        Integer minimum = tournament.minPlayers();
+        int eligible = eligibleOnline(tournament).size();
+        if (minimum == null || eligible >= minimum) {
+            return false;
+        }
+        plugin.getLogger().warning(LOG_PREFIX + "Programado del torneo " + tournament.displayName()
+            + " cancelado: " + eligible + " anotados conectados (minimo " + minimum + ").");
+        announce(ToffyMessages.MINIMO_NO_ALCANZADO, tournament.key(), Map.of(
+            "torneo", tournament.displayName(),
+            "cantidad", String.valueOf(eligible),
+            "minimo", String.valueOf(minimum)));
+        return true;
+    }
+
+    private void runScheduledEvent(ToffyTournamentService current, ToffyTournament tournament) {
+        Optional<ToffyEventType> type = ToffyEventType.parse(tournament.eventType() == null ? "" : tournament.eventType());
+        ToffyEvents events = events();
+        String reason = null;
+        if (events == null) {
+            reason = "Los eventos no estan disponibles.";
+        } else if (type.isEmpty()) {
+            reason = "Tipo de evento desconocido.";
+        } else if (!events.startable()) {
+            reason = "Ya hay un evento en curso o los eventos estan apagados.";
+        }
+        if (reason == null && belowMinimum(tournament)) {
+            return;
+        }
+        if (reason != null) {
+            plugin.getLogger().warning(LOG_PREFIX + "Evento programado del torneo " + tournament.displayName()
+                + " cancelado: " + reason);
+            sendToOnlineSignUps(tournament, ToffyMessages.EVENTO_CANCELADO, Map.of(
+                "torneo", tournament.displayName(),
+                "evento", eventName(tournament.eventType()),
+                "motivo", reason));
+            return;
+        }
+        events.start(plugin.getServer().getConsoleSender(), type.get(), tournament.key(), tournament.eventLobby());
+    }
+
+    private String eventName(String typeId) {
+        return ToffyEventType.parse(typeId == null ? "" : typeId).map(ToffyEventType::displayName)
+            .orElse(typeId == null ? "" : typeId);
+    }
+
+    /** Logs a failure with its stack trace under the Toffy prefix. */
+    void logSevere(String message, Throwable failure) {
+        plugin.getLogger().log(Level.SEVERE, LOG_PREFIX + message, failure);
+    }
+
+    private void markFiredSafely(Runnable change) {
+        try {
+            change.run();
+        } catch (UncheckedIOException failure) {
+            plugin.getLogger().severe(LOG_PREFIX + "No se pudo guardar torneos.yml: " + failure.getMessage());
         }
     }
 

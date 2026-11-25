@@ -20,7 +20,7 @@ import java.util.function.LongSupplier;
  */
 final class ToffyTournamentService {
     enum RegisterResult {
-        REGISTERED, ALREADY_REGISTERED, CLOSED, UNKNOWN_TOURNAMENT
+        REGISTERED, REGISTERED_CLOSED, ALREADY_REGISTERED, CLOSED, UNKNOWN_TOURNAMENT, LEVEL_OUT_OF_RANGE
     }
 
     enum Change {
@@ -30,7 +30,7 @@ final class ToffyTournamentService {
     record PendingReturn(String tournament, ToffyStoredLocation location) {
     }
 
-    /** A reminder due for the scheduled teleport of {@code tournament}, {@code minutes} before it. */
+    /** A reminder due for the scheduled teleport or event of {@code tournament}, {@code minutes} before it. */
     record Warning(String tournament, int minutes) {
     }
 
@@ -144,6 +144,14 @@ final class ToffyTournamentService {
     }
 
     RegisterResult register(String name, UUID playerId, String playerName) {
+        return register(name, playerId, playerName, 0.0);
+    }
+
+    /**
+     * Signs the player up. Refused when the sign-ups are closed or the level is outside the range of the tournament.
+     * Reaching the capacity closes the sign-ups ({@link RegisterResult#REGISTERED_CLOSED}).
+     */
+    RegisterResult register(String name, UUID playerId, String playerName, double level) {
         Optional<ToffyTournament> found = find(name);
         if (found.isEmpty()) {
             return RegisterResult.UNKNOWN_TOURNAMENT;
@@ -152,12 +160,174 @@ final class ToffyTournamentService {
         if (tournament.participants().containsKey(playerId)) {
             return RegisterResult.ALREADY_REGISTERED;
         }
-        if (!tournament.open()) {
+        if (!tournament.open() || (tournament.capacity() != null
+            && tournament.participants().size() >= tournament.capacity())) {
             return RegisterResult.CLOSED;
         }
+        if (!tournament.allowsLevel(level)) {
+            return RegisterResult.LEVEL_OUT_OF_RANGE;
+        }
         tournament.putParticipant(playerId, playerName);
+        boolean full = tournament.capacity() != null && tournament.participants().size() >= tournament.capacity();
+        if (full) {
+            tournament.setOpen(false);
+        }
         save();
-        return RegisterResult.REGISTERED;
+        return full ? RegisterResult.REGISTERED_CLOSED : RegisterResult.REGISTERED;
+    }
+
+    /** @throws IllegalArgumentException when min is above max or one of them is negative */
+    boolean setLevelRange(String name, Double min, Double max) {
+        if ((min != null && min < 0) || (max != null && max < 0)
+            || (min != null && max != null && min > max)) {
+            throw new IllegalArgumentException("El rango de nivel tiene que ser 0 <= minimo <= maximo.");
+        }
+        Optional<ToffyTournament> found = find(name);
+        if (found.isEmpty()) {
+            return false;
+        }
+        found.get().setLevelRange(min, max);
+        save();
+        return true;
+    }
+
+    /**
+     * Sets the capacity. Reaching it closes the sign-ups right away.
+     *
+     * @return true when the sign-ups were closed by this change
+     */
+    boolean setCapacity(String name, Integer capacity) {
+        ToffyTournament tournament = require(name);
+        if (capacity != null && capacity < 1) {
+            throw new IllegalArgumentException("El cupo tiene que ser al menos 1.");
+        }
+        tournament.setCapacity(capacity);
+        boolean closed = capacity != null && tournament.open() && tournament.participants().size() >= capacity;
+        if (closed) {
+            tournament.setOpen(false);
+        }
+        save();
+        return closed;
+    }
+
+    boolean setMinPlayers(String name, Integer minimum) {
+        if (minimum != null && minimum < 1) {
+            throw new IllegalArgumentException("El minimo tiene que ser al menos 1.");
+        }
+        Optional<ToffyTournament> found = find(name);
+        if (found.isEmpty()) {
+            return false;
+        }
+        found.get().setMinPlayers(minimum);
+        save();
+        return true;
+    }
+
+    /** Schedules the sign-up close at {@code at}; replaces an earlier one. */
+    void scheduleClose(String name, long at) {
+        require(name).setCloseAt(at);
+        save();
+    }
+
+    boolean cancelClose(String name) {
+        Optional<ToffyTournament> found = find(name);
+        if (found.isEmpty() || found.get().closeAt() == null) {
+            return false;
+        }
+        found.get().setCloseAt(null);
+        save();
+        return true;
+    }
+
+    List<String> dueCloses(long now) {
+        List<String> due = new ArrayList<>();
+        for (ToffyTournament tournament : tournaments.values()) {
+            if (tournament.closeAt() != null && tournament.closeAt() <= now) {
+                due.add(tournament.key());
+            }
+        }
+        return due;
+    }
+
+    /**
+     * The scheduled close ran: closes the sign-ups and clears the schedule.
+     *
+     * @return true only when this call closed an open tournament (announce the close only then)
+     */
+    boolean markClosed(String name) {
+        Optional<ToffyTournament> found = find(name);
+        if (found.isEmpty() || found.get().closeAt() == null) {
+            return false;
+        }
+        boolean wasOpen = found.get().open();
+        found.get().setOpen(false);
+        save();
+        return wasOpen;
+    }
+
+    /**
+     * Schedules a staff event on the tournament. Replaces an earlier scheduled event of the tournament.
+     *
+     * @return the event time that was replaced, if any
+     */
+    Optional<Long> scheduleEvent(String name, String type, Integer lobbySeconds, long at) {
+        ToffyTournament tournament = require(name);
+        Long previous = tournament.eventAt();
+        tournament.setEvent(type, lobbySeconds, at);
+        markPassedEventWarnings(tournament, at, now());
+        save();
+        return Optional.ofNullable(previous);
+    }
+
+    boolean cancelEvent(String name) {
+        Optional<ToffyTournament> found = find(name);
+        if (found.isEmpty() || found.get().eventAt() == null) {
+            return false;
+        }
+        found.get().setEvent(null, null, null);
+        save();
+        return true;
+    }
+
+    List<String> dueEvents(long now) {
+        List<String> due = new ArrayList<>();
+        for (ToffyTournament tournament : tournaments.values()) {
+            if (tournament.eventAt() != null && tournament.eventAt() <= now) {
+                due.add(tournament.key());
+            }
+        }
+        return due;
+    }
+
+    /** The scheduled event was started (or could not start): clears the schedule. */
+    boolean markEventFired(String name) {
+        Optional<ToffyTournament> found = find(name);
+        if (found.isEmpty() || found.get().eventAt() == null) {
+            return false;
+        }
+        found.get().setEvent(null, null, null);
+        save();
+        return true;
+    }
+
+    List<Warning> dueEventWarnings(long now) {
+        List<Warning> due = new ArrayList<>();
+        for (ToffyTournament tournament : tournaments.values()) {
+            Long at = tournament.eventAt();
+            if (at == null || now >= at) {
+                continue;
+            }
+            for (int minutes : WARNING_MINUTES) {
+                if (!tournament.isEventAnnounced(minutes) && now >= at - minutes * MINUTE_MILLIS) {
+                    due.add(new Warning(tournament.key(), minutes));
+                }
+            }
+        }
+        return due;
+    }
+
+    void markEventWarned(String name, int minutes) {
+        find(name).ifPresent(tournament -> tournament.markEventAnnounced(minutes));
     }
 
     boolean removeParticipant(String name, UUID playerId) {
@@ -281,7 +451,7 @@ final class ToffyTournamentService {
     }
 
     /**
-     * Sets the fixed destination of the tournament. Any schedule stays as it is.
+     * Replaces every destination of the tournament with {@code place} (one point).
      *
      * @return false when the tournament does not exist
      */
@@ -290,22 +460,33 @@ final class ToffyTournamentService {
         if (found.isEmpty()) {
             return false;
         }
-        found.get().setPlace(place);
+        found.get().setPlaces(List.of(place));
+        save();
+        return true;
+    }
+
+    /** Adds one more destination. */
+    boolean addPlace(String name, ToffyStoredLocation place) {
+        Optional<ToffyTournament> found = find(name);
+        if (found.isEmpty()) {
+            return false;
+        }
+        found.get().addPlace(place);
         save();
         return true;
     }
 
     /**
-     * Removes the fixed destination. A schedule needs a place, so it is cancelled too.
+     * Removes every destination. A schedule of the teleport needs a place, so it is cancelled too.
      *
      * @return false when the tournament does not exist or had no place
      */
     boolean clearPlace(String name) {
         Optional<ToffyTournament> found = find(name);
-        if (found.isEmpty() || found.get().place() == null) {
+        if (found.isEmpty() || found.get().places().isEmpty()) {
             return false;
         }
-        found.get().setPlace(null);
+        found.get().setPlaces(List.of());
         found.get().setScheduledAt(null);
         save();
         return true;
@@ -321,7 +502,7 @@ final class ToffyTournamentService {
      */
     Optional<Long> schedule(String name, long at) {
         ToffyTournament tournament = require(name);
-        if (tournament.place() == null) {
+        if (tournament.places().isEmpty()) {
             throw new IllegalStateException("El torneo no tiene lugar. Usa /toffy torneo lugar " + tournament.key());
         }
         Long previous = tournament.scheduledAt();
@@ -400,32 +581,64 @@ final class ToffyTournamentService {
         return find(name).orElseThrow(() -> new IllegalArgumentException("No existe el torneo " + name + "."));
     }
 
-    /** Schedules loaded from the file: the ones more than five minutes late are dropped, the rest fire normally. */
+    /**
+     * Schedules loaded from the file: the ones more than five minutes late are dropped (with a warning), the rest fire
+     * normally.
+     */
     private void restoreSchedules() {
         long now = now();
         ZoneId zone = ZoneId.systemDefault();
         boolean dropped = false;
         for (ToffyTournament tournament : tournaments.values()) {
             Long at = tournament.scheduledAt();
-            if (at == null) {
-                continue;
+            if (at != null) {
+                if (at < now - MISSED_AFTER_MILLIS) {
+                    log.accept(missed("teletransporte", tournament, at, zone));
+                    tournament.setScheduledAt(null);
+                    dropped = true;
+                } else {
+                    markPassedWarnings(tournament, at, now);
+                }
             }
-            if (at < now - MISSED_AFTER_MILLIS) {
-                log.accept("Teletransporte programado del torneo " + tournament.displayName() + " para "
-                    + ToffyTournamentTime.dateTime(at, zone) + " descartado: el servidor estaba apagado y paso el "
-                    + "horario.");
-                tournament.setScheduledAt(null);
+            Long closeAt = tournament.closeAt();
+            if (closeAt != null && closeAt < now - MISSED_AFTER_MILLIS) {
+                // Safe direction: a close missed while the server was off closes the sign-ups now (no broadcast).
+                log.accept("Cierre programado del torneo " + tournament.displayName() + " para "
+                    + ToffyTournamentTime.dateTime(closeAt, zone)
+                    + " perdido (el servidor estaba apagado): inscripciones cerradas al cargar.");
+                tournament.setOpen(false);
                 dropped = true;
-            } else {
-                markPassedWarnings(tournament, at, now);
+            }
+            Long eventAt = tournament.eventAt();
+            if (eventAt != null) {
+                if (eventAt < now - MISSED_AFTER_MILLIS) {
+                    log.accept(missed("evento " + tournament.eventType(), tournament, eventAt, zone));
+                    tournament.setEvent(null, null, null);
+                    dropped = true;
+                } else {
+                    markPassedEventWarnings(tournament, eventAt, now);
+                }
             }
         }
         if (dropped) {
             try {
                 save();
             } catch (UncheckedIOException failure) {
-                log.accept("No se pudo guardar torneos.yml sin los teletransportes descartados: "
+                log.accept("No se pudo guardar torneos.yml sin los programados descartados: "
                     + failure.getCause().getMessage());
+            }
+        }
+    }
+
+    private String missed(String what, ToffyTournament tournament, long at, ZoneId zone) {
+        return "Programado (" + what + ") del torneo " + tournament.displayName() + " para "
+            + ToffyTournamentTime.dateTime(at, zone) + " descartado: el servidor estaba apagado y paso el horario.";
+    }
+
+    private static void markPassedEventWarnings(ToffyTournament tournament, long at, long now) {
+        for (int minutes : WARNING_MINUTES) {
+            if (at - minutes * MINUTE_MILLIS <= now) {
+                tournament.markEventAnnounced(minutes);
             }
         }
     }

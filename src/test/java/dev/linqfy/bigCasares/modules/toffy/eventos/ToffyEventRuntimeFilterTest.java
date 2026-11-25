@@ -15,8 +15,9 @@ class ToffyEventRuntimeFilterTest {
     }
 
     @Test
-    void everythingElseIsBlockedDuringAnEvent() {
-        assertFalse(ToffyEventRuntime.allowedDuringEvent("evento"));
+    void eventoAndEventosAreAllowedAndEverythingElseIsBlockedDuringAnEvent() {
+        assertTrue(ToffyEventRuntime.allowedDuringEvent("evento"));
+        assertTrue(ToffyEventRuntime.allowedDuringEvent("eventos"));
         assertFalse(ToffyEventRuntime.allowedDuringEvent("spawn"));
         assertFalse(ToffyEventRuntime.allowedDuringEvent("anotarx"));
     }
