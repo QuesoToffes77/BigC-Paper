@@ -25,6 +25,15 @@ class ToffyEventSettingsTest {
         assertEquals(255, settings.spleef().efficiencyLevel());
         assertEquals(List.of("nuke_shot:1"), settings.tntTag().rewards().items());
         assertTrue(settings.arenaDimension());
+        assertTrue(settings.enabled());
+    }
+
+    @Test
+    void theSwitchTurnsTheEventsOff() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("enabled", false);
+
+        assertFalse(ToffyEventSettings.load(config).enabled());
     }
 
     @Test

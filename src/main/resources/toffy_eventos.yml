@@ -9,6 +9,9 @@
 #  Los mensajes de chat se editan en toffy_mensajes.yml (casos evento-*).
 #  Despues de editar: /toffy reload. Los cambios se aplican al PROXIMO evento (nunca a uno en curso).
 
+# Interruptor de los eventos. false = no se puede iniciar ninguno (los inventarios guardados se siguen devolviendo).
+enabled: true
+
 # Dimensión vacía bigcasares:eventos donde se arman las arenas. Aparece después del primer reinicio.
 arena-dimension: true
 # Mundo alternativo (vacío y dedicado: las arenas borran lo que haya) mientras la dimensión no esté activa.

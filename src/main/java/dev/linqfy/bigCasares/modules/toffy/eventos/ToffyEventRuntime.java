@@ -266,6 +266,10 @@ final class ToffyEventRuntime implements Listener {
 
     void start(CommandSender sender, ToffyEventType type, String tournamentKey, ToffyEvents.Roster roster,
                Integer lobbyOverride) {
+        if (!settings.enabled()) {
+            sender.sendMessage(PREFIX + "§cLos eventos estan apagados (enabled: false en toffy_eventos.yml).");
+            return;
+        }
         if (session != null) {
             sender.sendMessage(PREFIX + "§cYa hay un evento en curso (" + session.type.displayName()
                 + "). Detenelo con /toffy evento detener.");

@@ -8,6 +8,7 @@ import java.util.Locale;
 
 /** {@code toffy_eventos.yml} settings (top-level keys). Invalid values fall back to the defaults with a warning. */
 public record ToffyEventSettings(
+    boolean enabled,
     boolean arenaDimension,
     String fallbackArenaWorld,
     int arenaY,
@@ -105,6 +106,7 @@ public record ToffyEventSettings(
             reader.positive("spleef.max-minutes", 10),
             reader.rewards("spleef.rewards"));
         return new ToffyEventSettings(
+            config.getBoolean(PREFIX + "enabled", true),
             config.getBoolean(PREFIX + "arena-dimension", true),
             config.getString(PREFIX + "fallback-arena-world", ""),
             reader.between("arena-y", 100, 0, 250),
