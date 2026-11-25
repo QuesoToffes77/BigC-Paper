@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -455,7 +456,7 @@ public final class ToffyModule implements PluginModule {
         }
 
         @Override
-        public void save(java.util.Collection<ToffyTournament> tournaments) throws IOException {
+        public void save(Collection<ToffyTournament> tournaments) throws IOException {
             throw new IOException("torneos.yml no se pudo leer; arreglalo y usa /toffy reload");
         }
     }
