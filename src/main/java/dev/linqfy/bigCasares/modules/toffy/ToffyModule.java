@@ -1,9 +1,13 @@
 package dev.linqfy.bigCasares.modules.toffy;
 
 import dev.linqfy.bigCasares.BigCasares;
+import dev.linqfy.bigCasares.dimension.DimensionPlatform;
 import dev.linqfy.bigCasares.module.PluginModule;
 import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEvents;
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEventSettings;
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEventsConfig;
 import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.World;
@@ -26,7 +30,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * Shared equipment level library (0 to 200 by default). Other modules use it through
@@ -39,6 +46,7 @@ public final class ToffyModule implements PluginModule {
     public static final String VALUES_FILE = ToffySettingsLoader.VALUES_FILE;
     private static final String LOG_PREFIX = "[Toffy] ";
     public static final String MESSAGES_FILE = "toffy_mensajes.yml";
+    public static final String EVENTS_FILE = ToffyEventsConfig.FILE;
     private static final String MEMORY_FOLDER = "data/toffy-complementaries/players";
     private static final String TOURNAMENTS_FILE = "data/toffy-complementaries/torneos.yml";
 
@@ -50,6 +58,10 @@ public final class ToffyModule implements PluginModule {
     private volatile ToffyTournamentService tournaments;
     private volatile BukkitRuntimeRegistrations runtime;
     private ToffyMemoryTracker tracker;
+    private final Supplier<Optional<DimensionPlatform>> dimensions;
+    private final Supplier<Optional<Boolean>> pvpBaseline;
+    private final Predicate<UUID> endHuntDeath;
+    private volatile ToffyEvents events;
     private RuntimeRegistrationScope compatibilityScope;
 
     public ToffyModule(BigCasares plugin) {
@@ -61,8 +73,23 @@ public final class ToffyModule implements PluginModule {
      *                         when the file has become invalid so the level does not jump to the bundled defaults
      */
     public ToffyModule(BigCasares plugin, ToffySettings previousSettings) {
+        this(plugin, previousSettings, Optional::empty, Optional::empty, uuid -> false);
+    }
+
+    /**
+     * @param dimensions   dimension framework, used to build the event arenas (empty when it is disabled)
+     * @param pvpBaseline  PvP state chosen through server control, restored when an event ends
+     * @param endHuntDeath whether a death belongs to the end hunt (Lifesteal does not take hearts for it)
+     */
+    public ToffyModule(BigCasares plugin, ToffySettings previousSettings,
+                       Supplier<Optional<DimensionPlatform>> dimensions,
+                       Supplier<Optional<Boolean>> pvpBaseline,
+                       Predicate<UUID> endHuntDeath) {
         this.plugin = plugin;
         this.lastValidSettings = previousSettings;
+        this.dimensions = dimensions;
+        this.pvpBaseline = pvpBaseline;
+        this.endHuntDeath = endHuntDeath;
     }
 
     @Override
@@ -140,6 +167,21 @@ public final class ToffyModule implements PluginModule {
         registrations.registerListener("toffy-memory-listener", new ToffyMemoryListener(this));
         long interval = requireService().settings().memory().checkIntervalTicks();
         registrations.scheduleRepeating("toffy-memory-check", this::checkOnlinePlayers, interval, interval);
+        // Staff events (Lifesteal, KOTH, TNT Tag, Spleef) run on tournaments; they are enabled with this module.
+        prepareEventsFile();
+        ToffyEventSettings eventSettings = readEventSettings().orElseGet(this::bundledEventSettings);
+        ToffyEvents created = new ToffyEvents(plugin, dimensions, pvpBaseline, endHuntDeath, this::message,
+            this::rosterOf);
+        registrations.ownCleanup("toffy-events-state", () -> events = null);
+        try {
+            created.enable(registrations, scope, eventSettings);
+            events = created;
+        } catch (IllegalStateException failure) {
+            // The events check everything before registering anything, so nothing is left to clean up here;
+            // Toffy itself keeps running without the events.
+            plugin.getLogger().severe(LOG_PREFIX + "Eventos desactivados: " + failure.getMessage()
+                + " Toffy sigue funcionando sin eventos.");
+        }
         plugin.getLogger().info(LOG_PREFIX + "Module enabled (curve " + requireService().settings().curve().type()
             + ", maximum " + requireService().maximum() + ").");
     }
@@ -228,8 +270,8 @@ public final class ToffyModule implements PluginModule {
     /**
      * Chat text for {@code caseKey} (see {@code toffy_mensajes.yml}) with colors and placeholders applied: the
      * override of {@code tournament} (may be null), then the file, then the built-in default. {@code null} when the
-     * text is empty, which means "send nothing". Placeholders are {jugador}, {torneo}, {cantidad}, {x}, {y}, {z} and
-     * {mundo}. Main thread only.
+     * text is empty, which means "send nothing". Placeholders are {jugador}, {torneo}, {cantidad}, {x}, {y}, {z},
+     * {mundo}, and for staff events {evento}, {segundos}, {motivo} and {detalle}. Main thread only.
      */
     public String message(String caseKey, String tournament, Map<String, String> placeholders) {
         ToffyTournamentService current = tournaments;
@@ -283,6 +325,35 @@ public final class ToffyModule implements PluginModule {
     }
 
     /**
+     * Re-reads {@code toffy_eventos.yml}. The running event keeps its settings until it ends.
+     *
+     * @return false when the file cannot be read; the previous settings are kept
+     */
+    public synchronized boolean reloadEvents() {
+        Optional<ToffyEventSettings> loaded = readEventSettings();
+        loaded.ifPresent(settings -> {
+            ToffyEvents current = events;
+            if (current != null) {
+                current.applySettings(settings);
+            }
+        });
+        return loaded.isPresent();
+    }
+
+    /**
+     * Whether a running staff event handles this player's death (keep inventory, no tombstone). False when none runs.
+     */
+    public boolean protectsDeath(UUID playerId) {
+        ToffyEvents current = events;
+        return current != null && current.protectsDeath(playerId);
+    }
+
+    /** The staff events, or null while the module is not enabled. */
+    ToffyEvents events() {
+        return events;
+    }
+
+    /**
      * Re-reads {@code toffy_mensajes.yml}. When the file cannot be read the previous messages are kept.
      *
      * @return false when the file is invalid
@@ -304,6 +375,57 @@ public final class ToffyModule implements PluginModule {
 
     ToffyTournamentService tournaments() {
         return tournaments;
+    }
+
+    private Optional<ToffyEvents.Roster> rosterOf(String tournamentKey) {
+        ToffyTournamentService current = tournaments;
+        return current == null ? Optional.empty()
+            : current.find(tournamentKey).map(found ->
+                new ToffyEvents.Roster(found.displayName(), found.participants().keySet()));
+    }
+
+    /** Creates {@code toffy_eventos.yml} on first start and copies the values of an old {@code staff-events} section. */
+    private void prepareEventsFile() {
+        Path file = dataPath(EVENTS_FILE);
+        if (Files.exists(file)) {
+            return;
+        }
+        plugin.saveResource(EVENTS_FILE, false);
+        try {
+            if (ToffyEventsConfig.importLegacy(file,
+                plugin.getConfig().getConfigurationSection(ToffyEventsConfig.LEGACY_SECTION))) {
+                plugin.getLogger().info(LOG_PREFIX + EVENTS_FILE
+                    + " created with the values of the old staff-events section of config.yml.");
+            }
+        } catch (IOException failure) {
+            plugin.getLogger().severe(LOG_PREFIX + "Could not copy the old staff-events values into " + EVENTS_FILE
+                + ": " + failure.getMessage());
+        }
+    }
+
+    private Optional<ToffyEventSettings> readEventSettings() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.load(dataPath(EVENTS_FILE).toFile());
+        } catch (IOException | InvalidConfigurationException invalid) {
+            plugin.getLogger().severe(LOG_PREFIX + EVENTS_FILE + ": cannot read the file (" + invalid.getMessage()
+                + "); keeping the previous event settings.");
+            return Optional.empty();
+        }
+        return Optional.of(logEventWarnings(ToffyEventSettings.load(yaml)));
+    }
+
+    private ToffyEventSettings bundledEventSettings() {
+        try {
+            return logEventWarnings(ToffyEventSettings.load(bundled(EVENTS_FILE)));
+        } catch (IOException invalid) {
+            throw new IllegalStateException("Bundled " + EVENTS_FILE + " is invalid: " + invalid.getMessage(), invalid);
+        }
+    }
+
+    private ToffyEventSettings logEventWarnings(ToffyEventSettings settings) {
+        settings.warnings().forEach(warning -> plugin.getLogger().warning("[Eventos] " + warning));
+        return settings;
     }
 
     private ToffyTournamentService loadTournaments() {

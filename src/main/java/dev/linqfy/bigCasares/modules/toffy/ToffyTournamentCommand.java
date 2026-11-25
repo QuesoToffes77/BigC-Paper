@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.toffy;
 
 import org.bukkit.Location;
 import org.bukkit.World;
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEventType;
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEvents;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -26,6 +28,9 @@ final class ToffyTournamentCommand {
     private static final List<String> TORNEO_SUBCOMMANDS =
         List.of("crear", "cerrar", "abrir", "borrar", "lista", "ver", "sacar", "mensaje");
     private static final List<String> TP_SUBCOMMANDS = List.of("concursantes", "devolver");
+    private static final List<String> EVENT_SUBCOMMANDS = List.of("iniciar", "detener", "tipos", "estado");
+    private static final String EVENT_USAGE =
+        "§cUso: /toffy evento <iniciar <tipo> <torneo> [segundos]|detener|tipos|estado>";
 
     private final ToffyModule module;
 
@@ -101,6 +106,90 @@ final class ToffyTournamentCommand {
             }
             default -> sender.sendMessage("§cUso: /toffy torneo <crear|cerrar|abrir|borrar|lista|ver|sacar|mensaje>");
         }
+    }
+
+    /**
+     * {@code /toffy evento ...}: staff start, stop and inspect events. An event always runs on a tournament's
+     * sign-up list.
+     */
+    void event(CommandSender sender, String[] args) {
+        if (!sender.hasPermission(ToffyEvents.ADMIN_PERMISSION) && !sender.hasPermission(ToffyCommand.ADMIN_PERMISSION)) {
+            sender.sendMessage("§cNo tenes permiso para usar este comando.");
+            return;
+        }
+        ToffyEvents events = module.events();
+        if (events == null) {
+            sender.sendMessage(ToffyEvents.UNAVAILABLE_TEXT);
+            return;
+        }
+        if (args.length < 2) {
+            sender.sendMessage(EVENT_USAGE);
+            return;
+        }
+        switch (args[1].toLowerCase(Locale.ROOT)) {
+            case "iniciar", "start" -> start(sender, events, args);
+            case "detener", "stop" -> events.stop(sender);
+            case "tipos", "types" -> {
+                for (ToffyEventType type : ToffyEventType.values()) {
+                    sender.sendMessage("§e" + type.id() + " §7— " + type.displayName()
+                        + (type.arena() ? " §8(arena, inventario de evento)" : " §8(mundo normal, keep inventory)"));
+                }
+            }
+            case "estado", "status" -> events.status().forEach(sender::sendMessage);
+            default -> sender.sendMessage(EVENT_USAGE);
+        }
+    }
+
+    private void start(CommandSender sender, ToffyEvents events, String[] args) {
+        if (args.length < 4) {
+            sender.sendMessage("§cUso: /toffy evento iniciar <tipo> <torneo> [segundos de espera 5-600]");
+            return;
+        }
+        Optional<ToffyEventType> type = ToffyEventType.parse(args[2]);
+        if (type.isEmpty()) {
+            sender.sendMessage("§cTipo desconocido. Usa /toffy evento tipos.");
+            return;
+        }
+        ToffyTournamentService tournaments = module.tournaments();
+        Optional<ToffyTournament> tournament = tournaments == null ? Optional.empty() : tournaments.find(args[3]);
+        if (tournament.isEmpty()) {
+            sender.sendMessage("§cNo existe el torneo " + args[3] + ".");
+            return;
+        }
+        Integer lobby = null;
+        if (args.length >= 5) {
+            try {
+                lobby = Integer.parseInt(args[4]);
+            } catch (NumberFormatException invalid) {
+                lobby = -1;
+            }
+            if (lobby < 5 || lobby > 600) {
+                sender.sendMessage("§cLa espera tiene que estar entre 5 y 600 segundos.");
+                return;
+            }
+        }
+        events.start(sender, type.get(), tournament.get().key(), lobby);
+    }
+
+    /** Tab completion for {@code /toffy evento ...}; {@code args[0]} is "evento". */
+    List<String> completeEvent(CommandSender sender, String[] args) {
+        if (!sender.hasPermission(ToffyEvents.ADMIN_PERMISSION) && !sender.hasPermission(ToffyCommand.ADMIN_PERMISSION)) {
+            return List.of();
+        }
+        ToffyTournamentService tournaments = module.tournaments();
+        List<String> options = new ArrayList<>();
+        String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        if (args.length == 2) {
+            options.addAll(EVENT_SUBCOMMANDS);
+        } else if (args.length == 3 && sub.equals("iniciar")) {
+            for (ToffyEventType type : ToffyEventType.values()) {
+                options.add(type.id());
+            }
+        } else if (args.length == 4 && sub.equals("iniciar") && tournaments != null) {
+            options.addAll(tournaments.keys());
+        }
+        String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
+        return options.stream().filter(option -> option.startsWith(prefix)).toList();
     }
 
     private static boolean needs(CommandSender sender, String[] args, int length, String usage) {
@@ -216,6 +305,10 @@ final class ToffyTournamentCommand {
             return;
         }
         tournaments.removeParticipant(name, target);
+        ToffyEvents events = module.events();
+        if (events != null) {
+            events.withdraw(target, found.get().key());
+        }
         sender.sendMessage(PREFIX + "§a" + playerName + " fue sacado del torneo " + found.get().displayName() + ".");
     }
 

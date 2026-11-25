@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.toffy;
 
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEvents;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -49,6 +50,7 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
                 }
             }
             case "torneo", "tp" -> tournamentCommand.execute(sender, args);
+            case "evento" -> tournamentCommand.event(sender, args);
             case "curva", "curve" -> {
                 if (allowed(sender, ADMIN_PERMISSION)) {
                     curve(sender);
@@ -100,6 +102,11 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
 
     private void reload(CommandSender sender) {
         ToffyConfigLoadResult result = module.reload();
+        if (!module.reloadEvents()) {
+            sender.sendMessage(PREFIX + "§ctoffy_eventos.yml tiene errores; se mantienen los ajustes anteriores.");
+        } else {
+            sender.sendMessage(PREFIX + "§atoffy_eventos.yml recargado (se aplica al proximo evento).");
+        }
         if (module.reloadMessages()) {
             sender.sendMessage(PREFIX + "§atoffy_mensajes.yml recargado.");
         } else {
@@ -185,6 +192,9 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
             if (args[0].equalsIgnoreCase("torneo") || args[0].equalsIgnoreCase("tp")) {
                 return tournamentCommand.complete(sender, args);
             }
+            if (args[0].equalsIgnoreCase("evento")) {
+                return tournamentCommand.completeEvent(sender, args);
+            }
             return List.of();
         }
         List<String> options = new ArrayList<>();
@@ -195,6 +205,9 @@ final class ToffyCommand implements CommandExecutor, TabCompleter {
         if (sender.hasPermission(TORNEO_ADMIN_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION)) {
             options.add("torneo");
             options.add("tp");
+        }
+        if (sender.hasPermission(ToffyEvents.ADMIN_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION)) {
+            options.add("evento");
         }
         if (sender.hasPermission(CHECK_OTHERS_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION)) {
             module.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));

@@ -1,5 +1,7 @@
 package dev.linqfy.bigCasares.modules.toffy;
 
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEvents;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,6 +22,15 @@ final class ToffyMessages {
     static final String LLEVADO = "llevado";
     static final String DEVUELTO = "devuelto";
     static final String SIN_LUGAR_GUARDADO = "sin-lugar-guardado";
+    // Staff events announcements (see ToffyEvents).
+    static final String EVENTO_LOBBY = ToffyEvents.CASE_LOBBY;
+    static final String EVENTO_UNIDO = ToffyEvents.CASE_JOINED;
+    static final String EVENTO_SALIO = ToffyEvents.CASE_LEFT;
+    static final String EVENTO_EMPIEZA = ToffyEvents.CASE_STARTED;
+    static final String EVENTO_GANADOR = ToffyEvents.CASE_WINNER;
+    static final String EVENTO_ELIMINADO = ToffyEvents.CASE_ELIMINATED;
+    static final String EVENTO_CANCELADO = ToffyEvents.CASE_CANCELLED;
+    static final String EVENTO_FIN = ToffyEvents.CASE_FINISHED;
 
     private static final Map<String, String> DEFAULTS = defaults();
     static final List<String> CASES = List.copyOf(DEFAULTS.keySet());
@@ -45,6 +56,14 @@ final class ToffyMessages {
         map.put(LLEVADO, "&aFuiste llevado al torneo &e{torneo}&a.");
         map.put(DEVUELTO, "&aVolviste a donde estabas antes del torneo &e{torneo}&a.");
         map.put(SIN_LUGAR_GUARDADO, "&cNo hay un lugar guardado para devolverte del torneo &e{torneo}&c.");
+        map.put(EVENTO_LOBBY, "&6Va a empezar el evento &e{evento}&6 en &e{segundos} s&6. Anotate con &e/anotar {torneo}&6 para entrar.");
+        map.put(EVENTO_UNIDO, "&aEntraste al evento &e{evento}&a. Tu inventario queda guardado y lo recuperas al salir.");
+        map.put(EVENTO_SALIO, "&7{jugador} salio del evento &e{evento}&7. Quedan &e{cantidad}&7.");
+        map.put(EVENTO_EMPIEZA, "&e{evento} empieza! &7Participantes: &e{cantidad}&7.");
+        map.put(EVENTO_GANADOR, "&6&l{jugador} &7gano el evento &e{evento}&7.");
+        map.put(EVENTO_ELIMINADO, "&c{jugador} quedo eliminado ({motivo}). &7Quedan &e{cantidad}&7.");
+        map.put(EVENTO_CANCELADO, "&c{evento} se cancelo. &7{motivo}");
+        map.put(EVENTO_FIN, "&e{evento} &7termino. {detalle}");
         return map;
     }
 

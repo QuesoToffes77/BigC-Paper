@@ -66,6 +66,14 @@ class ToffyTournamentServiceTest {
     }
 
     @Test
+    void theNamesOfTheAnotarSubcommandsAreReserved() {
+        assertThrows(IllegalArgumentException.class, () -> service.create("salir"));
+        assertThrows(IllegalArgumentException.class, () -> service.create("Estado"));
+        assertTrue(service.list().isEmpty());
+        assertEquals("estadio", service.create("estadio").key());
+    }
+
+    @Test
     void registerResultsFollowTheTournamentState() {
         assertEquals(ToffyTournamentService.RegisterResult.UNKNOWN_TOURNAMENT, service.register("nada", ANA, "Ana"));
         service.create("copa");

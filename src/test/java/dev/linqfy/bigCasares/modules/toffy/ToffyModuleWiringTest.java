@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.toffy;
 
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEvents;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -7,10 +8,12 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,7 +38,8 @@ class ToffyModuleWiringTest {
 
     @Test
     void allBundledFilesShipInsideTheJar() throws Exception {
-        for (String name : new String[] {ToffyModule.CONFIG_FILE, ToffyModule.VALUES_FILE, ToffyModule.MESSAGES_FILE}) {
+        for (String name : new String[] {ToffyModule.CONFIG_FILE, ToffyModule.VALUES_FILE, ToffyModule.MESSAGES_FILE,
+            ToffyModule.EVENTS_FILE}) {
             try (InputStream stream = getClass().getClassLoader().getResourceAsStream(name)) {
                 assertNotNull(stream, name);
             }
@@ -43,6 +47,42 @@ class ToffyModuleWiringTest {
         assertEquals("toffy_complementaries.yml", ToffyModule.CONFIG_FILE);
         assertEquals("toffy_valores.yml", ToffyModule.VALUES_FILE);
         assertEquals("toffy_mensajes.yml", ToffyModule.MESSAGES_FILE);
+        assertEquals("toffy_eventos.yml", ToffyModule.EVENTS_FILE);
+    }
+
+    @Test
+    void theStaffEventsLiveInsideTheToffyModuleOnly() throws Exception {
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(new File("src/main/resources/config.yml"));
+        String main = Files.readString(Path.of("src/main/java/dev/linqfy/bigCasares/BigCasares.java"));
+
+        assertFalse(config.contains("staff-events"));
+        assertFalse(config.contains("modules.staff-events"));
+        assertFalse(main.contains("StaffEventsModule"));
+        assertFalse(main.contains("getStaffEventsModule"));
+        assertFalse(Files.exists(Path.of("src/main/java/dev/linqfy/bigCasares/modules/staffevents")));
+        assertTrue(main.contains("toffyModule.protectsDeath(playerId)"));
+    }
+
+    @Test
+    void theEventsFileDeclaresTheEventKeysAtTheTop() {
+        YamlConfiguration events = YamlConfiguration.loadConfiguration(new File("src/main/resources/toffy_eventos.yml"));
+
+        assertTrue(events.contains("arena-dimension"));
+        assertTrue(events.contains("lobby-seconds"));
+        assertTrue(events.contains("lifesteal.duration-minutes"));
+        assertTrue(events.contains("spleef.rewards.commands"));
+        assertFalse(events.contains("staff-events"));
+    }
+
+    @Test
+    void protectsNoDeathUntilTheModuleRuns() {
+        assertFalse(new ToffyModule(null).protectsDeath(UUID.randomUUID()));
+    }
+
+    @Test
+    void theEventCommandsUseTheToffyPermissions() {
+        assertEquals("bigcasares.toffy.evento.admin", ToffyEvents.ADMIN_PERMISSION);
+        assertEquals("bigcasares.toffy.anotar", ToffyAnotarCommand.PERMISSION);
     }
 
     @Test
@@ -74,6 +114,13 @@ class ToffyModuleWiringTest {
         assertTrue(plugin.getBoolean("permissions/" + ToffyCommand.ADMIN_PERMISSION + "/children/"
             + ToffyCommand.TORNEO_ADMIN_PERMISSION, false));
         assertTrue(main.contains("new ToffyModule(this,"));
+        assertNull(plugin.getConfigurationSection("commands/evento"));
+        assertNull(plugin.get("permissions/bigcasares.events.admin"));
+        assertNull(plugin.get("permissions/bigcasares.events.join"));
+        assertEquals("op", plugin.getString("permissions/" + ToffyEvents.ADMIN_PERMISSION + "/default"));
+        assertTrue(plugin.getBoolean("permissions/" + ToffyCommand.ADMIN_PERMISSION + "/children/"
+            + ToffyEvents.ADMIN_PERMISSION, false));
+        assertTrue(plugin.getString("commands/toffy/usage").contains("evento"));
         assertTrue(main.contains("toffyModule.lastValidSettings()"));
         assertTrue(main.contains("moduleManager.register(toffyModule)"));
         assertTrue(main.contains("public ToffyModule getToffyModule()"));

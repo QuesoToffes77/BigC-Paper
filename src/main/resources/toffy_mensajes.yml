@@ -8,6 +8,10 @@
 #        {torneo}   nombre del torneo tal como se escribio al crearlo
 #        {cantidad} cantidad de participantes anotados
 #        {x} {y} {z} {mundo}  lugar al que se llevo o devolvio al jugador (solo en llevado y devuelto)
+#        {evento}   nombre del evento (solo en los mensajes de eventos)
+#        {segundos} segundos que faltan para empezar (evento-lobby)
+#        {motivo}   por que (evento-eliminado, evento-cancelado)
+#        {detalle}  como termino el evento (evento-fin)
 #    - Un texto vacio ("") significa NO enviar nada en ese caso.
 #  Cada torneo puede tener su propio texto para un caso con:
 #    /toffy torneo mensaje <torneo> <caso> <texto...>      (y con "reset" vuelve a este archivo)
@@ -44,3 +48,32 @@ devuelto: "&aVolviste a donde estabas antes del torneo &e{torneo}&a."
 
 # Se lo dice a un participante conectado al que no hay donde devolver (nunca se lo llevo).
 sin-lugar-guardado: "&cNo hay un lugar guardado para devolverte del torneo &e{torneo}&c."
+
+# ---------------------------------------------------------------------------------------------------
+#  Eventos (los inicia el staff con /toffy evento iniciar <tipo> <torneo>). Son sobre el torneo:
+#  el texto de un torneo (/toffy torneo mensaje) tiene prioridad sobre estos.
+# ---------------------------------------------------------------------------------------------------
+
+# Anuncio para TODO el servidor al abrir la espera de un evento, con el boton [UNIRSE]. Vacio = sin anuncio.
+evento-lobby: "&6Va a empezar el evento &e{evento}&6 en &e{segundos} s&6. Anotate con &e/anotar {torneo}&6 para entrar."
+
+# Se lo dice al jugador que entra al evento (los anotados online entran solos; los demas con /anotar durante la espera).
+evento-unido: "&aEntraste al evento &e{evento}&a. Tu inventario queda guardado y lo recuperas al salir."
+
+# Se lo dice a los que siguen en el evento cuando alguien sale por su cuenta (/anotar salir).
+evento-salio: "&7{jugador} salio del evento &e{evento}&7. Quedan &e{cantidad}&7."
+
+# Se lo dice a los participantes cuando la arena empieza.
+evento-empieza: "&e{evento} empieza! &7Participantes: &e{cantidad}&7."
+
+# Anuncio para TODO el servidor con el ganador.
+evento-ganador: "&6&l{jugador} &7gano el evento &e{evento}&7."
+
+# Se lo dice a los participantes cuando alguien queda afuera (murio, se cayo, exploto o se desconecto).
+evento-eliminado: "&c{jugador} quedo eliminado ({motivo}). &7Quedan &e{cantidad}&7."
+
+# Anuncio para TODO el servidor cuando se cancela el evento (lo para el staff o no hay suficientes jugadores).
+evento-cancelado: "&c{evento} se cancelo. &7{motivo}"
+
+# Anuncio para TODO el servidor al terminar el evento. {detalle} es el motivo del final (por ejemplo, se acabo el tiempo).
+evento-fin: "&e{evento} &7termino. {detalle}"

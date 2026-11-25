@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,6 +27,9 @@ final class ToffyTournamentService {
     record PendingReturn(String tournament, ToffyStoredLocation location) {
     }
 
+    /** Names that /anotar uses for its own subcommands, so a tournament cannot take them. */
+    static final Set<String> RESERVED_NAMES = Set.of("salir", "estado");
+
     private final ToffyTournamentStorage storage;
     private final Map<String, ToffyTournament> tournaments = new LinkedHashMap<>();
 
@@ -39,11 +43,14 @@ final class ToffyTournamentService {
     }
 
     /**
-     * @throws IllegalArgumentException invalid name
+     * @throws IllegalArgumentException invalid name or a reserved one ("salir", "estado")
      * @throws IllegalStateException    the tournament already exists
      */
     ToffyTournament create(String name) {
         String key = ToffyTournament.keyOf(name);
+        if (RESERVED_NAMES.contains(key)) {
+            throw new IllegalArgumentException("El nombre " + key + " esta reservado para /anotar; elegi otro.");
+        }
         if (tournaments.containsKey(key)) {
             throw new IllegalStateException("Ya existe el torneo " + tournaments.get(key).displayName() + ".");
         }

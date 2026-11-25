@@ -27,7 +27,9 @@ class ToffyMessagesTest {
             assertTrue(bundled.contains(key), key);
             assertEquals(ToffyMessages.defaultTemplate(key), loaded.messages().template(key, null), key);
         }
-        assertEquals(10, ToffyMessages.CASES.size());
+        assertEquals(18, ToffyMessages.CASES.size());
+        assertEquals("evento-lobby", ToffyMessages.EVENTO_LOBBY);
+        assertEquals("evento-fin", ToffyMessages.EVENTO_FIN);
     }
 
     @Test
