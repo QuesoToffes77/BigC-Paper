@@ -34,12 +34,12 @@ class GeyserCaiChetItemsTest {
             assertFalse(definition.bedrockIdentifier().startsWith("minecraft:"), "Geyser rejects minecraft: ids");
         }
         assertEquals(List.of("minecraft:stick", "minecraft:paper", "minecraft:paper", "minecraft:paper",
-                "minecraft:clock", "minecraft:totem_of_undying"),
+                "minecraft:clock", "minecraft:paper"),
             definitions.stream().map(GeyserCustomItemDefinition::javaBaseIdentifier).toList());
     }
 
     @Test
-    void bottleAndJarCarryTheirDrinkTimeAndNothingElseIsConsumed() {
+    void theDrinksCarryTheirDrinkTimeAndNothingElseIsConsumed() {
         Map<String, GeyserCustomItemDefinition> byModel = GeyserCaiChetItems.definitions(CaiChetBedrockItems.all())
             .stream().collect(Collectors.toMap(GeyserCustomItemDefinition::javaModelIdentifier, Function.identity()));
 
@@ -47,8 +47,10 @@ class GeyserCaiChetItemsTest {
             byModel.get("caichet:botella").consumption());
         assertEquals(new GeyserItemConsumption(2.4f, GeyserItemConsumption.Animation.DRINK),
             byModel.get("caichet:jarra").consumption());
+        assertEquals(new GeyserItemConsumption(1.6f, GeyserItemConsumption.Animation.DRINK),
+            byModel.get("caichet:despertar").consumption());
         byModel.forEach((model, definition) -> {
-            if (!model.equals("caichet:botella") && !model.equals("caichet:jarra")) {
+            if (!List.of("caichet:botella", "caichet:jarra", "caichet:despertar").contains(model)) {
                 assertNull(definition.consumption(), model);
             }
         });
@@ -61,6 +63,7 @@ class GeyserCaiChetItemsTest {
 
         assertEquals(HotelLoot.BOTTLE_DRINK_MS, millis.get("caichet:botella"));
         assertEquals(HotelLoot.JAR_DRINK_MS, millis.get("caichet:jarra"));
+        assertEquals(HotelLoot.WAKE_DRINK_MS, millis.get("caichet:despertar"));
     }
 
     @Test

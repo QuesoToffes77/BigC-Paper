@@ -21,7 +21,7 @@ import java.util.logging.Level;
  *   el Bloque de Dimension ({@link PortalListener}); ahi pasa el tren ({@link TrainDirector}) con la gente de tu team
  *   arriba ({@link TrainPassengers}), los liquidos suben ({@link LiquidRiser}), los items sueltos flotan
  *   ({@link ItemFloater}) y andan los dobles ({@link Doppelganger}), que dan el Reloj de los Sueños;</li>
- *   <li>el hotel ({@link HotelWorld}): se llega con el totem Despertar ({@link DespertarListener}); tiene luces que
+ *   <li>el hotel ({@link HotelWorld}): se llega bebiendo el Despertar ({@link DespertarListener}); tiene luces que
  *   titilan ({@link FlickerLights}), figuras que te miran ({@link Watchers}), entidades que te cazan
  *   ({@link BackroomsEntities}), cofres y puertas con llave
  *   ({@link HotelLoot}, {@link KeyDoors});</li>

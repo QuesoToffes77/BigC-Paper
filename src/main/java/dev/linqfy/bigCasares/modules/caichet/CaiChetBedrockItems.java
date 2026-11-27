@@ -26,7 +26,7 @@ public final class CaiChetBedrockItems {
         drink("jarra", "Jarra de Memorias", HotelLoot.JAR_DRINK_MS),
         item("paper", "llave", "Llave"),
         item("clock", "reloj_suenos", "Reloj de los Sueños"),
-        item("totem_of_undying", "despertar", "Despertar"));
+        drink("despertar", "Despertar", HotelLoot.WAKE_DRINK_MS));
 
     private CaiChetBedrockItems() {
     }

@@ -146,10 +146,12 @@ public final class HotelLoot implements Listener {
 
     public static final long BOTTLE_DRINK_MS = 1600;
     public static final long JAR_DRINK_MS = 2400;
+    /** La bebida Despertar ({@link DreamItems#wakeDrink}). */
+    public static final long WAKE_DRINK_MS = 1600;
     /** Ticks que se espera, tras el click de un jugador Bedrock, a ver si empezo a beber por su cuenta. */
     private static final long BEDROCK_DRINK_CHECK_TICKS = 5;
 
-    private static Consumable drink(float seconds) {
+    static Consumable drink(float seconds) {
         return Consumable.consumable()
                 .consumeSeconds(seconds)
                 .animation(ItemUseAnimation.DRINK)
@@ -300,7 +302,26 @@ public final class HotelLoot implements Listener {
             feed(player, BOTTLE_FOOD);
         } else if ("jarra".equals(id)) {
             flashback(player);
+        } else if ("despertar".equals(id)) {
+            wakeSoon(player);
         }
+    }
+
+    /** Un tick despues, para no viajar en medio del trago (el juego todavia no gasto la bebida). */
+    private static void wakeSoon(Player player) {
+        CaiChetRuntime.tasks().later(() -> {
+            if (player.isOnline() && !player.isDead()) {
+                DespertarListener.wake(player);
+            }
+        }, 1L);
+    }
+
+    private static long drinkMillis(String id) {
+        return switch (id) {
+            case "jarra" -> JAR_DRINK_MS;
+            case "despertar" -> WAKE_DRINK_MS;
+            default -> BOTTLE_DRINK_MS;
+        };
     }
 
     /**
@@ -316,8 +337,9 @@ public final class HotelLoot implements Listener {
             return;
         }
         String id = idOf(event.getItem());
-        if ((!"botella".equals(id) && !"jarra".equals(id)) || event.getHand() == null
-                || !Bedrock.is(event.getPlayer())) {
+        if ((!"botella".equals(id) && !"jarra".equals(id) && !"despertar".equals(id)) || event.getHand() == null
+                || !Bedrock.is(event.getPlayer())
+                || "despertar".equals(id) && HotelWorld.isHotel(event.getPlayer().getWorld())) {
             return;
         }
         Player player = event.getPlayer();
@@ -334,7 +356,7 @@ public final class HotelLoot implements Listener {
         if (until != null && now < until) {
             return;
         }
-        drinkingUntil.put(player.getUniqueId(), now + ("jarra".equals(id) ? JAR_DRINK_MS : BOTTLE_DRINK_MS));
+        drinkingUntil.put(player.getUniqueId(), now + drinkMillis(id));
         if (player.getGameMode() != GameMode.CREATIVE) {
             ItemStack held = player.getInventory().getItem(hand);
             held.setAmount(held.getAmount() - 1);
@@ -343,6 +365,8 @@ public final class HotelLoot implements Listener {
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 1f, 1f);
         if ("botella".equals(id)) {
             feed(player, BOTTLE_FOOD);
+        } else if ("despertar".equals(id)) {
+            wakeSoon(player);
         } else {
             flashback(player);
         }

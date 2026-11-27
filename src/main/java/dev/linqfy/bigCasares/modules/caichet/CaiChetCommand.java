@@ -16,7 +16,7 @@ import java.util.Random;
 import java.util.stream.Stream;
 
 /**
- * /caichet, para administradores: entregar los objetos del modulo, viajar entre sus mundos sin bloque ni totem y
+ * /caichet, para administradores: entregar los objetos del modulo, viajar entre sus mundos sin bloque ni bebida y
  * mandar el tren y levantar un pozo.
  */
 final class CaiChetCommand implements CommandExecutor, TabCompleter {
@@ -184,7 +184,7 @@ final class CaiChetCommand implements CommandExecutor, TabCompleter {
         }
         return switch (id) {
             case "reloj" -> DreamItems.clock();
-            case "despertar" -> DreamItems.totem();
+            case "despertar" -> DreamItems.wakeDrink();
             case "arma" -> HotelLoot.gun();
             case "botella" -> HotelLoot.bottle();
             case "jarra" -> HotelLoot.jar();
