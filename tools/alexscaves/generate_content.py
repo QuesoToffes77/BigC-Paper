@@ -587,6 +587,15 @@ def robe_texture(seed=7):
     return out.getvalue()
 
 
+# Sonidos propios del port (no son del mod): sus .ogg ya están en el repo y el generador no los copia.
+OWN_SOUNDS = {
+    "nuclear_bomb_activation": {"sounds": [{"name": "alexscaves:misc/nuke/activation", "stream": True,
+                                            "attenuation_distance": 256}]},
+    "nuclear_alert": {"sounds": [{"name": "alexscaves:misc/nuke/alert", "stream": True}]},
+    "nuclear_detonation": {"sounds": [{"name": "alexscaves:misc/nuke/detonation", "stream": True}]},
+}
+
+
 def write_sounds(mod, java, lang_es, lang_en):
     """Copies the listed sound events; streamed music is re-encoded to mono VBR (q1) when ffmpeg exists."""
     events = mod.json("assets/alexscaves/sounds.json")
@@ -610,6 +619,7 @@ def write_sounds(mod, java, lang_es, lang_en):
         if subtitle:
             lang_es[subtitle] = mod.lang["es_es"].get(subtitle) or mod.lang["en_us"].get(subtitle, event)
             lang_en[subtitle] = mod.lang["en_us"].get(subtitle, event)
+    published.update(OWN_SOUNDS)
     write(os.path.join(java, NS, "sounds.json"), published)
 
 

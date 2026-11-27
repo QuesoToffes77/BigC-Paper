@@ -193,6 +193,8 @@ public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable
                 bomb.display.remove();
                 bomb.box.remove();
                 iterator.remove();
+                // The alert is cut by the blast, so only the detonation is heard.
+                stopSound(at, ALERT_SOUND);
                 NuclearExplosion.detonateWithWarning(mobs, at.clone().add(0.5, 0.0, 0.5), NukeMath.BOMB_SIZE);
             }
         }
@@ -222,8 +224,18 @@ public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable
     private void remove(UUID box) {
         Primed bomb = primed.remove(box);
         if (bomb != null) {
+            // A bomb that will not blow up (defused or turned back into its block) falls silent.
+            Location at = bomb.display.getLocation();
+            stopSound(at, ACTIVATION_SOUND);
+            stopSound(at, ALERT_SOUND);
             bomb.display.remove();
             bomb.box.remove();
+        }
+    }
+
+    private static void stopSound(Location at, String sound) {
+        for (Player player : at.getWorld().getPlayers()) {
+            player.stopSound(sound, SoundCategory.MASTER);
         }
     }
 

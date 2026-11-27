@@ -2859,5 +2859,30 @@
       "alexscaves:mob/tremorzilla/tremorzilla_tail_attack"
     ],
     "subtitle": "alexscaves.sound.subtitle.tremorzilla_tail_attack"
+  },
+  "nuclear_bomb_activation": {
+    "sounds": [
+      {
+        "name": "alexscaves:misc/nuke/activation",
+        "stream": true,
+        "attenuation_distance": 256
+      }
+    ]
+  },
+  "nuclear_alert": {
+    "sounds": [
+      {
+        "name": "alexscaves:misc/nuke/alert",
+        "stream": true
+      }
+    ]
+  },
+  "nuclear_detonation": {
+    "sounds": [
+      {
+        "name": "alexscaves:misc/nuke/detonation",
+        "stream": true
+      }
+    ]
   }
 }

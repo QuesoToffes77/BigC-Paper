@@ -260,6 +260,10 @@ public final class NuclearExplosion implements Runnable {
             if (alpha == 0) {
                 whiteout.close();
                 whiteout = null;
+                // The detonation sound lasts until the white is gone.
+                for (Player player : center.getWorld().getPlayers()) {
+                    player.stopSound(DETONATION_SOUND, SoundCategory.MASTER);
+                }
             }
         }
         while (!fires.isEmpty() && fires.peek().outAt() <= ticks) {

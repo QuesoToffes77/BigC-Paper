@@ -2335,6 +2335,22 @@
         }
       ]
     },
+    "alexscaves:nuclear_alert": {
+      "category": "neutral",
+      "sounds": [
+        {
+          "name": "sounds/alexscaves/misc/nuke/alert"
+        }
+      ]
+    },
+    "alexscaves:nuclear_bomb_activation": {
+      "category": "neutral",
+      "sounds": [
+        {
+          "name": "sounds/alexscaves/misc/nuke/activation"
+        }
+      ]
+    },
     "alexscaves:nuclear_bomb_defuse": {
       "category": "neutral",
       "sounds": [
@@ -2357,6 +2373,14 @@
         },
         {
           "name": "sounds/alexscaves/block/nuclear_bomb/nuclear_bomb_place_3"
+        }
+      ]
+    },
+    "alexscaves:nuclear_detonation": {
+      "category": "neutral",
+      "sounds": [
+        {
+          "name": "sounds/alexscaves/misc/nuke/detonation"
         }
       ]
     },
