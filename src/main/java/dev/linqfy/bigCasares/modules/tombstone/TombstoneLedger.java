@@ -14,7 +14,7 @@ final class TombstoneLedger {
     void restore(Collection<TombstoneRecord> restored, Instant now) {
         records.clear();
         restored.stream()
-            .filter(record -> record.expiresAt().isAfter(now))
+            .filter(record -> record.awaitingBurial() || record.expiresAt().isAfter(now))
             .filter(record -> TombstoneItemLayout.hasItems(record.items()))
             .forEach(record -> records.put(record.id(), record));
     }

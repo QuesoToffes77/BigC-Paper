@@ -13,6 +13,7 @@ import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.RuntimeCleanupOutcome;
 import dev.linqfy.bigCasares.module.runtime.RuntimeCleanupReport;
 import dev.linqfy.bigCasares.module.runtime.RuntimeGeneration;
+import dev.linqfy.bigCasares.modules.auctionhouse.AuctionHouseModule;
 import dev.linqfy.bigCasares.modules.bounties.BountyModule;
 import dev.linqfy.bigCasares.modules.casino.CasinoModule;
 import dev.linqfy.bigCasares.modules.copperapple.CopperAppleModule;
@@ -23,16 +24,25 @@ import dev.linqfy.bigCasares.modules.geyser.BedrockShopForm;
 import dev.linqfy.bigCasares.modules.geyser.GeyserIntegrationModule;
 import dev.linqfy.bigCasares.modules.content.CustomContentModule;
 import dev.linqfy.bigCasares.modules.danger.DangerModule;
+import dev.linqfy.bigCasares.modules.domination.DominationModule;
+import dev.linqfy.bigCasares.modules.quadrants.QuadrantModule;
 import dev.linqfy.bigCasares.modules.dimension.DimensionModule;
 import dev.linqfy.bigCasares.modules.sift.SiftModule;
 import dev.linqfy.bigCasares.modules.tombstone.TombstoneModule;
 import dev.linqfy.bigCasares.modules.keepinventorytotem.KeepInventoryTotemModule;
 import dev.linqfy.bigCasares.modules.elytrafailure.ElytraFailureModule;
+import dev.linqfy.bigCasares.modules.humillacion.HumillacionModule;
+import dev.linqfy.bigCasares.modules.villagermood.VillagerMoodModule;
 import dev.linqfy.bigCasares.modules.specialitems.SpecialItemsModule;
+import dev.linqfy.bigCasares.modules.duels.DuelsModule;
+import dev.linqfy.bigCasares.modules.phasearrows.PhaseArrowsModule;
+import dev.linqfy.bigCasares.modules.piranhas.PiranhasModule;
+import dev.linqfy.bigCasares.modules.trimabilities.TrimAbilitiesModule;
 import dev.linqfy.bigCasares.modules.warp.WarpModule;
 
 import dev.linqfy.bigCasares.modules.missions.MissionModule;
 import dev.linqfy.bigCasares.modules.airdrop.AirdropModule;
+import dev.linqfy.bigCasares.modules.auth.AuthModule;
 import dev.linqfy.bigCasares.modules.acidrain.AcidRainModule;
 import dev.linqfy.bigCasares.modules.alexscaves.AlexsCavesModule;
 import dev.linqfy.bigCasares.modules.bloodmoon.BloodMoonModule;
@@ -45,16 +55,21 @@ import dev.linqfy.bigCasares.modules.grapplinghook.GrapplingHookModule;
 import dev.linqfy.bigCasares.modules.glider.GliderModule;
 import dev.linqfy.bigCasares.modules.model.JavaModelGateway;
 import dev.linqfy.bigCasares.modules.model.JavaModelGatewayFactory;
+import dev.linqfy.bigCasares.modules.netheritequest.NetheriteQuestModule;
 import dev.linqfy.bigCasares.modules.nexus.NexusModule;
 import dev.linqfy.bigCasares.modules.pveboss.PveBossModule;
 import dev.linqfy.bigCasares.modules.resourcepack.ResourcePackModule;
 import dev.linqfy.bigCasares.modules.schizophrenia.SchizophreniaModule;
 import dev.linqfy.bigCasares.modules.shop.ShopModule;
+import dev.linqfy.bigCasares.modules.tideframe.TideframeUiModule;
 import dev.linqfy.bigCasares.modules.skillrating.SkillRatingModule;
 import dev.linqfy.bigCasares.modules.smokebomb.SmokeBombModule;
+import dev.linqfy.bigCasares.modules.staffevents.StaffEventsModule;
 import dev.linqfy.bigCasares.modules.teams.TeamModule;
 import dev.linqfy.bigCasares.modules.discord.DiscordIntegrationModule;
 import dev.linqfy.bigCasares.modules.endevent.EndEventModule;
+import dev.linqfy.bigCasares.modules.forex.ForexModule;
+import dev.linqfy.bigCasares.modules.forex.TeamServiceForexTeams;
 import dev.linqfy.bigCasares.modules.moderation.ModerationModule;
 import dev.linqfy.bigCasares.modules.servercontrol.ServerControlModule;
 import dev.linqfy.bigCasares.modules.servercontrol.VanishSessionRegistry;
@@ -68,12 +83,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class BigCasares extends JavaPlugin {
 
     private static final List<String> ROOT_COMMAND_NAMES = List.of(
-        "bigcasares", "shop", "rating", "team", "teammanage", "nexus", "boss"
+        "bigcasares", "shop", "rating", "team", "teammanage", "nexus", "boss", "tumba"
     );
 
     private ModuleManager moduleManager;
@@ -87,6 +103,7 @@ public final class BigCasares extends JavaPlugin {
     private TombstoneModule tombstoneModule;
     private KeepInventoryTotemModule keepInventoryTotemModule;
     private SpecialItemsModule specialItemsModule;
+    private QuadrantModule quadrantModule;
     private WarpModule warpModule;
 
     private ResourcePackModule resourcePackModule;
@@ -94,6 +111,7 @@ public final class BigCasares extends JavaPlugin {
     private TeamModule teamModule;
     private NexusModule nexusModule;
     private PveBossModule pveBossModule;
+    private NetheriteQuestModule netheriteQuestModule;
     private GeyserIntegrationModule geyserIntegrationModule;
     private AirdropModule airdropModule;
     private AcidRainModule acidRainModule;
@@ -103,12 +121,15 @@ public final class BigCasares extends JavaPlugin {
     private MutangoModule mutangoModule;
     private CelularModule celularModule;
     private CasinoModule casinoModule;
+    private ForexModule forexModule;
+    private AuctionHouseModule auctionHouseModule;
     private GrapplingHookModule grapplingHookModule;
     private GliderModule gliderModule;
     private MobScalingModule mobScalingModule;
     private ModerationModule moderationModule;
     private ServerControlModule serverControlModule;
     private DiscordIntegrationModule discordIntegrationModule;
+    private AuthModule authModule;
     private EndEventModule endEventModule;
     private ContentItemFactory contentItems;
     private CustomBlockRegistry customBlocks;
@@ -116,9 +137,11 @@ public final class BigCasares extends JavaPlugin {
     private CustomContentModule customContentModule;
     private SiftModule siftModule;
     private AlexsCavesModule alexsCavesModule;
+    private StaffEventsModule staffEventsModule;
     private EmojiAliasService emojiAliasService;
     private final VanishSessionRegistry vanishSessionRegistry = new VanishSessionRegistry();
     private final ReloadCoordinator reloadCoordinator = new ReloadCoordinator();
+    private dev.linqfy.bigCasares.command.TimerCommand timerCommand;
 
     @Override
     public void onEnable() {
@@ -145,6 +168,7 @@ public final class BigCasares extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        shutdownTimer();
         disableCurrentRuntime();
         logCleanupFailures(cleanupBukkitRuntime());
     }
@@ -173,8 +197,6 @@ public final class BigCasares extends JavaPlugin {
         return skillRatingModule;
     }
 
-
-    
     public DangerModule getDangerModule() {
         return dangerModule;
     }
@@ -185,6 +207,10 @@ public final class BigCasares extends JavaPlugin {
     
     public SpecialItemsModule getSpecialItemsModule() {
         return specialItemsModule;
+    }
+
+    public QuadrantModule getQuadrantModule() {
+        return quadrantModule;
     }
 
     public WarpModule getWarpModule() {
@@ -209,6 +235,18 @@ public final class BigCasares extends JavaPlugin {
 
     public PveBossModule getPveBossModule() {
         return pveBossModule;
+    }
+
+    public NetheriteQuestModule getNetheriteQuestModule() {
+        return netheriteQuestModule;
+    }
+
+    /** A boss died: its top three damage dealers get its soul (no-op while the netherite quests are off). */
+    public void awardBossSouls(String bossId, String bossName, java.util.Map<UUID, Double> damageByPlayer) {
+        NetheriteQuestModule quests = netheriteQuestModule;
+        if (quests != null) {
+            quests.awardBossSouls(bossId, bossName, damageByPlayer);
+        }
     }
 
     public GeyserIntegrationModule getGeyserIntegrationModule() {
@@ -251,6 +289,10 @@ public final class BigCasares extends JavaPlugin {
         return casinoModule;
     }
 
+    public ForexModule getForexModule() {
+        return forexModule;
+    }
+
     public MobScalingModule getMobScalingModule() {
         return mobScalingModule;
     }
@@ -263,8 +305,16 @@ public final class BigCasares extends JavaPlugin {
         return serverControlModule;
     }
 
+    public AuctionHouseModule getAuctionHouseModule() {
+        return auctionHouseModule;
+    }
+
     public DiscordIntegrationModule getDiscordIntegrationModule() {
         return discordIntegrationModule;
+    }
+
+    public AuthModule getAuthModule() {
+        return authModule;
     }
 
     public EndEventModule getEndEventModule() {
@@ -277,6 +327,10 @@ public final class BigCasares extends JavaPlugin {
 
     public SiftModule getSiftModule() {
         return siftModule;
+    }
+
+    public StaffEventsModule getStaffEventsModule() {
+        return staffEventsModule;
     }
 
     public ContentItemFactory getContentItems() {
@@ -380,6 +434,7 @@ public final class BigCasares extends JavaPlugin {
         this.dangerModule = new DangerModule(this);
         this.tombstoneModule = new TombstoneModule(this);
         this.specialItemsModule = new SpecialItemsModule(this);
+        this.quadrantModule = new QuadrantModule(this);
         this.warpModule = new WarpModule(this);
         this.geyserIntegrationModule = new GeyserIntegrationModule(this);
         this.airdropModule = new AirdropModule(this);
@@ -391,6 +446,7 @@ public final class BigCasares extends JavaPlugin {
         this.mutangoModule = new MutangoModule(this);
         this.celularModule = new CelularModule(this);
         this.casinoModule = new CasinoModule(this);
+        this.auctionHouseModule = new AuctionHouseModule(this);
         this.grapplingHookModule = new GrapplingHookModule(this, javaModels);
         this.gliderModule = new GliderModule(this);
         this.mobScalingModule = new MobScalingModule(this);
@@ -402,6 +458,7 @@ public final class BigCasares extends JavaPlugin {
             teamId -> teamModule.service().flatMap(service -> service.findById(teamId))
                 .map(team -> team.color().legacyCode() + team.name().toUpperCase() + " [" + team.tag() + "]"),
             javaModels);
+        this.netheriteQuestModule = new NetheriteQuestModule(this);
         this.pveBossModule = new PveBossModule(
             this,
             this::resolveClientPlatform,
@@ -409,6 +466,11 @@ public final class BigCasares extends JavaPlugin {
                 && resourcePackModule.service().map(service -> service.hasLoadedPack(playerId)).orElse(false),
             javaModels
         );
+        this.forexModule = new ForexModule(this, new TeamServiceForexTeams(() -> teamModule == null
+            ? Optional.empty() : teamModule.service()));
+        ForexModule forex = forexModule;
+        this.casinoModule.setCreditRating(forex::creditMultiplier);
+        this.nexusModule.setContainerPass((playerId, teamId) -> forex.hasClanPass(playerId, teamId.toString()));
         this.moderationModule = new ModerationModule(this);
         this.serverControlModule = new ServerControlModule(
             this, moderationModule.audit(), moderationModule::acceptSignal, emojiAliasService
@@ -416,12 +478,17 @@ public final class BigCasares extends JavaPlugin {
         this.endEventModule = new EndEventModule(this);
         this.keepInventoryTotemModule = new KeepInventoryTotemModule(this);
         this.alexsCavesModule = new AlexsCavesModule(this, javaModels);
+        DuelsModule duelsModule = new DuelsModule(this);
         this.tombstoneModule.setDeathCaptureEligibility(playerId ->
             (endEventModule == null || !endEventModule.bypassTombstone(playerId))
-                && (keepInventoryTotemModule == null || !keepInventoryTotemModule.protectsDeath(playerId)));
+                && (keepInventoryTotemModule == null || !keepInventoryTotemModule.protectsDeath(playerId))
+                && !duelsModule.protectsDeath(playerId)
+                && (staffEventsModule == null || !staffEventsModule.protectsDeath(playerId)));
         this.discordIntegrationModule = new DiscordIntegrationModule(
             this, moderationModule.audit(), serverControlModule, emojiAliasService
         );
+        this.authModule = new AuthModule(this, this::resolveClientPlatform, () -> discordIntegrationModule,
+            vanishSessionRegistry);
         this.contentItems = new ContentItemFactory(new ContentItemRegistry());
         this.customBlocks = new CustomBlockRegistry();
         this.dimensionModule = new DimensionModule(this, this::matchesItemId);
@@ -429,9 +496,19 @@ public final class BigCasares extends JavaPlugin {
         DimensionModule dimensions = dimensionModule;
         this.siftModule = new SiftModule(this, dimensions::platform, customBlocks, contentItems, javaModels,
             this::resolveClientPlatform);
+        this.staffEventsModule = new StaffEventsModule(this, dimensions::platform, this::serverControlPvp,
+            endEventModule::bypassTombstone);
         this.shopModule.configurePlatform(this::resolveClientPlatform, this::sendBedrockShopForm);
+        TideframeUiModule tideframeUiModule = new TideframeUiModule(
+            playerId -> resourcePackModule != null
+                && resourcePackModule.service().map(service -> service.hasLoadedBigCasaresPack(playerId)).orElse(false),
+            playerId -> resolveClientPlatform(playerId) == ClientPlatform.BEDROCK
+        );
+        this.missionModule.configureMenuTitleStyle(tideframeUiModule::style);
+        this.shopModule.configureMenuTitleStyle(tideframeUiModule::style);
 
         moduleManager.register(resourcePackModule);
+        moduleManager.register(tideframeUiModule);
         moduleManager.register(itemCatalogModule);
         moduleManager.register(new CopperAppleModule(this));
         moduleManager.register(new SmokeBombModule(this));
@@ -441,9 +518,16 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(inventoryLimitModule);
         moduleManager.register(skillRatingModule);
         moduleManager.register(dangerModule);
+        moduleManager.register(quadrantModule);
+        moduleManager.register(new DominationModule(this, quadrantModule::isFullPvp));
         moduleManager.register(tombstoneModule);
+        moduleManager.register(duelsModule);
         moduleManager.register(keepInventoryTotemModule);
         moduleManager.register(new ElytraFailureModule(this));
+        moduleManager.register(new TrimAbilitiesModule(this));
+        moduleManager.register(new PhaseArrowsModule(this));
+        moduleManager.register(new PiranhasModule(this));
+        moduleManager.register(new HumillacionModule(this, tombstoneModule));
         moduleManager.register(specialItemsModule);
         moduleManager.register(warpModule);
 
@@ -451,6 +535,7 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(grapplingHookModule);
         moduleManager.register(gliderModule);
         moduleManager.register(mobScalingModule);
+        moduleManager.register(new VillagerMoodModule(this));
 
         moduleManager.register(teamModule);
         moduleManager.register(nexusModule);
@@ -463,6 +548,9 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(new SchizophreniaModule(this));
         moduleManager.register(shopModule);
         moduleManager.register(casinoModule);
+        moduleManager.register(forexModule);
+        moduleManager.register(auctionHouseModule);
+        moduleManager.register(netheriteQuestModule);
         moduleManager.register(alexsCavesModule);
         moduleManager.register(pveBossModule);
         moduleManager.register(geyserIntegrationModule);
@@ -472,7 +560,11 @@ public final class BigCasares extends JavaPlugin {
         moduleManager.register(dimensionModule);
         moduleManager.register(customContentModule);
         moduleManager.register(siftModule);
+        moduleManager.register(staffEventsModule);
         moduleManager.register(discordIntegrationModule);
+        // Registered last: it wires itself to the Discord gateway and is disabled first, releasing limbo players
+        // while every other module is still active.
+        moduleManager.register(authModule);
         return moduleManager.enableRegisteredModules(generation);
     }
 
@@ -491,6 +583,14 @@ public final class BigCasares extends JavaPlugin {
         String catalogId = id.startsWith("bigcasares:") ? id.substring("bigcasares:".length()) : id;
         return customItemRegistry != null
             && customItemRegistry.resolveItemId(stack).map(catalogId::equals).orElse(false);
+    }
+
+    /** PvP state chosen through server control, when that module is running. */
+    private java.util.Optional<Boolean> serverControlPvp() {
+        if (serverControlModule == null || serverControlModule.service() == null) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(serverControlModule.service().effectivePvp(java.time.Instant.now()));
     }
 
     private boolean acidRainEventActive() {
@@ -552,7 +652,9 @@ public final class BigCasares extends JavaPlugin {
             command.setTabCompleter(handler);
         }
         
+        shutdownTimer();
         dev.linqfy.bigCasares.command.TimerCommand timerCmd = new dev.linqfy.bigCasares.command.TimerCommand(this);
+        timerCommand = timerCmd;
         PluginCommand timerPluginCmd = getCommand("timer");
         if (timerPluginCmd != null) {
             timerPluginCmd.setExecutor(timerCmd);
@@ -565,6 +667,13 @@ public final class BigCasares extends JavaPlugin {
         if (warpPluginCmd != null) {
             warpPluginCmd.setExecutor(warpCmd);
             warpPluginCmd.setTabCompleter(warpCmd);
+        }
+    }
+
+    private void shutdownTimer() {
+        if (timerCommand != null) {
+            timerCommand.shutdown();
+            timerCommand = null;
         }
     }
 
@@ -621,6 +730,7 @@ public final class BigCasares extends JavaPlugin {
         tombstoneModule = null;
         keepInventoryTotemModule = null;
         specialItemsModule = null;
+        quadrantModule = null;
         warpModule = null;
 
         resourcePackModule = null;
@@ -628,11 +738,20 @@ public final class BigCasares extends JavaPlugin {
         teamModule = null;
         nexusModule = null;
         pveBossModule = null;
+        netheriteQuestModule = null;
         geyserIntegrationModule = null;
         airdropModule = null;
         acidRainModule = null;
+        bloodMoonModule = null;
+        jeremyModule = null;
+        donPollosModule = null;
+        mutangoModule = null;
+        celularModule = null;
         casinoModule = null;
+        forexModule = null;
+        auctionHouseModule = null;
         grapplingHookModule = null;
+        gliderModule = null;
         mobScalingModule = null;
         moderationModule = null;
         serverControlModule = null;
@@ -640,10 +759,12 @@ public final class BigCasares extends JavaPlugin {
         dimensionModule = null;
         customContentModule = null;
         siftModule = null;
+        staffEventsModule = null;
         contentItems = null;
         customBlocks = null;
         alexsCavesModule = null;
         discordIntegrationModule = null;
+        authModule = null;
         emojiAliasService = null;
     }
 

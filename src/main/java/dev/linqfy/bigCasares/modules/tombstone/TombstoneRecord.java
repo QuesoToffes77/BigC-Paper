@@ -19,8 +19,15 @@ public record TombstoneRecord(
     double z,
     float yaw,
     Instant expiresAt,
-    List<ItemStack> items
+    List<ItemStack> items,
+    boolean awaitingBurial,
+    boolean verifiedBurial
 ) {
+    public TombstoneRecord(UUID id, UUID ownerId, String ownerName, UUID worldId, double x, double y, double z,
+                           float yaw, Instant expiresAt, List<ItemStack> items) {
+        this(id, ownerId, ownerName, worldId, x, y, z, yaw, expiresAt, items, false, false);
+    }
+
     public TombstoneRecord {
         List<ItemStack> copied = new ArrayList<>(items.size());
         items.forEach(item -> copied.add(TombstoneItemLayout.cloneOrNull(item)));
@@ -29,5 +36,9 @@ public record TombstoneRecord(
 
     public Location location(org.bukkit.World world) {
         return new Location(world, x, y, z, yaw, 0.0f);
+    }
+
+    boolean holdsBurialCustody() {
+        return awaitingBurial || verifiedBurial;
     }
 }

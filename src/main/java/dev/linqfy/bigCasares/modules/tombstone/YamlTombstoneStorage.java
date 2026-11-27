@@ -1,6 +1,9 @@
 package dev.linqfy.bigCasares.modules.tombstone;
 
+import dev.linqfy.bigCasares.module.runtime.PlayerDataCheckpoint;
+
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 
@@ -19,6 +22,8 @@ import java.util.UUID;
 
 public final class YamlTombstoneStorage implements TombstoneStorage {
     private final Path file;
+    private boolean storedBurialCustody;
+    private boolean directoryAncestryForced;
 
     public YamlTombstoneStorage(Path file) {
         this.file = file;
@@ -27,30 +32,66 @@ public final class YamlTombstoneStorage implements TombstoneStorage {
     @Override
     public List<TombstoneRecord> loadAll() {
         if (!Files.exists(file)) return List.of();
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.load(file.toFile());
+        } catch (IOException | InvalidConfigurationException failure) {
+            // loadConfiguration() would hand back an empty file here, and the next save would erase every tombstone.
+            backupUnreadable();
+            throw new IllegalStateException("Could not read tombstones from " + file, failure);
+        }
         ConfigurationSection root = yaml.getConfigurationSection("tombstones");
         if (root == null) return List.of();
         List<TombstoneRecord> records = new ArrayList<>();
+        int[] unreadable = {0};
         for (String rawId : root.getKeys(false)) {
             ConfigurationSection entry = root.getConfigurationSection(rawId);
-            if (entry == null) continue;
+            if (entry == null) {
+                unreadable[0]++;
+                continue;
+            }
             try {
-                List<ItemStack> items = loadItems(entry);
+                List<ItemStack> items = loadItems(entry, unreadable);
                 records.add(new TombstoneRecord(
                     UUID.fromString(rawId), UUID.fromString(entry.getString("owner-id")),
                     entry.getString("owner-name", "Desconocido"), UUID.fromString(entry.getString("world-id")),
                     entry.getDouble("x"), entry.getDouble("y"), entry.getDouble("z"),
-                    (float) entry.getDouble("yaw"), Instant.parse(entry.getString("expires-at")), items
+                    (float) entry.getDouble("yaw"), Instant.parse(entry.getString("expires-at")), items,
+                    entry.getBoolean("awaiting-burial"), entry.getBoolean("verified-burial")
                 ));
             } catch (RuntimeException ignored) {
                 // A malformed entry must not prevent other tombstones from loading.
+                unreadable[0]++;
             }
         }
+        if (unreadable[0] > 0) backupUnreadable();
+        storedBurialCustody = records.stream().anyMatch(TombstoneRecord::holdsBurialCustody);
         return List.copyOf(records);
+    }
+
+    /** The next save rewrites the file without what could not be read, so keep the original for recovery. */
+    private void backupUnreadable() {
+        Path backup = file.resolveSibling(file.getFileName() + ".unreadable-" + System.currentTimeMillis());
+        try {
+            Files.copy(file, backup, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException ignored) {
+            // Loading must go on; the readable tombstones are still restored.
+        }
     }
 
     @Override
     public void saveAll(Collection<TombstoneRecord> records) {
+        save(records, false);
+    }
+
+    @Override
+    public void saveBurials(Collection<TombstoneRecord> records) {
+        save(records, true);
+    }
+
+    private void save(Collection<TombstoneRecord> records, boolean burialOperation) {
+        boolean newBurialCustody = records.stream().anyMatch(TombstoneRecord::holdsBurialCustody);
+        boolean durable = burialOperation || storedBurialCustody || newBurialCustody;
         try {
             Files.createDirectories(file.getParent());
             YamlConfiguration yaml = new YamlConfiguration();
@@ -64,17 +105,32 @@ public final class YamlTombstoneStorage implements TombstoneStorage {
                 yaml.set(path + ".z", record.z());
                 yaml.set(path + ".yaw", record.yaw());
                 yaml.set(path + ".expires-at", record.expiresAt().toString());
+                if (record.awaitingBurial()) yaml.set(path + ".awaiting-burial", true);
+                if (record.verifiedBurial()) yaml.set(path + ".verified-burial", true);
                 for (Map.Entry<Integer, ItemStack> item : encodeItems(record.items()).entrySet()) {
                     yaml.set(path + ".items-by-slot." + item.getKey(), item.getValue());
                 }
             }
             Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
             yaml.save(temporary.toFile());
+            if (durable) PlayerDataCheckpoint.forceFile(temporary);
             try {
                 Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } catch (IOException unsupportedAtomicMove) {
+                if (durable) throw unsupportedAtomicMove;
                 Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
             }
+            if (durable) {
+                Path directory = file.toAbsolutePath().getParent();
+                PlayerDataCheckpoint.forceDirectory(directory);
+                if (!directoryAncestryForced) {
+                    for (Path parent = directory.getParent(); parent != null; parent = parent.getParent()) {
+                        PlayerDataCheckpoint.forceDirectory(parent);
+                    }
+                    directoryAncestryForced = true;
+                }
+            }
+            storedBurialCustody = newBurialCustody;
         } catch (IOException exception) {
             throw new IllegalStateException("Could not save tombstones", exception);
         }
@@ -99,7 +155,7 @@ public final class YamlTombstoneStorage implements TombstoneStorage {
         return Collections.unmodifiableList(items);
     }
 
-    private static List<ItemStack> loadItems(ConfigurationSection entry) {
+    private static List<ItemStack> loadItems(ConfigurationSection entry, int[] unreadable) {
         ConfigurationSection slots = entry.getConfigurationSection("items-by-slot");
         if (slots != null) {
             Map<Integer, ItemStack> encoded = new LinkedHashMap<>();
@@ -108,8 +164,10 @@ public final class YamlTombstoneStorage implements TombstoneStorage {
                     int slot = Integer.parseInt(rawSlot);
                     ItemStack item = slots.getItemStack(rawSlot);
                     if (slot >= 0 && item != null) encoded.put(slot, item);
+                    else unreadable[0]++;
                 } catch (NumberFormatException ignored) {
                     // Ignore malformed slot keys while retaining other items.
+                    unreadable[0]++;
                 }
             }
             return decodeItems(encoded);
