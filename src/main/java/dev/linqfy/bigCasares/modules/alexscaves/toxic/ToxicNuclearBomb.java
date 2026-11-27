@@ -111,7 +111,7 @@ public final class ToxicNuclearBomb implements Listener, Runnable, AutoCloseable
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onPlace(BlockPlaceEvent event) {
         Block block = event.getBlockPlaced();
-        mobs.plugin().getServer().getScheduler().runTask(mobs.plugin(), () -> {
+        mobs.tasks().run(() -> {
             if (isBomb(block) && block.isBlockIndirectlyPowered()) {
                 prime(block);
             }

@@ -73,6 +73,6 @@ public final class MushroomCloud {
             return;
         }
         // In case the animation never reports its end (the anchor unloaded, BetterModel reloaded...).
-        mobs.plugin().getServer().getScheduler().runTaskLater(mobs.plugin(), end, lifetime(size) + 40L);
+        mobs.tasks().later(lifetime(size) + 40L, end, end);
     }
 }

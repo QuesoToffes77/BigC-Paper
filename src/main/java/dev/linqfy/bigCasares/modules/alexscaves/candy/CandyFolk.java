@@ -672,7 +672,8 @@ public final class CandyFolk {
                 }
             }
             entity.getWorld().playSound(entity.getLocation(), "alexscaves:licowitch_cast_hex", 0.3f, 1.0f);
-            new Hex(entity, ground(entity.getLocation()), ground(target.getLocation()), context).runTaskTimer(context.plugin(), 0L, 1L);
+            context.tasks().repeat(new Hex(entity, ground(entity.getLocation()), ground(target.getLocation()), context), 0L, 1L,
+                () -> { });
         }
 
         private static Location ground(Location from) {
@@ -701,8 +702,8 @@ public final class CandyFolk {
             double yaw = Math.atan2(toward.getZ(), toward.getX());
             ItemStack look = context.mobs().createItem("ac_large_peppermint", 1).orElse(new ItemStack(Material.SNOWBALL));
             for (int i = 0; i < 3; i++) {
-                new Peppermint(entity, target, look, spinning, yaw + Math.toRadians((i - 1) * 30.0), i * 120.0, context)
-                    .runTaskTimer(context.plugin(), 0L, 1L);
+                Peppermint peppermint = new Peppermint(entity, target, look, spinning, yaw + Math.toRadians((i - 1) * 30.0), i * 120.0, context);
+                context.tasks().repeat(peppermint, 0L, 1L, peppermint::discard);
             }
             entity.getWorld().playSound(entity.getLocation(), "alexscaves:licowitch_cast_peppermint", 0.3f, 1.0f);
         }
@@ -803,11 +804,15 @@ public final class CandyFolk {
             LIVE_PEPPERMINTS.add(display);
         }
 
+        void discard() {
+            display.remove();
+            LIVE_PEPPERMINTS.remove(display);
+        }
+
         @Override
         public void run() {
             if (age++ >= 200 || !display.isValid() || !owner.isValid() || display.getWorld() != owner.getWorld()) {
-                display.remove();
-                LIVE_PEPPERMINTS.remove(display);
+                discard();
                 cancel();
                 return;
             }

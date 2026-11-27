@@ -453,7 +453,7 @@ public final class ToxicMobs {
         }
 
         private static void spray(LivingEntity source, Location at, ModMobContext context) {
-            new BukkitRunnable() {
+            context.tasks().repeat(new BukkitRunnable() {
                 private int age;
 
                 @Override
@@ -472,7 +472,7 @@ public final class ToxicMobs {
                     }
                     age += 10;
                 }
-            }.runTaskTimer(context.plugin(), 0L, 10L);
+            }, 0L, 10L, () -> { });
         }
     }
 

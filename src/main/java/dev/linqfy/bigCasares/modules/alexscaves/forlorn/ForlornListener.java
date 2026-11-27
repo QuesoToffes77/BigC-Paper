@@ -165,7 +165,7 @@ public final class ForlornListener implements Listener {
         if (block.getType() != Material.NOTE_BLOCK || !balls.containsKey(block.getBlockData()) || supported(block)) {
             return;
         }
-        mobs.plugin().getServer().getScheduler().runTask(mobs.plugin(), () -> {
+        Runnable fall = () -> {
             Integer count = balls.get(block.getBlockData());
             if (count != null && !supported(block)) {
                 block.setType(Material.AIR, false);
@@ -173,7 +173,8 @@ public final class ForlornListener implements Listener {
                     block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.2, 0.5), stack));
                 BlockScan.touched(block.getWorld(), block.getX(), block.getZ());
             }
-        });
+        };
+        mobs.tasks().later(1L, fall, fall);
     }
 
     /** A rider cannot be held (no move events for passengers), so a possessed player cannot get on a mount. */

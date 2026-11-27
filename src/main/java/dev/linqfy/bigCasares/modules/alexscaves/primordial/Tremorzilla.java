@@ -1210,8 +1210,7 @@ public final class Tremorzilla {
                     flag = true;
                     if (triggerExplosions) {
                         Location spot = bomb.getLocation().add(0.5, 0, 0.5);
-                        context.plugin().getServer().getScheduler().runTask(context.plugin(),
-                            () -> NuclearExplosion.detonate(context.mobs(), spot, NukeMath.BOMB_SIZE, true));
+                        context.tasks().run(() -> NuclearExplosion.detonate(context.mobs(), spot, NukeMath.BOMB_SIZE, true));
                     }
                     // Mod NuclearBombBlock: any other blow just destroys it (no item, no explosion).
                 }

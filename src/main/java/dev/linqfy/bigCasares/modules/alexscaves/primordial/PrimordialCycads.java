@@ -133,7 +133,7 @@ public final class PrimordialCycads implements Listener {
 
     /** Once the block is gone: the cycads above lose their support and drop, the one below becomes the tip. */
     private void afterRemoval(Block removed) {
-        mobs.plugin().getServer().getScheduler().runTask(mobs.plugin(), () -> {
+        Runnable drop = () -> {
             // Still there (an explosion that spared it), or replaced by something a cycad can stand on.
             if (isCycad(removed) || mayStandOnBlock(removed.getType())) {
                 return;
@@ -146,7 +146,8 @@ public final class PrimordialCycads implements Listener {
                 above = above.getRelative(BlockFace.UP);
             }
             reshape(removed.getRelative(BlockFace.DOWN));
-        });
+        };
+        mobs.tasks().later(1L, drop, drop);
     }
 
     /** Mod {@code BonemealableBlock}: bone meal on a tip under four cycads grows one more on top, half of the time. */

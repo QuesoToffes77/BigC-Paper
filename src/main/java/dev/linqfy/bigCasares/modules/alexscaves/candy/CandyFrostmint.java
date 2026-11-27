@@ -101,8 +101,7 @@ public final class CandyFrostmint implements Listener, Runnable {
     // --- gravity ---------------------------------------------------------------------------------------------
 
     private void schedule(Block block, boolean hit) {
-        mobs.plugin().getServer().getScheduler().runTaskLater(mobs.plugin(), () -> check(block, hit),
-            FrostmintRules.FALL_DELAY_TICKS);
+        mobs.tasks().later(FrostmintRules.FALL_DELAY_TICKS, () -> check(block, hit));
     }
 
     /** Schedules the check of a frostmint resting on a block that is going away. */

@@ -771,11 +771,13 @@ public final class Hullbreaker {
                 item.setGlowing(true);
                 // Mod setExtendedLifetime: 38768 ticks instead of 6000 (here it lasts until a task removes it).
                 item.setUnlimitedLifetime(true);
-                context.plugin().getServer().getScheduler().runTaskLater(context.plugin(), () -> {
+                Runnable discard = () -> {
                     if (item.isValid()) {
                         item.remove();
                     }
-                }, 38768L);
+                };
+                // Stopping the module does not take the loot away: it goes back to despawning like any other item.
+                context.tasks().later(38768L, discard, () -> item.setUnlimitedLifetime(false));
             });
         }
 

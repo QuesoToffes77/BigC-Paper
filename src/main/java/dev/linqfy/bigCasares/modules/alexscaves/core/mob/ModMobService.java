@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.alexscaves.core.mob;
 
+import dev.linqfy.bigCasares.modules.alexscaves.core.ModTasks;
 import dev.linqfy.bigCasares.items.CustomItemRegistry;
 import dev.linqfy.bigCasares.modules.alexscaves.config.AlexsCavesSettings;
 import dev.linqfy.bigCasares.modules.alexscaves.core.ability.CooldownLedger;
@@ -44,6 +45,16 @@ import java.util.logging.Level;
  * behaviour and model by {@link #bind(LivingEntity)}.
  */
 public final class ModMobService implements ModMobContext {
+    private ModTasks tasks;
+
+    @Override
+    public ModTasks tasks() {
+        if (tasks == null) {
+            tasks = new ModTasks(plugin);
+        }
+        return tasks;
+    }
+
     private static final int TICK_PERIOD = 2;
     /** One idle sound every ~8 seconds on average (checked every TICK_PERIOD ticks). */
     private static final int IDLE_SOUND_CHANCE = 80;
@@ -223,7 +234,7 @@ public final class ModMobService implements ModMobContext {
             closeDying(id);
             return;
         }
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> closeDying(id), 60L);
+        tasks().later(60L, () -> closeDying(id));
     }
 
     private void closeDying(UUID id) {

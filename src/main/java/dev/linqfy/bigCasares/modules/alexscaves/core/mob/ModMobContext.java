@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.alexscaves.core.mob;
 
+import dev.linqfy.bigCasares.modules.alexscaves.core.ModTasks;
 import dev.linqfy.bigCasares.modules.alexscaves.core.ability.CooldownLedger;
 import dev.linqfy.bigCasares.modules.alexscaves.core.damage.ModDamageTypes;
 import dev.linqfy.bigCasares.modules.alexscaves.core.effect.ModEffectService;
@@ -26,4 +27,7 @@ public interface ModMobContext {
     Optional<JavaModelHandle> model(UUID entity);
 
     ModMobService mobs();
+
+    /** The module's tasks: everything delayed or repeating goes here, so turning the module off cleans it up. */
+    ModTasks tasks();
 }

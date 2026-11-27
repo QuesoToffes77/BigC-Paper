@@ -221,6 +221,8 @@ final class AlexsCavesRuntime {
         if (!stopped.compareAndSet(false, true)) {
             return;
         }
+        // First, while every service is still up: pending tasks are cancelled and what they moved is cleaned up.
+        mobs.tasks().close();
         for (AutoCloseable closeable : closeables) {
             try {
                 closeable.close();

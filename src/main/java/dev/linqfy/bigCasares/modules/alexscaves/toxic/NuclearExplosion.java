@@ -141,12 +141,9 @@ public final class NuclearExplosion implements Runnable {
             List<Fire> left = List.copyOf(fires);
             fires.clear();
             long delay = Math.max(1, left.get(left.size() - 1).outAt() - ticks);
-            if (mobs.plugin().isEnabled()) {
-                mobs.plugin().getServer().getScheduler().runTaskLater(mobs.plugin(),
-                    () -> left.forEach(fire -> putOut(fire.block())), delay);
-            } else {
-                left.forEach(fire -> putOut(fire.block()));
-            }
+            Runnable putOutLeft = () -> left.forEach(fire -> putOut(fire.block()));
+            // At module shutdown the tasks are already closed, so the fires go out at once.
+            mobs.tasks().later(delay, putOutLeft, putOutLeft);
         }
         ACTIVE.remove(this);
         NuclearExplosion next = WAITING.poll();

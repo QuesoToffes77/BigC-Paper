@@ -114,21 +114,29 @@ public final class CandyItems implements Listener, AutoCloseable {
         if (!(event.getEntity() instanceof Player player) || CandyGumWorm.headOf(event.getDismounted()).isEmpty()) {
             return;
         }
+        if (closed) {
+            // The module is stopping: close() puts the rider on the surface once the dismount is over.
+            return;
+        }
         Location from = event.getDismounted().getLocation();
-        mobs.plugin().getServer().getScheduler().runTask(mobs.plugin(), () -> {
-            if (!player.isOnline()) {
-                return;
+        Runnable surface = () -> surface(player, from);
+        // Also when the module stops first: the player must not stay inside the ground.
+        mobs.tasks().later(1L, surface, surface);
+    }
+
+    private static void surface(Player player, Location from) {
+        if (!player.isOnline()) {
+            return;
+        }
+        Location safe = from.clone();
+        for (int i = 0; i < 24 && safe.getBlockY() < safe.getWorld().getMaxHeight() - 2; i++) {
+            if (safe.getBlock().isPassable() && safe.clone().add(0, 1, 0).getBlock().isPassable()) {
+                break;
             }
-            Location safe = from.clone();
-            for (int i = 0; i < 24 && safe.getBlockY() < safe.getWorld().getMaxHeight() - 2; i++) {
-                if (safe.getBlock().isPassable() && safe.clone().add(0, 1, 0).getBlock().isPassable()) {
-                    break;
-                }
-                safe.add(0, 1, 0);
-            }
-            safe.setDirection(player.getLocation().getDirection());
-            player.teleport(safe);
-        });
+            safe.add(0, 1, 0);
+        }
+        safe.setDirection(player.getLocation().getDirection());
+        player.teleport(safe);
     }
 
     // --- Shot Gum ---------------------------------------------------------------------------------------------------
@@ -172,7 +180,7 @@ public final class CandyItems implements Listener, AutoCloseable {
         }
         shooting.put(player.getUniqueId(), now);
         // Mod: the crank turns for 5 ticks before it fires.
-        mobs.plugin().getServer().getScheduler().runTaskLater(mobs.plugin(), () -> fire(player, hand), 5L);
+        mobs.tasks().later(5L, () -> fire(player, hand));
     }
 
     private void fire(Player player, EquipmentSlot hand) {
@@ -231,7 +239,7 @@ public final class CandyItems implements Listener, AutoCloseable {
         player.getWorld().playSound(player.getLocation(), "alexscaves:candy_cane_hook_launch", SoundCategory.PLAYERS, 0.5f, 1.0f);
         Hook hook = new Hook(player, held.clone(), hand);
         hooks.put(player.getUniqueId(), hook);
-        hook.runTaskTimer(mobs.plugin(), 0L, 1L);
+        mobs.tasks().repeat(hook, 0L, 1L, hook::finish);
     }
 
     /** Mod {@code CandyCaneHookEntity}: flies, sticks, and pulls the player (or the hooked mob) when reeled. */
@@ -469,6 +477,15 @@ public final class CandyItems implements Listener, AutoCloseable {
     public void close() {
         closed = true;
         sackTask.cancel();
+        // Before the worms are released: teleporting from inside the dismount would be undone by it.
+        for (Player player : mobs.plugin().getServer().getOnlinePlayers()) {
+            Entity mount = player.getVehicle();
+            if (mount != null && CandyGumWorm.headOf(mount).isPresent()) {
+                Location from = mount.getLocation();
+                player.leaveVehicle();
+                surface(player, from);
+            }
+        }
         for (Hook hook : List.copyOf(hooks.values())) {
             hook.finish();
         }

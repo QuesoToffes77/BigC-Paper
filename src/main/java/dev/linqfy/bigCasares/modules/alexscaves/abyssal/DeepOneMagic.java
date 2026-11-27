@@ -39,7 +39,7 @@ final class DeepOneMagic {
         Vector velocity = direction.clone().normalize().multiply(speed).add(new Vector(
             random.nextGaussian() * 0.0075 * inaccuracy, random.nextGaussian() * 0.0075 * inaccuracy,
             random.nextGaussian() * 0.0075 * inaccuracy));
-        new Bolt(context, owner, from.clone(), velocity, bubbling, arcTowards).runTaskTimer(context.plugin(), 1L, 1L);
+        context.tasks().repeat(new Bolt(context, owner, from.clone(), velocity, bubbling, arcTowards), 1L, 1L, () -> { });
     }
 
     private static final class Bolt extends BukkitRunnable {
@@ -128,7 +128,7 @@ final class DeepOneMagic {
 
     /** Mod {@code WaveEntity}: a wave that speeds up along the floor, hurts what it touches and breaks after a while. */
     static void wave(ModMobContext context, LivingEntity owner, Location from, float yaw, int lifespan) {
-        new Wave(context, owner, from.clone(), yaw, lifespan).runTaskTimer(context.plugin(), 1L, 1L);
+        context.tasks().repeat(new Wave(context, owner, from.clone(), yaw, lifespan), 1L, 1L, () -> { });
     }
 
     private static final class Wave extends BukkitRunnable {

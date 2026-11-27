@@ -117,7 +117,7 @@ public final class AbyssalItems implements Listener {
             display.setItemStack(look);
             display.setPersistent(false);
         });
-        new org.bukkit.scheduler.BukkitRunnable() {
+        mobs.tasks().repeat(new org.bukkit.scheduler.BukkitRunnable() {
             private int ticks;
 
             @Override
@@ -137,7 +137,7 @@ public final class AbyssalItems implements Listener {
                     MineExplosion.explode(lying, shooter == null ? lying : shooter, center, 2.0F);
                 }
             }
-        }.runTaskTimer(mobs.plugin(), 1L, 1L);
+        }, 1L, 1L, lying::remove);
     }
 
     /** The guardian under a mine guardian must not prick its attackers (vanilla spikes). */

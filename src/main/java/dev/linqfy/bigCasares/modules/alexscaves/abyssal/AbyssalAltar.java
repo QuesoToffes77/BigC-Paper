@@ -320,7 +320,7 @@ public final class AbyssalAltar implements Listener, Runnable, AutoCloseable {
     public void onPlace(BlockPlaceEvent event) {
         Block block = event.getBlockPlaced();
         if (toActive.containsKey(block.getBlockData()) || toInactive.containsKey(block.getBlockData())) {
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
+            mobs.tasks().run(() -> {
                 for (Altar altar : near(block.getLocation(), MAX_DISTANCE * 2)) {
                     Block altarBlock = altar.block();
                     if (altarBlock != null && altar.active()) {
@@ -429,22 +429,29 @@ public final class AbyssalAltar implements Listener, Runnable, AutoCloseable {
         Map<Block, Integer> lit = flood(sources, reach.keySet());
         Map<Integer, List<Block>> layers = new LinkedHashMap<>();
         reach.forEach((block, distance) -> layers.computeIfAbsent(distance, key -> new ArrayList<>()).add(block));
-        layers.forEach((distance, blocks) -> plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            int sounds = 0;
-            for (Block block : blocks) {
-                BlockData data = block.getBlockData();
-                boolean want = lit.containsKey(block);
-                BlockData next = want ? toActive.get(data) : toInactive.get(data);
-                if (next != null) {
-                    block.setBlockData(next, false);
-                    if (sounds++ < 6) {
-                        block.getWorld().playSound(block.getLocation().add(0.5, 0.5, 0.5),
-                            want ? "alexscaves:abyssmarine_glow_on" : "alexscaves:abyssmarine_glow_off", 1.5F,
-                            0.8F + ThreadLocalRandom.current().nextFloat() * 0.4F);
+        layers.forEach((distance, blocks) -> {
+            Runnable layer = () -> {
+                int sounds = 0;
+                for (Block block : blocks) {
+                    if (!block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) {
+                        continue;
+                    }
+                    BlockData data = block.getBlockData();
+                    boolean want = lit.containsKey(block);
+                    BlockData next = want ? toActive.get(data) : toInactive.get(data);
+                    if (next != null) {
+                        block.setBlockData(next, false);
+                        if (sounds++ < 6) {
+                            block.getWorld().playSound(block.getLocation().add(0.5, 0.5, 0.5),
+                                want ? "alexscaves:abyssmarine_glow_on" : "alexscaves:abyssmarine_glow_off", 1.5F,
+                                0.8F + ThreadLocalRandom.current().nextFloat() * 0.4F);
+                        }
                     }
                 }
-            }
-        }, distance));
+            };
+            // When the module stops first the layer changes at once, so no block is left half lit.
+            mobs.tasks().later(distance, layer, layer);
+        });
     }
 
     /** Breadth-first from the sources through linked blocks; the distance of the first ring is 1. */

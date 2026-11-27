@@ -145,7 +145,7 @@ public final class CavePaintingListener implements Listener {
             Location key = block.getLocation();
             silkBroken.put(key, painting);
             // The drop event comes in the same tick; forget it if it never does.
-            mobs.plugin().getServer().getScheduler().runTask(mobs.plugin(), () -> silkBroken.remove(key));
+            mobs.tasks().run(() -> silkBroken.remove(key));
         }
     }
 
@@ -190,7 +190,7 @@ public final class CavePaintingListener implements Listener {
         if (limestones.isEmpty()) {
             return;
         }
-        mobs.plugin().getServer().getScheduler().runTask(mobs.plugin(), () -> {
+        Runnable clear = () -> {
             for (Block block : limestones) {
                 if (!limestone.equals(block.getBlockData())) {
                     ItemDisplay display = paintingOf(block);
@@ -199,7 +199,8 @@ public final class CavePaintingListener implements Listener {
                     }
                 }
             }
-        });
+        };
+        mobs.tasks().later(1L, clear, clear);
     }
 
     /** Endermen, falling blocks, withers...: a limestone changed by an entity loses its painting. */
