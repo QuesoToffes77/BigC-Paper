@@ -160,11 +160,14 @@ public final class HotelLoot implements Listener {
                 .build();
     }
 
+    /** El id de un objeto del modulo: los del hotel y tambien los del Sueño (el Despertar), que llevan otra marca. */
     static String idOf(ItemStack item) {
         if (item == null || !item.hasItemMeta()) {
             return null;
         }
-        return item.getItemMeta().getPersistentDataContainer().get(ITEM_KEY, PersistentDataType.STRING);
+        var data = item.getItemMeta().getPersistentDataContainer();
+        String id = data.get(ITEM_KEY, PersistentDataType.STRING);
+        return id != null ? id : data.get(DreamItems.ITEM_KEY, PersistentDataType.STRING);
     }
 
     private static ItemStack named(Material material, String id, String name, NamedTextColor color, String lore) {

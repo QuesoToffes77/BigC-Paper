@@ -152,8 +152,11 @@ final class TrainPassengers {
                     }
                     double base = f.bedrock ? BEDROCK_DECK_Y : roofAt(f.along);
                     double y = hy + base + (f.seat != null ? SEAT_Y : 0);
-                    Location at = new Location(world, hx + dx * f.along + rx * f.lateral, y,
-                            hz + dz * f.along + rz * f.lateral, yaw + f.turn, 0f);
+                    // en Java "along" se midio sobre el modelo, que va con la cabina atras del avance: se cuenta
+                    // hacia atras. En Bedrock van sobre los carritos, que ya estan atras de la cabeza.
+                    double s = f.bedrock ? 1 : -1;
+                    Location at = new Location(world, hx + s * (dx * f.along + rx * f.lateral), y,
+                            hz + s * (dz * f.along + rz * f.lateral), yaw + f.turn, 0f);
                     if (f.seat != null) {
                         f.seat.teleport(at);
                     } else {

@@ -307,11 +307,11 @@ final class Train {
         if (!display.isValid()) {
             return;
         }
-        // el frente del modelo mira hacia -Z; el yaw de Bukkit 0 mira hacia +Z, por eso el +180
-        float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz)) + 180f;
-        display.teleport(new Location(world, hx, hy, hz, yaw, 0f));
-        passengers.update(hx, hy, hz, dx, dz, yaw - 180f); // el modelo mira al reves del avance
-        updateBedrock(yaw);
+        // hacia donde avanza (yaw de Bukkit); el modelo de Java ya tiene el frente para ese lado
+        float heading = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        display.teleport(new Location(world, hx, hy, hz, heading, 0f));
+        passengers.update(hx, hy, hz, dx, dz, heading);
+        updateBedrock(heading + 180f); // la entidad de Bedrock si va girada (asi se veia bien)
     }
 
     private void checkHits() {
