@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -39,8 +40,14 @@ final class ToffyTournament {
     private String eventType;
     private Integer eventLobby;
     private Long eventAt;
+    /** Key of the group the scheduled event runs for, or null for the whole sign-up list. */
+    private String eventGroup;
     /** Minutes-before event warnings already sent (or passed). Not saved. */
     private final Set<Integer> eventAnnounced = new HashSet<>();
+    /** Sub-categories of the tournament, by key, in the order they were created. */
+    private final Map<String, ToffyGroup> groups = new LinkedHashMap<>();
+    /** When true and there are open groups, {@code /anotar <torneo>} lists them instead of signing up. */
+    private boolean groupMandatory;
 
     ToffyTournament(String key, String displayName) {
         this.key = key;
@@ -138,6 +145,52 @@ final class ToffyTournament {
         return eventAt;
     }
 
+    /** Key of the group of the scheduled event, or null when it runs for every sign-up. */
+    String eventGroup() {
+        return eventGroup;
+    }
+
+    /** The groups of the tournament, in the order they were created. */
+    List<ToffyGroup> groups() {
+        return List.copyOf(groups.values());
+    }
+
+    Optional<ToffyGroup> group(String key) {
+        return Optional.ofNullable(groups.get(key));
+    }
+
+    /** Key of the group the player is in, if any. A participant is in at most one group. */
+    Optional<String> groupOf(UUID playerId) {
+        for (ToffyGroup group : groups.values()) {
+            if (group.members().contains(playerId)) {
+                return Optional.of(group.key());
+            }
+        }
+        return Optional.empty();
+    }
+
+    boolean groupMandatory() {
+        return groupMandatory;
+    }
+
+    void setGroupMandatory(boolean groupMandatory) {
+        this.groupMandatory = groupMandatory;
+    }
+
+    void putGroup(ToffyGroup group) {
+        groups.put(group.key(), group);
+    }
+
+    /** Removes the group. Its members stay signed up to the tournament, just without a group. */
+    boolean removeGroup(String key) {
+        return groups.remove(key) != null;
+    }
+
+    /** Whether the tournament has a level bound at all. */
+    boolean hasLevelRange() {
+        return minLevel != null || maxLevel != null;
+    }
+
     boolean isEventAnnounced(int minutes) {
         return eventAnnounced.contains(minutes);
     }
@@ -163,11 +216,17 @@ final class ToffyTournament {
         this.closeAt = at;
     }
 
-    /** Sets or clears (all null) the scheduled event. */
+    /** Sets or clears (all null) the scheduled event, for every sign-up. */
     void setEvent(String type, Integer lobby, Long at) {
+        setEvent(type, lobby, at, null);
+    }
+
+    /** Sets or clears (all null) the scheduled event, for the members of {@code group} when it is not null. */
+    void setEvent(String type, Integer lobby, Long at, String group) {
         this.eventType = type;
         this.eventLobby = lobby;
         this.eventAt = at;
+        this.eventGroup = at == null ? null : group;
         eventAnnounced.clear();
     }
 
@@ -211,7 +270,9 @@ final class ToffyTournament {
         participants.put(id, name);
     }
 
+    /** Removes the sign-up and the group membership of the player. */
     boolean removeParticipant(UUID id) {
+        groups.values().forEach(group -> group.removeMember(id));
         return participants.remove(id) != null;
     }
 

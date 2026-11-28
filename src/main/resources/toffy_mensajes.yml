@@ -12,6 +12,8 @@
 #        {hora} {fecha}  hora (HH:mm) y fecha (dd/MM/yyyy) del teletransporte programado (tp-programado)
 #        {minutos}  minutos que faltan para el teletransporte (tp-aviso)
 #        {segundos} segundos que faltan para empezar (evento-lobby)
+#        {grupo}    grupo del jugador (anotado, llevado y los casos de grupo; vacio si no tiene)
+#        {grupos}   lista de grupos abiertos separada por comas (grupo-elegir)
 #        {motivo}   por que (evento-eliminado, evento-cancelado)
 #        {detalle}  como termino el evento (evento-fin)
 #    - Un texto vacio ("") significa NO enviar nada en ese caso.
@@ -20,7 +22,7 @@
 #  Orden de busqueda: texto del torneo -> este archivo -> texto por defecto del plugin.
 #  Despues de editar: /toffy reload
 
-# Se lo dice al jugador que se acaba de anotar con /anotar.
+# Se lo dice al jugador que se acaba de anotar con /anotar. ({grupo} es su grupo, o vacio.)
 anotado: "&aTe anotaste al torneo &e{torneo}&a. Sos el participante &e#{cantidad}&a."
 
 # Se lo dice al jugador que ya estaba anotado.
@@ -42,7 +44,7 @@ cierre: "&6Se cerraron las inscripciones al torneo &e{torneo}&6. Participantes: 
 # Anuncio para todo el servidor al volver a abrir las inscripciones. Vacio = sin anuncio.
 apertura: ""
 
-# Se lo dice a cada participante que se lleva con /toffy tp concursantes.
+# Se lo dice a cada participante que se lleva con /toffy tp concursantes. ({grupo} es su grupo, o vacio.)
 llevado: "&aFuiste llevado al torneo &e{torneo}&a."
 
 # Se lo dice a cada participante que se devuelve con /toffy tp devolver (o al entrar si estaba desconectado).
@@ -63,6 +65,28 @@ tp-aviso: "&6El torneo &e{torneo}&6 se teletransporta en &e{minutos} min&6."
 
 # Se lo dice al admin cuando cancela el teletransporte programado (/toffy tp programar <torneo> cancelar).
 tp-cancelado: "&7Se cancelo el teletransporte programado del torneo &e{torneo}&7."
+
+# ---------------------------------------------------------------------------------------------------
+#  Grupos (subcategorias del torneo, /toffy torneo grupo <torneo> ...). {grupo} es el nombre del grupo.
+# ---------------------------------------------------------------------------------------------------
+
+# Se lo dice al jugador que se anota a un grupo con /anotar <torneo> <grupo>.
+grupo-anotado: "&aEntraste al grupo &e{grupo}&a del torneo &e{torneo}&a."
+
+# Se lo dice al jugador que ya estaba en otro grupo y lo pasaron a este (o se movio solo con /anotar).
+grupo-cambiado: "&aTe pasamos al grupo &e{grupo}&a del torneo &e{torneo}&a."
+
+# Se lo dice al jugador que quiere elegir un grupo que no esta abierto (solo el staff lo pone).
+grupo-cerrado: "&cEl grupo &e{grupo}&c del torneo &e{torneo}&c no se elige solo: pedile a un admin que te anote."
+
+# Se lo dice al jugador que quiere entrar a un grupo que ya tiene su cupo.
+grupo-lleno: "&cEl grupo &e{grupo}&c del torneo &e{torneo}&c esta lleno."
+
+# Con grupo-obligatorio, /anotar <torneo> lista los grupos abiertos ({grupos} es la lista separada por comas).
+grupo-elegir: "&6El torneo &e{torneo}&6 se anota por grupo. Grupos abiertos: &e{grupos}&6. Usa &e/anotar {torneo} <grupo>&6."
+
+# Se lo dice al jugador que un admin o el plugin puso en un grupo (/toffy torneo grupo ... asignar o repartir).
+grupo-asignado: "&aUn admin te puso en el grupo &e{grupo}&a del torneo &e{torneo}&a."
 
 # ---------------------------------------------------------------------------------------------------
 #  Eventos (los inicia el staff con /toffy evento iniciar <tipo> <torneo>). Son sobre el torneo:

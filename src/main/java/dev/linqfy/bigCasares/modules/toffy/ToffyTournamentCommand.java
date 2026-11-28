@@ -30,7 +30,7 @@ final class ToffyTournamentCommand {
     static final String PERMISSION = "bigcasares.toffy.torneo.admin";
     private static final String PREFIX = "§6Toffy §8» §7";
     private static final List<String> TORNEO_SUBCOMMANDS = List.of("crear", "lista", "ver", "abrir", "cerrar",
-        "lugar", "sacar", "mensaje", "borrar", "nivel", "cupo", "minimo", "cierre");
+        "lugar", "sacar", "mensaje", "borrar", "nivel", "cupo", "minimo", "cierre", "grupo");
     private static final List<String> TP_SUBCOMMANDS = List.of("concursantes", "devolver", "programar", "programados");
     private static final List<String> EVENT_SUBCOMMANDS = List.of("iniciar", "detener", "tipos", "estado", "programar");
     private static final String EVENT_USAGE =
@@ -38,9 +38,11 @@ final class ToffyTournamentCommand {
     private static final String FORCE = "forzar";
 
     private final ToffyModule module;
+    private final ToffyGroupCommand groups;
 
     ToffyTournamentCommand(ToffyModule module) {
         this.module = module;
+        this.groups = new ToffyGroupCommand(module);
     }
 
     void execute(CommandSender sender, String[] args) {
@@ -144,8 +146,13 @@ final class ToffyTournamentCommand {
                     closeAt(sender, tournaments, args);
                 }
             }
+            case "grupo" -> {
+                if (needs(sender, args, 4, "/toffy torneo grupo <torneo> <subcomando> (mira /toffy ayuda)")) {
+                    groups.handle(sender, tournaments, args);
+                }
+            }
             default -> sender.sendMessage("§cUso: /toffy torneo <crear|lista|ver|abrir|cerrar|lugar|sacar|mensaje|"
-                + "borrar|nivel|cupo|minimo|cierre> (mira /toffy ayuda)");
+                + "borrar|nivel|cupo|minimo|cierre|grupo> (mira /toffy ayuda)");
         }
     }
 
@@ -187,10 +194,11 @@ final class ToffyTournamentCommand {
     }
 
     private void start(CommandSender sender, ToffyEvents events, String[] raw) {
-        boolean forced = forced(raw);
-        String[] args = forced ? Arrays.copyOf(raw, raw.length - 1) : raw;
-        if (args.length < 4) {
-            sender.sendMessage("§cUso: /toffy evento iniciar <tipo> <torneo> [segundos de espera 5-600] [forzar]");
+        Extracted extracted = extractGroup(raw, 4);
+        boolean forced = forced(extracted.args());
+        String[] args = forced ? Arrays.copyOf(extracted.args(), extracted.args().length - 1) : extracted.args();
+        if (args.length < 4 || extracted.dangling()) {
+            sender.sendMessage("§cUso: /toffy evento iniciar <tipo> <torneo> [grupo <grupo>] [segundos de espera 5-600] [forzar]");
             return;
         }
         Optional<ToffyEventType> type = ToffyEventType.parse(args[2]);
@@ -212,15 +220,30 @@ final class ToffyTournamentCommand {
                 return;
             }
         }
+        String groupKey = null;
+        if (extracted.group() != null) {
+            Optional<ToffyGroup> group = tournaments.group(tournament.get().key(), extracted.group());
+            if (group.isEmpty()) {
+                sender.sendMessage("§cNo existe el grupo " + extracted.group() + " en " + tournament.get().displayName() + ".");
+                return;
+            }
+            groupKey = group.get().key();
+        }
         if (!forced && belowMinimum(sender, tournament.get())) {
             return;
         }
-        events.start(sender, type.get(), tournament.get().key(), lobby);
+        events.start(sender, type.get(), tournament.get().key(), groupKey, lobby);
     }
 
     /** {@code /toffy evento programar <tipo> <torneo> <HH:mm> [dd/MM] [segundos]} and {@code <torneo> cancelar}. */
-    private void scheduleEvent(CommandSender sender, String[] args) {
-        if (!needs(sender, args, 4, "/toffy evento programar <tipo> <torneo> <HH:mm> [dd/MM] [segundos] | /toffy evento programar <torneo> cancelar")) {
+    private void scheduleEvent(CommandSender sender, String[] raw) {
+        Extracted extracted = extractGroup(raw, 5);
+        String[] args = extracted.args();
+        if (extracted.dangling()) {
+            sender.sendMessage("§cUso: /toffy evento programar <tipo> <torneo> <HH:mm> [dd/MM] [segundos] [grupo <grupo>]");
+            return;
+        }
+        if (!needs(sender, args, 4, "/toffy evento programar <tipo> <torneo> <HH:mm> [dd/MM] [segundos] [grupo <grupo>] | /toffy evento programar <torneo> cancelar")) {
             return;
         }
         ToffyTournamentService tournaments = module.tournaments();
@@ -275,10 +298,20 @@ final class ToffyTournamentCommand {
             return;
         }
         ToffyTournament tournament = found.get();
-        Optional<Long> replaced = tournaments.scheduleEvent(tournament.key(), type.get().id(), lobby, at);
+        String groupKey = null;
+        if (extracted.group() != null) {
+            Optional<ToffyGroup> group = tournaments.group(tournament.key(), extracted.group());
+            if (group.isEmpty()) {
+                sender.sendMessage("§cNo existe el grupo " + extracted.group() + " en " + tournament.displayName() + ".");
+                return;
+            }
+            groupKey = group.get().key();
+        }
+        Optional<Long> replaced = tournaments.scheduleEvent(tournament.key(), type.get().id(), lobby, at, groupKey);
         replaced.ifPresent(old -> sender.sendMessage(PREFIX + "§eSe reemplazo el evento programado para "
             + ToffyTournamentTime.dateTime(old, zone) + "."));
         sender.sendMessage(PREFIX + "§aEvento " + type.get().displayName() + " de " + tournament.displayName()
+            + (groupKey == null ? "" : " (grupo " + tournament.group(groupKey).orElseThrow().displayName() + ")")
             + " programado para §e" + ToffyTournamentTime.dateTime(at, zone) + "§a.");
     }
 
@@ -308,7 +341,16 @@ final class ToffyTournamentCommand {
         } else if (args.length == 4 && sub.equals("iniciar") && tournaments != null) {
             options.addAll(tournaments.keys());
         } else if (args.length == 5 && sub.equals("iniciar")) {
+            options.add("grupo");
             options.add(FORCE);
+        } else if (args.length == 6 && sub.equals("iniciar") && args[4].equalsIgnoreCase("grupo") && tournaments != null) {
+            tournaments.find(args[3]).ifPresent(tournament -> tournament.groups().forEach(group -> options.add(group.key())));
+        } else if (args.length >= 6 && sub.equals("programar") && tournaments != null) {
+            if (args.length >= 7 && args[args.length - 2].equalsIgnoreCase("grupo")) {
+                tournaments.find(args[3]).ifPresent(tournament -> tournament.groups().forEach(group -> options.add(group.key())));
+            } else {
+                options.add("grupo");
+            }
         } else if (args.length == 3 && sub.equals("programar")) {
             for (ToffyEventType type : ToffyEventType.values()) {
                 options.add(type.id());
@@ -327,12 +369,34 @@ final class ToffyTournamentCommand {
         return options.stream().filter(option -> option.startsWith(prefix)).toList();
     }
 
-    private static boolean needs(CommandSender sender, String[] args, int length, String usage) {
+    static boolean needs(CommandSender sender, String[] args, int length, String usage) {
         if (args.length >= length) {
             return true;
         }
         sender.sendMessage("§cUso: " + usage);
         return false;
+    }
+
+    /**
+     * Arguments without the optional {@code grupo <nombre>} pair that starts at {@code from}. {@code group} is null when
+     * there is no such pair, the empty string when "grupo" is the last token ({@code dangling}).
+     */
+    record Extracted(String[] args, String group, boolean dangling) {
+    }
+
+    static Extracted extractGroup(String[] args, int from) {
+        for (int index = from; index < args.length; index++) {
+            if (args[index].equalsIgnoreCase("grupo")) {
+                if (index + 1 >= args.length) {
+                    return new Extracted(Arrays.copyOf(args, index), "", true);
+                }
+                String[] rest = new String[args.length - 2];
+                System.arraycopy(args, 0, rest, 0, index);
+                System.arraycopy(args, index + 2, rest, index, args.length - index - 2);
+                return new Extracted(rest, args[index + 1], false);
+            }
+        }
+        return new Extracted(args, null, false);
     }
 
     /**
@@ -439,6 +503,12 @@ final class ToffyTournamentCommand {
             : "§bprogramado " + ToffyTournamentTime.dateTime(tournament.scheduledAt(), zone)));
         sender.sendMessage("§7  Cierre de inscripciones: " + (tournament.closeAt() == null ? "§8no programado"
             : "§bprogramado " + ToffyTournamentTime.dateTime(tournament.closeAt(), zone)));
+        sender.sendMessage("§7  Grupo obligatorio: " + (tournament.groupMandatory() ? "§asi" : "§8no"));
+        sender.sendMessage("§7  Grupos: " + (tournament.groups().isEmpty() ? "§8ninguno (usa /toffy torneo grupo "
+            + tournament.key() + " crear <grupo>)" : "§f" + tournament.groups().size()));
+        for (ToffyGroup group : tournament.groups()) {
+            sender.sendMessage("§7    - " + ToffyGroupCommand.summary(group));
+        }
         sender.sendMessage("§7  Evento: " + (tournament.eventAt() == null ? "§8no programado"
             : "§b" + tournament.eventType() + " " + ToffyTournamentTime.dateTime(tournament.eventAt(), zone)
             + (tournament.eventLobby() == null ? "" : " §7(espera " + tournament.eventLobby() + " s)")));
@@ -447,6 +517,7 @@ final class ToffyTournamentCommand {
             Player online = module.server().getPlayer(entry.getKey());
             sender.sendMessage("§7  " + position++ + ". §f" + (online != null ? online.getName() : entry.getValue())
                 + (online != null ? " §a(online)" : " §8(offline)")
+                + tournament.groupOf(entry.getKey()).map(key -> " §b[grupo " + key + "]").orElse("")
                 + (tournament.returns().containsKey(entry.getKey()) ? " §6[lugar guardado]" : ""));
         }
         if (!tournament.messages().isEmpty()) {
@@ -456,17 +527,7 @@ final class ToffyTournamentCommand {
 
     /** Short text of the level range: "sin rango", "40-120", "*-120", "40-*". */
     static String rangeText(ToffyTournament tournament) {
-        if (tournament.minLevel() == null && tournament.maxLevel() == null) {
-            return "sin rango";
-        }
-        return boundText(tournament.minLevel()) + "-" + boundText(tournament.maxLevel());
-    }
-
-    private static String boundText(Double value) {
-        if (value == null) {
-            return "*";
-        }
-        return value == Math.rint(value) ? String.valueOf(value.longValue()) : String.valueOf(value);
+        return ToffyGroupRules.rangeText(tournament.minLevel(), tournament.maxLevel());
     }
 
     /** Suffix for {@code torneo lista} and {@code anotar}: every schedule of the tournament. */
@@ -589,7 +650,7 @@ final class ToffyTournamentCommand {
     }
 
     /** "*" (no bound) or a finite number. */
-    private static boolean validBound(String raw) {
+    static boolean validBound(String raw) {
         if (raw.equals("*")) {
             return true;
         }
@@ -601,7 +662,7 @@ final class ToffyTournamentCommand {
     }
 
     /** The bound as a number, or null for "*". Only call after {@link #validBound}. */
-    private static Double parseBound(String raw) {
+    static Double parseBound(String raw) {
         return raw.equals("*") ? null : Double.parseDouble(raw);
     }
 
@@ -736,10 +797,11 @@ final class ToffyTournamentCommand {
     }
 
     private void bring(CommandSender sender, ToffyTournamentService tournaments, String[] raw) {
-        boolean forced = forced(raw);
-        String[] args = forced ? Arrays.copyOf(raw, raw.length - 1) : raw;
-        if (args.length < 3) {
-            sender.sendMessage("§cUso: /toffy tp concursantes <torneo> [lugar | x y z [mundo]] [forzar]");
+        Extracted extracted = extractGroup(raw, 3);
+        boolean forced = forced(extracted.args());
+        String[] args = forced ? Arrays.copyOf(extracted.args(), extracted.args().length - 1) : extracted.args();
+        if (args.length < 3 || extracted.dangling()) {
+            sender.sendMessage("§cUso: /toffy tp concursantes <torneo> [grupo <grupo>] [lugar | x y z [mundo]] [forzar]");
             return;
         }
         Optional<ToffyTournament> found = tournaments.find(args[2]);
@@ -748,17 +810,32 @@ final class ToffyTournamentCommand {
             return;
         }
         ToffyTournament tournament = found.get();
+        ToffyGroup group = null;
+        if (extracted.group() != null) {
+            group = tournaments.group(tournament.key(), extracted.group()).orElse(null);
+            if (group == null) {
+                sender.sendMessage("§cNo existe el grupo " + extracted.group() + " en " + tournament.displayName() + ".");
+                return;
+            }
+        }
+        boolean groupHasPlaces = group != null && !group.places().isEmpty();
+        boolean lugar = args.length > 3 && args[3].equalsIgnoreCase("lugar");
+        // Coordinates typed in the command are an explicit destination: everyone goes there, group places included.
+        boolean explicit = args.length > 3 && !lugar;
         List<Location> targets;
-        if (args.length > 3 && args[3].equalsIgnoreCase("lugar")) {
-            if (tournament.places().isEmpty()) {
+        if (lugar) {
+            if (tournament.places().isEmpty() && !groupHasPlaces) {
                 sender.sendMessage("§cEl torneo no tiene lugar. Usa /toffy torneo lugar " + tournament.key());
                 return;
             }
             targets = module.savedLocations(tournament);
-            if (targets.isEmpty()) {
+            if (targets.isEmpty() && !groupHasPlaces) {
                 sender.sendMessage("§cNingun lugar del torneo esta en un mundo cargado.");
                 return;
             }
+        } else if (groupHasPlaces && !(sender instanceof Player)) {
+            // Without coordinates a console has no location: the group places are the destination.
+            targets = List.of();
         } else {
             Location target = target(sender, args);
             if (target == null) {
@@ -769,8 +846,10 @@ final class ToffyTournamentCommand {
         if (!forced && belowMinimum(sender, tournament)) {
             return;
         }
-        ToffyModule.Brought result = module.bringParticipants(tournaments, tournament, targets);
-        sender.sendMessage(PREFIX + "§a" + result.moved() + " concursantes llevados§7, §e" + result.offline()
+        ToffyModule.Brought result = module.bringParticipants(tournaments, tournament, targets,
+            group == null ? null : group.key(), explicit);
+        sender.sendMessage(PREFIX + "§a" + result.moved() + " concursantes llevados" + (group == null ? ""
+            : " del grupo " + group.displayName()) + "§7, §e" + result.offline()
             + " offline" + (result.outOfRange() > 0 ? "§7, §e" + result.outOfRange() + " fuera de rango" : "")
             + (result.failed() > 0 ? "§7, §c" + result.failed() + " no se pudieron mover" : "") + "§7.");
     }
@@ -980,6 +1059,7 @@ final class ToffyTournamentCommand {
         map.put("torneo", tournament.displayName());
         map.put("cantidad", String.valueOf(tournament.participants().size()));
         map.put("jugador", player == null ? "" : player.getName());
+        map.put("grupo", "");
         if (at != null) {
             map.put("x", ToffyModule.coordinate(at.getX()));
             map.put("y", ToffyModule.coordinate(at.getY()));
@@ -998,6 +1078,9 @@ final class ToffyTournamentCommand {
         String current = args[args.length - 1];
         boolean tp = args[0].equalsIgnoreCase("tp");
         String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        if (!tp && sub.equals("grupo") && args.length >= 4 && tournaments != null) {
+            return groups.complete(tournaments, args);
+        }
         if (args.length == 2) {
             options.addAll(tp ? TP_SUBCOMMANDS : TORNEO_SUBCOMMANDS);
         } else if (tournaments != null && args.length == 3 && !sub.equals("crear") && !sub.equals("lista")
@@ -1005,7 +1088,11 @@ final class ToffyTournamentCommand {
             options.addAll(tournaments.keys());
         } else if (tp && args.length == 4 && sub.equals("concursantes")) {
             options.add("lugar");
+            options.add("grupo");
             options.add(FORCE);
+        } else if (tp && args.length == 5 && sub.equals("concursantes") && args[3].equalsIgnoreCase("grupo")
+            && tournaments != null) {
+            tournaments.find(args[2]).ifPresent(tournament -> tournament.groups().forEach(group -> options.add(group.key())));
         } else if (tp && args.length == 4 && sub.equals("programar")) {
             options.add("cancelar");
             options.add(nextFiveMinutes(zone()));

@@ -46,10 +46,17 @@ public final class ToffyEvents {
     public static final String UNAVAILABLE_TEXT = "§cLos eventos no estan disponibles.";
     private static final String UNAVAILABLE = UNAVAILABLE_TEXT;
 
-    /** A tournament as the events see it: its name and the players signed up to it. */
-    public record Roster(String displayName, Set<UUID> players) {
+    /**
+     * A tournament as the events see it: its name and the players signed up to it. {@code group} is the key of the
+     * group the event is limited to, or null for every sign-up.
+     */
+    public record Roster(String displayName, Set<UUID> players, String group) {
         public Roster {
             players = Set.copyOf(players);
+        }
+
+        public Roster(String displayName, Set<UUID> players) {
+            this(displayName, players, null);
         }
     }
 
@@ -63,6 +70,11 @@ public final class ToffyEvents {
     @FunctionalInterface
     public interface EventTournaments {
         Optional<Roster> roster(String tournamentKey);
+
+        /** Sign-ups of one group of the tournament only; empty when the tournament or the group does not exist. */
+        default Optional<Roster> roster(String tournamentKey, String group) {
+            return group == null ? roster(tournamentKey) : Optional.empty();
+        }
     }
 
     private final BigCasares plugin;
@@ -170,18 +182,35 @@ public final class ToffyEvents {
      * {@code /toffy evento iniciar}: starts an event on the tournament's sign-up list. The online sign-ups join the
      * lobby; {@code lobbySeconds} overrides the configured countdown for arena events.
      */
-    public void start(CommandSender sender, ToffyEventType type, String tournamentKey, Integer lobbySeconds) {
+    public boolean start(CommandSender sender, ToffyEventType type, String tournamentKey, Integer lobbySeconds) {
+        return start(sender, type, tournamentKey, null, lobbySeconds);
+    }
+
+    /**
+     * Same as {@link #start(CommandSender, ToffyEventType, String, Integer)}, limited to the members of {@code group}
+     * when it is not null.
+     */
+    public boolean start(CommandSender sender, ToffyEventType type, String tournamentKey, String group,
+                         Integer lobbySeconds) {
         ToffyEventRuntime current = runtime;
         if (current == null) {
             sender.sendMessage(UNAVAILABLE);
-            return;
+            return false;
         }
-        Optional<Roster> roster = tournaments.roster(tournamentKey);
+        Optional<Roster> roster = tournaments.roster(tournamentKey, group);
         if (roster.isEmpty()) {
-            sender.sendMessage(PREFIX + "§cNo existe el torneo " + tournamentKey + ".");
-            return;
+            sender.sendMessage(group == null
+                ? PREFIX + "§cNo existe el torneo " + tournamentKey + "."
+                : PREFIX + "§cNo existe el grupo " + group + " en el torneo " + tournamentKey + ".");
+            return false;
         }
-        current.start(sender, type, tournamentKey, roster.get(), lobbySeconds);
+        return current.start(sender, type, tournamentKey, roster.get(), lobbySeconds);
+    }
+
+    /** Group the running event (in any phase) is limited to, if any. */
+    public Optional<String> activeGroup() {
+        ToffyEventRuntime current = runtime;
+        return current == null ? Optional.empty() : current.activeGroup();
     }
 
     /** Whether a new event may start now: events enabled and none running. */
@@ -194,6 +223,12 @@ public final class ToffyEvents {
     public Optional<String> activeTournament() {
         ToffyEventRuntime current = runtime;
         return current == null ? Optional.empty() : current.activeTournament();
+    }
+
+    /** Group the running event is limited to, if any (its lobby players must be members of it). */
+    public Optional<String> lobbyGroup() {
+        ToffyEventRuntime current = runtime;
+        return current == null ? Optional.empty() : current.lobbyGroup();
     }
 
     /** Tournament whose event is waiting in its lobby, if any. */

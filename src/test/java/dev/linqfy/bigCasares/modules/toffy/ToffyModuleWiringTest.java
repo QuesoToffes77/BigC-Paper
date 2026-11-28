@@ -143,7 +143,7 @@ class ToffyModuleWiringTest {
 
         assertEquals("/<command> [nivel|ayuda|curva|reload|torneo|tp|evento]",
             plugin.getString("commands/toffy/usage"));
-        assertEquals("/<command> [torneo | salir <torneo> | estado]", plugin.getString("commands/anotar/usage"));
+        assertEquals("/<command> [torneo [grupo] | salir <torneo> | estado]", plugin.getString("commands/anotar/usage"));
         assertTrue(plugin.getString("commands/toffy/description").contains("ayuda"));
         assertTrue(plugin.getString("commands/anotar/description").contains("open"));
     }

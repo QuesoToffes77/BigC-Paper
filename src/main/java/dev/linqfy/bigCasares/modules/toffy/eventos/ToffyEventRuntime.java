@@ -143,6 +143,8 @@ final class ToffyEventRuntime implements Listener {
         // Lifesteal: the tournament's online sign-ups when the event started (never changes during it).
         private final Set<UUID> roster = new LinkedHashSet<>();
         private String tournament;
+        /** Group the event is limited to, or null for the whole sign-up list. */
+        private String group;
         private String tournamentName;
         private final Map<World, Boolean> previousPvp = new LinkedHashMap<>();
         private final BossBar bar;
@@ -264,16 +266,17 @@ final class ToffyEventRuntime implements Listener {
 
     // --- staff controls ------------------------------------------------------------------------
 
-    void start(CommandSender sender, ToffyEventType type, String tournamentKey, ToffyEvents.Roster roster,
-               Integer lobbyOverride) {
+    /** @return true when the event started (its session exists now) */
+    boolean start(CommandSender sender, ToffyEventType type, String tournamentKey, ToffyEvents.Roster roster,
+                  Integer lobbyOverride) {
         if (!settings.enabled()) {
             sender.sendMessage(PREFIX + "§cLos eventos estan apagados (enabled: false en toffy_eventos.yml).");
-            return;
+            return false;
         }
         if (session != null) {
             sender.sendMessage(PREFIX + "§cYa hay un evento en curso (" + session.type.displayName()
                 + "). Detenelo con /toffy evento detener.");
-            return;
+            return false;
         }
         if (type == ToffyEventType.LIFESTEAL) {
             startLifesteal(sender, tournamentKey, roster);
@@ -281,6 +284,22 @@ final class ToffyEventRuntime implements Listener {
             startArena(sender, type, tournamentKey, roster.displayName(),
                 lobbyOverride == null ? settings.lobbySeconds() : lobbyOverride);
         }
+        if (session != null) {
+            session.group = roster.group();
+        }
+        return session != null;
+    }
+
+    /** Group the running event (in any phase) is limited to, if any. */
+    Optional<String> activeGroup() {
+        Session current = session;
+        return current == null ? Optional.empty() : Optional.ofNullable(current.group);
+    }
+
+    /** Group the event is limited to, if its lobby is open. */
+    Optional<String> lobbyGroup() {
+        Session current = session;
+        return current == null || current.phase != Phase.LOBBY ? Optional.empty() : Optional.ofNullable(current.group);
     }
 
     /** Whether a new event may start now (events enabled and none running). */

@@ -68,7 +68,7 @@ final class ToffyEventoCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§7No hay ningun evento esperando jugadores.");
             return;
         }
-        anotar.signUp(player, lobby.get());
+        anotar.signUpOrListGroups(player, lobby.get(), "anotar");
     }
 
     /** {@code /evento salir}: the same as {@code /anotar salir <torneo>} for the event running now. */

@@ -7,9 +7,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -144,5 +146,88 @@ class YamlToffyTournamentStorageTest {
         try (var kept = Files.list(directory)) {
             assertEquals(3, kept.filter(path -> path.getFileName().toString().startsWith("torneos.yml.broken-")).count());
         }
+    }
+
+    @Test
+    void groupsSurviveARestartWithTheirSettingsMembersAndPlaces() throws IOException {
+        Path file = directory.resolve("torneos.yml");
+        ToffyTournamentService service = new ToffyTournamentService(new YamlToffyTournamentStorage(file), List.of());
+        service.create("tenis");
+        service.register("tenis", ANA, "Ana");
+        service.register("tenis", BEN, "Ben");
+        service.createGroup("tenis", "potencia", true);
+        service.createGroup("tenis", "velocidad", false);
+        service.setGroupCapacity("tenis", "potencia", 4);
+        service.setGroupLevelRange("tenis", "potencia", 40.0, null);
+        ToffyStoredLocation place = new ToffyStoredLocation("arena", 5.5, 70, -3.25, 45f, 0f);
+        service.setGroupPlace("tenis", "potencia", place);
+        service.placeInGroup("tenis", "potencia", ANA, "Ana", 50.0, ToffyTournamentService.GroupMode.PLAYER);
+        service.placeInGroup("tenis", "velocidad", BEN, "Ben", null, ToffyTournamentService.GroupMode.FORCED);
+        service.setGroupMandatory("tenis", true);
+        service.scheduleEvent("tenis", "lifesteal", 30, 1_900_000_000_000L, "potencia");
+
+        ToffyTournament loaded = new YamlToffyTournamentStorage(file).load().getFirst();
+
+        assertTrue(loaded.groupMandatory());
+        assertEquals(List.of("potencia", "velocidad"), loaded.groups().stream().map(ToffyGroup::key).toList());
+        ToffyGroup potencia = loaded.group("potencia").orElseThrow();
+        assertTrue(potencia.open());
+        assertEquals(4, potencia.capacity());
+        assertEquals(40.0, potencia.minLevel());
+        assertEquals(null, potencia.maxLevel());
+        assertEquals(List.of(place), potencia.places());
+        assertEquals(List.of(ANA), List.copyOf(potencia.members()));
+        assertFalse(loaded.group("velocidad").orElseThrow().open());
+        assertEquals(List.of(BEN), List.copyOf(loaded.group("velocidad").orElseThrow().members()));
+        assertEquals("potencia", loaded.eventGroup());
+        assertEquals(Optional.of("potencia"), loaded.groupOf(ANA));
+    }
+
+    @Test
+    void aFileWithoutGroupsLoadsUnchangedAndSavesWithoutThem() throws IOException {
+        Path file = directory.resolve("torneos.yml");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, """
+            tournaments:
+              copa:
+                name: Copa
+                open: true
+                participants:
+                  00000000-0000-0000-0000-00000000000a: Ana
+                cupo: 8
+            """);
+
+        List<ToffyTournament> loaded = new YamlToffyTournamentStorage(file).load();
+
+        assertEquals(1, loaded.size());
+        assertTrue(loaded.getFirst().groups().isEmpty());
+        assertFalse(loaded.getFirst().groupMandatory());
+        assertEquals(8, loaded.getFirst().capacity());
+        new YamlToffyTournamentStorage(file).save(loaded);
+        assertFalse(Files.readString(file).contains("grupo"));
+    }
+
+    @Test
+    void aMemberThatIsNotAParticipantIsDroppedOnLoad() throws IOException {
+        Path file = directory.resolve("torneos.yml");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, """
+            tournaments:
+              copa:
+                name: Copa
+                participants:
+                  00000000-0000-0000-0000-00000000000a: Ana
+                grupos:
+                  uno:
+                    nombre: Uno
+                    abierto: true
+                    miembros:
+                      - 00000000-0000-0000-0000-00000000000a
+                      - 00000000-0000-0000-0000-00000000000b
+            """);
+
+        ToffyTournament loaded = new YamlToffyTournamentStorage(file).load().getFirst();
+
+        assertEquals(List.of(ANA), List.copyOf(loaded.group("uno").orElseThrow().members()));
     }
 }

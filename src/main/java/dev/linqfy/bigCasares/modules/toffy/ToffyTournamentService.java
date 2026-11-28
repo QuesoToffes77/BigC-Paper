@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -271,9 +272,14 @@ final class ToffyTournamentService {
      * @return the event time that was replaced, if any
      */
     Optional<Long> scheduleEvent(String name, String type, Integer lobbySeconds, long at) {
+        return scheduleEvent(name, type, lobbySeconds, at, null);
+    }
+
+    /** Same as {@link #scheduleEvent(String, String, Integer, long)}, for the members of {@code group} when not null. */
+    Optional<Long> scheduleEvent(String name, String type, Integer lobbySeconds, long at, String group) {
         ToffyTournament tournament = require(name);
         Long previous = tournament.eventAt();
-        tournament.setEvent(type, lobbySeconds, at);
+        tournament.setEvent(type, lobbySeconds, at, group == null ? null : keyOfOrNull(group));
         markPassedEventWarnings(tournament, at, now());
         save();
         return Optional.ofNullable(previous);
@@ -575,6 +581,328 @@ final class ToffyTournamentService {
         found.get().setScheduledAt(null);
         save();
         return true;
+    }
+
+    /** Who asks for a group placement: the player choosing with {@code /anotar}, staff, or a forced staff change. */
+    enum GroupMode {
+        PLAYER, STAFF, FORCED
+    }
+
+    enum GroupResult {
+        ASSIGNED, MOVED, ALREADY_IN_GROUP, UNKNOWN_TOURNAMENT, UNKNOWN_GROUP, GROUP_CLOSED, GROUP_FULL,
+        GROUP_LEVEL_OUT_OF_RANGE, LEVEL_UNKNOWN, TOURNAMENT_CLOSED, TOURNAMENT_LEVEL_OUT
+    }
+
+    /**
+     * Outcome of {@link #placeInGroup}. {@code registered} is true when the player was signed up to the tournament by
+     * this call; {@code closedByCapacity} when that sign-up reached the capacity and closed the sign-ups.
+     */
+    record Placement(GroupResult result, boolean registered, boolean closedByCapacity) {
+        static Placement refused(GroupResult result) {
+            return new Placement(result, false, false);
+        }
+    }
+
+    /**
+     * Result of {@link #autoAssign}: the players placed now (player to group key), how many participants stay without a
+     * group, and how many candidates were left out because their level is outside the range of the tournament.
+     */
+    record AutoResult(Map<UUID, String> assigned, int ungrouped, int outOfTournamentRange) {
+        AutoResult {
+            assigned = Map.copyOf(assigned);
+        }
+    }
+
+    /**
+     * What {@link #deleteGroup} took away: whether the group existed, the members it had (they are now without a group),
+     * and whether a scheduled event limited to that group was cancelled too.
+     */
+    record GroupDeletion(boolean deleted, boolean eventCancelled, Set<UUID> members) {
+        GroupDeletion {
+            members = Set.copyOf(members);
+        }
+
+        static GroupDeletion none() {
+            return new GroupDeletion(false, false, Set.of());
+        }
+    }
+
+    /**
+     * Creates a group of the tournament.
+     *
+     * @throws IllegalArgumentException the tournament does not exist, or the name is invalid or reserved
+     * @throws IllegalStateException    the tournament already has a group with that name
+     */
+    ToffyGroup createGroup(String tournament, String name, boolean open) {
+        ToffyTournament found = require(tournament);
+        String key = ToffyGroup.keyOf(name);
+        if (found.group(key).isPresent()) {
+            throw new IllegalStateException("Ya existe el grupo " + found.group(key).get().displayName() + " en "
+                + found.displayName() + ".");
+        }
+        ToffyGroup group = new ToffyGroup(key, name.trim(), open);
+        found.putGroup(group);
+        save();
+        return group;
+    }
+
+    /**
+     * Deletes a group. Its members stay signed up to the tournament, just without a group. A scheduled event limited to
+     * that group is cancelled, since it would have no roster left to run for.
+     */
+    GroupDeletion deleteGroup(String tournament, String group) {
+        Optional<ToffyTournament> found = find(tournament);
+        if (found.isEmpty()) {
+            return GroupDeletion.none();
+        }
+        ToffyTournament current = found.get();
+        String key = keyOfOrNull(group);
+        Optional<ToffyGroup> target = current.group(key);
+        if (target.isEmpty()) {
+            return GroupDeletion.none();
+        }
+        Set<UUID> members = target.get().members();
+        boolean eventCancelled = key.equals(current.eventGroup()) && current.eventAt() != null;
+        if (eventCancelled) {
+            current.setEvent(null, null, null);
+        }
+        current.removeGroup(key);
+        save();
+        return new GroupDeletion(true, eventCancelled, members);
+    }
+
+    Optional<ToffyGroup> group(String tournament, String group) {
+        return find(tournament).flatMap(found -> found.group(keyOfOrNull(group)));
+    }
+
+    /** Group keys of the tournament, in creation order. Empty when the tournament does not exist. */
+    List<String> groupKeys(String tournament) {
+        return find(tournament).map(found -> found.groups().stream().map(ToffyGroup::key).toList()).orElse(List.of());
+    }
+
+    /** Lets players choose the group with {@code /anotar} (open) or not (closed). */
+    Change setGroupOpen(String tournament, String group, boolean open) {
+        Optional<ToffyGroup> found = group(tournament, group);
+        if (found.isEmpty()) {
+            return Change.UNKNOWN;
+        }
+        if (found.get().open() == open) {
+            return Change.UNCHANGED;
+        }
+        found.get().setOpen(open);
+        save();
+        return Change.CHANGED;
+    }
+
+    /** @return false when the tournament or the group does not exist; @throws IllegalArgumentException below 1 */
+    boolean setGroupCapacity(String tournament, String group, Integer capacity) {
+        if (capacity != null && capacity < 1) {
+            throw new IllegalArgumentException("El cupo del grupo tiene que ser al menos 1.");
+        }
+        Optional<ToffyGroup> found = group(tournament, group);
+        if (found.isEmpty()) {
+            return false;
+        }
+        found.get().setCapacity(capacity);
+        save();
+        return true;
+    }
+
+    /** @throws IllegalArgumentException when min is above max or one of them is negative */
+    boolean setGroupLevelRange(String tournament, String group, Double min, Double max) {
+        if ((min != null && min < 0) || (max != null && max < 0) || (min != null && max != null && min > max)) {
+            throw new IllegalArgumentException("El rango de nivel tiene que ser 0 <= minimo <= maximo.");
+        }
+        Optional<ToffyGroup> found = group(tournament, group);
+        if (found.isEmpty()) {
+            return false;
+        }
+        found.get().setLevelRange(min, max);
+        save();
+        return true;
+    }
+
+    /** Replaces every place of the group with {@code place}. */
+    boolean setGroupPlace(String tournament, String group, ToffyStoredLocation place) {
+        Optional<ToffyGroup> found = group(tournament, group);
+        if (found.isEmpty()) {
+            return false;
+        }
+        found.get().setPlaces(List.of(place));
+        save();
+        return true;
+    }
+
+    boolean addGroupPlace(String tournament, String group, ToffyStoredLocation place) {
+        Optional<ToffyGroup> found = group(tournament, group);
+        if (found.isEmpty()) {
+            return false;
+        }
+        found.get().addPlace(place);
+        save();
+        return true;
+    }
+
+    /** @return false when the group does not exist or had no place */
+    boolean clearGroupPlaces(String tournament, String group) {
+        Optional<ToffyGroup> found = group(tournament, group);
+        if (found.isEmpty() || found.get().places().isEmpty()) {
+            return false;
+        }
+        found.get().setPlaces(List.of());
+        save();
+        return true;
+    }
+
+    /** Whether {@code /anotar <torneo>} lists the open groups instead of signing up (see {@code grupo-obligatorio}). */
+    boolean setGroupMandatory(String tournament, boolean mandatory) {
+        Optional<ToffyTournament> found = find(tournament);
+        if (found.isEmpty()) {
+            return false;
+        }
+        found.get().setGroupMandatory(mandatory);
+        save();
+        return true;
+    }
+
+    /**
+     * Places a participant (or a new one, see {@link GroupMode}) in a group. A player is in at most one group: leaving
+     * the previous one is part of the change. Every check of the group and of the tournament applies to
+     * {@link GroupMode#PLAYER} and {@link GroupMode#STAFF}; {@link GroupMode#FORCED} skips them all.
+     *
+     * @param level real level of the player, or null when it cannot be read (offline)
+     */
+    Placement placeInGroup(String tournament, String group, UUID playerId, String playerName, Double level,
+                           GroupMode mode) {
+        Optional<ToffyTournament> found = find(tournament);
+        if (found.isEmpty()) {
+            return Placement.refused(GroupResult.UNKNOWN_TOURNAMENT);
+        }
+        ToffyTournament current = found.get();
+        Optional<ToffyGroup> target = current.group(keyOfOrNull(group));
+        if (target.isEmpty()) {
+            return Placement.refused(GroupResult.UNKNOWN_GROUP);
+        }
+        ToffyGroup destination = target.get();
+        if (destination.members().contains(playerId)) {
+            return Placement.refused(GroupResult.ALREADY_IN_GROUP);
+        }
+        boolean registered = false;
+        boolean closed = false;
+        if (mode != GroupMode.FORCED) {
+            Optional<ToffyGroupRules.Refusal> refusal = ToffyGroupRules.refusal(destination, playerId, level,
+                mode == GroupMode.PLAYER);
+            if (refusal.isPresent()) {
+                return Placement.refused(switch (refusal.get()) {
+                    case CLOSED -> GroupResult.GROUP_CLOSED;
+                    case FULL -> GroupResult.GROUP_FULL;
+                    case LEVEL_OUT_OF_RANGE -> GroupResult.GROUP_LEVEL_OUT_OF_RANGE;
+                    case LEVEL_UNKNOWN -> GroupResult.LEVEL_UNKNOWN;
+                });
+            }
+            if (!current.participants().containsKey(playerId)) {
+                if (level == null && current.hasLevelRange()) {
+                    return Placement.refused(GroupResult.LEVEL_UNKNOWN);
+                }
+                RegisterResult signUp = register(tournament, playerId, playerName, level == null ? 0.0 : level);
+                switch (signUp) {
+                    case REGISTERED -> registered = true;
+                    case REGISTERED_CLOSED -> {
+                        registered = true;
+                        closed = true;
+                    }
+                    case CLOSED -> {
+                        return Placement.refused(GroupResult.TOURNAMENT_CLOSED);
+                    }
+                    case LEVEL_OUT_OF_RANGE -> {
+                        return Placement.refused(GroupResult.TOURNAMENT_LEVEL_OUT);
+                    }
+                    default -> {
+                        return Placement.refused(GroupResult.UNKNOWN_TOURNAMENT);
+                    }
+                }
+            }
+        } else if (!current.participants().containsKey(playerId)) {
+            current.putParticipant(playerId, playerName);
+            registered = true;
+        }
+        boolean moved = current.groupOf(playerId).isPresent();
+        for (ToffyGroup other : current.groups()) {
+            other.removeMember(playerId);
+        }
+        destination.addMember(playerId);
+        save();
+        return new Placement(moved ? GroupResult.MOVED : GroupResult.ASSIGNED, registered, closed);
+    }
+
+    /** Takes the player out of its group. The sign-up to the tournament stays. False when it had no group. */
+    boolean leaveGroup(String tournament, UUID playerId) {
+        Optional<ToffyTournament> found = find(tournament);
+        if (found.isEmpty()) {
+            return false;
+        }
+        boolean removed = false;
+        for (ToffyGroup group : found.get().groups()) {
+            removed |= group.removeMember(playerId);
+        }
+        if (removed) {
+            save();
+        }
+        return removed;
+    }
+
+    Optional<String> groupOf(String tournament, UUID playerId) {
+        return find(tournament).flatMap(found -> found.groupOf(playerId));
+    }
+
+    /**
+     * Places players into the groups of the tournament with {@link ToffyGroupAssigner}. Only participants with a level
+     * in {@code levels} are considered (offline players have none and keep what they have). Without {@code reshuffle}
+     * only the ones without a group are placed; with it, the placed players are first taken out of their groups.
+     *
+     * @return the placed players, and the participants that are still without a group
+     */
+    AutoResult autoAssign(String tournament, boolean parejo, boolean reshuffle, Map<UUID, Double> levels,
+                          Random random) {
+        ToffyTournament current = require(tournament);
+        Map<UUID, Double> candidates = new LinkedHashMap<>();
+        int outOfRange = 0;
+        for (UUID id : current.participants().keySet()) {
+            Double level = levels.get(id);
+            if (level == null || (!reshuffle && current.groupOf(id).isPresent())) {
+                continue;
+            }
+            if (!current.allowsLevel(level)) {
+                outOfRange++;
+                continue;
+            }
+            candidates.put(id, level);
+        }
+        for (UUID id : candidates.keySet()) {
+            for (ToffyGroup group : current.groups()) {
+                group.removeMember(id);
+            }
+        }
+        List<ToffyGroupAssigner.Slot> slots = current.groups().stream()
+            .map(group -> new ToffyGroupAssigner.Slot(group.key(), group.capacity(), group.minLevel(),
+                group.maxLevel(), group.members().size()))
+            .toList();
+        ToffyGroupAssigner.Result result = ToffyGroupAssigner.assign(candidates, slots, parejo, random);
+        result.assigned().forEach((id, key) -> current.group(key).ifPresent(group -> group.addMember(id)));
+        save();
+        int ungrouped = (int) current.participants().keySet().stream()
+            .filter(id -> current.groupOf(id).isEmpty())
+            .count();
+        return new AutoResult(result.assigned(), ungrouped, outOfRange);
+    }
+
+    /** The group key of a typed name, or the name itself when it is not a valid key (then nothing matches). */
+    private static String keyOfOrNull(String name) {
+        try {
+            return ToffyGroup.keyOf(name);
+        } catch (IllegalArgumentException invalid) {
+            return "";
+        }
     }
 
     private ToffyTournament require(String name) {

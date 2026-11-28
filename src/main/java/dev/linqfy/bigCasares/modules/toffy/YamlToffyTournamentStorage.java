@@ -130,9 +130,50 @@ final class YamlToffyTournamentStorage implements ToffyTournamentStorage {
         if (section.contains("evento.at")) {
             tournament.setEvent(section.getString("evento.tipo", ""),
                 section.contains("evento.segundos") ? section.getInt("evento.segundos") : null,
-                section.getLong("evento.at"));
+                section.getLong("evento.at"),
+                section.contains("evento.grupo") ? section.getString("evento.grupo") : null);
         }
+        tournament.setGroupMandatory(section.getBoolean("grupo-obligatorio", false));
+        readGroups(section, tournament);
         return tournament;
+    }
+
+    /**
+     * {@code grupos} maps each group key to its settings. A group member that is not a participant of the tournament
+     * is dropped, and so is a second group of the same player: members are a subset of the sign-ups and each one is in
+     * at most one group. Files without {@code grupos} load with no groups.
+     */
+    private static void readGroups(ConfigurationSection section, ToffyTournament tournament) {
+        ConfigurationSection groups = section.getConfigurationSection("grupos");
+        if (groups == null) {
+            return;
+        }
+        for (String key : groups.getKeys(false)) {
+            ConfigurationSection at = groups.getConfigurationSection(key);
+            if (at == null) {
+                throw new IllegalArgumentException("Group " + key + " is not a section");
+            }
+            ToffyGroup group = new ToffyGroup(ToffyGroup.keyOf(key), at.getString("nombre", key),
+                at.getBoolean("abierto", false));
+            if (at.contains("cupo")) {
+                group.setCapacity(at.getInt("cupo"));
+            }
+            if (at.contains("nivel.min") || at.contains("nivel.max")) {
+                group.setLevelRange(
+                    at.contains("nivel.min") ? at.getDouble("nivel.min") : null,
+                    at.contains("nivel.max") ? at.getDouble("nivel.max") : null);
+            }
+            for (Map<?, ?> point : at.getMapList("lugares")) {
+                group.addPlace(readPoint(point));
+            }
+            for (String id : at.getStringList("miembros")) {
+                UUID member = UUID.fromString(id);
+                if (tournament.participants().containsKey(member) && tournament.groupOf(member).isEmpty()) {
+                    group.addMember(member);
+                }
+            }
+            tournament.putGroup(group);
+        }
     }
 
     /** {@code places} is a list; the old single {@code place} section becomes a one-point list. */
@@ -200,6 +241,22 @@ final class YamlToffyTournamentStorage implements ToffyTournamentStorage {
             yaml.set(base + ".evento.tipo", tournament.eventType());
             yaml.set(base + ".evento.segundos", tournament.eventLobby());
             yaml.set(base + ".evento.at", tournament.eventAt());
+            yaml.set(base + ".evento.grupo", tournament.eventGroup());
+            if (tournament.groupMandatory()) {
+                yaml.set(base + ".grupo-obligatorio", true);
+            }
+            for (ToffyGroup group : tournament.groups()) {
+                String groupBase = base + ".grupos." + group.key();
+                yaml.set(groupBase + ".nombre", group.displayName());
+                yaml.set(groupBase + ".abierto", group.open());
+                yaml.set(groupBase + ".cupo", group.capacity());
+                yaml.set(groupBase + ".nivel.min", group.minLevel());
+                yaml.set(groupBase + ".nivel.max", group.maxLevel());
+                if (!group.places().isEmpty()) {
+                    yaml.set(groupBase + ".lugares", group.places().stream().map(ToffyTournamentStorage::pointOf).toList());
+                }
+                yaml.set(groupBase + ".miembros", group.members().stream().map(UUID::toString).toList());
+            }
         }
         Files.createDirectories(file.toAbsolutePath().getParent());
         Path temporary = file.resolveSibling(file.getFileName() + ".tmp");

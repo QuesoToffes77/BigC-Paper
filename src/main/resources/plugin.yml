@@ -72,7 +72,7 @@ commands:
     aliases: [ eventos ]
   anotar:
     description: Sign up for a tournament, leave it, see which ones are open, or check the running staff event
-    usage: /<command> [torneo | salir <torneo> | estado]
+    usage: /<command> [torneo [grupo] | salir <torneo> | estado]
     permission: bigcasares.toffy.anotar
   celular:
     description: Give a Celular (the phone that plays videos)

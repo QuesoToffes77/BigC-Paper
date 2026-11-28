@@ -73,4 +73,21 @@ class ToffyHelpTest {
                 ToffyCommand.TORNEO_ADMIN_PERMISSION, ToffyEvents.ADMIN_PERMISSION)));
         assertEquals(List.of("ayuda", "evento"), ToffyHelp.firstArgs(has(ToffyEvents.ADMIN_PERMISSION)));
     }
+
+    @Test
+    void groupsAndTheGroupPlayerCommandsAreListedForTheRightPeople() {
+        String admin = joined(ToffyHelp.lines(has(ToffyCommand.TORNEO_ADMIN_PERMISSION)));
+        assertTrue(admin.contains("/toffy torneo grupo <torneo> crear <grupo> [abierto]"));
+        assertTrue(admin.contains("/toffy torneo grupo <torneo> repartir <parejo|nivel> [todos]"));
+        assertTrue(admin.contains("/toffy torneo grupo <torneo> obligatorio <si|no>"));
+        assertTrue(admin.contains("/toffy tp concursantes <torneo> grupo <grupo> [lugar | x y z [mundo]] [forzar]"));
+        assertFalse(admin.contains("/anotar <torneo> [grupo]"));
+
+        String player = joined(ToffyHelp.lines(has(ToffyAnotarCommand.PERMISSION)));
+        assertTrue(player.contains("/anotar <torneo> [grupo]"));
+        assertFalse(player.contains("torneo grupo"));
+
+        String events = joined(ToffyHelp.lines(has(ToffyEvents.ADMIN_PERMISSION)));
+        assertTrue(events.contains("/toffy evento iniciar <tipo> <torneo> [grupo <grupo>] [segundos]"));
+    }
 }
