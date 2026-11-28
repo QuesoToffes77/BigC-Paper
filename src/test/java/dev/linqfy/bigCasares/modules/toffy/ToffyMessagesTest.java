@@ -27,7 +27,7 @@ class ToffyMessagesTest {
             assertTrue(bundled.contains(key), key);
             assertEquals(ToffyMessages.defaultTemplate(key), loaded.messages().template(key, null), key);
         }
-        assertEquals(30, ToffyMessages.CASES.size());
+        assertEquals(96, ToffyMessages.CASES.size());
         assertTrue(ToffyMessages.CASES.containsAll(List.of("grupo-anotado", "grupo-cambiado", "grupo-cerrado",
             "grupo-lleno", "grupo-elegir", "grupo-asignado")));
         assertEquals("evento-lobby", ToffyMessages.EVENTO_LOBBY);

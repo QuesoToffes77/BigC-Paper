@@ -125,7 +125,9 @@ tools:
 
 # ---------------------------------------------------------------------------------------------------
 # Encantamientos: puntos por nivel y nivel máximo que se cuenta (Filo X puesto con comandos cuenta como Filo V).
-# Las maldiciones restan. Un encantamiento que no está acá no suma nada.
+# points-per-level: número entre -1000000 y 1000000 (negativo = resta, como las maldiciones).
+# max-level: nivel entero, 1 o más. Los niveles por encima del máximo no suman.
+# Un encantamiento que no está acá no suma nada.
 # Los max-level de fábrica son los de vanilla; los puntos son un criterio de cuánto ayuda cada uno.
 # ---------------------------------------------------------------------------------------------------
 enchantments:
@@ -181,8 +183,9 @@ enchantments:
 #                  material: <material>       material de base (para acotar, por ejemplo iron_sword)
 #   category:    armor (cuenta puesto), weapon o tool (cuentan en la mano)
 #   family:      familia de weapons o tools a la que pertenece (no va en armor)
-#   slot:        solo armor, opcional: helmet, chestplate, leggings o boots (si no, se deduce de match.material)
-#   value:       valor sin encantar. Los encantamientos que tenga el ítem suman igual que en uno normal.
+#   slot:        solo armor, opcional: helmet, chestplate, leggings o boots (si no, se deduce de match.material).
+#                Si tampoco se deduce, la pieza cuenta puesta en cualquier lugar, pero no cuando está en el inventario.
+#   value:       valor sin encantar, entre -1000000 y 1000000. Los encantamientos que tenga el ítem suman igual que en uno normal.
 # Si un ítem coincide con varios, gana el primero de la lista. En las referencias se escribe custom:<nombre>.
 # ---------------------------------------------------------------------------------------------------
 custom-items:

@@ -38,15 +38,24 @@ final class ArenaBuilder {
 
     ArenaBuilder(World world, ArenaLayout layout, Plugin plugin,
                  boolean guarded) {
-        this(world, layout, new BukkitAccess(world, plugin), guarded);
+        this(world, layout, ArenaMaterials.defaults(), new BukkitAccess(world, plugin), guarded);
+    }
+
+    ArenaBuilder(World world, ArenaLayout layout, ArenaMaterials materials, Plugin plugin, boolean guarded) {
+        this(world, layout, materials, new BukkitAccess(world, plugin), guarded);
     }
 
     ArenaBuilder(World world, ArenaLayout layout, Access access,
                  boolean guarded) {
+        this(world, layout, ArenaMaterials.defaults(), access, guarded);
+    }
+
+    ArenaBuilder(World world, ArenaLayout layout, ArenaMaterials materials, Access access,
+                 boolean guarded) {
         this.world = world;
         this.layout = layout;
         this.access = access;
-        this.plan = new ArenaBuildPlan(layout);
+        this.plan = new ArenaBuildPlan(layout, materials);
         this.guarded = guarded;
         this.checking = guarded;
         if (layout.clearMinY() < access.minHeight() || plan.maxY() >= access.maxHeight()) {

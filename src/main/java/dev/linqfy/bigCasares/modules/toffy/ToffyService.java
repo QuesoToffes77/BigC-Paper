@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -28,6 +29,9 @@ public final class ToffyService {
     private final double maxArmorPower;
     private final Map<ToffyItemCategory, Map<String, Double>> zeroHeldPower;
     private final Map<ToffyItemCategory, Map<String, Double>> maxHeldPower;
+    private final Set<String> valuedMaterials;
+    private final Set<String> customMaterials;
+    private final boolean customAnyMaterial;
 
     public ToffyService(ToffySettings settings) {
         List<String> problems = problems(settings);
@@ -36,6 +40,25 @@ public final class ToffyService {
         }
         this.settings = settings;
         this.catalog = Catalog.of(settings);
+        Set<String> valued = new HashSet<>();
+        for (String key : catalog.armorValues.keySet()) {
+            addVanillaMaterial(valued, key);
+        }
+        for (String key : catalog.heldValues.keySet()) {
+            addVanillaMaterial(valued, key);
+        }
+        this.valuedMaterials = Set.copyOf(valued);
+        Set<String> custom = new HashSet<>();
+        boolean anyMaterial = false;
+        for (ToffyCustomItem item : settings.customItems()) {
+            if (item.match().material() == null) {
+                anyMaterial = true;
+            } else {
+                custom.add(item.match().material());
+            }
+        }
+        this.customMaterials = Set.copyOf(custom);
+        this.customAnyMaterial = anyMaterial;
         this.zeroArmorPower = catalog.armorPower(settings.zeroReference().armor());
         this.maxArmorPower = catalog.armorPower(settings.maxReference().armor());
         Map<ToffyItemCategory, Map<String, Double>> zero = new EnumMap<>(ToffyItemCategory.class);
@@ -155,6 +178,23 @@ public final class ToffyService {
     }
 
     /**
+     * Whether a stack of {@code material} (namespaced, for example {@code minecraft:iron_sword}) can count at all:
+     * it has a value, or a custom item match could recognize it. Any other stack is worth nothing, so the reader
+     * skips it.
+     */
+    public boolean mayCount(String material) {
+        return customAnyMaterial || valuedMaterials.contains(material) || customMaterials.contains(material);
+    }
+
+    /**
+     * Whether a custom item match could recognize a stack of {@code material}, so its item model and persistent
+     * data have to be read. False for every material when no custom item is configured.
+     */
+    public boolean needsCustomData(String material) {
+        return customAnyMaterial || customMaterials.contains(material);
+    }
+
+    /**
      * Base value plus enchantment points; 0 for items that have no value in {@code toffy_valores.yml}.
      */
     public double itemPower(ToffyItem item) {
@@ -162,11 +202,9 @@ public final class ToffyService {
     }
 
     /**
-     * Where {@code item} counts, or {@code null} when it has no value.
-     */
-    /**
-     * The armor slot {@code item} is worn in, or {@code null} when it is not armor or fits any slot. A piece only
-     * counts in its own slot.
+     * The armor slot {@code item} is worn in, as configured (vanilla pieces by name, custom pieces by
+     * {@code slot:} or their material), or {@code null} when it is not armor or fits any slot. A piece only counts
+     * in its own slot.
      */
     public ToffyArmorSlot armorSlotOf(ToffyItem item) {
         return item == null ? null : catalog.armorSlots.get(item.key());
@@ -249,6 +287,12 @@ public final class ToffyService {
             return 0.0;
         }
         return Math.clamp((power - zero) / (max - zero), 0.0, 1.0);
+    }
+
+    private static void addVanillaMaterial(Set<String> materials, String key) {
+        if (!key.startsWith(ToffyCustomItem.NAMESPACE + ":")) {
+            materials.add(key);
+        }
     }
 
     private static void checkAbove(double max, double zero, String maxPath, String zeroPath, List<String> problems) {

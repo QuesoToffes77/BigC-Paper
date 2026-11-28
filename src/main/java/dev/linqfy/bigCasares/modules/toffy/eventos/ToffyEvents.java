@@ -7,6 +7,7 @@ import dev.linqfy.bigCasares.module.runtime.BukkitRuntimeRegistrations;
 import dev.linqfy.bigCasares.module.runtime.InventoryCustody;
 import dev.linqfy.bigCasares.module.runtime.RuntimeRegistrationScope;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -38,6 +39,72 @@ public final class ToffyEvents {
     public static final String CASE_ELIMINATED = "evento-eliminado";
     public static final String CASE_CANCELLED = "evento-cancelado";
     public static final String CASE_FINISHED = "evento-fin";
+    public static final String CASE_NO_DISPONIBLE = "evento-no-disponible";
+    public static final String CASE_BOTON = "evento-boton";
+    public static final String CASE_BOTON_AYUDA = "evento-boton-ayuda";
+    public static final String CASE_CUENTA = "evento-cuenta";
+    public static final String CASE_UNIDO_OTROS = "evento-unido-otros";
+    public static final String CASE_PREPARANDO = "evento-preparando";
+    public static final String CASE_REAPARECE = "evento-reaparece";
+    public static final String CASE_YA_EMPEZO = "evento-ya-empezo";
+    public static final String CASE_INVENTARIO_OCUPADO = "evento-inventario-ocupado";
+    public static final String CASE_INVENTARIO_NO_GUARDADO = "evento-inventario-no-guardado";
+    public static final String CASE_INVENTARIO_PENDIENTE = "evento-inventario-pendiente";
+    public static final String CASE_COMANDO_BLOQUEADO = "evento-comando-bloqueado";
+    public static final String CASE_TP_BLOQUEADO = "evento-tp-bloqueado";
+    public static final String CASE_SALIDA_LIFESTEAL = "evento-salida-lifesteal";
+    public static final String CASE_RECUPERADO = "evento-recuperado";
+    public static final String CASE_RECUPERADO_ANTES = "evento-recuperado-antes";
+    public static final String CASE_RECUPERACION_PENDIENTE = "evento-recuperacion-pendiente";
+    public static final String CASE_PREMIO_PENDIENTE = "evento-premio-pendiente";
+    public static final String CASE_PREMIO = "evento-premio";
+    public static final String CASE_PREMIO_AL_ENTRAR = "evento-premio-al-entrar";
+    public static final String CASE_CORAZON_AL_ENTRAR = "evento-corazon-al-entrar";
+    public static final String CASE_ERROR_ARENA = "evento-error-arena";
+    public static final String CASE_MOTIVO_MINIMO = "evento-motivo-minimo";
+    public static final String CASE_MOTIVO_DETENER = "evento-motivo-detener";
+    public static final String CASE_MOTIVO_TIEMPO_LIDER = "evento-motivo-tiempo-lider";
+    public static final String CASE_MOTIVO_SIN_GANADOR = "evento-motivo-sin-ganador";
+    public static final String CASE_MOTIVO_NADIE = "evento-motivo-nadie";
+    public static final String CASE_CAUSA_MURIO = "evento-causa-murio";
+    public static final String CASE_CAUSA_CAYO = "evento-causa-cayo";
+    public static final String CASE_CAUSA_EXPLOTO = "evento-causa-exploto";
+    public static final String CASE_CAUSA_DESCONECTO = "evento-causa-desconecto";
+    public static final String CASE_CAUSA_SALIO = "evento-causa-salio";
+    public static final String CASE_TNT_EXPLOTA = "evento-tnt-explota";
+    public static final String CASE_LIFESTEAL_INICIADO = "evento-lifesteal-iniciado";
+    public static final String CASE_LIFESTEAL_REGLAS = "evento-lifesteal-reglas";
+    public static final String CASE_LIFESTEAL_META = "evento-lifesteal-meta";
+    public static final String CASE_LIFESTEAL_TIEMPO = "evento-lifesteal-tiempo";
+    public static final String CASE_LIFESTEAL_FIN = "evento-lifesteal-fin";
+    public static final String CASE_LIFESTEAL_FIN_CORAZON = "evento-lifesteal-fin-corazon";
+    public static final String CASE_LIFESTEAL_FIN_MAXIMO = "evento-lifesteal-fin-maximo";
+    public static final String CASE_LIFESTEAL_FIN_NADIE = "evento-lifesteal-fin-nadie";
+    public static final String CASE_LIFESTEAL_FIN_GANADORES = "evento-lifesteal-fin-ganadores";
+    public static final String CASE_LIFESTEAL_ROBO_VICTIMA = "evento-lifesteal-robo-victima";
+    public static final String CASE_LIFESTEAL_ROBO_ATACANTE = "evento-lifesteal-robo-atacante";
+    public static final String CASE_LIFESTEAL_PISO = "evento-lifesteal-piso";
+    public static final String CASE_LIFESTEAL_MAXIMO = "evento-lifesteal-maximo";
+    public static final String CASE_LIFESTEAL_CANCELADO = "evento-lifesteal-cancelado";
+    public static final String CASE_KOTH_AJUSTE = "evento-koth-ajuste";
+    public static final String CASE_KOTH_TIRADO = "evento-koth-tirado";
+    public static final String CASE_KOTH_LIBRE = "evento-koth-libre";
+    public static final String CASE_KOTH_DISPUTADA = "evento-koth-disputada";
+    public static final String CASE_KOTH_REY = "evento-koth-rey";
+    public static final String CASE_KOTH_BARRA = "evento-koth-barra";
+    public static final String CASE_TNT_TENES = "evento-tnt-tenes";
+    public static final String CASE_TNT_CORRE = "evento-tnt-corre";
+    public static final String CASE_TNT_RONDA = "evento-tnt-ronda";
+    public static final String CASE_TNT_PASA_VICTIMA = "evento-tnt-pasa-victima";
+    public static final String CASE_TNT_PASA_ATACANTE = "evento-tnt-pasa-atacante";
+    public static final String CASE_SPLEEF_GRACIA = "evento-spleef-gracia";
+    public static final String CASE_SPLEEF_ROMPER = "evento-spleef-romper";
+    public static final String CASE_KIT_PALO = "evento-kit-palo";
+    public static final String CASE_KIT_PALA = "evento-kit-pala";
+    public static final String CASE_KIT_LORE = "evento-kit-lore";
+    public static final String CASE_DESCRIPCION_KOTH = "evento-descripcion-koth";
+    public static final String CASE_DESCRIPCION_TNT = "evento-descripcion-tnt";
+    public static final String CASE_DESCRIPCION_SPLEEF = "evento-descripcion-spleef";
 
     /** Staff permission to start, stop and inspect events. */
     public static final String ADMIN_PERMISSION = ToffyEventRuntime.ADMIN_PERMISSION;
@@ -60,10 +127,60 @@ public final class ToffyEvents {
         }
     }
 
-    /** Renders a chat case for a tournament (override first, then the file). {@code null} means send nothing. */
+    /**
+     * What a case shows: chat text, a title with subtitle, an action bar text, or nothing (sound only). The sound is
+     * played to the same recipients; a blank key plays none. Volume and pitch are the Bukkit values.
+     */
+    public record Text(Kind kind, String text, String subtitle, String sound, float volume, float pitch) {
+        public enum Kind { CHAT, TITLE, ACTIONBAR, NONE }
+
+        public Text {
+            kind = kind == null ? Kind.CHAT : kind;
+            text = text == null ? "" : text;
+            subtitle = subtitle == null ? "" : subtitle;
+            sound = sound == null ? "" : sound;
+            volume = clampVolume(volume);
+            pitch = clampPitch(pitch);
+        }
+
+        /** Volume is kept between 0 and 10, as toffy_eventos.yml and toffy_mensajes.yml say. */
+        public static float clampVolume(float volume) {
+            return Math.max(0f, Math.min(10f, volume));
+        }
+
+        /** Pitch is kept between 0.5 and 2.0, as toffy_eventos.yml and toffy_mensajes.yml say. */
+        public static float clampPitch(float pitch) {
+            return Math.max(0.5f, Math.min(2f, pitch));
+        }
+
+        /**
+         * The sound key as written, trimmed: "" for a blank key (silent), null when it is not a valid namespaced key
+         * such as {@code minecraft:block.note_block.hat}.
+         */
+        public static String soundKey(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return "";
+            }
+            String key = raw.trim();
+            return NamespacedKey.fromString(key) == null ? null : key;
+        }
+
+        public static Text chat(String text) {
+            return new Text(Kind.CHAT, text, "", "", 1f, 1f);
+        }
+
+        public static Text actionBar(String text) {
+            return new Text(Kind.ACTIONBAR, text, "", "", 1f, 1f);
+        }
+    }
+
+    /**
+     * Renders a case for a tournament (override first, then the file). {@code null} means send nothing. The placeholders
+     * are the event values; the prefix placeholder is added by the owner of the texts.
+     */
     @FunctionalInterface
     public interface EventMessages {
-        String render(String caseKey, String tournament, Map<String, String> placeholders);
+        Text render(String caseKey, String tournament, Map<String, String> placeholders);
     }
 
     /** Looks up a tournament by key; empty when it does not exist. */
@@ -74,6 +191,11 @@ public final class ToffyEvents {
         /** Sign-ups of one group of the tournament only; empty when the tournament or the group does not exist. */
         default Optional<Roster> roster(String tournamentKey, String group) {
             return group == null ? roster(tournamentKey) : Optional.empty();
+        }
+
+        /** Rewards the tournament gives its event winners instead of the file rewards; empty when it has none. */
+        default Optional<ToffyEventSettings.Rewards> rewards(String tournamentKey) {
+            return Optional.empty();
         }
     }
 

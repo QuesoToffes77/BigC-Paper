@@ -29,6 +29,18 @@ public record LifestealRules(int heartsPerKill, int floorHearts, int maxHearts, 
         return !arenaWorld && !endHuntDeath;
     }
 
+    /**
+     * Whether a Lifesteal death keeps the inventory. Deaths in the event dimension belong to the arena (never here), and
+     * so do the End hunt's deaths. Otherwise every death keeps it when {@code keepEveryone} is set (the original
+     * behaviour), and only the sign-ups of the event keep it when it is not.
+     *
+     * @param eventDimension whether the victim is in the event dimension itself, not in the fallback arena world
+     */
+    static boolean keepsLifestealDeath(boolean keepEveryone, boolean rosterMember, boolean eventDimension,
+                                       boolean endHuntDeath) {
+        return !eventDimension && !endHuntDeath && (keepEveryone || rosterMember);
+    }
+
     /** Result of one kill: hearts the victim loses and the killer gains (equal unless the cap trims it). */
     public record KillOutcome(int victimLoss, int killerGain, boolean floorProtected) {
     }

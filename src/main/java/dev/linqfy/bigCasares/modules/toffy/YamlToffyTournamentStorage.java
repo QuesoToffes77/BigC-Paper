@@ -90,6 +90,11 @@ final class YamlToffyTournamentStorage implements ToffyTournamentStorage {
                 tournament.putParticipant(UUID.fromString(id), participants.getString(id, ""));
             }
         }
+        ConfigurationSection rewards = section.getConfigurationSection("premios");
+        if (rewards != null) {
+            rewards.getStringList("items").forEach(tournament::addRewardItem);
+            rewards.getStringList("comandos").forEach(tournament::addRewardCommand);
+        }
         ConfigurationSection messages = section.getConfigurationSection("messages");
         if (messages != null) {
             for (String caseKey : messages.getKeys(false)) {
@@ -227,6 +232,10 @@ final class YamlToffyTournamentStorage implements ToffyTournamentStorage {
             yaml.set(base + ".open", tournament.open());
             tournament.participants().forEach((id, name) -> yaml.set(base + ".participants." + id, name));
             tournament.messages().forEach((caseKey, text) -> yaml.set(base + ".messages." + caseKey, text));
+            List<String> rewardItems = tournament.rewards().items();
+            List<String> rewardCommands = tournament.rewards().commands();
+            yaml.set(base + ".premios.items", rewardItems.isEmpty() ? null : rewardItems);
+            yaml.set(base + ".premios.comandos", rewardCommands.isEmpty() ? null : rewardCommands);
             tournament.returns().forEach((id, at) -> writeLocation(yaml, base + ".returns." + id, at));
             yaml.set(base + ".pending", tournament.pending().stream().map(UUID::toString).toList());
             if (!tournament.places().isEmpty()) {

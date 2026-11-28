@@ -6,9 +6,15 @@ import java.util.NoSuchElementException;
 /** Computes arena blocks without allocating a list proportional to the volume. */
 final class ArenaBuildPlan {
     private final ArenaLayout layout;
+    private final ArenaMaterials materials;
 
     ArenaBuildPlan(ArenaLayout layout) {
+        this(layout, ArenaMaterials.defaults());
+    }
+
+    ArenaBuildPlan(ArenaLayout layout, ArenaMaterials materials) {
         this.layout = layout;
+        this.materials = materials;
     }
 
     int maxY() {
@@ -25,28 +31,28 @@ final class ArenaBuildPlan {
         switch (layout.type()) {
             case KOTH -> {
                 if (inner && y == layout.floorY() - 1) {
-                    return ArenaLayout.inDisc(dx, dz, radius - 1) ? Material.SMOOTH_STONE : Material.POLISHED_BLACKSTONE;
+                    return ArenaLayout.inDisc(dx, dz, radius - 1) ? materials.kothPlatform() : materials.kothEdge();
                 }
                 if (inner && y == layout.floorY() && ArenaLayout.inDisc(dx, dz, layout.hillRadius() + 2)) {
-                    return ArenaLayout.inDisc(dx, dz, layout.hillRadius()) ? Material.GOLD_BLOCK : Material.STONE_BRICKS;
+                    return ArenaLayout.inDisc(dx, dz, layout.hillRadius()) ? materials.hill() : materials.hillRing();
                 }
             }
             case TNT_TAG -> {
                 if (y == layout.floorY() - 1 && inner) {
                     return ((dx + radius) / 3 + (dz + radius) / 3) % 2 == 0
-                        ? Material.RED_CONCRETE : Material.WHITE_CONCRETE;
+                        ? materials.tntPlatform() : materials.tntPlatformAlt();
                 }
                 if (!inner && ArenaLayout.inDisc(dx, dz, radius + 1)) {
-                    if (y == layout.floorY() - 1) return Material.BLACK_CONCRETE;
-                    if (y >= layout.floorY() && y < layout.floorY() + 4) return Material.BARRIER;
+                    if (y == layout.floorY() - 1) return materials.tntOuter();
+                    if (y >= layout.floorY() && y < layout.floorY() + 4) return materials.wall();
                 }
             }
             case SPLEEF -> {
                 for (int layer = 0; layer < layout.layers(); layer++) {
                     int floor = layout.floorY() - 1 - layer * layout.layerGap();
-                    if (inner && y == floor) return Material.SNOW_BLOCK;
+                    if (inner && y == floor) return materials.spleefFloor();
                     if (!inner && ArenaLayout.inDisc(dx, dz, radius + 1)
-                        && y >= floor && y < floor + layout.layerGap()) return Material.BARRIER;
+                        && y >= floor && y < floor + layout.layerGap()) return materials.wall();
                 }
             }
             default -> throw new IllegalArgumentException("Not an arena: " + layout.type());

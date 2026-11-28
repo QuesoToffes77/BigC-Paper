@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.toffy;
 
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -11,9 +12,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * One file per player: {@code <directory>/<uuid>.yml}. Enchantments are stored as a list of {@code key=level}
@@ -21,14 +25,25 @@ import java.util.UUID;
  */
 final class YamlToffyMemoryStorage implements ToffyMemoryStorage {
     private final Path directory;
+    private final Consumer<String> severe;
+    private final Set<UUID> readOnly = new HashSet<>();
 
     YamlToffyMemoryStorage(Path directory) {
+        this(directory, message -> Bukkit.getLogger().severe(message));
+    }
+
+    /**
+     * @param severe receives the SEVERE messages, once per problem
+     */
+    YamlToffyMemoryStorage(Path directory, Consumer<String> severe) {
         this.directory = directory;
+        this.severe = severe;
     }
 
     /**
      * Loads the memory. A file that cannot be read is renamed to {@code <uuid>.yml.broken-<millis>} before the
-     * error is thrown, so the next save does not overwrite it.
+     * error is thrown, so the next save does not overwrite it. If it cannot be renamed either, the player's memory
+     * becomes read-only for this session: nothing is saved for that UUID, so the broken file is never overwritten.
      */
     @Override
     public ToffyMemory load(UUID playerId) throws IOException {
@@ -39,7 +54,17 @@ final class YamlToffyMemoryStorage implements ToffyMemoryStorage {
         try {
             return parse(path);
         } catch (IOException broken) {
-            Path kept = quarantine(path);
+            Path kept;
+            try {
+                kept = quarantine(path);
+            } catch (IOException cannotMove) {
+                if (readOnly.add(playerId)) {
+                    severe.accept("Equipment memory file " + path.getFileName() + " is broken and could not be moved"
+                        + " aside (" + cannotMove.getMessage() + "). Nothing will be saved for this player until"
+                        + " the server restarts, so the file is not overwritten.");
+                }
+                throw new IOException(broken.getMessage() + " (not moved aside, not saved this session)", broken);
+            }
             throw new IOException(broken.getMessage() + " (kept as " + kept.getFileName() + ")", broken);
         }
     }
@@ -96,6 +121,9 @@ final class YamlToffyMemoryStorage implements ToffyMemoryStorage {
 
     @Override
     public void save(UUID playerId, ToffyMemory memory) throws IOException {
+        if (readOnly.contains(playerId)) {
+            return;
+        }
         YamlConfiguration yaml = new YamlConfiguration();
         memory.slots().forEach((slot, remembered) -> {
             String path = "slots." + slot.configKey();

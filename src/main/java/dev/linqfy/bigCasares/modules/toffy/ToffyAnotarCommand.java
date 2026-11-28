@@ -270,19 +270,20 @@ final class ToffyAnotarCommand implements CommandExecutor, TabCompleter {
             player.sendMessage("§cNo estas anotado en el torneo " + tournament.displayName() + ".");
             return;
         }
-        ToffyEvents events = module.events();
-        if (events != null) {
-            events.withdraw(player.getUniqueId(), tournament.key());
-        }
+        // The sign-up goes first: if saving it fails the player stays in the event too, never half out of it.
         try {
             tournaments.removeParticipant(tournament.key(), player.getUniqueId());
         } catch (UncheckedIOException failure) {
             player.sendMessage("§cNo se pudo guardar tu cambio: " + failure.getCause().getMessage());
             return;
         }
+        ToffyEvents events = module.events();
+        if (events != null) {
+            events.withdraw(player.getUniqueId(), tournament.key());
+        }
         player.sendMessage("§aSaliste del torneo §e" + tournament.displayName() + "§a.");
         if (events == null) {
-            player.sendMessage(ToffyEvents.UNAVAILABLE_TEXT);
+            module.send(player, ToffyEvents.CASE_NO_DISPONIBLE, null, null);
         }
     }
 
@@ -300,7 +301,7 @@ final class ToffyAnotarCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage("§7  §f" + tournament.displayName() + " §8- §e" + tournament.participants().size()
                     + (tournament.capacity() == null ? "" : "/" + tournament.capacity())
                     + "§7 anotados §8- §7nivel " + ToffyTournamentCommand.rangeText(tournament)
-                    + ToffyTournamentCommand.scheduleSuffix(tournament)
+                    + ToffyTournamentCommand.scheduleSuffix(tournament, module.tournamentTimes())
                     + (tournament.groupMandatory() ? " §8- §6por grupo" : "")
                     + yourGroup(tournament, player));
                 listGroupLines(player, ToffyGroupRules.openGroups(tournament));

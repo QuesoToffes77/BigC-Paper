@@ -1,5 +1,8 @@
 package dev.linqfy.bigCasares.modules.toffy;
 
+import dev.linqfy.bigCasares.modules.toffy.eventos.RewardItem;
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEventSettings;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,6 +29,9 @@ final class ToffyTournament {
     private boolean open = true;
     private final Map<UUID, String> participants = new LinkedHashMap<>();
     private final Map<String, String> messages = new LinkedHashMap<>();
+    // Rewards of this tournament's events: when any is set they replace the ones of toffy_eventos.yml.
+    private final List<String> rewardItems = new ArrayList<>();
+    private final List<String> rewardCommands = new ArrayList<>();
     private final Map<UUID, ToffyStoredLocation> returns = new LinkedHashMap<>();
     private final Set<UUID> pending = new LinkedHashSet<>();
     private final List<ToffyStoredLocation> places = new ArrayList<>();
@@ -278,6 +284,66 @@ final class ToffyTournament {
 
     void putMessage(String caseKey, String text) {
         messages.put(caseKey, text);
+    }
+
+    /** Event rewards of this tournament: item entries ({@code id[:amount]}) and console commands ({player}). */
+    ToffyEventSettings.Rewards rewards() {
+        return new ToffyEventSettings.Rewards(rewardItems, rewardCommands);
+    }
+
+    /** The rewards as the admin lists them: items first, then commands, numbered from 1. */
+    List<String> rewardLines() {
+        List<String> lines = new ArrayList<>();
+        for (String item : rewardItems) {
+            lines.add("item " + item);
+        }
+        for (String command : rewardCommands) {
+            lines.add("comando " + command);
+        }
+        return lines;
+    }
+
+    void addRewardItem(String entry) {
+        rewardItems.add(entry);
+    }
+
+    void addRewardCommand(String command) {
+        rewardCommands.add(command);
+    }
+
+    /** Removes the reward at the 1-based position of {@link #rewardLines()}; false when there is none there. */
+    boolean removeReward(int number) {
+        int index = number - 1;
+        if (index < 0) {
+            return false;
+        }
+        if (index < rewardItems.size()) {
+            rewardItems.remove(index);
+            return true;
+        }
+        index -= rewardItems.size();
+        if (index < rewardCommands.size()) {
+            rewardCommands.remove(index);
+            return true;
+        }
+        return false;
+    }
+
+    /** Removes the reward items that do not parse ({@link RewardItem#parse}) and returns them, for the warning. */
+    List<String> dropInvalidRewardItems() {
+        List<String> invalid = new ArrayList<>();
+        for (String item : List.copyOf(rewardItems)) {
+            if (RewardItem.parse(item).isEmpty()) {
+                invalid.add(item);
+                rewardItems.remove(item);
+            }
+        }
+        return invalid;
+    }
+
+    void clearRewards() {
+        rewardItems.clear();
+        rewardCommands.clear();
     }
 
     boolean removeMessage(String caseKey) {

@@ -564,4 +564,54 @@ class ToffySettingsLoaderTest {
         assertTrue(result.valid(), () -> String.join("\n", result.errors()));
         assertTrue(String.join("\n", result.warnings()).contains("enchantments"));
     }
+
+    @Test
+    void curveErrorsNameTheExactKey() {
+        YamlConfiguration exponential = bundledMain();
+        exponential.set("curve.type", "EXPONENTIAL");
+        exponential.set("curve.strength", 0.0);
+        assertErrorMentions(exponential, bundledValues(), "toffy_complementaries.yml > curve.strength: EXPONENTIAL");
+
+        YamlConfiguration power = bundledMain();
+        power.set("curve.type", "POWER");
+        power.set("curve.exponent", -1.0);
+        assertErrorMentions(power, bundledValues(), "toffy_complementaries.yml > curve.exponent: POWER");
+
+        YamlConfiguration midpoint = bundledMain();
+        midpoint.set("curve.type", "SIGMOID");
+        midpoint.set("curve.midpoint", 1.0);
+        assertErrorMentions(midpoint, bundledValues(), "toffy_complementaries.yml > curve.midpoint: SIGMOID");
+
+        YamlConfiguration strength = bundledMain();
+        strength.set("curve.type", "SIGMOID");
+        strength.set("curve.strength", 0.0);
+        assertErrorMentions(strength, bundledValues(), "toffy_complementaries.yml > curve.strength: SIGMOID");
+
+        YamlConfiguration notANumber = bundledMain();
+        notANumber.set("curve.type", "LOGARITHMIC");
+        notANumber.set("curve.strength", "mucho");
+        assertErrorMentions(notANumber, bundledValues(),
+            "toffy_complementaries.yml > curve.strength: must be a number, got mucho");
+
+        YamlConfiguration points = bundledMain();
+        points.set("curve.type", "POINTS");
+        points.set("curve.points", List.of(List.of(0.0, 0.0), List.of(1.0, 0.5)));
+        assertErrorMentions(points, bundledValues(), "toffy_complementaries.yml > curve.points: POINTS must end at [1, 1]");
+    }
+
+    @Test
+    void aPartlyFilledZeroReferenceWarnsAboutTheMissingFamiliesAndSlots() {
+        YamlConfiguration main = bundledMain();
+        main.set("references.zero.weapons.sword", "wooden_sword");
+        main.set("references.zero.armor.helmet", "leather_helmet");
+
+        ToffyConfigLoadResult result = load(main, bundledValues());
+
+        assertTrue(result.valid(), () -> String.join("\n", result.errors()));
+        String warnings = String.join("\n", result.warnings());
+        assertTrue(warnings.contains("toffy_complementaries.yml > references.zero.weapons.axe"), warnings);
+        assertTrue(warnings.contains("toffy_complementaries.yml > references.zero.armor.chestplate"), warnings);
+        assertFalse(warnings.contains("references.zero.weapons.sword"), warnings);
+        assertFalse(warnings.contains("references.zero.armor.helmet"), warnings);
+    }
 }

@@ -1,5 +1,6 @@
 package dev.linqfy.bigCasares.modules.toffy;
 
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.util.EnumMap;
@@ -457,5 +458,59 @@ class ToffyServiceTest {
 
         assertFalse(ToffyService.problems(broken).isEmpty());
         assertThrows(IllegalArgumentException.class, () -> new ToffyService(broken));
+    }
+
+    @Test
+    void aCarriedCustomArmorPieceCountsInItsConfiguredSlot() {
+        YamlConfiguration values = ToffySettingsLoaderTest.bundledValues();
+        values.set("custom-items.tier_chest.match.persistent-data", "otroplugin:tier");
+        values.set("custom-items.tier_chest.category", "armor");
+        values.set("custom-items.tier_chest.slot", "chestplate");
+        values.set("custom-items.tier_chest.value", 12.0);
+        ToffyService service = new ToffyService(
+            ToffySettingsLoader.load(ToffySettingsLoaderTest.bundledMain(), values).settings());
+        ToffyItem tierChest = ToffyItem.of("custom:tier_chest");
+
+        assertEquals(ToffyArmorSlot.CHESTPLATE, service.armorSlotOf(tierChest));
+        assertEquals(12.0, service.evaluate(ToffyLoadout.builder()
+            .armor(ToffyArmorSlot.CHESTPLATE, tierChest).build()).armorPower(), EPSILON);
+        assertEquals(0.0, service.evaluate(ToffyLoadout.builder()
+            .armor(ToffyArmorSlot.HELMET, tierChest).build()).armorPower(), EPSILON);
+    }
+
+    @Test
+    void onlyStacksThatCanCountAreRead() {
+        ToffyService service = bundledService();
+
+        assertTrue(service.mayCount("minecraft:iron_sword"));
+        assertTrue(service.mayCount("minecraft:netherite_helmet"));
+        // The bundled sahurs_bat match has no material, so any stack could be it.
+        assertTrue(service.mayCount("minecraft:stone"));
+        assertTrue(service.needsCustomData("minecraft:stone"));
+    }
+
+    @Test
+    void customMatchesOnlyNeedDataForTheirMaterial() {
+        YamlConfiguration values = ToffySettingsLoaderTest.bundledValues();
+        values.set("custom-items.sahurs_bat.match", Map.of("material", "iron_sword"));
+        ToffyService service = new ToffyService(
+            ToffySettingsLoader.load(ToffySettingsLoaderTest.bundledMain(), values).settings());
+
+        assertTrue(service.needsCustomData("minecraft:iron_sword"));
+        assertFalse(service.needsCustomData("minecraft:stone"));
+        assertFalse(service.needsCustomData("minecraft:netherite_sword"));
+        assertTrue(service.mayCount("minecraft:iron_sword"));
+        assertFalse(service.mayCount("minecraft:stone"));
+    }
+
+    @Test
+    void withoutCustomItemsNoStackNeedsItsDataRead() {
+        YamlConfiguration values = ToffySettingsLoaderTest.bundledValues();
+        values.set("custom-items", null);
+        ToffyService service = new ToffyService(
+            ToffySettingsLoader.load(ToffySettingsLoaderTest.bundledMain(), values).settings());
+
+        assertFalse(service.needsCustomData("minecraft:iron_sword"));
+        assertFalse(service.needsCustomData("minecraft:stone"));
     }
 }

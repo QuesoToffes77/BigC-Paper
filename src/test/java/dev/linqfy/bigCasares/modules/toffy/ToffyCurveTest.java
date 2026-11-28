@@ -2,7 +2,10 @@ package dev.linqfy.bigCasares.modules.toffy;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -56,6 +59,63 @@ class ToffyCurveTest {
             assertEquals(1.0, curve.apply(7.0), EPSILON);
             assertEquals(0.0, curve.apply(Double.NaN), EPSILON);
         }
+    }
+
+    /**
+     * Several parameter values for every curve type, so the shape is checked away from the defaults too.
+     */
+    private static List<ToffyCurve> curvesWithSeveralParameters() {
+        List<ToffyCurve> curves = new ArrayList<>();
+        curves.add(new ToffyCurve.Linear());
+        for (double strength : List.of(1e-6, 0.5, 3.0, -0.5, -3.0, -50.0, 50.0)) {
+            curves.add(new ToffyCurve.Exponential(strength));
+        }
+        for (double strength : List.of(1e-6, 0.5, 3.0, 9.0, 1_000.0, 1_000_000.0)) {
+            curves.add(new ToffyCurve.Logarithmic(strength));
+        }
+        for (double exponent : List.of(0.1, 0.5, 1.0, 2.0, 7.0, 100.0)) {
+            curves.add(new ToffyCurve.Power(exponent));
+        }
+        for (double strength : List.of(1e-6, 1.0, 6.0, 10.0, 100.0)) {
+            for (double midpoint : List.of(0.01, 0.3, 0.5, 0.9)) {
+                curves.add(new ToffyCurve.Sigmoid(strength, midpoint));
+            }
+        }
+        curves.add(new ToffyCurve.Points(List.of(
+            new ToffyCurve.Point(0.0, 0.0), new ToffyCurve.Point(0.2, 0.0), new ToffyCurve.Point(0.8, 0.9),
+            new ToffyCurve.Point(1.0, 1.0))));
+        curves.add(new ToffyCurve.Points(List.of(
+            new ToffyCurve.Point(0.0, 0.0), new ToffyCurve.Point(1.0, 1.0))));
+        return curves;
+    }
+
+    @Test
+    void theShapeKeepsTheEndpointsForEverySetOfParameters() {
+        for (ToffyCurve curve : curvesWithSeveralParameters()) {
+            assertEquals(0.0, curve.shape(0.0), EPSILON, curve + " at 0");
+            assertEquals(1.0, curve.shape(1.0), EPSILON, curve + " at 1");
+        }
+    }
+
+    @Test
+    void theShapeIsNonDecreasingForEverySetOfParameters() {
+        for (ToffyCurve curve : curvesWithSeveralParameters()) {
+            double previous = curve.shape(0.0);
+            for (int step = 1; step <= 1_000; step++) {
+                double value = curve.shape(step / 1_000.0);
+                assertTrue(value >= previous - EPSILON, curve + " decreases at step " + step);
+                previous = value;
+            }
+        }
+    }
+
+    @Test
+    void theShapeOfEveryCurveTypeIsCheckedAtLeastOnce() {
+        Set<ToffyCurveType> types = EnumSet.noneOf(ToffyCurveType.class);
+        for (ToffyCurve curve : curvesWithSeveralParameters()) {
+            types.add(curve.type());
+        }
+        assertEquals(EnumSet.allOf(ToffyCurveType.class), types);
     }
 
     @Test

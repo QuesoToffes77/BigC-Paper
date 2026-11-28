@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /**
@@ -113,6 +114,7 @@ public final class ToffySettingsLoader {
             search, curve, zero, max, armor, weapons, tools, enchantments, customItems, memory);
         errors.addAll(ToffyService.problems(settings));
         warnUnvaluedReferenceEnchantments(settings);
+        warnZeroGaps(settings);
         return new ToffyConfigLoadResult(errors.isEmpty() ? settings : null, errors, warnings);
     }
 
@@ -143,22 +145,56 @@ public final class ToffySettingsLoader {
             mainError("curve.type", "must be LINEAR, EXPONENTIAL, LOGARITHMIC, POWER, SIGMOID or POINTS, got " + rawType);
             return new ToffyCurve.Linear();
         }
+        return switch (type) {
+            case LINEAR -> new ToffyCurve.Linear();
+            case EXPONENTIAL -> construct("curve.strength",
+                () -> new ToffyCurve.Exponential(curveNumber(curve, "strength", DEFAULT_STRENGTH)));
+            case LOGARITHMIC -> construct("curve.strength",
+                () -> new ToffyCurve.Logarithmic(curveNumber(curve, "strength", DEFAULT_STRENGTH)));
+            case POWER -> construct("curve.exponent",
+                () -> new ToffyCurve.Power(curveNumber(curve, "exponent", DEFAULT_EXPONENT)));
+            case SIGMOID -> sigmoid(curve);
+            case POINTS -> construct("curve.points", () -> readPoints(curve.get("points")));
+        };
+    }
+
+    /**
+     * Builds the curve, reporting a rejected parameter under {@code path}, the exact key that holds it.
+     */
+    private ToffyCurve construct(String path, Supplier<ToffyCurve> build) {
         try {
-            return switch (type) {
-                case LINEAR -> new ToffyCurve.Linear();
-                case EXPONENTIAL -> new ToffyCurve.Exponential(curveNumber(curve, "strength", DEFAULT_STRENGTH));
-                case LOGARITHMIC -> new ToffyCurve.Logarithmic(curveNumber(curve, "strength", DEFAULT_STRENGTH));
-                case POWER -> new ToffyCurve.Power(curveNumber(curve, "exponent", DEFAULT_EXPONENT));
-                case SIGMOID -> new ToffyCurve.Sigmoid(curveNumber(curve, "strength", DEFAULT_STRENGTH),
-                    curveNumber(curve, "midpoint", DEFAULT_MIDPOINT));
-                case POINTS -> readPoints(curve.get("points"));
-            };
+            return build.get();
         } catch (IllegalArgumentException invalid) {
-            mainError(type == ToffyCurveType.POINTS ? "curve.points" : "curve", invalid.getMessage());
+            mainError(path, invalid.getMessage());
             return new ToffyCurve.Linear();
         }
     }
 
+    private ToffyCurve sigmoid(Map<String, Object> curve) {
+        double strength = curveNumber(curve, "strength", DEFAULT_STRENGTH);
+        double midpoint = curveNumber(curve, "midpoint", DEFAULT_MIDPOINT);
+        try {
+            return new ToffyCurve.Sigmoid(strength, midpoint);
+        } catch (IllegalArgumentException invalid) {
+            boolean strengthFits = sigmoidStrengthFits(strength);
+            mainError(strengthFits ? "curve.midpoint" : "curve.strength", invalid.getMessage());
+            return new ToffyCurve.Linear();
+        }
+    }
+
+    private static boolean sigmoidStrengthFits(double strength) {
+        try {
+            new ToffyCurve.Sigmoid(strength, DEFAULT_MIDPOINT);
+            return true;
+        } catch (IllegalArgumentException invalid) {
+            return false;
+        }
+    }
+
+    /**
+     * A numeric curve parameter, or {@code fallback} when it is missing. A value that is not a number is reported
+     * under its own key.
+     */
     private double curveNumber(Map<String, Object> curve, String key, double fallback) {
         Object raw = curve.get(key);
         if (raw == null) {
@@ -167,7 +203,8 @@ public final class ToffySettingsLoader {
         if (raw instanceof Number number) {
             return number.doubleValue();
         }
-        throw new IllegalArgumentException(key + " must be a number, got " + raw);
+        mainError("curve." + key, "must be a number, got " + raw);
+        return fallback;
     }
 
     private ToffyCurve readPoints(Object raw) {
@@ -537,6 +574,35 @@ public final class ToffySettingsLoader {
                     if (!settings.enchantmentValues().containsKey(enchantment) && !warnings.contains(warning)) {
                         warnings.add(warning);
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * A zero reference that names some families or slots but not others: the missing ones count as 0 power, which
+     * is only what the admin meant if they forgot them. An entirely empty zero reference is the normal "nothing"
+     * and is not reported.
+     */
+    private void warnZeroGaps(ToffySettings settings) {
+        ToffyReference zero = settings.zeroReference();
+        if (settings.armorWeight() > 0.0 && !zero.armor().isEmpty()) {
+            for (ToffyArmorSlot slot : ToffyArmorSlot.values()) {
+                if (!zero.armor().containsKey(slot)) {
+                    warnings.add(MAIN_FILE + " > references.zero.armor." + slot.configKey()
+                        + ": missing, so this slot counts as 0 in the zero reference");
+                }
+            }
+        }
+        for (ToffyItemCategory category : List.of(ToffyItemCategory.WEAPON, ToffyItemCategory.TOOL)) {
+            if (settings.weight(category) <= 0.0 || zero.held(category).isEmpty()) {
+                continue;
+            }
+            String section = category == ToffyItemCategory.WEAPON ? "weapons" : "tools";
+            for (String family : settings.families(category).keySet()) {
+                if (!zero.held(category).containsKey(family)) {
+                    warnings.add(MAIN_FILE + " > references.zero." + section + "." + family
+                        + ": missing, so this family counts as 0 in the zero reference");
                 }
             }
         }

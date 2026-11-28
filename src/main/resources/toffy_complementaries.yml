@@ -21,12 +21,13 @@
 # =====================================================================================================
 
 output:
-  # Nivel que tiene la referencia "max".
+  # Nivel que tiene la referencia "max". Entre 0.001 y 1000000; por defecto 200.0.
   maximum: 200.0
-  # Decimales del valor que reciben los otros módulos y el comando (0 = número entero).
+  # Decimales del valor que reciben los otros módulos y el comando (0 = número entero). Entre 0 y 6; por defecto 1.
   decimals: 1
 
 # Cuánto pesa cada parte. No hace falta que sumen 1: se usan como proporción.
+# Cada peso va de 0 a 1000 y la suma tiene que ser mayor que 0. Por defecto armor 0.6, weapon 0.4, tool 0.0.
 # Con 0.6 / 0.4 / 0, la armadura máxima sin arma da 120, el arma máxima sin armadura da 80 y las herramientas no
 # cuentan. Para que cuenten, dales peso (por ejemplo armor 0.55, weapon 0.35, tool 0.1); entonces el 200 también
 # pide la herramienta de referencia.
@@ -47,6 +48,7 @@ weights:
 #   HOTBAR     la barra rápida (9 slots) y la mano secundaria
 #   INVENTORY  todo el inventario y la mano secundaria
 # Los mobs siempre usan lo que tienen puesto y sus dos manos.
+# Por defecto: armor-search INVENTORY, weapon-search HOTBAR, tool-search INVENTORY.
 armor-search: INVENTORY
 weapon-search: HOTBAR
 tool-search: INVENTORY
@@ -58,28 +60,34 @@ tool-search: INVENTORY
 # El nivel real usa lo que tiene ahora más lo recordado; nunca es menor que el nivel actual. La durabilidad no cuenta.
 # Se guarda en plugins/BigCasares/data/toffy-complementaries/players/<uuid>.yml, así que sobrevive a desconexiones y reinicios.
 memory:
-  # false: el nivel real es igual al actual y no se toca lo guardado.
+  # false: el nivel real es igual al actual y no se toca lo guardado. Por defecto true.
   enabled: true
   # Minutos sin volver a tener una pieza recordada hasta que se olvida (cuenta tiempo real, también desconectado).
-  # 0 = no se olvida por tiempo.
+  # 0 = no se olvida por tiempo. Entre 0 y 525600 (un año); por defecto 60.
   forget-after-minutes: 60
-  # Al morir se olvida todo y se vuelve a empezar con lo que tenga después de morir.
+  # Al morir se olvida todo y se vuelve a empezar con lo que tenga después de morir. Por defecto true.
+  # Aunque la memoria esté desactivada, morir igual olvida lo guardado si esto es true.
   forget-on-death: true
   # Cada cuántos ticks se revisa el equipo de los jugadores conectados (20 ticks = 1 segundo).
-  # Este valor se aplica con /bigcasares reload; los demás también con /toffy reload.
+  # Entre 1 y 1200; por defecto 20. Este valor se aplica con /bigcasares reload; los demás también con /toffy reload.
   check-interval-ticks: 20
 
-# Curva que dobla el progreso t (0..1) antes de multiplicarlo por maximum.
+# Curva que dobla el progreso t (0..1) antes de multiplicarlo por maximum. type por defecto LINEAR.
 #   LINEAR       f(t) = t                                    (sin cambios)
 #   EXPONENTIAL  f(t) = (e^(k·t) - 1) / (e^k - 1)            usa strength (k). k > 0: sube lento al principio y
-#                                                            rápido al final. k < 0: al revés. |k| >= 0.000001.
-#   LOGARITHMIC  f(t) = ln(1 + k·t) / ln(1 + k)              usa strength (k > 0). Sube rápido al principio.
-#   POWER        f(t) = t^p                                  usa exponent (p > 0). p > 1 lento al principio,
-#                                                            p < 1 rápido al principio (0.5 = raíz cuadrada).
-#   SIGMOID      curva en S                                  usa strength (k > 0, más alto = más brusca) y
-#                                                            midpoint (mayor que 0 y menor que 1: donde está el salto).
+#                                                            rápido al final. k < 0: al revés. Entre 0.000001 y 50
+#                                                            en valor absoluto. Por defecto strength 3.0.
+#   LOGARITHMIC  f(t) = ln(1 + k·t) / ln(1 + k)              usa strength (k). Sube rápido al principio. Entre
+#                                                            0.000001 y 1000000. Por defecto strength 3.0.
+#   POWER        f(t) = t^p                                  usa exponent (p). p > 1 lento al principio, p < 1 rápido
+#                                                            al principio (0.5 = raíz cuadrada). Mayor que 0 y como
+#                                                            mucho 100. Por defecto exponent 2.0.
+#   SIGMOID      curva en S                                  usa strength (k, más alto = más brusca; entre 0.000001 y
+#                                                            100, por defecto 3.0) y midpoint (mayor que 0 y menor que
+#                                                            1, donde está el salto; por defecto 0.5).
 #   POINTS       puntos [t, f(t)] unidos con rectas          usa points. Tiene que empezar en [0, 0], terminar
-#                                                            en [1, 1], con t creciente y f(t) que nunca baje.
+#                                                            en [1, 1], con t creciente y f(t) que nunca baje. Cada
+#                                                            punto va entre 0 y 1.
 # Los parámetros que no usa la curva elegida se ignoran.
 curve:
   type: LINEAR
@@ -97,7 +105,8 @@ curve:
 # o, sin encantamientos, directamente:  sword: wooden_sword
 # Un objeto custom se escribe con su nombre:  item: custom:sahurs_bat
 references:
-  # Lo que vale 0. Vacío = un jugador sin absolutamente nada.
+  # Lo que vale 0. Vacío = un jugador sin absolutamente nada. Si nombrás algunas piezas o familias pero no todas,
+  # las que faltan valen 0 y la consola avisa.
   # Ejemplo para que la armadura de cuero completa valga 0:
   #   armor:
   #     helmet: leather_helmet

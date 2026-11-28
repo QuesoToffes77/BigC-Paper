@@ -122,7 +122,10 @@ final class BukkitToffyEquipmentReader {
         if (item == null || service.categoryOf(item) != ToffyItemCategory.ARMOR) {
             return;
         }
-        ToffyArmorSlot slot = armorSlot(stack);
+        ToffyArmorSlot slot = service.armorSlotOf(item);
+        if (slot == null) {
+            slot = armorSlot(stack);
+        }
         if (slot != null) {
             builder.armor(slot, item);
         }
@@ -170,6 +173,10 @@ final class BukkitToffyEquipmentReader {
         if (stack == null || stack.getType().isAir() || stack.getAmount() <= 0) {
             return null;
         }
+        String material = stack.getType().getKey().toString();
+        if (!service.mayCount(material)) {
+            return null;
+        }
         Map<String, Integer> enchantments = new LinkedHashMap<>();
         for (Map.Entry<Enchantment, Integer> enchantment : stack.getEnchantments().entrySet()) {
             enchantments.put(enchantment.getKey().getKey().toString(), enchantment.getValue());
@@ -177,7 +184,7 @@ final class BukkitToffyEquipmentReader {
         String catalogId = null;
         String itemModel = null;
         Map<String, String> persistentData = new LinkedHashMap<>();
-        if (!service.settings().customItems().isEmpty() && stack.hasItemMeta()) {
+        if (service.needsCustomData(material) && stack.hasItemMeta()) {
             ItemMeta meta = stack.getItemMeta();
             PersistentDataContainer data = meta.getPersistentDataContainer();
             catalogId = readString(data, CATALOG_ID_KEY);
@@ -191,8 +198,7 @@ final class BukkitToffyEquipmentReader {
                 }
             });
         }
-        return service.identify(new ToffyItemIdentity(stack.getType().getKey().toString(), catalogId, itemModel,
-            persistentData, enchantments));
+        return service.identify(new ToffyItemIdentity(material, catalogId, itemModel, persistentData, enchantments));
     }
 
     private static String readString(PersistentDataContainer data, NamespacedKey key) {

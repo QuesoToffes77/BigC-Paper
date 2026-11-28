@@ -2,6 +2,8 @@ package dev.linqfy.bigCasares.modules.toffy;
 
 import org.bukkit.Location;
 import org.bukkit.World;
+import dev.linqfy.bigCasares.modules.toffy.eventos.RewardItem;
+import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEventSettings;
 import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEventType;
 import dev.linqfy.bigCasares.modules.toffy.eventos.ToffyEvents;
 import org.bukkit.command.CommandSender;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.Set;
 import java.util.UUID;
 
@@ -30,12 +33,14 @@ final class ToffyTournamentCommand {
     static final String PERMISSION = "bigcasares.toffy.torneo.admin";
     private static final String PREFIX = "§6Toffy §8» §7";
     private static final List<String> TORNEO_SUBCOMMANDS = List.of("crear", "lista", "ver", "abrir", "cerrar",
-        "lugar", "sacar", "mensaje", "borrar", "nivel", "cupo", "minimo", "cierre", "grupo");
+        "lugar", "sacar", "mensaje", "premio", "borrar", "nivel", "cupo", "minimo", "cierre", "grupo");
     private static final List<String> TP_SUBCOMMANDS = List.of("concursantes", "devolver", "programar", "programados");
     private static final List<String> EVENT_SUBCOMMANDS = List.of("iniciar", "detener", "tipos", "estado", "programar");
     private static final String EVENT_USAGE =
         "§cUso: /toffy evento <iniciar <tipo> <torneo> [segundos] [forzar]|detener|tipos|estado|programar ...>";
     private static final String FORCE = "forzar";
+    private static final String REWARD_USAGE =
+        "/toffy torneo premio <torneo> ver|item <id[:cant]>|comando <comando>|quitar <n>|borrar";
 
     private final ToffyModule module;
     private final ToffyGroupCommand groups;
@@ -109,6 +114,11 @@ final class ToffyTournamentCommand {
             case "mensaje" -> {
                 if (needs(sender, args, 5, "/toffy torneo mensaje <nombre> <caso> <texto...|-|reset>")) {
                     message(sender, tournaments, args);
+                }
+            }
+            case "premio" -> {
+                if (needs(sender, args, 4, REWARD_USAGE)) {
+                    rewards(sender, tournaments, args);
                 }
             }
             case "borrar" -> {
@@ -292,7 +302,7 @@ final class ToffyTournamentCommand {
         ZoneId zone = zone();
         long at;
         try {
-            at = ToffyTournamentTime.resolve(args[4], day, tournaments.now(), zone);
+            at = ToffyTournamentTime.resolve(args[4], day, tournaments.now(), zone, timeFormat(), dateFormat());
         } catch (IllegalArgumentException invalid) {
             sender.sendMessage("§c" + invalid.getMessage());
             return;
@@ -309,10 +319,10 @@ final class ToffyTournamentCommand {
         }
         Optional<Long> replaced = tournaments.scheduleEvent(tournament.key(), type.get().id(), lobby, at, groupKey);
         replaced.ifPresent(old -> sender.sendMessage(PREFIX + "§eSe reemplazo el evento programado para "
-            + ToffyTournamentTime.dateTime(old, zone) + "."));
+            + when(old) + "."));
         sender.sendMessage(PREFIX + "§aEvento " + type.get().displayName() + " de " + tournament.displayName()
             + (groupKey == null ? "" : " (grupo " + tournament.group(groupKey).orElseThrow().displayName() + ")")
-            + " programado para §e" + ToffyTournamentTime.dateTime(at, zone) + "§a.");
+            + " programado para §e" + when(at) + "§a.");
     }
 
     private static Integer lobbySeconds(String raw) {
@@ -471,7 +481,7 @@ final class ToffyTournamentCommand {
                 + (tournament.open() ? "§aabierto" : "§cinscripcion cerrada")
                 + " §8- §e" + tournament.participants().size() + "§7 participantes"
                 + (tournament.capacity() == null ? "" : " §8/ §e" + tournament.capacity())
-                + " §8- nivel " + rangeText(tournament) + scheduleSuffix(tournament));
+                + " §8- nivel " + rangeText(tournament) + scheduleSuffix(tournament, module.tournamentTimes()));
         }
     }
 
@@ -500,9 +510,9 @@ final class ToffyTournamentCommand {
             }
         }
         sender.sendMessage("§7  Teletransporte: " + (tournament.scheduledAt() == null ? "§8no programado"
-            : "§bprogramado " + ToffyTournamentTime.dateTime(tournament.scheduledAt(), zone)));
+            : "§bprogramado " + when(tournament.scheduledAt())));
         sender.sendMessage("§7  Cierre de inscripciones: " + (tournament.closeAt() == null ? "§8no programado"
-            : "§bprogramado " + ToffyTournamentTime.dateTime(tournament.closeAt(), zone)));
+            : "§bprogramado " + when(tournament.closeAt())));
         sender.sendMessage("§7  Grupo obligatorio: " + (tournament.groupMandatory() ? "§asi" : "§8no"));
         sender.sendMessage("§7  Grupos: " + (tournament.groups().isEmpty() ? "§8ninguno (usa /toffy torneo grupo "
             + tournament.key() + " crear <grupo>)" : "§f" + tournament.groups().size()));
@@ -510,7 +520,7 @@ final class ToffyTournamentCommand {
             sender.sendMessage("§7    - " + ToffyGroupCommand.summary(group));
         }
         sender.sendMessage("§7  Evento: " + (tournament.eventAt() == null ? "§8no programado"
-            : "§b" + tournament.eventType() + " " + ToffyTournamentTime.dateTime(tournament.eventAt(), zone)
+            : "§b" + tournament.eventType() + " " + when(tournament.eventAt())
             + (tournament.eventLobby() == null ? "" : " §7(espera " + tournament.eventLobby() + " s)")));
         int position = 1;
         for (Map.Entry<UUID, String> entry : tournament.participants().entrySet()) {
@@ -531,18 +541,17 @@ final class ToffyTournamentCommand {
     }
 
     /** Suffix for {@code torneo lista} and {@code anotar}: every schedule of the tournament. */
-    static String scheduleSuffix(ToffyTournament tournament) {
-        ZoneId zone = zone();
+    static String scheduleSuffix(ToffyTournament tournament, ToffyEventSettings.Tournaments times) {
         StringBuilder text = new StringBuilder();
         if (tournament.scheduledAt() != null) {
-            text.append(" §8- §bteletransporte ").append(ToffyTournamentTime.dateTime(tournament.scheduledAt(), zone));
+            text.append(" §8- §bteletransporte ").append(when(tournament.scheduledAt(), times));
         }
         if (tournament.closeAt() != null) {
-            text.append(" §8- §bcierre ").append(ToffyTournamentTime.dateTime(tournament.closeAt(), zone));
+            text.append(" §8- §bcierre ").append(when(tournament.closeAt(), times));
         }
         if (tournament.eventAt() != null) {
             text.append(" §8- §bevento ").append(tournament.eventType()).append(" ")
-                .append(ToffyTournamentTime.dateTime(tournament.eventAt(), zone));
+                .append(when(tournament.eventAt(), times));
         }
         return text.toString();
     }
@@ -737,15 +746,15 @@ final class ToffyTournamentCommand {
         }
         ZoneId zone = zone();
         try {
-            long at = ToffyTournamentTime.resolve(args[3], args.length > 4 ? args[4] : null, tournaments.now(), zone);
+            long at = ToffyTournamentTime.resolve(args[3], args.length > 4 ? args[4] : null, tournaments.now(), zone, timeFormat(), dateFormat());
             Long previous = tournament.closeAt();
             tournaments.scheduleClose(tournament.key(), at);
             if (previous != null) {
                 sender.sendMessage(PREFIX + "§eSe reemplazo el cierre programado para "
-                    + ToffyTournamentTime.dateTime(previous, zone) + ".");
+                    + when(previous) + ".");
             }
             sender.sendMessage(PREFIX + "§aLas inscripciones de " + tournament.displayName() + " se cierran el §e"
-                + ToffyTournamentTime.dateTime(at, zone) + "§a.");
+                + when(at) + "§a.");
         } catch (IllegalArgumentException invalid) {
             sender.sendMessage("§c" + invalid.getMessage());
         }
@@ -775,6 +784,99 @@ final class ToffyTournamentCommand {
         tournaments.setMessage(key, caseKey, text);
         sender.sendMessage(PREFIX + "§aMensaje " + caseKey + " del torneo " + found.get().displayName() + ": §r"
             + ToffyMessages.colors(text));
+    }
+
+    /**
+     * {@code /toffy torneo premio <torneo> ver|item|comando|quitar|borrar}: the prizes of this tournament's events. With
+     * prizes set, the event winners get these instead of the ones of toffy_eventos.yml.
+     */
+    private void rewards(CommandSender sender, ToffyTournamentService tournaments, String[] args) {
+        String name = args[2];
+        String action = args[3].toLowerCase(Locale.ROOT);
+        Optional<ToffyTournament> found = tournaments.find(name);
+        if (found.isEmpty()) {
+            sender.sendMessage("§cNo existe el torneo " + name + ".");
+            return;
+        }
+        ToffyTournament tournament = found.get();
+        switch (action) {
+            case "ver" -> {
+                List<String> lines = tournament.rewardLines();
+                if (lines.isEmpty()) {
+                    sender.sendMessage(PREFIX + "§7El torneo " + tournament.displayName()
+                        + " usa los premios de toffy_eventos.yml.");
+                    return;
+                }
+                sender.sendMessage(PREFIX + "§6Premios de " + tournament.displayName() + ":");
+                for (int index = 0; index < lines.size(); index++) {
+                    sender.sendMessage("§7  " + (index + 1) + ". §f" + lines.get(index));
+                }
+            }
+            case "item" -> {
+                if (args.length != 5) {
+                    sender.sendMessage("§cUso: " + REWARD_USAGE);
+                    return;
+                }
+                if (RewardItem.parse(args[4]).isEmpty()) {
+                    sender.sendMessage("§cItem no valido: " + args[4] + " (id o id:cantidad, por ejemplo nuke_shot:1).");
+                    return;
+                }
+                String entry = args[4].trim().toLowerCase(Locale.ROOT);
+                changeRewards(sender, tournaments, name, t -> {
+                    t.addRewardItem(entry);
+                    return true;
+                }, "Item agregado a los premios de ");
+            }
+            case "comando" -> {
+                if (args.length < 5) {
+                    sender.sendMessage("§cUso: " + REWARD_USAGE);
+                    return;
+                }
+                String command = String.join(" ", Arrays.copyOfRange(args, 4, args.length));
+                if (command.startsWith("/")) {
+                    command = command.substring(1);
+                }
+                String entry = command;
+                changeRewards(sender, tournaments, name, t -> {
+                    t.addRewardCommand(entry);
+                    return true;
+                }, "Comando agregado a los premios de ");
+            }
+            case "quitar" -> {
+                int number;
+                try {
+                    number = args.length == 5 ? Integer.parseInt(args[4]) : -1;
+                } catch (NumberFormatException notANumber) {
+                    number = -1;
+                }
+                if (number < 1) {
+                    sender.sendMessage("§cUso: " + REWARD_USAGE + " (n es el numero de /toffy torneo premio <torneo> ver).");
+                    return;
+                }
+                int position = number;
+                changeRewards(sender, tournaments, name, t -> t.removeReward(position),
+                    "Premio quitado de ");
+            }
+            case "borrar" -> changeRewards(sender, tournaments, name, t -> {
+                t.clearRewards();
+                return true;
+            }, "Premios borrados de ");
+            default -> sender.sendMessage("§cUso: " + REWARD_USAGE);
+        }
+    }
+
+    private void changeRewards(CommandSender sender, ToffyTournamentService tournaments, String name,
+                               Predicate<ToffyTournament> change, String done) {
+        Optional<Boolean> result = tournaments.editRewards(name, change);
+        if (result.isEmpty()) {
+            sender.sendMessage("§cNo existe el torneo " + name + ".");
+        } else if (!result.get()) {
+            sender.sendMessage("§cNo hay un premio con ese numero en el torneo " + name + ".");
+        } else {
+            ToffyTournament tournament = tournaments.find(name).orElseThrow();
+            sender.sendMessage(PREFIX + "§a" + done + tournament.displayName() + ". Ver con /toffy torneo premio "
+                + tournament.key() + " ver.");
+        }
     }
 
     private void teleport(CommandSender sender, ToffyTournamentService tournaments, String[] args) {
@@ -987,16 +1089,16 @@ final class ToffyTournamentCommand {
         }
         long at;
         try {
-            at = ToffyTournamentTime.resolve(args[3], args.length > 4 ? args[4] : null, tournaments.now(), zone);
+            at = ToffyTournamentTime.resolve(args[3], args.length > 4 ? args[4] : null, tournaments.now(), zone, timeFormat(), dateFormat());
         } catch (IllegalArgumentException invalid) {
             sender.sendMessage("§c" + invalid.getMessage());
             return;
         }
         Optional<Long> replaced = tournaments.schedule(tournament.key(), at);
         replaced.ifPresent(old -> sender.sendMessage(PREFIX + "§eSe reemplazo el teletransporte programado para "
-            + ToffyTournamentTime.dateTime(old, zone) + "."));
+            + when(old) + "."));
         sender.sendMessage(PREFIX + "§aTeletransporte de " + tournament.displayName() + " programado para §e"
-            + ToffyTournamentTime.dateTime(at, zone) + "§a.");
+            + when(at) + "§a.");
         String announcement = module.message(ToffyMessages.TP_PROGRAMADO, tournament.key(),
             scheduleTexts(tournament, at, zone));
         if (announcement != null) {
@@ -1012,16 +1114,16 @@ final class ToffyTournamentCommand {
             String name = tournament.displayName();
             if (tournament.scheduledAt() != null) {
                 lines.add(Map.entry(tournament.scheduledAt(), "§7  §f" + name + " §8- §bteletransporte §f"
-                    + ToffyTournamentTime.dateTime(tournament.scheduledAt(), zone) + " §8- §7lugares: §f"
+                    + when(tournament.scheduledAt()) + " §8- §7lugares: §f"
                     + tournament.places().size()));
             }
             if (tournament.closeAt() != null) {
                 lines.add(Map.entry(tournament.closeAt(), "§7  §f" + name + " §8- §bcierre de inscripciones §f"
-                    + ToffyTournamentTime.dateTime(tournament.closeAt(), zone)));
+                    + when(tournament.closeAt())));
             }
             if (tournament.eventAt() != null) {
                 lines.add(Map.entry(tournament.eventAt(), "§7  §f" + name + " §8- §bevento §f"
-                    + tournament.eventType() + " " + ToffyTournamentTime.dateTime(tournament.eventAt(), zone)));
+                    + tournament.eventType() + " " + when(tournament.eventAt())));
             }
         }
         if (lines.isEmpty()) {
@@ -1033,11 +1135,11 @@ final class ToffyTournamentCommand {
         lines.forEach(line -> sender.sendMessage(line.getValue()));
     }
 
-    private static Map<String, String> scheduleTexts(ToffyTournament tournament, long at, ZoneId zone) {
+    private Map<String, String> scheduleTexts(ToffyTournament tournament, long at, ZoneId zone) {
         Map<String, String> map = new HashMap<>();
         map.put("torneo", tournament.displayName());
-        map.put("hora", ToffyTournamentTime.hour(at, zone));
-        map.put("fecha", ToffyTournamentTime.date(at, zone));
+        map.put("hora", ToffyTournamentTime.hour(at, zone, timeFormat()));
+        map.put("fecha", ToffyTournamentTime.date(at, zone, dateFormat()));
         return map;
     }
 
@@ -1046,8 +1148,26 @@ final class ToffyTournamentCommand {
             + ", " + ToffyModule.coordinate(place.z());
     }
 
-    private static ZoneId zone() {
-        return ZoneId.systemDefault();
+    /** Zone of the scheduled times: {@code torneos.zona-horaria} in toffy_eventos.yml. */
+    private ZoneId zone() {
+        return module.tournamentTimes().zoneId();
+    }
+
+    private String timeFormat() {
+        return module.tournamentTimes().timeFormat();
+    }
+
+    private String dateFormat() {
+        return module.tournamentTimes().dateFormat();
+    }
+
+    /** Date and time of an epoch millis value in the configured zone and formats. */
+    private String when(long at) {
+        return when(at, module.tournamentTimes());
+    }
+
+    static String when(long at, ToffyEventSettings.Tournaments times) {
+        return ToffyTournamentTime.dateTime(at, times.zoneId(), times.timeFormat(), times.dateFormat());
     }
 
     private static Map<String, String> placeholders(ToffyTournament tournament, Player player) {
@@ -1116,6 +1236,8 @@ final class ToffyTournamentCommand {
         } else if (args.length == 5 && !tp && sub.equals("mensaje")) {
             options.add("reset");
             options.add("-");
+        } else if (args.length == 4 && !tp && sub.equals("premio")) {
+            options.addAll(List.of("ver", "item", "comando", "quitar", "borrar"));
         } else if (args.length == 7 && tp && sub.equals("concursantes")) {
             module.server().getWorlds().forEach(world -> options.add(world.getName()));
         }
@@ -1124,12 +1246,12 @@ final class ToffyTournamentCommand {
     }
 
     /** The first HH:mm that is a multiple of five minutes after now, to suggest for scheduling. */
-    private static String nextFiveMinutes(ZoneId zone) {
+    private String nextFiveMinutes(ZoneId zone) {
         ZonedDateTime next = ZonedDateTime.now(zone).truncatedTo(ChronoUnit.MINUTES).plusMinutes(1);
         int remainder = next.getMinute() % 5;
         if (remainder != 0) {
             next = next.plusMinutes(5 - remainder);
         }
-        return ToffyTournamentTime.hour(next.toInstant().toEpochMilli(), zone);
+        return ToffyTournamentTime.hour(next.toInstant().toEpochMilli(), zone, timeFormat());
     }
 }

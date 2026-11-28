@@ -14,6 +14,7 @@ import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.LivingEntity;
@@ -72,6 +73,7 @@ public final class ToffyModule implements PluginModule {
     private final Supplier<Optional<Boolean>> pvpBaseline;
     private final Predicate<UUID> endHuntDeath;
     private volatile ToffyEvents events;
+    private volatile ToffyEventSettings.Tournaments tournamentTimes;
     private RuntimeRegistrationScope compatibilityScope;
 
     public ToffyModule(BigCasares plugin) {
@@ -173,7 +175,8 @@ public final class ToffyModule implements PluginModule {
 
         ToffyMemoryTracker memoryTracker = new ToffyMemoryTracker(
             () -> new ToffyMemoryService(requireService().settings().memory()),
-            new YamlToffyMemoryStorage(plugin.getDataFolder().toPath().resolve(MEMORY_FOLDER)),
+            new YamlToffyMemoryStorage(plugin.getDataFolder().toPath().resolve(MEMORY_FOLDER),
+                message -> plugin.getLogger().severe(LOG_PREFIX + message)),
             System::currentTimeMillis,
             warning -> plugin.getLogger().warning(LOG_PREFIX + warning));
         tracker = memoryTracker;
@@ -187,7 +190,8 @@ public final class ToffyModule implements PluginModule {
         // Staff events (Lifesteal, KOTH, TNT Tag, Spleef) run on tournaments; they are enabled with this module.
         prepareEventsFile();
         ToffyEventSettings eventSettings = readEventSettings().orElseGet(this::bundledEventSettings);
-        ToffyEvents created = new ToffyEvents(plugin, dimensions, pvpBaseline, endHuntDeath, this::message,
+        applyTournamentTimes(eventSettings.tournaments());
+        ToffyEvents created = new ToffyEvents(plugin, dimensions, pvpBaseline, endHuntDeath, this::eventText,
             eventRosters());
         registrations.ownCleanup("toffy-events-state", () -> events = null);
         try {
@@ -291,10 +295,31 @@ public final class ToffyModule implements PluginModule {
      * {mundo}, and for staff events {evento}, {segundos}, {motivo} and {detalle}. Main thread only.
      */
     public String message(String caseKey, String tournament, Map<String, String> placeholders) {
+        ToffyMessages current = messages;
+        return current.render(caseKey, overrideOf(caseKey, tournament), withPrefix(placeholders, current.prefix()));
+    }
+
+    /**
+     * What a staff event case shows (text, title, action bar, sound): the same lookup as {@link #message}, with the
+     * event prefix. Null when nothing is shown. Main thread only.
+     */
+    public ToffyEvents.Text eventText(String caseKey, String tournament, Map<String, String> placeholders) {
+        return messages.display(caseKey, overrideOf(caseKey, tournament), placeholders, true);
+    }
+
+    private String overrideOf(String caseKey, String tournament) {
         ToffyTournamentService current = tournaments;
-        String override = current == null || tournament == null ? null
+        return current == null || tournament == null ? null
             : current.find(tournament).map(found -> found.message(caseKey)).orElse(null);
-        return messages.render(caseKey, override, placeholders);
+    }
+
+    private static Map<String, String> withPrefix(Map<String, String> placeholders, String prefix) {
+        Map<String, String> values = new LinkedHashMap<>();
+        if (placeholders != null) {
+            values.putAll(placeholders);
+        }
+        values.put(ToffyMessages.PLACEHOLDER_PREFIX, ToffyMessages.colors(prefix));
+        return values;
     }
 
     /**
@@ -349,6 +374,7 @@ public final class ToffyModule implements PluginModule {
     public synchronized boolean reloadEvents() {
         Optional<ToffyEventSettings> loaded = readEventSettings();
         loaded.ifPresent(settings -> {
+            applyTournamentTimes(settings.tournaments());
             ToffyEvents current = events;
             if (current != null) {
                 current.applySettings(settings);
@@ -370,6 +396,21 @@ public final class ToffyModule implements PluginModule {
         return events;
     }
 
+    /** Timings, zone and formats of the tournaments, from the {@code torneos} section of {@code toffy_eventos.yml}. */
+    ToffyEventSettings.Tournaments tournamentTimes() {
+        ToffyEventSettings.Tournaments times = tournamentTimes;
+        return times == null ? ToffyEventSettings.Tournaments.defaults() : times;
+    }
+
+    private void applyTournamentTimes(ToffyEventSettings.Tournaments times) {
+        tournamentTimes = times;
+        ToffyTournamentService current = tournaments;
+        if (current != null) {
+            current.useTimings(times.teleportWarningMinutes(), times.eventWarningMinutes(),
+                times.lostAfterMinutes() * 60_000L);
+        }
+    }
+
     /**
      * Re-reads {@code toffy_mensajes.yml}. When the file cannot be read the previous messages are kept.
      *
@@ -384,7 +425,7 @@ public final class ToffyModule implements PluginModule {
                 + invalid.getMessage() + "); keeping the previous messages.");
             return false;
         }
-        ToffyMessages.Loaded loaded = ToffyMessages.fromValues(yaml.getValues(false));
+        ToffyMessages.Loaded loaded = ToffyMessages.fromValues(plainValues(yaml));
         loaded.warnings().forEach(warning -> plugin.getLogger().warning(LOG_PREFIX + warning));
         messages = loaded.messages();
         return true;
@@ -392,6 +433,19 @@ public final class ToffyModule implements PluginModule {
 
     ToffyTournamentService tournaments() {
         return tournaments;
+    }
+
+    /** Top-level values of a YAML file, with every section turned into a map (the messages read sections). */
+    private static Map<String, Object> plainValues(YamlConfiguration yaml) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : yaml.getValues(false).entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof ConfigurationSection section) {
+                value = section.getValues(false);
+            }
+            values.put(entry.getKey(), value);
+        }
+        return values;
     }
 
     /**
@@ -459,6 +513,13 @@ public final class ToffyModule implements PluginModule {
             @Override
             public Optional<ToffyEvents.Roster> roster(String tournamentKey, String group) {
                 return rosterOf(tournamentKey, group);
+            }
+
+            @Override
+            public Optional<ToffyEventSettings.Rewards> rewards(String tournamentKey) {
+                ToffyTournamentService current = tournaments;
+                return current == null ? Optional.empty()
+                    : current.find(tournamentKey).map(ToffyTournament::rewards).filter(rewards -> !rewards.isEmpty());
             }
         };
     }
@@ -542,12 +603,12 @@ public final class ToffyModule implements PluginModule {
                 + "); keeping the previous event settings.");
             return Optional.empty();
         }
-        return Optional.of(logEventWarnings(ToffyEventSettings.load(yaml)));
+        return Optional.of(logEventWarnings(ToffyEventSettings.load(yaml, ToffyEventSettings::isSolidBlock)));
     }
 
     private ToffyEventSettings bundledEventSettings() {
         try {
-            return logEventWarnings(ToffyEventSettings.load(bundled(EVENTS_FILE)));
+            return logEventWarnings(ToffyEventSettings.load(bundled(EVENTS_FILE), ToffyEventSettings::isSolidBlock));
         } catch (IOException invalid) {
             throw new IllegalStateException("Bundled " + EVENTS_FILE + " is invalid: " + invalid.getMessage(), invalid);
         }
@@ -1008,7 +1069,10 @@ public final class ToffyModule implements PluginModule {
 
     private void install(ToffySettings settings) {
         try {
-            BukkitToffyKeyAudit.unknownKeys(settings)
+            // Without a registry (not yet loaded) every catalog id is accepted rather than warned about.
+            var registry = plugin.getCustomItemRegistry();
+            new BukkitToffyKeyAudit(catalogId -> registry == null || registry.findById(catalogId).isPresent())
+                .audit(settings)
                 .forEach(warning -> plugin.getLogger().warning(LOG_PREFIX + warning));
         } catch (RuntimeException | LinkageError unavailableRegistry) {
             plugin.getLogger().warning(LOG_PREFIX + "Could not check keys against the server registries: "
@@ -1034,7 +1098,7 @@ public final class ToffyModule implements PluginModule {
         try {
             yaml.load(dataPath(name).toFile());
         } catch (IOException | InvalidConfigurationException invalid) {
-            errors.add(name + ": cannot read the file: " + invalid.getMessage());
+            errors.add(name + " > (archivo completo): cannot read the file: " + invalid.getMessage());
         }
     }
 

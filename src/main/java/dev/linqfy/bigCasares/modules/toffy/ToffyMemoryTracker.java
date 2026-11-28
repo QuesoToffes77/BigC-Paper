@@ -37,8 +37,9 @@ final class ToffyMemoryTracker {
     }
 
     /**
-     * Updates the memory of {@code playerId} with what the player has now and returns both levels. Between a death
-     * and the respawn nothing is remembered, because the inventory is only emptied after the death event.
+     * Updates the memory of {@code playerId} with what the player has now and returns both levels. While the player
+     * is dead the memory is not updated: with forget-on-death it was already emptied by {@link #death}, otherwise the
+     * remembered items still count. The inventory is only emptied after the death event, so nothing new is learned.
      */
     Check check(UUID playerId, ToffyService service, ToffyLoadout current) {
         ToffyResult currentResult = service.evaluate(current);
@@ -61,15 +62,20 @@ final class ToffyMemoryTracker {
         return new Check(currentResult, real, next);
     }
 
+    /**
+     * Applies forget-on-death even while memory is disabled, so re-enabling it never brings back forgotten pieces.
+     */
     void death(UUID playerId) {
         ToffyMemoryService activeRules = rules.get();
-        if (!activeRules.settings().enabled()) {
-            return;
+        if (activeRules.settings().enabled()) {
+            ToffyMemory next = activeRules.afterDeath(memory(playerId));
+            memories.put(playerId, next);
+            dead.add(playerId);
+            save(playerId, next);
+        } else if (activeRules.settings().forgetOnDeath()) {
+            memories.put(playerId, ToffyMemory.empty());
+            save(playerId, ToffyMemory.empty());
         }
-        ToffyMemory next = activeRules.afterDeath(memory(playerId));
-        memories.put(playerId, next);
-        dead.add(playerId);
-        save(playerId, next);
     }
 
     void respawn(UUID playerId) {

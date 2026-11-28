@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -37,16 +38,30 @@ final class ToffyTournamentService {
 
     /** Names that /anotar uses for its own subcommands, so a tournament cannot take them. */
     static final Set<String> RESERVED_NAMES = Set.of("salir", "estado");
-    /** Minutes before a scheduled teleport when the sign-ups are warned. */
-    static final int[] WARNING_MINUTES = {5, 1};
-    /** A schedule more than this late when the file is loaded is dropped (the server was off). */
-    static final long MISSED_AFTER_MILLIS = 5 * 60_000L;
+    /** Default minutes before a scheduled teleport or event when the sign-ups are warned (torneos.avisos-*). */
+    static final int[] DEFAULT_WARNING_MINUTES = {5, 1};
+    /** Default: a schedule more than this late when the file is loaded is dropped (torneos.perdido-tras-minutos). */
+    static final long DEFAULT_MISSED_AFTER_MILLIS = 5 * 60_000L;
     private static final long MINUTE_MILLIS = 60_000L;
 
     private final ToffyTournamentStorage storage;
     private final LongSupplier clock;
     private final Consumer<String> log;
     private final Map<String, ToffyTournament> tournaments = new LinkedHashMap<>();
+    // Set from toffy_eventos.yml (torneos.*) through useTimings; the defaults are the values the file ships with.
+    private int[] teleportWarnings = DEFAULT_WARNING_MINUTES;
+    private int[] eventWarnings = DEFAULT_WARNING_MINUTES;
+    private long missedAfterMillis = DEFAULT_MISSED_AFTER_MILLIS;
+
+    /**
+     * Replaces the timings: the minutes before a scheduled teleport and before a scheduled event that warn the sign-ups,
+     * and how late a schedule loaded from the file may be before it is dropped.
+     */
+    void useTimings(List<Integer> teleportMinutes, List<Integer> eventMinutes, long missedMillis) {
+        teleportWarnings = teleportMinutes.stream().mapToInt(Integer::intValue).toArray();
+        eventWarnings = eventMinutes.stream().mapToInt(Integer::intValue).toArray();
+        missedAfterMillis = missedMillis;
+    }
 
     ToffyTournamentService(ToffyTournamentStorage storage, Collection<ToffyTournament> initial) {
         this(storage, initial, System::currentTimeMillis, message -> { });
@@ -62,6 +77,13 @@ final class ToffyTournamentService {
         this.clock = clock;
         this.log = log;
         initial.forEach(tournament -> tournaments.put(tournament.key(), tournament));
+        // Prize items that do not parse are dropped with a warning, so the events never try to give them.
+        for (ToffyTournament tournament : tournaments.values()) {
+            for (String invalid : tournament.dropInvalidRewardItems()) {
+                log.accept("Premio invalido del torneo " + tournament.displayName() + ": '" + invalid
+                    + "' (se descarta; formato id o id:cantidad).");
+            }
+        }
         restoreSchedules();
     }
 
@@ -323,7 +345,7 @@ final class ToffyTournamentService {
             if (at == null || now >= at) {
                 continue;
             }
-            for (int minutes : WARNING_MINUTES) {
+            for (int minutes : eventWarnings) {
                 if (!tournament.isEventAnnounced(minutes) && now >= at - minutes * MINUTE_MILLIS) {
                     due.add(new Warning(tournament.key(), minutes));
                 }
@@ -432,6 +454,23 @@ final class ToffyTournamentService {
             save();
         }
         return result;
+    }
+
+    /**
+     * Changes the event rewards of the tournament and saves them when the change says so.
+     *
+     * @return the result of the change; empty when the tournament does not exist
+     */
+    Optional<Boolean> editRewards(String name, Predicate<ToffyTournament> change) {
+        Optional<ToffyTournament> found = find(name);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        boolean changed = change.test(found.get());
+        if (changed) {
+            save();
+        }
+        return Optional.of(changed);
     }
 
     boolean setMessage(String name, String caseKey, String text) {
@@ -544,7 +583,7 @@ final class ToffyTournamentService {
     }
 
     /**
-     * Warnings to send at {@code now}: each minute mark of {@link #WARNING_MINUTES} that has started, has not been
+     * Warnings to send at {@code now}: each minute mark of {@link #teleportWarnings} that has started, has not been
      * sent yet and whose schedule has not passed.
      */
     List<Warning> dueWarnings(long now) {
@@ -554,7 +593,7 @@ final class ToffyTournamentService {
             if (at == null || now >= at) {
                 continue;
             }
-            for (int minutes : WARNING_MINUTES) {
+            for (int minutes : teleportWarnings) {
                 if (!tournament.isAnnounced(minutes) && now >= at - minutes * MINUTE_MILLIS) {
                     due.add(new Warning(tournament.key(), minutes));
                 }
@@ -920,7 +959,7 @@ final class ToffyTournamentService {
         for (ToffyTournament tournament : tournaments.values()) {
             Long at = tournament.scheduledAt();
             if (at != null) {
-                if (at < now - MISSED_AFTER_MILLIS) {
+                if (at < now - missedAfterMillis) {
                     log.accept(missed("teletransporte", tournament, at, zone));
                     tournament.setScheduledAt(null);
                     dropped = true;
@@ -929,7 +968,7 @@ final class ToffyTournamentService {
                 }
             }
             Long closeAt = tournament.closeAt();
-            if (closeAt != null && closeAt < now - MISSED_AFTER_MILLIS) {
+            if (closeAt != null && closeAt < now - missedAfterMillis) {
                 // Safe direction: a close missed while the server was off closes the sign-ups now (no broadcast).
                 log.accept("Cierre programado del torneo " + tournament.displayName() + " para "
                     + ToffyTournamentTime.dateTime(closeAt, zone)
@@ -939,7 +978,7 @@ final class ToffyTournamentService {
             }
             Long eventAt = tournament.eventAt();
             if (eventAt != null) {
-                if (eventAt < now - MISSED_AFTER_MILLIS) {
+                if (eventAt < now - missedAfterMillis) {
                     log.accept(missed("evento " + tournament.eventType(), tournament, eventAt, zone));
                     tournament.setEvent(null, null, null);
                     dropped = true;
@@ -963,16 +1002,16 @@ final class ToffyTournamentService {
             + ToffyTournamentTime.dateTime(at, zone) + " descartado: el servidor estaba apagado y paso el horario.";
     }
 
-    private static void markPassedEventWarnings(ToffyTournament tournament, long at, long now) {
-        for (int minutes : WARNING_MINUTES) {
+    private void markPassedEventWarnings(ToffyTournament tournament, long at, long now) {
+        for (int minutes : eventWarnings) {
             if (at - minutes * MINUTE_MILLIS <= now) {
                 tournament.markEventAnnounced(minutes);
             }
         }
     }
 
-    private static void markPassedWarnings(ToffyTournament tournament, long at, long now) {
-        for (int minutes : WARNING_MINUTES) {
+    private void markPassedWarnings(ToffyTournament tournament, long at, long now) {
+        for (int minutes : teleportWarnings) {
             if (at - minutes * MINUTE_MILLIS <= now) {
                 tournament.markAnnounced(minutes);
             }

@@ -32,10 +32,16 @@ final class EventRewardJournal {
         this.directory = directory.toAbsolutePath().normalize();
     }
 
+    /** Whether an entry still needs a person to pay it by hand (status manual-review, from older versions). */
     boolean hasPending() throws IOException {
         if (Files.notExists(directory)) return false;
         try (var files = Files.newDirectoryStream(directory, "*.yml")) {
-            return files.iterator().hasNext();
+            for (Path file : files) {
+                if (MANUAL_REVIEW.equals(YamlConfiguration.loadConfiguration(file.toFile()).getString("status"))) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
@@ -43,10 +49,19 @@ final class EventRewardJournal {
         return directory;
     }
 
+    /** Status of an entry someone has to pay by hand. Never written now: prizes are paid by the owed store. */
+    static final String MANUAL_REVIEW = "manual-review";
+    /** Status of an audit entry whose prize the owed store pays on the player's next join. */
+    static final String AUTO_OWED = "auto-owed";
+
     Path record(Pending pending) throws IOException {
+        return record(pending, MANUAL_REVIEW, "inventory-restoration-unconfirmed");
+    }
+
+    Path record(Pending pending, String status, String reason) throws IOException {
         YamlConfiguration yaml = new YamlConfiguration();
-        yaml.set("status", "manual-review");
-        yaml.set("reason", "inventory-restoration-unconfirmed");
+        yaml.set("status", status);
+        yaml.set("reason", reason);
         yaml.set("event-id", pending.eventId().toString());
         yaml.set("player-id", pending.playerId().toString());
         yaml.set("player-name", pending.playerName());

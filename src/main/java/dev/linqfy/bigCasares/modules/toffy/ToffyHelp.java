@@ -53,6 +53,8 @@ final class ToffyHelp {
             List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
         new Entry("Torneos", "§f/toffy torneo mensaje <nombre> <caso> <texto...|-|reset> §7- mensaje propio del torneo",
             List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
+        new Entry("Torneos", "§f/toffy torneo premio <nombre> ver|item <id[:cant]>|comando <cmd>|quitar <n>|borrar §7- premios de sus eventos",
+            List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
         new Entry("Torneos", "§f/toffy torneo borrar <nombre> [forzar] §7- borra el torneo",
             List.of(ToffyCommand.TORNEO_ADMIN_PERMISSION)),
         new Entry("Grupos", "§f/toffy torneo grupo <torneo> crear <grupo> [abierto] §7- crea un grupo (subcategoria)",

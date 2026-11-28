@@ -142,11 +142,11 @@ class ToffyMemoryTrackerTest {
     }
 
     @Test
-    void whenDisabledTheStoredMemoryIsLeftAlone() {
+    void whenDisabledTheStoredMemoryIsLeftAloneWithoutForgetOnDeath() {
         ToffyMemory stored = new ToffyMemory(Map.of(ToffyMemorySlot.WEAPON,
             new ToffyMemory.Remembered(ToffyItem.of("trident"), 0L)));
         storage.stored.put(PLAYER, stored);
-        memorySettings = new ToffyMemorySettings(false, 3_600_000L, true, 20);
+        memorySettings = new ToffyMemorySettings(false, 3_600_000L, false, 20);
 
         ToffyMemoryTracker.Check check = tracker.check(PLAYER, service, ToffyLoadout.empty());
         tracker.death(PLAYER);
@@ -154,6 +154,21 @@ class ToffyMemoryTrackerTest {
         assertEquals(check.current(), check.real());
         assertEquals(stored, storage.stored.get(PLAYER));
         assertEquals(0, storage.saves);
+    }
+
+    @Test
+    void aDeathWhileDisabledStillForgetsWithForgetOnDeath() {
+        storage.stored.put(PLAYER, new ToffyMemory(Map.of(ToffyMemorySlot.WEAPON,
+            new ToffyMemory.Remembered(ToffyItem.of("trident"), 0L))));
+        memorySettings = new ToffyMemorySettings(false, 3_600_000L, true, 20);
+
+        tracker.death(PLAYER);
+        memorySettings = new ToffyMemorySettings(true, 3_600_000L, true, 20);
+
+        assertTrue(storage.stored.get(PLAYER).isEmpty());
+        assertEquals(1, storage.saves);
+        assertTrue(tracker.check(PLAYER, service, ToffyLoadout.empty()).memory().isEmpty());
+        assertTrue(!tracker.check(PLAYER, service, ToffyLoadout.empty()).real().hasWeapon());
     }
 
     private static final class InMemoryStorage implements ToffyMemoryStorage {
